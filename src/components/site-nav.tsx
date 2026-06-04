@@ -9,6 +9,7 @@ const links = [
   { to: "/wallet", label: "Portefeuille" },
   { to: "/cards", label: "Cartes" },
   { to: "/pricing", label: "Tarifs" },
+  { to: "/admin", label: "Admin" },
 ];
 
 export function SiteNav() {
