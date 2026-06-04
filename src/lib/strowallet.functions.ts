@@ -8,6 +8,7 @@ import {
   getStrowalletCardDetails,
   strowalletCardAction,
 } from "./strowallet.server";
+import { computeCardCost, loadPricingConfig } from "./pricing.server";
 
 // Admin only — Strowallet master account balance
 export const fetchStrowalletBalance = createServerFn({ method: "GET" })
@@ -81,7 +82,6 @@ export const submitKyc = createServerFn({ method: "POST" })
 const issueSchema = z.object({
   amountUsd: z.number().min(2).max(1000),
   brand: z.enum(["Visa", "MasterCard"]).default("Visa"),
-  fxRate: z.number().min(1).default(650), // XOF per USD
 });
 
 export const issueCard = createServerFn({ method: "POST" })
@@ -90,7 +90,16 @@ export const issueCard = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId, claims } = context;
     const email = (claims as { email?: string }).email!;
-    const requiredXof = Math.ceil(data.amountUsd * data.fxRate);
+
+    // KYC gate
+    const { data: profile } = await supabase.from("profiles").select("strowallet_customer_id").eq("id", userId).maybeSingle();
+    if (!profile?.strowallet_customer_id) {
+      return { ok: false as const, error: "KYC non validé — soumettez votre dossier avant d'émettre une carte." };
+    }
+
+    const cfg = await loadPricingConfig();
+    const cost = computeCardCost(data.amountUsd, cfg);
+    const requiredXof = cost.totalXof;
 
     // Check XOF wallet balance
     const { data: wallet, error: wErr } = await supabase
@@ -110,7 +119,7 @@ export const issueCard = createServerFn({ method: "POST" })
 
     // Call provider
     try {
-      const res = await createStrowalletCard({ customerEmail: email, amount: data.amountUsd, brand: data.brand });
+      const res = await createStrowalletCard({ customerEmail: email, amount: cost.loadedToStrowalletUsd, brand: data.brand });
       const providerCardId = (res as any)?.response?.card_id || (res as any)?.card_id || null;
       const last4 = (res as any)?.response?.last4 || null;
 
@@ -134,8 +143,8 @@ export const issueCard = createServerFn({ method: "POST" })
         currency: "XOF",
         provider: "strowallet",
         provider_ref: providerCardId ? String(providerCardId) : null,
-        description: `Émission carte ${data.brand} ${data.amountUsd} USD`,
-        metadata: { amount_usd: data.amountUsd, fx: data.fxRate },
+        description: `Émission carte ${data.brand} ${data.amountUsd} USD (frais ${cfg.card_issue_fee_xof} XOF)`,
+        metadata: { pricing: cost },
       });
 
       return { ok: true as const, data: res };

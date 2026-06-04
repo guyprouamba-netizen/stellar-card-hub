@@ -16,10 +16,12 @@ export type Database = {
     Tables: {
       cards: {
         Row: {
+          auto_frozen_at: string | null
           balance: number
           brand: string | null
           created_at: string
           currency: string
+          failed_attempts: number
           id: string
           last4: string | null
           metadata: Json | null
@@ -30,10 +32,12 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          auto_frozen_at?: string | null
           balance?: number
           brand?: string | null
           created_at?: string
           currency?: string
+          failed_attempts?: number
           id?: string
           last4?: string | null
           metadata?: Json | null
@@ -44,10 +48,12 @@ export type Database = {
           user_id: string
         }
         Update: {
+          auto_frozen_at?: string | null
           balance?: number
           brand?: string | null
           created_at?: string
           currency?: string
+          failed_attempts?: number
           id?: string
           last4?: string | null
           metadata?: Json | null
@@ -119,6 +125,24 @@ export type Database = {
           submitted_at?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      platform_config: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
         }
         Relationships: []
       }
@@ -251,6 +275,51 @@ export type Database = {
         }
         Relationships: []
       }
+      withdrawals: {
+        Row: {
+          admin_note: string | null
+          amount: number
+          created_at: string
+          currency: string
+          destination: Json
+          id: string
+          method: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount: number
+          created_at?: string
+          currency?: string
+          destination?: Json
+          id?: string
+          method: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount?: number
+          created_at?: string
+          currency?: string
+          destination?: Json
+          id?: string
+          method?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -275,6 +344,9 @@ export type Database = {
         | "fee"
         | "refund"
         | "transfer"
+        | "withdrawal_refund"
+        | "card_auto_freeze"
+        | "card_fee"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -412,6 +484,9 @@ export const Constants = {
         "fee",
         "refund",
         "transfer",
+        "withdrawal_refund",
+        "card_auto_freeze",
+        "card_fee",
       ],
     },
   },

@@ -10,22 +10,23 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WalletRouteImport } from './routes/wallet'
-import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as KycRouteImport } from './routes/kyc'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CardsRouteImport } from './routes/cards'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicYengapayWebhookRouteImport } from './routes/api/public/yengapay-webhook'
+import { Route as ApiPublicStrowalletWebhookRouteImport } from './routes/api/public/strowallet-webhook'
 
 const WalletRoute = WalletRouteImport.update({
   id: '/wallet',
   path: '/wallet',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PricingRoute = PricingRouteImport.update({
-  id: '/pricing',
-  path: '/pricing',
+const KycRoute = KycRouteImport.update({
+  id: '/kyc',
+  path: '/kyc',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -59,6 +60,12 @@ const ApiPublicYengapayWebhookRoute =
     path: '/api/public/yengapay-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicStrowalletWebhookRoute =
+  ApiPublicStrowalletWebhookRouteImport.update({
+    id: '/api/public/strowallet-webhook',
+    path: '/api/public/strowallet-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -66,8 +73,9 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/cards': typeof CardsRoute
   '/dashboard': typeof DashboardRoute
-  '/pricing': typeof PricingRoute
+  '/kyc': typeof KycRoute
   '/wallet': typeof WalletRoute
+  '/api/public/strowallet-webhook': typeof ApiPublicStrowalletWebhookRoute
   '/api/public/yengapay-webhook': typeof ApiPublicYengapayWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -76,8 +84,9 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/cards': typeof CardsRoute
   '/dashboard': typeof DashboardRoute
-  '/pricing': typeof PricingRoute
+  '/kyc': typeof KycRoute
   '/wallet': typeof WalletRoute
+  '/api/public/strowallet-webhook': typeof ApiPublicStrowalletWebhookRoute
   '/api/public/yengapay-webhook': typeof ApiPublicYengapayWebhookRoute
 }
 export interface FileRoutesById {
@@ -87,8 +96,9 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/cards': typeof CardsRoute
   '/dashboard': typeof DashboardRoute
-  '/pricing': typeof PricingRoute
+  '/kyc': typeof KycRoute
   '/wallet': typeof WalletRoute
+  '/api/public/strowallet-webhook': typeof ApiPublicStrowalletWebhookRoute
   '/api/public/yengapay-webhook': typeof ApiPublicYengapayWebhookRoute
 }
 export interface FileRouteTypes {
@@ -99,8 +109,9 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cards'
     | '/dashboard'
-    | '/pricing'
+    | '/kyc'
     | '/wallet'
+    | '/api/public/strowallet-webhook'
     | '/api/public/yengapay-webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -109,8 +120,9 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cards'
     | '/dashboard'
-    | '/pricing'
+    | '/kyc'
     | '/wallet'
+    | '/api/public/strowallet-webhook'
     | '/api/public/yengapay-webhook'
   id:
     | '__root__'
@@ -119,8 +131,9 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cards'
     | '/dashboard'
-    | '/pricing'
+    | '/kyc'
     | '/wallet'
+    | '/api/public/strowallet-webhook'
     | '/api/public/yengapay-webhook'
   fileRoutesById: FileRoutesById
 }
@@ -130,8 +143,9 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   CardsRoute: typeof CardsRoute
   DashboardRoute: typeof DashboardRoute
-  PricingRoute: typeof PricingRoute
+  KycRoute: typeof KycRoute
   WalletRoute: typeof WalletRoute
+  ApiPublicStrowalletWebhookRoute: typeof ApiPublicStrowalletWebhookRoute
   ApiPublicYengapayWebhookRoute: typeof ApiPublicYengapayWebhookRoute
 }
 
@@ -144,11 +158,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WalletRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/pricing': {
-      id: '/pricing'
-      path: '/pricing'
-      fullPath: '/pricing'
-      preLoaderRoute: typeof PricingRouteImport
+    '/kyc': {
+      id: '/kyc'
+      path: '/kyc'
+      fullPath: '/kyc'
+      preLoaderRoute: typeof KycRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -193,6 +207,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicYengapayWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/strowallet-webhook': {
+      id: '/api/public/strowallet-webhook'
+      path: '/api/public/strowallet-webhook'
+      fullPath: '/api/public/strowallet-webhook'
+      preLoaderRoute: typeof ApiPublicStrowalletWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -202,10 +223,21 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   CardsRoute: CardsRoute,
   DashboardRoute: DashboardRoute,
-  PricingRoute: PricingRoute,
+  KycRoute: KycRoute,
   WalletRoute: WalletRoute,
+  ApiPublicStrowalletWebhookRoute: ApiPublicStrowalletWebhookRoute,
   ApiPublicYengapayWebhookRoute: ApiPublicYengapayWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

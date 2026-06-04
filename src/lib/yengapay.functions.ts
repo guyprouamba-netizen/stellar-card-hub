@@ -7,9 +7,10 @@ export const initRecharge = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ amount: z.number().min(500).max(2_000_000) }).parse(d))
   .handler(async ({ context, data }): Promise<any> => {
-    const { supabase, userId } = context;
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const reference = `FIP-${Date.now()}-${userId.slice(0, 8)}`;
-    const { error: txErr } = await supabase.from("transactions").insert({
+    const { error: txErr } = await supabaseAdmin.from("transactions").insert({
       user_id: userId,
       type: "deposit",
       status: "pending",

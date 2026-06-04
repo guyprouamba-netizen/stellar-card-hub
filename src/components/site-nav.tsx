@@ -7,10 +7,7 @@ import logo from "@/assets/logo.png";
 const links = [
   { to: "/", label: "Accueil" },
   { to: "/dashboard", label: "Tableau de bord" },
-  { to: "/wallet", label: "Portefeuille" },
-  { to: "/cards", label: "Cartes" },
-  { to: "/pricing", label: "Tarifs" },
-  { to: "/admin", label: "Admin" },
+  { to: "/kyc", label: "KYC" },
 ];
 
 export function SiteNav() {
