@@ -1,257 +1,306 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { motion } from "framer-motion";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import {
-  Users,
-  CreditCard,
-  Wallet,
-  TrendingUp,
-  ShieldCheck,
-  AlertTriangle,
-  ArrowDownLeft,
-  ArrowUpRight,
-  Search,
-  MoreHorizontal,
-  CheckCircle2,
-  Clock,
-  XCircle,
+  Users, TrendingUp, CreditCard, ShieldCheck, ArrowDownUp, LogOut, RefreshCw,
+  Loader2, CheckCircle2, XCircle, Wallet, Server, Eye,
 } from "lucide-react";
-import { SiteNav } from "@/components/site-nav";
+import { supabase } from "@/integrations/supabase/client";
+import logo from "@/assets/logo.png";
+import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal } from "@/lib/admin.functions";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin")({
-  head: () => ({
-    meta: [
-      { title: "Super Admin — Volty" },
-      { name: "description", content: "Console d'administration Volty : utilisateurs, KYC, cartes, transactions." },
-    ],
-  }),
-  component: AdminDashboard,
+  head: () => ({ meta: [{ title: "Super-Admin — FASO-INVEST PAY" }] }),
+  component: AdminPage,
 });
 
-const kpis = [
-  { label: "Utilisateurs", value: "12 480", delta: "+8,2%", icon: Users, tone: "text-primary" },
-  { label: "Cartes émises", value: "4 921", delta: "+12,4%", icon: CreditCard, tone: "text-accent" },
-  { label: "Volume (XOF)", value: "184,2 M", delta: "+5,1%", icon: Wallet, tone: "text-success" },
-  { label: "Revenus du mois", value: "8,4 M", delta: "+18,6%", icon: TrendingUp, tone: "text-warning" },
-];
+type Tab = "users" | "flow" | "strowallet" | "yengapay" | "kyc" | "withdrawals";
 
-const kycQueue = [
-  { name: "Aïcha Diallo", email: "aicha@example.com", country: "SN", status: "pending" },
-  { name: "Jean-Pierre Kouadio", email: "jp.k@example.com", country: "CI", status: "review" },
-  { name: "Mariam Touré", email: "mariam@example.com", country: "ML", status: "pending" },
-  { name: "Samuel Boateng", email: "samuel@example.com", country: "GH", status: "approved" },
-  { name: "Lina Mensah", email: "lina@example.com", country: "TG", status: "rejected" },
-];
+function AdminPage() {
+  const navigate = useNavigate();
+  const [tab, setTab] = useState<Tab>("flow");
+  const [authState, setAuthState] = useState<"loading" | "denied" | "ok">("loading");
 
-const recentTx = [
-  { id: "TX-9382", user: "alex.martin@volty.io", type: "Recharge YengaPay", amount: 25000, currency: "XOF", status: "success" },
-  { id: "TX-9381", user: "fatou@volty.io", type: "Émission carte USD", amount: -10, currency: "USD", status: "success" },
-  { id: "TX-9380", user: "kofi@volty.io", type: "Top-up carte", amount: -50, currency: "USD", status: "pending" },
-  { id: "TX-9379", user: "nadia@volty.io", type: "Recharge YengaPay", amount: 50000, currency: "XOF", status: "failed" },
-  { id: "TX-9378", user: "ibrahim@volty.io", type: "Frais d'émission", amount: -2.5, currency: "USD", status: "success" },
-];
+  useEffect(() => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { navigate({ to: "/auth" }); return; }
+      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", session.user.id);
+      const isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
+      setAuthState(isAdmin ? "ok" : "denied");
+    })();
+  }, [navigate]);
 
-const providerHealth = [
-  { name: "Strowallet", latency: "184 ms", status: "ok" },
-  { name: "YengaPay", latency: "212 ms", status: "ok" },
-  { name: "Webhook signatures", latency: "—", status: "ok" },
-];
+  const fetchOverview = useServerFn(adminOverview);
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["adminOverview"], queryFn: () => fetchOverview(), enabled: authState === "ok",
+  });
 
-function statusBadge(s: string) {
-  const map: Record<string, { c: string; Icon: typeof CheckCircle2; label: string }> = {
-    success: { c: "bg-success/15 text-success", Icon: CheckCircle2, label: "OK" },
-    approved: { c: "bg-success/15 text-success", Icon: CheckCircle2, label: "Validé" },
-    pending: { c: "bg-warning/15 text-warning", Icon: Clock, label: "En attente" },
-    review: { c: "bg-warning/15 text-warning", Icon: Clock, label: "À revoir" },
-    failed: { c: "bg-destructive/15 text-destructive", Icon: XCircle, label: "Échec" },
-    rejected: { c: "bg-destructive/15 text-destructive", Icon: XCircle, label: "Rejeté" },
-    ok: { c: "bg-success/15 text-success", Icon: CheckCircle2, label: "Opérationnel" },
-  };
-  const cfg = map[s] ?? map.pending;
-  const { Icon } = cfg;
+  if (authState === "loading") return <div className="grid min-h-screen place-items-center"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (authState === "denied") return (
+    <div className="grid min-h-screen place-items-center px-4 text-center">
+      <div>
+        <h1 className="text-2xl font-bold">Accès refusé</h1>
+        <p className="mt-2 text-muted-foreground">Vous n'êtes pas administrateur.</p>
+        <Link to="/dashboard" className="mt-6 inline-flex rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground">Retour au tableau de bord</Link>
+      </div>
+    </div>
+  );
+
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${cfg.c}`}>
-      <Icon className="h-3 w-3" /> {cfg.label}
-    </span>
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="flex">
+        <AdminSidebar tab={tab} setTab={setTab} />
+        <main className="flex-1 px-4 py-8 sm:px-8">
+          {isLoading || !data ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+            <>
+              {tab === "flow" && <FlowTab data={data} />}
+              {tab === "users" && <UsersTab users={data.users} onAction={refetch} />}
+              {tab === "strowallet" && <StrowalletTab cards={data.cards} />}
+              {tab === "yengapay" && <YengaTab tx={data.transactions} />}
+              {tab === "kyc" && <KycTab kyc={data.kyc} onAction={refetch} />}
+              {tab === "withdrawals" && <WithdrawalsTab withdrawals={data.withdrawals} onAction={refetch} />}
+            </>
+          )}
+        </main>
+      </div>
+    </div>
   );
 }
 
-function AdminDashboard() {
+function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+  const navigate = useNavigate();
+  const items: Array<{ id: Tab; label: string; Icon: any }> = [
+    { id: "flow", label: "Flux financier", Icon: TrendingUp },
+    { id: "users", label: "Utilisateurs", Icon: Users },
+    { id: "strowallet", label: "API Strowallet", Icon: CreditCard },
+    { id: "yengapay", label: "API YengaPay", Icon: Wallet },
+    { id: "kyc", label: "KYC à valider", Icon: ShieldCheck },
+    { id: "withdrawals", label: "Retraits à valider", Icon: ArrowDownUp },
+  ];
+  async function logout() { await supabase.auth.signOut(); navigate({ to: "/" }); }
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <SiteNav />
-      <div className="container mx-auto px-4 py-8 sm:px-6 lg:py-12">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Console Super-Admin
-            </p>
-            <h1 className="mt-3 font-[Space_Grotesk] text-3xl font-bold tracking-tight sm:text-4xl">
-              Tableau de bord administrateur
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">Vue d'ensemble de la plateforme Volty</p>
+    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-border bg-card/30 p-4 md:flex md:flex-col">
+      <Link to="/" className="mb-2 flex items-center gap-2 px-2">
+        <img src={logo} className="h-9 w-9 rounded-xl" alt="" />
+        <div><div className="text-sm font-bold">FASO-INVEST PAY</div><div className="text-[10px] uppercase tracking-widest text-primary">Super-admin</div></div>
+      </Link>
+      <nav className="mt-6 flex flex-1 flex-col gap-1">
+        {items.map((it) => (
+          <button key={it.id} onClick={() => setTab(it.id)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${tab === it.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+            <it.Icon className="h-4 w-4" /> {it.label}
+          </button>
+        ))}
+      </nav>
+      <button onClick={logout} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+        <LogOut className="h-4 w-4" /> Déconnexion
+      </button>
+    </aside>
+  );
+}
+
+function FlowTab({ data }: { data: any }) {
+  const balanceFn = useServerFn(adminStrowalletBalance);
+  const [bal, setBal] = useState<any>(null);
+  const [loadingBal, setLoadingBal] = useState(false);
+  async function refreshBal() {
+    setLoadingBal(true);
+    try { setBal(await balanceFn()); } finally { setLoadingBal(false); }
+  }
+  useEffect(() => { refreshBal(); }, []);
+
+  return (
+    <div className="space-y-6">
+      <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Flux financier</h1>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Kpi label="Dépôts (mois)" value={`${data.flows.recharges_xof.toLocaleString("fr-FR")} XOF`} tone="success" />
+        <Kpi label="Retraits (mois)" value={`${data.flows.withdrawals_xof.toLocaleString("fr-FR")} XOF`} tone="warning" />
+        <Kpi label="Émissions cartes (mois)" value={`${data.flows.card_issue_xof.toLocaleString("fr-FR")} XOF`} tone="primary" />
+      </div>
+
+      <div className="rounded-2xl border border-primary/30 bg-primary/5 p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Server className="h-5 w-5 text-primary" />
+            <h2 className="font-semibold">Solde Strowallet (compte maître)</h2>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <input
-              placeholder="Rechercher un utilisateur, une transaction…"
-              className="w-72 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            />
-          </div>
+          <button onClick={refreshBal} className="rounded-full border border-border bg-surface-2 p-2 hover:bg-muted">
+            <RefreshCw className={`h-4 w-4 ${loadingBal ? "animate-spin" : ""}`} />
+          </button>
         </div>
-
-        {/* KPI cards */}
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {kpis.map((k, i) => (
-            <motion.div
-              key={k.label}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className="rounded-3xl border border-border bg-card p-5 shadow-soft"
-            >
-              <div className="flex items-center justify-between">
-                <span className={`grid h-10 w-10 place-items-center rounded-xl bg-surface-2 ${k.tone}`}>
-                  <k.icon className="h-4 w-4" />
-                </span>
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-success">
-                  <ArrowUpRight className="h-3 w-3" /> {k.delta}
-                </span>
-              </div>
-              <p className="mt-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">{k.label}</p>
-              <p className="mt-1 font-[Space_Grotesk] text-3xl font-bold tabular-nums">{k.value}</p>
-            </motion.div>
-          ))}
+        <div className="mt-4">
+          {!bal ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : bal.ok ? (
+            <pre className="overflow-auto rounded-xl bg-card p-3 text-xs">{JSON.stringify(bal.data, null, 2)}</pre>
+          ) : (
+            <p className="text-sm text-destructive">Erreur API : {bal.error}</p>
+          )}
         </div>
+      </div>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-3">
-          {/* KYC queue */}
-          <div className="rounded-3xl border border-border bg-card p-6 shadow-soft lg:col-span-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">File d'attente KYC</h2>
-                <p className="text-xs text-muted-foreground">Validation Strowallet (synchronisation automatique)</p>
-              </div>
-              <button className="text-sm text-primary hover:underline">Tout voir</button>
-            </div>
-            <div className="mt-4 overflow-hidden rounded-2xl border border-border">
-              <table className="w-full text-sm">
-                <thead className="bg-surface-2 text-xs uppercase tracking-wider text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 text-left">Utilisateur</th>
-                    <th className="px-4 py-3 text-left">Pays</th>
-                    <th className="px-4 py-3 text-left">Statut</th>
-                    <th className="px-4 py-3 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {kycQueue.map((u) => (
-                    <tr key={u.email} className="border-t border-border">
-                      <td className="px-4 py-3">
-                        <p className="font-medium">{u.name}</p>
-                        <p className="text-xs text-muted-foreground">{u.email}</p>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs">{u.country}</td>
-                      <td className="px-4 py-3">{statusBadge(u.status)}</td>
-                      <td className="px-4 py-3 text-right">
-                        <button className="rounded-full border border-border bg-surface-2 px-3 py-1 text-xs font-medium hover:bg-muted">
-                          Examiner
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+      <section className="rounded-2xl border border-border bg-card p-6">
+        <h2 className="mb-3 font-semibold">Dernières transactions (toutes)</h2>
+        <SimpleTxTable items={data.transactions.slice(0, 15)} />
+      </section>
+    </div>
+  );
+}
 
-          {/* Provider health */}
-          <div className="space-y-6">
-            <div className="rounded-3xl border border-border bg-card p-6 shadow-soft">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">État des intégrations</h3>
-              <ul className="mt-4 space-y-3">
-                {providerHealth.map((p) => (
-                  <li key={p.name} className="flex items-center justify-between rounded-2xl border border-border bg-surface-2 p-3">
-                    <div>
-                      <p className="text-sm font-medium">{p.name}</p>
-                      <p className="text-xs text-muted-foreground">Latence&nbsp;: {p.latency}</p>
-                    </div>
-                    {statusBadge(p.status)}
-                  </li>
-                ))}
-              </ul>
-            </div>
+function Kpi({ label, value, tone }: { label: string; value: string; tone: "success" | "warning" | "primary" }) {
+  return (
+    <div className={`rounded-2xl border p-5 ${tone === "success" ? "border-success/30 bg-success/5" : tone === "warning" ? "border-warning/30 bg-warning/5" : "border-primary/30 bg-primary/5"}`}>
+      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-2 font-[Space_Grotesk] text-2xl font-bold tabular-nums">{value}</div>
+    </div>
+  );
+}
 
-            <div className="rounded-3xl border border-warning/30 bg-warning/5 p-6">
-              <div className="flex items-start gap-3">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-warning/15 text-warning">
-                  <AlertTriangle className="h-4 w-4" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold">3 webhooks YengaPay à rejouer</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Signatures vérifiées · échec côté wallet. Relance manuelle disponible.
-                  </p>
-                  <button className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background">
-                    Rejouer maintenant <ArrowUpRight className="h-3 w-3" />
+function SimpleTxTable({ items }: { items: any[] }) {
+  return (
+    <table className="w-full text-sm">
+      <thead className="text-left text-xs uppercase text-muted-foreground"><tr><th className="py-2">Date</th><th>Type</th><th>Description</th><th>Statut</th><th className="text-right">Montant</th></tr></thead>
+      <tbody className="divide-y divide-border">
+        {items.map((t) => (
+          <tr key={t.id}><td className="py-2 text-xs text-muted-foreground">{new Date(t.created_at).toLocaleString("fr-FR")}</td><td>{t.type}</td><td className="truncate">{t.description}</td><td>{t.status}</td><td className="text-right font-semibold tabular-nums">{Number(t.amount).toLocaleString("fr-FR")} {t.currency}</td></tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function UsersTab({ users, onAction }: { users: any[]; onAction: () => void }) {
+  const toggle = useServerFn(adminToggleUser);
+  async function flip(u: any) {
+    try { await toggle({ data: { user_id: u.id, is_active: !u.is_active } }); toast.success("Utilisateur mis à jour"); onAction(); }
+    catch (e) { toast.error((e as Error).message); }
+  }
+  return (
+    <div className="space-y-6">
+      <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Utilisateurs ({users.length})</h1>
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <table className="w-full text-sm">
+          <thead className="bg-surface-2 text-left text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3">Nom</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Téléphone</th><th className="px-4 py-3">Strowallet</th><th className="px-4 py-3">Actif</th><th className="px-4 py-3"></th></tr></thead>
+          <tbody className="divide-y divide-border">
+            {users.map((u) => (
+              <tr key={u.id}>
+                <td className="px-4 py-3 font-medium">{u.full_name ?? "—"}</td>
+                <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
+                <td className="px-4 py-3 text-muted-foreground">{u.phone ?? "—"}</td>
+                <td className="px-4 py-3 text-xs">{u.strowallet_customer_id ? <span className="text-success">ID {u.strowallet_customer_id}</span> : <span className="text-muted-foreground">—</span>}</td>
+                <td className="px-4 py-3">{u.is_active ? <span className="text-success">●</span> : <span className="text-destructive">●</span>}</td>
+                <td className="px-4 py-3 text-right">
+                  <button onClick={() => flip(u)} className="rounded-full border border-border bg-surface-2 px-3 py-1 text-xs hover:bg-muted">
+                    {u.is_active ? "Désactiver" : "Réactiver"}
                   </button>
-                </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function StrowalletTab({ cards }: { cards: any[] }) {
+  return (
+    <div className="space-y-6">
+      <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">API Strowallet — Dernières cartes</h1>
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <table className="w-full text-sm">
+          <thead className="bg-surface-2 text-left text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">User</th><th className="px-4 py-3">Marque</th><th className="px-4 py-3">PAN</th><th className="px-4 py-3">Solde</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3">Échecs</th></tr></thead>
+          <tbody className="divide-y divide-border">
+            {cards.map((c) => (
+              <tr key={c.id}>
+                <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(c.created_at).toLocaleString("fr-FR")}</td>
+                <td className="px-4 py-3 text-xs">{c.user_id.slice(0, 8)}…</td>
+                <td className="px-4 py-3">{c.brand}</td>
+                <td className="px-4 py-3 tabular-nums">•••• {c.last4 ?? "????"}</td>
+                <td className="px-4 py-3 tabular-nums">{Number(c.balance).toFixed(2)} {c.currency}</td>
+                <td className="px-4 py-3">{c.status}</td>
+                <td className="px-4 py-3 tabular-nums">{c.failed_attempts}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function YengaTab({ tx }: { tx: any[] }) {
+  const ypTx = tx.filter((t) => t.type === "deposit");
+  return (
+    <div className="space-y-6">
+      <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">API YengaPay — Derniers paiements</h1>
+      <SimpleTxTable items={ypTx} />
+    </div>
+  );
+}
+
+function KycTab({ kyc, onAction }: { kyc: any[]; onAction: () => void }) {
+  const review = useServerFn(adminReviewKyc);
+  async function decide(user_id: string, decision: "approved" | "rejected") {
+    try { await review({ data: { user_id, decision } }); toast.success("KYC mis à jour"); onAction(); }
+    catch (e) { toast.error((e as Error).message); }
+  }
+  return (
+    <div className="space-y-6">
+      <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">KYC à valider ({kyc.length})</h1>
+      <div className="space-y-3">
+        {kyc.map((k) => (
+          <div key={k.id} className="rounded-2xl border border-border bg-card p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="font-semibold">{k.first_name} {k.last_name}</div>
+                <div className="text-xs text-muted-foreground">{k.id_type} · {k.id_number} · {k.country}</div>
+                <div className="mt-1 text-xs">Local: <b>{k.status}</b> · Strowallet: <b>{k.provider_status ?? "—"}</b></div>
+              </div>
+              <div className="flex gap-2">
+                {k.id_image_url && <a href={k.id_image_url} target="_blank" rel="noreferrer" className="rounded-full border border-border px-3 py-1 text-xs"><Eye className="mr-1 inline h-3 w-3" /> Pièce</a>}
+                {k.selfie_url && <a href={k.selfie_url} target="_blank" rel="noreferrer" className="rounded-full border border-border px-3 py-1 text-xs"><Eye className="mr-1 inline h-3 w-3" /> Selfie</a>}
+                <button onClick={() => decide(k.user_id, "approved")} className="rounded-full bg-success px-3 py-1 text-xs font-semibold text-success-foreground"><CheckCircle2 className="mr-1 inline h-3 w-3" /> Approuver</button>
+                <button onClick={() => decide(k.user_id, "rejected")} className="rounded-full bg-destructive px-3 py-1 text-xs font-semibold text-destructive-foreground"><XCircle className="mr-1 inline h-3 w-3" /> Rejeter</button>
               </div>
             </div>
           </div>
-        </div>
+        ))}
+        {kyc.length === 0 && <p className="text-sm text-muted-foreground">Aucun KYC en attente.</p>}
+      </div>
+    </div>
+  );
+}
 
-        {/* Recent transactions */}
-        <div className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-soft">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">Transactions récentes</h2>
-              <p className="text-xs text-muted-foreground">Recharges YengaPay · émissions de cartes Strowallet</p>
+function WithdrawalsTab({ withdrawals, onAction }: { withdrawals: any[]; onAction: () => void }) {
+  const review = useServerFn(adminReviewWithdrawal);
+  async function decide(id: string, decision: "approved" | "rejected" | "paid") {
+    try { await review({ data: { id, decision } }); toast.success("Retrait mis à jour"); onAction(); }
+    catch (e) { toast.error((e as Error).message); }
+  }
+  return (
+    <div className="space-y-6">
+      <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Retraits à valider ({withdrawals.length})</h1>
+      <div className="space-y-3">
+        {withdrawals.map((w) => (
+          <div key={w.id} className="rounded-2xl border border-border bg-card p-5">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="font-semibold tabular-nums">{Number(w.amount).toLocaleString("fr-FR")} {w.currency}</div>
+                <div className="text-xs text-muted-foreground">{w.method} · {(w.destination as any)?.operator} · {(w.destination as any)?.phone ?? (w.destination as any)?.account} · {(w.destination as any)?.holder}</div>
+                <div className="mt-1 text-xs">Statut : <b>{w.status}</b></div>
+              </div>
+              {w.status === "pending" && (
+                <div className="flex gap-2">
+                  <button onClick={() => decide(w.id, "paid")} className="rounded-full bg-success px-3 py-1 text-xs font-semibold text-success-foreground">Marquer payé</button>
+                  <button onClick={() => decide(w.id, "rejected")} className="rounded-full bg-destructive px-3 py-1 text-xs font-semibold text-destructive-foreground">Rejeter (rembourser)</button>
+                </div>
+              )}
             </div>
-            <button className="text-sm text-primary hover:underline">Exporter CSV</button>
           </div>
-          <div className="mt-4 overflow-x-auto rounded-2xl border border-border">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead className="bg-surface-2 text-xs uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 text-left">ID</th>
-                  <th className="px-4 py-3 text-left">Utilisateur</th>
-                  <th className="px-4 py-3 text-left">Type</th>
-                  <th className="px-4 py-3 text-right">Montant</th>
-                  <th className="px-4 py-3 text-left">Statut</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {recentTx.map((t) => (
-                  <tr key={t.id} className="border-t border-border">
-                    <td className="px-4 py-3 font-mono text-xs">{t.id}</td>
-                    <td className="px-4 py-3">{t.user}</td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5">
-                        {t.amount > 0 ? (
-                          <ArrowDownLeft className="h-3.5 w-3.5 text-success" />
-                        ) : (
-                          <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
-                        )}
-                        {t.type}
-                      </span>
-                    </td>
-                    <td className={`px-4 py-3 text-right font-semibold tabular-nums ${t.amount > 0 ? "text-success" : ""}`}>
-                      {t.amount > 0 ? "+" : ""}
-                      {t.amount.toLocaleString("fr-FR")} {t.currency}
-                    </td>
-                    <td className="px-4 py-3">{statusBadge(t.status)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <button className="grid h-8 w-8 place-items-center rounded-full hover:bg-muted">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        ))}
+        {withdrawals.length === 0 && <p className="text-sm text-muted-foreground">Aucun retrait.</p>}
       </div>
     </div>
   );
