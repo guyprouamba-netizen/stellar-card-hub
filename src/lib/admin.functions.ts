@@ -29,7 +29,7 @@ export const adminOverview = createServerFn({ method: "GET" })
     for (const t of monthTx ?? []) {
       if (t.currency !== "XOF") continue;
       const a = Number(t.amount);
-      if (t.type === "recharge") flows.recharges_xof += a;
+      if (t.type === "deposit") flows.recharges_xof += a;
       if (t.type === "withdrawal") flows.withdrawals_xof += a;
       if (t.type === "card_issue") flows.card_issue_xof += a;
     }
