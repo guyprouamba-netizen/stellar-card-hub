@@ -13,7 +13,7 @@ import logo from "@/assets/logo.png";
 import { getDashboardData, computePricingPreview } from "@/lib/dashboard.functions";
 import { issueCard, cardAction } from "@/lib/strowallet.functions";
 import { requestWithdrawal } from "@/lib/withdrawal.functions";
-import { initYengapayPayment } from "@/lib/yengapay.functions";
+import { initRecharge } from "@/lib/yengapay.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard")({
@@ -185,7 +185,7 @@ function TxList({ items }: { items: any[] }) {
 function DepositTab({ onDone }: { onDone: () => void }) {
   const [amount, setAmount] = useState(5000);
   const [loading, setLoading] = useState(false);
-  const init = useServerFn(initYengapayPayment);
+  const init = useServerFn(initRecharge);
   async function pay() {
     setLoading(true);
     try {
