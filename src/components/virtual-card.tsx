@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Wifi } from "lucide-react";
+import logo from "@/assets/logo.png";
 
 type Variant = "primary" | "teal" | "sunset";
 const variants: Record<Variant, string> = {
@@ -41,8 +42,12 @@ export function VirtualCard({
       <div className="relative flex h-full flex-col justify-between">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs uppercase tracking-widest opacity-70">Solde</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">{balance ?? "€2 480,50"}</p>
+            <div className="flex items-center gap-2">
+              <img src={logo} alt="" className="h-6 w-6 rounded-md ring-1 ring-white/40" />
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em]">FASO-INVEST <span className="opacity-80">PAY</span></p>
+            </div>
+            <p className="mt-3 text-xs uppercase tracking-widest opacity-70">Solde</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">{balance ?? "$ 2 480.50"}</p>
           </div>
           <Wifi className="h-6 w-6 rotate-90 opacity-80" />
         </div>
