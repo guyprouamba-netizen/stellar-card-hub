@@ -4,7 +4,7 @@ import { useState } from "react";
 import { VirtualCard } from "@/components/virtual-card";
 
 export const Route = createFileRoute("/auth")({
-  head: () => ({ meta: [{ title: "Connexion — Volty" }] }),
+  head: () => ({ meta: [{ title: "Connexion — FASO-INVEST PAY" }] }),
   component: Auth,
 });
 
