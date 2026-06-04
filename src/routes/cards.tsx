@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Plus, Snowflake, Trash2, Settings } from "lucide-react";
+import { useState } from "react";
 import { SiteNav } from "@/components/site-nav";
 import { VirtualCard } from "@/components/virtual-card";
+import { IssueCardSheet } from "@/components/issue-card-sheet";
 
 export const Route = createFileRoute("/cards")({
   head: () => ({
@@ -20,6 +22,7 @@ const list = [
 ];
 
 function CardsPage() {
+  const [open, setOpen] = useState(false);
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SiteNav />
@@ -29,7 +32,7 @@ function CardsPage() {
             <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight sm:text-4xl">Mes cartes</h1>
             <p className="mt-1 text-sm text-muted-foreground">{list.length} cartes virtuelles actives</p>
           </div>
-          <button className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow hover:scale-105 transition-transform">
+          <button onClick={() => setOpen(true)} className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow hover:scale-105 transition-transform">
             <Plus className="h-4 w-4" /> Nouvelle carte
           </button>
         </div>
@@ -60,6 +63,7 @@ function CardsPage() {
             </div>
           ))}
         </div>
+        <IssueCardSheet open={open} onClose={() => setOpen(false)} />
       </div>
     </div>
   );
