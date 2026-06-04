@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { Moon, Sun, CreditCard, Menu, X } from "lucide-react";
+import { Moon, Sun, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { useTheme } from "./theme-provider";
+import logo from "@/assets/logo.png";
 
 const links = [
   { to: "/", label: "Accueil" },
@@ -20,10 +21,8 @@ export function SiteNav() {
     <header className="sticky top-0 z-50 glass border-b border-border/40">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
         <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-primary shadow-glow">
-            <CreditCard className="h-5 w-5 text-primary-foreground" />
-          </span>
-          <span className="text-lg">Volty</span>
+          <img src={logo} alt="FASO-INVEST PAY" width={36} height={36} className="h-9 w-9 rounded-xl" />
+          <span className="text-lg">FASO-INVEST <span className="text-primary">PAY</span></span>
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">

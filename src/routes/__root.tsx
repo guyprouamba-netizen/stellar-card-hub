@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ThemeProvider } from "../components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -78,11 +79,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Volty — Cartes virtuelles nouvelle génération" },
-      { name: "description", content: "Volty — créez et gérez vos cartes virtuelles en quelques secondes. Paiements rapides, sécurisés et internationaux." },
-      { name: "author", content: "Volty" },
-      { property: "og:title", content: "Volty — Cartes virtuelles" },
-      { property: "og:description", content: "Cartes virtuelles instantanées, multi-devises et sécurisées." },
+      { title: "FASO-INVEST PAY — Cartes virtuelles & paiements" },
+      { name: "description", content: "FASO-INVEST PAY : émettez vos cartes virtuelles USD/EUR depuis l'Afrique de l'Ouest, rechargez via Mobile Money (YengaPay) et payez partout." },
+      { name: "author", content: "FASO-INVEST PAY" },
+      { property: "og:title", content: "FASO-INVEST PAY" },
+      { property: "og:description", content: "Cartes virtuelles instantanées pour l'Afrique de l'Ouest. Rechargez en Mobile Money, dépensez en USD/EUR." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
@@ -125,6 +126,7 @@ function RootComponent() {
       <ThemeProvider>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
+        <Toaster richColors position="top-right" />
       </ThemeProvider>
     </QueryClientProvider>
   );
