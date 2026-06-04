@@ -17,6 +17,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicYengapayWebhookRouteImport } from './routes/api/public/yengapay-webhook'
+import { Route as ApiPublicStrowalletWebhookRouteImport } from './routes/api/public/strowallet-webhook'
 
 const WalletRoute = WalletRouteImport.update({
   id: '/wallet',
@@ -59,6 +60,12 @@ const ApiPublicYengapayWebhookRoute =
     path: '/api/public/yengapay-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicStrowalletWebhookRoute =
+  ApiPublicStrowalletWebhookRouteImport.update({
+    id: '/api/public/strowallet-webhook',
+    path: '/api/public/strowallet-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/pricing': typeof PricingRoute
   '/wallet': typeof WalletRoute
+  '/api/public/strowallet-webhook': typeof ApiPublicStrowalletWebhookRoute
   '/api/public/yengapay-webhook': typeof ApiPublicYengapayWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -78,6 +86,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/pricing': typeof PricingRoute
   '/wallet': typeof WalletRoute
+  '/api/public/strowallet-webhook': typeof ApiPublicStrowalletWebhookRoute
   '/api/public/yengapay-webhook': typeof ApiPublicYengapayWebhookRoute
 }
 export interface FileRoutesById {
@@ -89,6 +98,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/pricing': typeof PricingRoute
   '/wallet': typeof WalletRoute
+  '/api/public/strowallet-webhook': typeof ApiPublicStrowalletWebhookRoute
   '/api/public/yengapay-webhook': typeof ApiPublicYengapayWebhookRoute
 }
 export interface FileRouteTypes {
@@ -101,6 +111,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/pricing'
     | '/wallet'
+    | '/api/public/strowallet-webhook'
     | '/api/public/yengapay-webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -111,6 +122,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/pricing'
     | '/wallet'
+    | '/api/public/strowallet-webhook'
     | '/api/public/yengapay-webhook'
   id:
     | '__root__'
@@ -121,6 +133,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/pricing'
     | '/wallet'
+    | '/api/public/strowallet-webhook'
     | '/api/public/yengapay-webhook'
   fileRoutesById: FileRoutesById
 }
@@ -132,6 +145,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   PricingRoute: typeof PricingRoute
   WalletRoute: typeof WalletRoute
+  ApiPublicStrowalletWebhookRoute: typeof ApiPublicStrowalletWebhookRoute
   ApiPublicYengapayWebhookRoute: typeof ApiPublicYengapayWebhookRoute
 }
 
@@ -193,6 +207,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicYengapayWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/strowallet-webhook': {
+      id: '/api/public/strowallet-webhook'
+      path: '/api/public/strowallet-webhook'
+      fullPath: '/api/public/strowallet-webhook'
+      preLoaderRoute: typeof ApiPublicStrowalletWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -204,8 +225,19 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   PricingRoute: PricingRoute,
   WalletRoute: WalletRoute,
+  ApiPublicStrowalletWebhookRoute: ApiPublicStrowalletWebhookRoute,
   ApiPublicYengapayWebhookRoute: ApiPublicYengapayWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
