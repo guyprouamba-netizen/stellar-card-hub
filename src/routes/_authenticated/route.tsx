@@ -9,4 +9,4 @@ export const Route = createFileRoute("/_authenticated")({
     return { user: data.user };
   },
   component: () => <Outlet />,
-});
+});// touch 1780612764
