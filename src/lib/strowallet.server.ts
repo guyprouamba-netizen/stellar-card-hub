@@ -6,7 +6,7 @@ function pub() {
   return key;
 }
 
-async function call(path: string, init: RequestInit = {}) {
+async function call(path: string, init: RequestInit = {}): Promise<any> {
   const url = `${BASE.replace(/\/$/, "")}${path}`;
   const res = await fetch(url, {
     ...init,
@@ -17,10 +17,10 @@ async function call(path: string, init: RequestInit = {}) {
     },
   });
   const text = await res.text();
-  let body: unknown = text;
+  let body: any = text;
   try { body = JSON.parse(text); } catch { /* keep text */ }
   if (!res.ok) throw new Error(`Strowallet ${res.status}: ${typeof body === "string" ? body : JSON.stringify(body)}`);
-  return body as Record<string, unknown>;
+  return body;
 }
 
 export async function getStrowalletBalance() {
