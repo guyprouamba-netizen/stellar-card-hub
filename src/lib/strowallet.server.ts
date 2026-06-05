@@ -116,6 +116,21 @@ export async function createStrowalletCustomer(payload: {
   });
 }
 
+export function extractStrowalletCustomerId(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const root = payload as {
+    customerId?: unknown;
+    bitvcard_customer_id?: unknown;
+    response?: { customerId?: unknown; bitvcard_customer_id?: unknown };
+  };
+  const raw =
+    root.response?.customerId ??
+    root.response?.bitvcard_customer_id ??
+    root.customerId ??
+    root.bitvcard_customer_id;
+  return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+}
+
 export async function createStrowalletCard(payload: {
   customerEmail: string;
   amount: number;
