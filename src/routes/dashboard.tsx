@@ -9,6 +9,7 @@ import {
   AlertTriangle, Wallet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
 import { getDashboardData, computePricingPreview } from "@/lib/dashboard.functions";
 import { issueCard, cardAction } from "@/lib/strowallet.functions";
@@ -93,10 +94,11 @@ function Sidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   }
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-border bg-card/30 p-4 md:flex md:flex-col">
-      <Link to="/" className="mb-8 flex items-center gap-2 px-2">
+      <Link to="/" className="mb-2 flex items-center gap-2 px-2">
         <img src={logo} alt="FASO-INVEST PAY" className="h-9 w-9 rounded-xl" />
         <span className="text-sm font-bold tracking-tight">FASO-INVEST <span className="text-primary">PAY</span></span>
       </Link>
+      <BackButton to="/" className="mb-4 px-2" />
       <nav className="flex flex-1 flex-col gap-1">
         {items.map((it) => (
           <button key={it.id} onClick={() => setTab(it.id)}

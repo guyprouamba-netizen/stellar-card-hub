@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Upload, ShieldCheck, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { BackButton } from "@/components/back-button";
 import { submitFullKyc, createKycUploadUrl } from "@/lib/kyc.functions";
 import { toast } from "sonner";
 
@@ -79,7 +80,7 @@ function KycPage() {
   return (
     <div className="min-h-screen bg-background py-10">
       <div className="container mx-auto max-w-2xl px-4">
-        <Link to="/dashboard" className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Retour</Link>
+        <BackButton to="/dashboard" className="mb-6" />
         <div className="rounded-3xl border border-border bg-card p-6 sm:p-8">
           <div className="flex items-center gap-3">
             <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary"><ShieldCheck className="h-6 w-6" /></span>
