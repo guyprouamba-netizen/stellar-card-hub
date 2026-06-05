@@ -25,7 +25,6 @@ export const submitFullKyc = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId, claims } = context;
     const email = (claims as { email?: string }).email!;
-    const { createStrowalletCustomer } = await import("./strowallet.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Build signed URLs for Strowallet (7 days)
@@ -36,7 +35,7 @@ export const submitFullKyc = createServerFn({ method: "POST" })
     const idImage = idSig.data?.signedUrl ?? "";
     const selfie = selfieSig.data?.signedUrl ?? "";
 
-    await supabase.from("kyc_submissions").upsert({
+    const { error: upsertErr } = await supabase.from("kyc_submissions").upsert({
       user_id: userId,
       status: "submitted",
       first_name: data.firstName, last_name: data.lastName,
@@ -44,9 +43,13 @@ export const submitFullKyc = createServerFn({ method: "POST" })
       id_image_url: idImage, selfie_url: selfie,
       address: data.address, city: data.city, country: data.country,
       submitted_at: new Date().toISOString(),
-    });
+    }, { onConflict: "user_id" });
+    if (upsertErr) {
+      return { ok: false as const, error: `Sauvegarde KYC échouée : ${upsertErr.message}` };
+    }
 
     try {
+      const { createStrowalletCustomer } = await import("./strowallet.server");
       const res = await createStrowalletCustomer({
         firstName: data.firstName, lastName: data.lastName, email, phone: data.phone,
         dob: data.dob, idType: data.idType, idNumber: data.idNumber,
