@@ -15,18 +15,47 @@ export const syncKycStatus = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { supabase, userId, claims } = context;
     const email = (claims as { email?: string }).email;
-    const { data: profile } = await supabase
+    const [{ data: profile }, { data: kyc }] = await Promise.all([
+      supabase
       .from("profiles")
-      .select("strowallet_customer_id,email")
+      .select("strowallet_customer_id,email,phone")
       .eq("id", userId)
-      .maybeSingle();
+      .maybeSingle(),
+      supabase
+        .from("kyc_submissions")
+        .select("first_name,last_name,date_of_birth,id_type,id_number,id_image_url,selfie_url,address,city,country")
+        .eq("user_id", userId)
+        .maybeSingle(),
+    ]);
     const customerEmail = profile?.email || email;
-    const customerId = profile?.strowallet_customer_id || undefined;
+    let customerId = profile?.strowallet_customer_id || undefined;
     if (!customerEmail && !customerId) {
       return { ok: false as const, error: "Aucun identifiant Strowallet à interroger." };
     }
     try {
-      const { getStrowalletCardholder, normalizeKycVerdict, extractStrowalletCustomerId } = await import("./strowallet.server");
+      const { getStrowalletCardholder, normalizeKycVerdict, extractStrowalletCustomerId, ensureStrowalletCustomer } = await import("./strowallet.server");
+      if (!customerId && customerEmail && profile?.phone && kyc?.first_name && kyc?.last_name && kyc?.date_of_birth && kyc?.id_type && kyc?.id_number && kyc?.id_image_url && kyc?.selfie_url && kyc?.address && kyc?.city) {
+        const ensured = await ensureStrowalletCustomer({
+          firstName: kyc.first_name,
+          lastName: kyc.last_name,
+          email: customerEmail,
+          phone: profile.phone,
+          dob: kyc.date_of_birth,
+          idType: kyc.id_type,
+          idNumber: kyc.id_number,
+          idImage: kyc.id_image_url,
+          selfie: kyc.selfie_url,
+          address: kyc.address,
+          city: kyc.city,
+          country: kyc.country || "BF",
+          state: kyc.city,
+          zipCode: "00000",
+          houseNumber: "1",
+        });
+        customerId = ensured.customerId;
+        await supabase.from("profiles").update({ strowallet_customer_id: ensured.customerId }).eq("id", userId);
+        await supabase.from("kyc_submissions").update({ provider_status: ensured.created ? "sent" : "synced", provider_response: ensured.response as any }).eq("user_id", userId);
+      }
       const res = await getStrowalletCardholder({ customerEmail, customerId });
       const { raw, verdict, reason } = normalizeKycVerdict(res);
       const newCustomerId = extractStrowalletCustomerId(res);
