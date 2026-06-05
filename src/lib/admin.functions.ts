@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { getStrowalletBalance } from "./strowallet.server";
 
 async function assertAdmin(ctx: any) {
   const { data: ok } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
@@ -40,6 +39,7 @@ export const adminStrowalletBalance = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context);
+    const { getStrowalletBalance } = await import("./strowallet.server");
     try { return { ok: true as const, data: await getStrowalletBalance() }; }
     catch (e) { return { ok: false as const, error: (e as Error).message }; }
   });
