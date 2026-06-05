@@ -21,7 +21,21 @@ function base() {
 
 function apiPath(path: string) {
   const clean = path.startsWith("/") ? path : `/${path}`;
+  if (base().endsWith("/api")) return clean.startsWith("/api/") ? clean.slice(4) : clean;
   return clean.startsWith("/api/") ? clean : `/api${clean}`;
+}
+
+function formatProviderError(body: unknown) {
+  if (typeof body === "string") return body;
+  if (body && typeof body === "object") {
+    const payload = body as { message?: unknown; errors?: unknown; error?: unknown };
+    const message = payload.message ?? payload.error;
+    if (typeof message === "string") return message;
+    if (message && typeof message === "object") return JSON.stringify(message);
+    if (payload.errors && typeof payload.errors === "object") return JSON.stringify(payload.errors);
+    return JSON.stringify(body);
+  }
+  return "Réponse Strowallet invalide";
 }
 
 // Strowallet bitvcard endpoints use GET with query-string parameters.
@@ -34,6 +48,9 @@ async function callGet(path: string, params: Record<string, string | number | un
   let body: any = text;
   try { body = JSON.parse(text); } catch { /* keep text */ }
   if (!res.ok) throw new Error(`Strowallet ${res.status}: ${typeof body === "string" ? body : JSON.stringify(body)}`);
+  if (typeof body === "string" && body.includes("<html")) {
+    throw new Error(`Strowallet a renvoyé une page HTML au lieu d'une réponse API pour ${path}. Vérifiez l'URL de base configurée.`);
+  }
   return body;
 }
 
@@ -55,6 +72,9 @@ async function callPost(path: string, params: Record<string, string | number | u
   // If Strowallet returned an HTML 404 page despite 200, surface a clean error
   if (typeof parsed === "string" && parsed.includes("<html")) {
     throw new Error(`Strowallet a renvoyé une page HTML (endpoint ${path} introuvable). Vérifiez la clé publique et l'URL de base.`);
+  }
+  if (parsed && typeof parsed === "object" && (("success" in parsed && parsed.success === false) || ("status" in parsed && parsed.status === false))) {
+    throw new Error(`Strowallet: ${formatProviderError(parsed)}`);
   }
   return parsed;
 }
