@@ -7,6 +7,7 @@ import logo from "@/assets/logo.png";
 const links = [
   { to: "/", label: "Accueil" },
   { to: "/dashboard", label: "Tableau de bord" },
+  { to: "/admin", label: "Admin" },
 ];
 
 export function SiteNav() {
