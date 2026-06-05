@@ -107,9 +107,18 @@ export function SiteNav() {
                 {l.label}
               </Link>
             ))}
-            <Link to="/auth" className="mt-2 rounded-full bg-gradient-primary px-5 py-2 text-center text-sm font-semibold text-primary-foreground">
-              Commencer
-            </Link>
+            {signedIn ? (
+              <button
+                onClick={() => { setOpen(false); logout(); }}
+                className="mt-2 rounded-full border border-border/60 px-5 py-2 text-center text-sm font-semibold text-foreground"
+              >
+                Déconnexion
+              </button>
+            ) : (
+              <Link to="/auth" className="mt-2 rounded-full bg-gradient-primary px-5 py-2 text-center text-sm font-semibold text-primary-foreground">
+                Commencer
+              </Link>
+            )}
           </div>
         </div>
       )}
