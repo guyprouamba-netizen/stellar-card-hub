@@ -80,7 +80,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "FASO-INVEST PAY — Cartes virtuelles & paiements" },
-      { name: "description", content: "FASO-INVEST PAY : émettez vos cartes virtuelles USD/EUR depuis l'Afrique de l'Ouest, rechargez via Mobile Money (YengaPay) et payez partout." },
+      { name: "description", content: "FASO-INVEST PAY : émettez votre carte virtuelle USD/XOF depuis l'Afrique de l'Ouest, rechargez en Mobile Money et payez partout." },
       { name: "author", content: "FASO-INVEST PAY" },
       { property: "og:title", content: "FASO-INVEST PAY" },
       { property: "og:description", content: "Cartes virtuelles instantanées pour l'Afrique de l'Ouest. Rechargez en Mobile Money, dépensez en USD/EUR." },

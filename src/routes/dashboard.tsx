@@ -130,7 +130,7 @@ function HomeTab({ data, onAction }: { data: any; onAction: () => void }) {
           <ShieldAlert className="mt-0.5 h-5 w-5 text-warning" />
           <div className="flex-1">
             <p className="font-medium">KYC requis pour émettre une carte</p>
-            <p className="mt-1 text-sm text-muted-foreground">Soumettez votre dossier KYC. Il sera transmis automatiquement à Strowallet pour validation.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Soumettez votre dossier KYC pour activer l'émission de votre carte.</p>
           </div>
           <Link to="/kyc" className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground">Compléter le KYC</Link>
         </div>
@@ -193,13 +193,13 @@ function DepositTab({ onDone }: { onDone: () => void }) {
     try {
       const res: any = await init({ data: { amount, currency: "XOF" } });
       if (res?.checkout_url) window.location.href = res.checkout_url;
-      else toast.error(res?.error ?? "Erreur YengaPay");
+      else toast.error(res?.error ?? "Erreur Mobile Money");
     } catch (e) { toast.error((e as Error).message); } finally { setLoading(false); onDone(); }
   }
   return (
     <div className="max-w-lg space-y-6">
       <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Dépôt d'argent</h1>
-      <p className="text-sm text-muted-foreground">Rechargez votre compte XOF via Mobile Money (Orange, Moov, Wave) — propulsé par YengaPay.</p>
+      <p className="text-sm text-muted-foreground">Rechargez votre compte XOF via Mobile Money (Orange, Moov, Wave).</p>
       <div className="rounded-2xl border border-border bg-card p-6">
         <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Montant à recharger</label>
         <div className="mt-2 flex items-baseline gap-2">
@@ -215,7 +215,7 @@ function DepositTab({ onDone }: { onDone: () => void }) {
       </div>
       <button onClick={pay} disabled={loading || amount < 500}
         className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Payer avec YengaPay"}
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Payer en Mobile Money"}
       </button>
     </div>
   );

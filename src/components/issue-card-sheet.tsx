@@ -76,7 +76,7 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-[Space_Grotesk] text-2xl font-bold tracking-tight">Nouvelle carte</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Carte virtuelle Strowallet · USD</p>
+                <p className="mt-1 text-sm text-muted-foreground">Carte virtuelle · {currency}</p>
               </div>
               <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full border border-border hover:bg-muted">
                 <X className="h-4 w-4" />
@@ -193,7 +193,7 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
               )}
             </button>
             <p className="mt-3 text-center text-[11px] text-muted-foreground">
-              Le montant est débité de votre portefeuille puis transmis à Strowallet pour création.
+              Le montant est débité de votre portefeuille puis votre carte est créée instantanément.
             </p>
           </motion.div>
         </>
