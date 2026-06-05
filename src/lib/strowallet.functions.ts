@@ -9,6 +9,42 @@ export const diagnoseStrowallet = createServerFn({ method: "POST" })
     return strowalletDiagnostic();
   });
 
+// Pull the latest KYC verdict from Strowallet and persist it locally.
+export const syncKycStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId, claims } = context;
+    const email = (claims as { email?: string }).email;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("strowallet_customer_id,email")
+      .eq("id", userId)
+      .maybeSingle();
+    const customerEmail = profile?.email || email;
+    const customerId = profile?.strowallet_customer_id || undefined;
+    if (!customerEmail && !customerId) {
+      return { ok: false as const, error: "Aucun identifiant Strowallet à interroger." };
+    }
+    try {
+      const { getStrowalletCardholder, normalizeKycVerdict, extractStrowalletCustomerId } = await import("./strowallet.server");
+      const res = await getStrowalletCardholder({ customerEmail, customerId });
+      const { raw, verdict, reason } = normalizeKycVerdict(res);
+      const newCustomerId = extractStrowalletCustomerId(res);
+      if (newCustomerId && newCustomerId !== profile?.strowallet_customer_id) {
+        await supabase.from("profiles").update({ strowallet_customer_id: newCustomerId }).eq("id", userId);
+      }
+      const status = verdict === "approved" ? "approved" : verdict === "rejected" ? "rejected" : undefined;
+      await supabase.from("kyc_submissions").update({
+        provider_status: raw ?? verdict,
+        provider_response: res as any,
+        ...(status ? { status } : {}),
+      }).eq("user_id", userId);
+      return { ok: true as const, verdict, raw, reason };
+    } catch (e) {
+      return { ok: false as const, error: (e as Error).message };
+    }
+  });
+
 // Admin only — Strowallet master account balance
 export const fetchStrowalletBalance = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

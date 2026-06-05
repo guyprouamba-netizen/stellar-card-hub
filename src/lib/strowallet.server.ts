@@ -149,6 +149,43 @@ export async function getStrowalletCardDetails(card_id: string) {
   return callGet(`/bitvcard/fetch-card-detail/`, { card_id });
 }
 
+export async function getStrowalletCardholder(params: { customerEmail?: string; customerId?: string }) {
+  return callGet(`/bitvcard/getcardholder/`, {
+    customerEmail: params.customerEmail,
+    customerId: params.customerId,
+  });
+}
+
+// Parse the various status fields Strowallet may return into a normalized verdict
+export function normalizeKycVerdict(payload: unknown): {
+  raw: string | null;
+  verdict: "approved" | "rejected" | "pending" | "unknown";
+  reason: string | null;
+} {
+  if (!payload || typeof payload !== "object") return { raw: null, verdict: "unknown", reason: null };
+  const root = payload as any;
+  const c = root.response ?? root.customer ?? root.data ?? root;
+  const candidates = [
+    c?.kycStatus, c?.kyc_status, c?.idStatus, c?.id_status,
+    c?.status, c?.verificationStatus, c?.verification_status,
+    c?.customerStatus, c?.customer_status,
+  ].filter((x) => typeof x === "string");
+  const raw = candidates.length ? String(candidates[0]) : null;
+  const reason = (typeof c?.reason === "string" && c.reason) || (typeof c?.message === "string" && c.message) || null;
+  if (!raw) return { raw: null, verdict: "unknown", reason };
+  const v = raw.toLowerCase();
+  if (["approved", "high_kyc", "verified", "active", "success", "successful"].some((k) => v.includes(k))) {
+    return { raw, verdict: "approved", reason };
+  }
+  if (["reject", "declin", "denied", "failed", "fail"].some((k) => v.includes(k))) {
+    return { raw, verdict: "rejected", reason };
+  }
+  if (["pending", "review", "processing", "low_kyc", "unreview", "submitted", "wait"].some((k) => v.includes(k))) {
+    return { raw, verdict: "pending", reason };
+  }
+  return { raw, verdict: "unknown", reason };
+}
+
 export async function strowalletCardAction(action: "freeze" | "unfreeze" | "terminate", card_id: string) {
   const path = action === "freeze" ? "/bitvcard/freeze-card/" : action === "unfreeze" ? "/bitvcard/unfreeze-card/" : "/bitvcard/terminate-card/";
   return callPost(path, { card_id });

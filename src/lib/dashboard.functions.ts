@@ -16,17 +16,48 @@ export const getDashboardData = createServerFn({ method: "GET" })
     const pricing = await loadPricingConfig();
     const kycSubmitted = !!kyc && (kyc.status === "submitted" || kyc.status === "approved" || !!kyc.submitted_at);
     const kycApproved = !!profile?.strowallet_customer_id && (kyc?.provider_status === "approved" || kyc?.status === "approved");
+
+    // Auto-sync KYC verdict from Strowallet when local state is still pending
+    let syncedKyc = kyc;
+    let syncedProfile = profile;
+    const needsSync = !!kyc && !kycApproved && kyc.status !== "rejected" && (kycSubmitted || !!profile?.strowallet_customer_id);
+    if (needsSync) {
+      try {
+        const { getStrowalletCardholder, normalizeKycVerdict, extractStrowalletCustomerId } = await import("./strowallet.server");
+        const res = await getStrowalletCardholder({
+          customerEmail: profile?.email ?? undefined,
+          customerId: profile?.strowallet_customer_id ?? undefined,
+        });
+        const { raw, verdict } = normalizeKycVerdict(res);
+        const newCustomerId = extractStrowalletCustomerId(res);
+        if (newCustomerId && newCustomerId !== profile?.strowallet_customer_id) {
+          await supabase.from("profiles").update({ strowallet_customer_id: newCustomerId }).eq("id", userId);
+          syncedProfile = { ...(profile ?? {} as any), strowallet_customer_id: newCustomerId };
+        }
+        const status = verdict === "approved" ? "approved" : verdict === "rejected" ? "rejected" : undefined;
+        await supabase.from("kyc_submissions").update({
+          provider_status: raw ?? verdict,
+          provider_response: res as any,
+          ...(status ? { status } : {}),
+        }).eq("user_id", userId);
+        syncedKyc = { ...(kyc as any), provider_status: raw ?? verdict, ...(status ? { status } : {}) };
+      } catch {
+        // Silent: keep local state if provider call fails (e.g. customer not yet created)
+      }
+    }
+    const finalApproved = !!syncedProfile?.strowallet_customer_id && (syncedKyc?.provider_status === "approved" || syncedKyc?.status === "approved");
+    const finalSubmitted = !!syncedKyc && (syncedKyc.status === "submitted" || syncedKyc.status === "approved" || !!syncedKyc.submitted_at);
     return {
       wallets: wallets ?? [],
       transactions: txs ?? [],
       cards: cards ?? [],
-      profile,
-      kyc,
+      profile: syncedProfile,
+      kyc: syncedKyc,
       pricing,
-      kycSubmitted,
-      kycApproved,
+      kycSubmitted: finalSubmitted,
+      kycApproved: finalApproved,
       // Card emission requires admin/Strowallet approval — submission alone is not enough
-      kycReady: kycApproved && !!profile?.strowallet_customer_id,
+      kycReady: finalApproved && !!syncedProfile?.strowallet_customer_id,
     };
   });
 
