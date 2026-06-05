@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { ArrowRight, ShieldCheck, Zap, Globe2, Smartphone, CheckCircle2, Lock, Banknote, CreditCard, TrendingUp, Users, Star, ChevronDown } from "lucide-react";
+import { ArrowRight, ShieldCheck, Zap, Globe2, Smartphone, CheckCircle2, Lock, Banknote, CreditCard, TrendingUp, Users, Star, ChevronDown, Sparkles } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
 import { VirtualCard } from "@/components/virtual-card";
 import logo from "@/assets/logo.png";
@@ -33,7 +33,20 @@ const steps = [
   { n: "04", t: "Émettez votre carte", d: "Visa ou Mastercard virtuelle en USD ou XOF, utilisable partout dans le monde immédiatement." },
 ];
 
-const partners = ["Netflix","Amazon","Spotify","AliExpress","Google Ads","Meta Ads","Apple","Microsoft","ChatGPT","Shopify"];
+const partners: Array<{ name: string; slug: string }> = [
+  { name: "Netflix", slug: "netflix" },
+  { name: "Amazon", slug: "amazon" },
+  { name: "Spotify", slug: "spotify" },
+  { name: "AliExpress", slug: "aliexpress" },
+  { name: "Google Ads", slug: "googleads" },
+  { name: "Meta", slug: "meta" },
+  { name: "Apple", slug: "apple" },
+  { name: "Microsoft", slug: "microsoft" },
+  { name: "OpenAI", slug: "openai" },
+  { name: "Shopify", slug: "shopify" },
+  { name: "PayPal", slug: "paypal" },
+  { name: "Steam", slug: "steam" },
+];
 
 const testimonials = [
   { name: "Aïcha O.", role: "Entrepreneure, Ouagadougou", text: "Je paie mes pubs Facebook et mon abonnement Shopify sans souci. Plus besoin de demander à un ami à l'étranger." },
@@ -77,7 +90,7 @@ function Index() {
             <div className="mt-8 grid grid-cols-3 gap-4">
               <Stat value="4 500 F" label="Frais d'émission" />
               <Stat value="1 $ = 869 F" label="Taux plateforme" />
-              <Stat value="< 60s" label="Création carte" />
+              <Stat value="Visa & MC" label="Réseaux acceptés" />
             </div>
           </motion.div>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, delay: 0.1 }} className="relative">
@@ -97,16 +110,38 @@ function Index() {
           </motion.div>
         </section>
 
-        {/* TRUST BAR */}
-        <section className="border-y border-border bg-muted/30">
-          <div className="container mx-auto flex flex-wrap items-center justify-center gap-x-10 gap-y-3 px-4 py-6 text-xs font-semibold uppercase tracking-widest text-muted-foreground sm:px-6">
-            <span className="text-foreground/60">Acceptée sur</span>
-            {partners.map((p) => (<span key={p}>{p}</span>))}
+        {/* TRUST BAR — marquee */}
+        <section className="border-y border-border bg-muted/30 py-10">
+          <p className="mb-6 text-center text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+            Acceptée sur les plus grandes plateformes
+          </p>
+          <div
+            className="group relative overflow-hidden"
+            style={{
+              maskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
+              WebkitMaskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
+            }}
+          >
+            <div className="flex w-max animate-marquee gap-14 px-8 group-hover:[animation-play-state:paused]">
+              {[...partners, ...partners].map((p, i) => (
+                <div key={`${p.slug}-${i}`} className="flex shrink-0 items-center gap-3 opacity-70 transition hover:opacity-100">
+                  <img
+                    src={`https://cdn.simpleicons.org/${p.slug}`}
+                    alt={p.name}
+                    width={28}
+                    height={28}
+                    className="h-7 w-7 object-contain dark:invert"
+                    loading="lazy"
+                  />
+                  <span className="whitespace-nowrap text-sm font-semibold tracking-wide text-foreground/80">{p.name}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
         {/* FEATURES */}
-        <section className="container mx-auto grid gap-4 px-4 pb-20 sm:px-6 md:grid-cols-4">
+        <section className="container mx-auto grid gap-4 px-4 pt-20 pb-20 sm:px-6 md:grid-cols-4">
           {features.map((f) => (
             <div key={f.title} className="rounded-2xl border border-border bg-card p-6">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><f.icon className="h-5 w-5" /></span>
