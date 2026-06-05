@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const getDashboardData = createServerFn({ method: "GET" })
@@ -87,7 +88,7 @@ export const getDashboardData = createServerFn({ method: "GET" })
 
 export const computePricingPreview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { amountUsd: number }) => ({ amountUsd: Number(d.amountUsd) || 0 }))
+  .inputValidator((d) => z.object({ amountUsd: z.number().min(1).max(10000) }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const { computeCardCost, loadPricingConfig } = await import("./pricing.server");
