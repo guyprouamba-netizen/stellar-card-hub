@@ -125,7 +125,16 @@ function HomeTab({ data, onAction }: { data: any; onAction: () => void }) {
         <p className="mt-1 text-sm text-muted-foreground">Voici un aperçu de votre compte FASO-INVEST PAY.</p>
       </header>
 
-      {!data.kycReady && (
+      {data.kycSubmitted && !data.kycReady && (
+        <div className="flex items-start gap-3 rounded-2xl border border-primary/40 bg-primary/5 p-4">
+          <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
+          <div className="flex-1">
+            <p className="font-medium">KYC soumis — en attente de validation</p>
+            <p className="mt-1 text-sm text-muted-foreground">Votre dossier a bien été enregistré. Vous pourrez émettre une carte dès validation par notre équipe (24-48h).</p>
+          </div>
+        </div>
+      )}
+      {!data.kycSubmitted && !data.kycReady && (
         <div className="flex items-start gap-3 rounded-2xl border border-warning/40 bg-warning/5 p-4">
           <ShieldAlert className="mt-0.5 h-5 w-5 text-warning" />
           <div className="flex-1">
@@ -278,7 +287,7 @@ function CardsTab({ cards, kycReady, onAction }: { cards: any[]; kycReady: boole
       </header>
       {!kycReady && (
         <div className="rounded-2xl border border-warning/40 bg-warning/5 p-4 text-sm">
-          <ShieldAlert className="inline h-4 w-4 text-warning" /> KYC non validé — <Link to="/kyc" className="font-semibold text-primary underline">compléter mon KYC</Link>
+          <ShieldAlert className="inline h-4 w-4 text-warning" /> KYC non validé — la création de carte sera disponible après validation de votre dossier.
         </div>
       )}
       {cards.length === 0 ? <p className="text-sm text-muted-foreground">Aucune carte. Émettez-en une après validation KYC.</p> : (
