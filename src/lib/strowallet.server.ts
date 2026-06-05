@@ -79,8 +79,8 @@ async function callPost(path: string, params: Record<string, string | number | u
   return parsed;
 }
 
-export async function getStrowalletBalance() {
-  return callGet(`/bitvcard/balance/`, {});
+export async function getStrowalletBalance(currency: "USD" | "NGN" = "USD") {
+  return callGet(`/wallet/balance/${currency}/`, {});
 }
 
 export async function createStrowalletCustomer(payload: {
@@ -96,6 +96,9 @@ export async function createStrowalletCustomer(payload: {
   address: string;
   city: string;
   country: string;
+  state?: string;
+  zipCode?: string;
+  houseNumber?: string;
 }) {
   return callPost(`/bitvcard/create-user/`, {
     firstName: payload.firstName,
@@ -110,10 +113,45 @@ export async function createStrowalletCustomer(payload: {
     line1: payload.address,
     city: payload.city,
     country: payload.country,
-    state: payload.city,
-    zipCode: "00000",
-    houseNumber: "1",
+    state: payload.state || payload.city,
+    zipCode: payload.zipCode || "00000",
+    houseNumber: payload.houseNumber || "1",
   });
+}
+
+export async function ensureStrowalletCustomer(payload: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  dob: string;
+  idType: string;
+  idNumber: string;
+  idImage: string;
+  selfie: string;
+  address: string;
+  city: string;
+  country: string;
+  state?: string;
+  zipCode?: string;
+  houseNumber?: string;
+}) {
+  try {
+    const existing = await getStrowalletCardholder({ customerEmail: payload.email });
+    const customerId = extractStrowalletCustomerId(existing);
+    if (customerId) {
+      return { customerId, created: false as const, response: existing };
+    }
+  } catch {
+    // Continue to create when cardholder lookup does not find the customer
+  }
+
+  const created = await createStrowalletCustomer(payload);
+  const customerId = extractStrowalletCustomerId(created);
+  if (!customerId) {
+    throw new Error("Strowallet a répondu sans customerId après création du client.");
+  }
+  return { customerId, created: true as const, response: created };
 }
 
 export function extractStrowalletCustomerId(payload: unknown): string | null {
@@ -236,9 +274,9 @@ export async function strowalletDiagnostic(): Promise<{
     }
   }
 
-  // Probe balance (read-only) in both modes, then create-user OPTIONS-like check
-  await probe("GET", "/bitvcard/balance/", {});
-  await probe("POST", "/bitvcard/balance/", {});
+  // Probe documented endpoints for balance + customer creation
+  await probe("GET", "/wallet/balance/USD/", {});
+  await probe("GET", "/wallet/balance/NGN/", {});
   await probe("POST", "/bitvcard/create-user/", {
     firstName: "TEST", lastName: "PROBE", customerEmail: "probe@example.com",
     phoneNumber: "+22600000000", dateOfBirth: "1990-01-01",
