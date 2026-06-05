@@ -1,4 +1,4 @@
-const BASE = process.env.STROWALLET_BASE_URL || "https://strowallet.com/api";
+const RAW_BASE = process.env.STROWALLET_BASE_URL || "https://strowallet.com/api";
 
 function pub() {
   const key = process.env.STROWALLET_PUBLIC_KEY;
@@ -15,22 +15,50 @@ function buildQuery(params: Record<string, string | number | undefined>) {
   return sp.toString();
 }
 
+function base() {
+  return RAW_BASE.replace(/\/$/, "");
+}
+
+function apiPath(path: string) {
+  const clean = path.startsWith("/") ? path : `/${path}`;
+  if (base().endsWith("/api")) return clean.startsWith("/api/") ? clean.slice(4) : clean;
+  return clean.startsWith("/api/") ? clean : `/api${clean}`;
+}
+
+function formatProviderError(body: unknown) {
+  if (typeof body === "string") return body;
+  if (body && typeof body === "object") {
+    const payload = body as { message?: unknown; errors?: unknown; error?: unknown };
+    const message = payload.message ?? payload.error;
+    if (typeof message === "string") return message;
+    if (message && typeof message === "object") return JSON.stringify(message);
+    if (payload.errors && typeof payload.errors === "object") return JSON.stringify(payload.errors);
+    return JSON.stringify(body);
+  }
+  return "Réponse Strowallet invalide";
+}
+
 // Strowallet bitvcard endpoints use GET with query-string parameters.
 async function callGet(path: string, params: Record<string, string | number | undefined>): Promise<any> {
   const qs = buildQuery({ public_key: pub(), ...params });
-  const url = `${BASE.replace(/\/$/, "")}${path}${path.includes("?") ? "&" : "?"}${qs}`;
+  const finalPath = apiPath(path);
+  const url = `${base()}${finalPath}${finalPath.includes("?") ? "&" : "?"}${qs}`;
   const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
   const text = await res.text();
   let body: any = text;
   try { body = JSON.parse(text); } catch { /* keep text */ }
   if (!res.ok) throw new Error(`Strowallet ${res.status}: ${typeof body === "string" ? body : JSON.stringify(body)}`);
+  if (typeof body === "string" && body.includes("<html")) {
+    throw new Error(`Strowallet a renvoyé une page HTML au lieu d'une réponse API pour ${path}. Vérifiez l'URL de base configurée.`);
+  }
   return body;
 }
 
 // Strowallet bitvcard write endpoints (create/freeze/etc.) use POST with form-encoded body.
 async function callPost(path: string, params: Record<string, string | number | undefined>): Promise<any> {
   const body = buildQuery({ public_key: pub(), ...params });
-  const url = `${BASE.replace(/\/$/, "")}${path}`;
+  const finalPath = apiPath(path);
+  const url = `${base()}${finalPath}`;
   const res = await fetch(url, {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" },
@@ -44,6 +72,9 @@ async function callPost(path: string, params: Record<string, string | number | u
   // If Strowallet returned an HTML 404 page despite 200, surface a clean error
   if (typeof parsed === "string" && parsed.includes("<html")) {
     throw new Error(`Strowallet a renvoyé une page HTML (endpoint ${path} introuvable). Vérifiez la clé publique et l'URL de base.`);
+  }
+  if (parsed && typeof parsed === "object" && (("success" in parsed && parsed.success === false) || ("status" in parsed && parsed.status === false))) {
+    throw new Error(`Strowallet: ${formatProviderError(parsed)}`);
   }
   return parsed;
 }
@@ -70,9 +101,9 @@ export async function createStrowalletCustomer(payload: {
     firstName: payload.firstName,
     lastName: payload.lastName,
     customerEmail: payload.email,
-    phoneNumber: payload.phone,
-    dateOfBirth: payload.dob,
-    idType: payload.idType,
+    phoneNumber: payload.phone.replace(/[^0-9]/g, ''),
+    dateOfBirth: (() => { const [y, m, d] = payload.dob.split("-"); return `${m}/${d}/${y}`; })(),
+    idType: (() => { const t = payload.idType.toLowerCase(); if (t === "nin") return "national_id"; if (t === "voters_card") return "voters_card"; if (t === "id_card") return "id_card"; return t; })(),
     idNumber: payload.idNumber,
     idImage: payload.idImage,
     userPhoto: payload.selfie,
@@ -114,13 +145,14 @@ export async function strowalletDiagnostic(): Promise<{
   publicKeyPresent: boolean;
   attempts: Array<{ method: string; path: string; status: number; contentType: string; bodyPreview: string }>;
 }> {
-  const base = BASE.replace(/\/$/, "");
+  const apiBase = base();
   const publicKey = process.env.STROWALLET_PUBLIC_KEY || "";
   const attempts: Array<{ method: string; path: string; status: number; contentType: string; bodyPreview: string }> = [];
 
   async function probe(method: "GET" | "POST", path: string, params: Record<string, string>) {
     const qs = new URLSearchParams({ public_key: publicKey, ...params }).toString();
-    const url = method === "GET" ? `${base}${path}?${qs}` : `${base}${path}`;
+    const finalPath = apiPath(path);
+    const url = method === "GET" ? `${apiBase}${finalPath}?${qs}` : `${apiBase}${finalPath}`;
     try {
       const res = await fetch(url, {
         method,
@@ -153,5 +185,5 @@ export async function strowalletDiagnostic(): Promise<{
     zipCode: "00226", houseNumber: "1",
   });
 
-  return { base, publicKeyPresent: !!publicKey, attempts };
+  return { base: apiBase, publicKeyPresent: !!publicKey, attempts };
 }

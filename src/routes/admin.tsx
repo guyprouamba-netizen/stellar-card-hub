@@ -258,7 +258,7 @@ function KycTab({ kyc, onAction }: { kyc: any[]; onAction: () => void }) {
               <div>
                 <div className="font-semibold">{k.first_name} {k.last_name}</div>
                 <div className="text-xs text-muted-foreground">{k.id_type} · {k.id_number} · {k.country}</div>
-                <div className="mt-1 text-xs">Local: <b>{k.status}</b> · Strowallet: <b>{k.provider_status ?? "—"}</b></div>
+                <div className="mt-1 text-xs">Local: <b>{k.status}</b> · Strowallet: <b>{k.provider_status ?? "—"}</b>{!k.provider_response?.response?.bitvcard_customer_id && !k.strowallet_customer_id ? <span> · <b className="text-warning">client non créé</b></span> : null}</div>
               </div>
               <div className="flex gap-2">
                 {k.id_image_url && <a href={k.id_image_url} target="_blank" rel="noreferrer" className="rounded-full border border-border px-3 py-1 text-xs"><Eye className="mr-1 inline h-3 w-3" /> Pièce</a>}

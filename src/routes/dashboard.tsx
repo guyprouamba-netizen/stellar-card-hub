@@ -130,7 +130,7 @@ function HomeTab({ data, onAction }: { data: any; onAction: () => void }) {
           <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
           <div className="flex-1">
             <p className="font-medium">KYC soumis — en attente de validation</p>
-            <p className="mt-1 text-sm text-muted-foreground">Votre dossier a bien été enregistré. Vous pourrez émettre une carte dès validation par notre équipe (24-48h).</p>
+            <p className="mt-1 text-sm text-muted-foreground">Votre dossier a bien été enregistré et transmis au prestataire. Vous pourrez émettre une carte dès que le client Strowallet sera confirmé et validé.</p>
           </div>
         </div>
       )}
@@ -460,7 +460,7 @@ function ProfileTab({ profile, kyc }: { profile: any; kyc: any }) {
             <Info k="ID client Strowallet" v={profile?.strowallet_customer_id ?? "—"} />
             {profile?.strowallet_customer_id ? (
               <p className="mt-3 flex items-center gap-2 text-success"><ShieldCheck className="h-4 w-4" /> KYC validé — vous pouvez émettre des cartes.</p>
-            ) : <Link to="/kyc" className="text-xs font-semibold text-primary underline">Mettre à jour mon dossier</Link>}
+            ) : <p className="mt-3 text-xs text-muted-foreground">Aucun identifiant client Strowallet n'a encore été créé pour ce dossier. Tant qu'il n'existe pas, le KYC reste en attente réelle côté fournisseur.</p>}
           </div>
         )}
       </div>

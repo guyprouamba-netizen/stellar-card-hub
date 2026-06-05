@@ -61,6 +61,12 @@ export const adminReviewKyc = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (data.decision === "approved") {
+      const { data: profile } = await supabaseAdmin.from("profiles").select("strowallet_customer_id").eq("id", data.user_id).maybeSingle();
+      if (!profile?.strowallet_customer_id) {
+        throw new Error("Impossible d'approuver ce KYC : aucun identifiant client Strowallet n'a été créé pour cet utilisateur.");
+      }
+    }
     const { error } = await supabaseAdmin.from("kyc_submissions").update({
       provider_status: data.decision,
       status: data.decision,
