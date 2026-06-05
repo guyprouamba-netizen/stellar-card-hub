@@ -79,6 +79,33 @@ function FullPageLoader() {
   return <div className="grid min-h-screen place-items-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
 }
 
+function SyncKycButton({ onDone }: { onDone: () => void }) {
+  const sync = useServerFn(syncKycStatus);
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      onClick={async () => {
+        setBusy(true);
+        try {
+          const r = await sync();
+          if (r.ok) {
+            if (r.verdict === "approved") toast.success("KYC approuvé ✅");
+            else if (r.verdict === "rejected") toast.error(`KYC rejeté${r.reason ? " — " + r.reason : ""}`);
+            else toast.info("Toujours en attente côté Strowallet.");
+          } else {
+            toast.error(r.error || "Impossible de synchroniser");
+          }
+          onDone();
+        } finally { setBusy(false); }
+      }}
+      disabled={busy}
+      className="rounded-full border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary disabled:opacity-50"
+    >
+      {busy ? "Synchro…" : "Actualiser le statut"}
+    </button>
+  );
+}
+
 function Sidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   const navigate = useNavigate();
   const items: Array<{ id: Tab; label: string; Icon: any }> = [
