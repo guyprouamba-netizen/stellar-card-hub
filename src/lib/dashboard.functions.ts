@@ -14,6 +14,8 @@ export const getDashboardData = createServerFn({ method: "GET" })
       supabase.from("kyc_submissions").select("status,provider_status,submitted_at").eq("user_id", userId).maybeSingle(),
     ]);
     const pricing = await loadPricingConfig();
+    const kycSubmitted = !!kyc && (kyc.status === "submitted" || kyc.status === "approved" || !!kyc.submitted_at);
+    const kycApproved = kyc?.provider_status === "approved" || kyc?.status === "approved";
     return {
       wallets: wallets ?? [],
       transactions: txs ?? [],
@@ -21,7 +23,10 @@ export const getDashboardData = createServerFn({ method: "GET" })
       profile,
       kyc,
       pricing,
-      kycReady: !!profile?.strowallet_customer_id && (kyc?.provider_status === "approved" || kyc?.provider_status === "sent"),
+      kycSubmitted,
+      kycApproved,
+      // Card emission requires admin/Strowallet approval — submission alone is not enough
+      kycReady: kycApproved && !!profile?.strowallet_customer_id,
     };
   });
 

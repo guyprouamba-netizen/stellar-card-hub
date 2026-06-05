@@ -27,6 +27,27 @@ async function callGet(path: string, params: Record<string, string | number | un
   return body;
 }
 
+// Strowallet bitvcard write endpoints (create/freeze/etc.) use POST with form-encoded body.
+async function callPost(path: string, params: Record<string, string | number | undefined>): Promise<any> {
+  const body = buildQuery({ public_key: pub(), ...params });
+  const url = `${BASE.replace(/\/$/, "")}${path}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+    redirect: "follow",
+  });
+  const text = await res.text();
+  let parsed: any = text;
+  try { parsed = JSON.parse(text); } catch { /* keep text */ }
+  if (!res.ok) throw new Error(`Strowallet ${res.status}: ${typeof parsed === "string" ? parsed.slice(0, 300) : JSON.stringify(parsed)}`);
+  // If Strowallet returned an HTML 404 page despite 200, surface a clean error
+  if (typeof parsed === "string" && parsed.includes("<html")) {
+    throw new Error(`Strowallet a renvoyé une page HTML (endpoint ${path} introuvable). Vérifiez la clé publique et l'URL de base.`);
+  }
+  return parsed;
+}
+
 export async function getStrowalletBalance() {
   return callGet(`/bitvcard/balance/`, {});
 }
@@ -45,7 +66,7 @@ export async function createStrowalletCustomer(payload: {
   city: string;
   country: string;
 }) {
-  return callGet(`/bitvcard/create-user/`, {
+  return callPost(`/bitvcard/create-user/`, {
     firstName: payload.firstName,
     lastName: payload.lastName,
     customerEmail: payload.email,
@@ -69,7 +90,7 @@ export async function createStrowalletCard(payload: {
   amount: number;
   brand?: "Visa" | "MasterCard";
 }) {
-  return callGet(`/bitvcard/create-card/`, {
+  return callPost(`/bitvcard/create-card/`, {
     name_on_card: payload.customerEmail,
     card_type: "virtual",
     amount: payload.amount,
@@ -84,5 +105,5 @@ export async function getStrowalletCardDetails(card_id: string) {
 
 export async function strowalletCardAction(action: "freeze" | "unfreeze" | "terminate", card_id: string) {
   const path = action === "freeze" ? "/bitvcard/freeze-card/" : action === "unfreeze" ? "/bitvcard/unfreeze-card/" : "/bitvcard/terminate-card/";
-  return callGet(path, { card_id });
+  return callPost(path, { card_id });
 }
