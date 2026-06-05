@@ -133,6 +133,7 @@ function HomeTab({ data, onAction }: { data: any; onAction: () => void }) {
             <p className="font-medium">KYC soumis — en attente de validation</p>
             <p className="mt-1 text-sm text-muted-foreground">Votre dossier a bien été enregistré et transmis au prestataire. Vous pourrez émettre une carte dès que le client Strowallet sera confirmé et validé.</p>
           </div>
+          <SyncKycButton onDone={onAction} />
         </div>
       )}
       {!data.kycSubmitted && !data.kycReady && (
