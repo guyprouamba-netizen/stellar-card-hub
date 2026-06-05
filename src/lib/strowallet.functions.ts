@@ -33,13 +33,12 @@ export const syncKycStatus = createServerFn({ method: "POST" })
       if (newCustomerId && newCustomerId !== profile?.strowallet_customer_id) {
         await supabase.from("profiles").update({ strowallet_customer_id: newCustomerId }).eq("id", userId);
       }
-      const update: Record<string, unknown> = {
+      const status = verdict === "approved" ? "approved" : verdict === "rejected" ? "rejected" : undefined;
+      await supabase.from("kyc_submissions").update({
         provider_status: raw ?? verdict,
         provider_response: res as any,
-      };
-      if (verdict === "approved") update.status = "approved";
-      else if (verdict === "rejected") update.status = "rejected";
-      await supabase.from("kyc_submissions").update(update).eq("user_id", userId);
+        ...(status ? { status } : {}),
+      }).eq("user_id", userId);
       return { ok: true as const, verdict, raw, reason };
     } catch (e) {
       return { ok: false as const, error: (e as Error).message };
