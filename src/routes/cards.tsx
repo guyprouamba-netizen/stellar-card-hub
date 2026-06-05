@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Plus, Snowflake, Trash2, Settings } from "lucide-react";
 import { useState } from "react";
 import { SiteNav } from "@/components/site-nav";
+import { BackButton } from "@/components/back-button";
 import { VirtualCard } from "@/components/virtual-card";
 import { IssueCardSheet } from "@/components/issue-card-sheet";
 
@@ -26,6 +27,9 @@ function CardsPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SiteNav />
+      <div className="container mx-auto px-4 py-4 sm:px-6">
+        <BackButton to="/dashboard" className="mb-2" />
+      </div>
       <div className="container mx-auto px-4 py-8 sm:px-6 lg:py-12">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>

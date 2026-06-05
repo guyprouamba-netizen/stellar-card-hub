@@ -7,6 +7,7 @@ import {
   Loader2, CheckCircle2, XCircle, Wallet, Server, Eye,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
 import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal } from "@/lib/admin.functions";
 import { toast } from "sonner";
@@ -87,6 +88,7 @@ function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
         <img src={logo} className="h-9 w-9 rounded-xl" alt="" />
         <div><div className="text-sm font-bold">FASO-INVEST PAY</div><div className="text-[10px] uppercase tracking-widest text-primary">Super-admin</div></div>
       </Link>
+      <BackButton to="/dashboard" className="mb-4 px-2" />
       <nav className="mt-6 flex flex-1 flex-col gap-1">
         {items.map((it) => (
           <button key={it.id} onClick={() => setTab(it.id)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${tab === it.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
