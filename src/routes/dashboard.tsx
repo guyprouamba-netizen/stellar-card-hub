@@ -13,6 +13,7 @@ import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
 import { getDashboardData, computePricingPreview } from "@/lib/dashboard.functions";
 import { issueCard, cardAction } from "@/lib/strowallet.functions";
+import { syncKycStatus } from "@/lib/strowallet.functions";
 import { requestWithdrawal } from "@/lib/withdrawal.functions";
 import { initRecharge } from "@/lib/yengapay.functions";
 import { toast } from "sonner";
