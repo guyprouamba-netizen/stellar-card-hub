@@ -4,12 +4,14 @@ import { X, Loader2, ArrowRight, Check, AlertTriangle, CreditCard, Wallet } from
 import { cardApi, walletApi } from "@/lib/api";
 
 type Brand = "visa" | "mastercard";
+type Currency = "USD" | "XOF";
 const FUND_PRESETS = [5, 10, 25, 50, 100];
+const FUND_PRESETS_XOF = [2500, 5000, 10000, 25000, 50000];
 
 export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onClose: () => void; onIssued?: () => void }) {
   const [brand, setBrand] = useState<Brand>("visa");
   const [amount, setAmount] = useState<number>(10);
-  const [currency] = useState<string>("USD");
+  const [currency, setCurrency] = useState<Currency>("USD");
   const [checking, setChecking] = useState(false);
   const [afford, setAfford] = useState<{ can_afford: boolean; required: number; available: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -83,6 +85,25 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
               </button>
             </div>
 
+            {/* Currency */}
+            <div className="mt-6">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Devise de la carte</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {(["USD","XOF"] as Currency[]).map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => { setCurrency(c); setAmount(c === "USD" ? 10 : 5000); }}
+                    className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-semibold transition-colors ${
+                      currency === c ? "border-primary bg-primary/10" : "border-border bg-surface-2 hover:bg-muted"
+                    }`}
+                  >
+                    <span>{c === "USD" ? "Dollar US ($)" : "Franc CFA (F)"}</span>
+                    {currency === c && <Check className="h-4 w-4 text-primary" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Brand */}
             <div className="mt-6">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Réseau</p>
@@ -121,7 +142,7 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
                 <span className="text-sm font-semibold text-muted-foreground">{currency}</span>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
-                {FUND_PRESETS.map((q) => (
+                {(currency === "USD" ? FUND_PRESETS : FUND_PRESETS_XOF).map((q) => (
                   <button
                     key={q}
                     onClick={() => setAmount(q)}
@@ -129,7 +150,7 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
                       amount === q ? "border-primary bg-primary/10 text-foreground" : "border-border bg-surface-2 hover:bg-muted"
                     }`}
                   >
-                    ${q}
+                    {currency === "USD" ? `$${q}` : q.toLocaleString("fr-FR")}
                   </button>
                 ))}
               </div>
