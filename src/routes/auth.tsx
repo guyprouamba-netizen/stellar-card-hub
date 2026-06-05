@@ -26,7 +26,7 @@ function Auth() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email, password,
           options: {
             emailRedirectTo: window.location.origin,
@@ -34,8 +34,17 @@ function Auth() {
           },
         });
         if (error) throw error;
-        toast.success("Compte créé ! Vérifiez votre email pour confirmer.");
-        setMode("login");
+        // Auto-confirmation via trigger DB — session est immédiate
+        if (signUpData.session) {
+          toast.success("Compte créé — bienvenue !");
+          navigate({ to: "/dashboard" });
+        } else {
+          // Fallback : connexion explicite si pas de session retournée
+          const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+          if (signInErr) throw signInErr;
+          toast.success("Compte créé — bienvenue !");
+          navigate({ to: "/dashboard" });
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
