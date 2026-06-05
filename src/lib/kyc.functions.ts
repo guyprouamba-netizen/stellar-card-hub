@@ -49,18 +49,16 @@ export const submitFullKyc = createServerFn({ method: "POST" })
     }
 
     try {
-      const { createStrowalletCustomer, extractStrowalletCustomerId } = await import("./strowallet.server");
-      const res = await createStrowalletCustomer({
+      const { ensureStrowalletCustomer } = await import("./strowallet.server");
+      const ensured = await ensureStrowalletCustomer({
         firstName: data.firstName, lastName: data.lastName, email, phone: data.phone,
         dob: data.dob, idType: data.idType, idNumber: data.idNumber,
         idImage, selfie,
         address: data.address, city: data.city, country: data.country,
+        state: data.state, zipCode: data.zipCode, houseNumber: data.houseNumber,
       });
-      const customerId = extractStrowalletCustomerId(res);
-      await supabaseAdmin.from("kyc_submissions").update({ provider_status: "sent", provider_response: res as any }).eq("user_id", userId);
-      if ((res as any)?.success === true && !customerId) {
-        throw new Error("Strowallet a confirmé la création, mais aucun customerId n'a été renvoyé.");
-      }
+      const customerId = ensured.customerId;
+      await supabaseAdmin.from("kyc_submissions").update({ provider_status: ensured.created ? "sent" : "synced", provider_response: ensured.response as any }).eq("user_id", userId);
       if (customerId) {
         await supabaseAdmin.from("profiles").update({ strowallet_customer_id: String(customerId) }).eq("id", userId);
       }
