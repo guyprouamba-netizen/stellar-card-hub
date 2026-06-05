@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Mail, Lock, ArrowRight, User, Phone, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { VirtualCard } from "@/components/virtual-card";
+import { BackButton } from "@/components/back-button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
@@ -71,6 +72,7 @@ function Auth() {
             <img src={logo} alt="" width={32} height={32} className="h-8 w-8 rounded-lg" />
             FASO-INVEST PAY
           </Link>
+          <BackButton to="/" className="mb-4" />
           <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">
             {mode === "login" ? "Bon retour 👋" : "Créer un compte"}
           </h1>
