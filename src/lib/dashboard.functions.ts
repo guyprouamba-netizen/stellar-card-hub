@@ -1,11 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { computeCardCost, loadPricingConfig } from "./pricing.server";
 
 export const getDashboardData = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
+    const { loadPricingConfig } = await import("./pricing.server");
     const [{ data: wallets }, { data: txs }, { data: cards }, { data: profile }, { data: kyc }] = await Promise.all([
       supabase.from("wallets").select("id,currency,balance").eq("user_id", userId),
       supabase.from("transactions").select("id,type,status,amount,currency,description,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
@@ -30,6 +30,7 @@ export const computePricingPreview = createServerFn({ method: "POST" })
   .inputValidator((d: { amountUsd: number }) => ({ amountUsd: Number(d.amountUsd) || 0 }))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
+    const { computeCardCost, loadPricingConfig } = await import("./pricing.server");
     const cfg = await loadPricingConfig();
     const cost = computeCardCost(data.amountUsd, cfg);
     const { data: w } = await supabase.from("wallets").select("balance").eq("user_id", userId).eq("currency", "XOF").maybeSingle();
