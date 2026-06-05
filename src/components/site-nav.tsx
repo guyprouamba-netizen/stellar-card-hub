@@ -1,18 +1,44 @@
 import { Link } from "@tanstack/react-router";
 import { Moon, Sun, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTheme } from "./theme-provider";
+import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/logo.png";
 
-const links = [
+const publicLinks = [
   { to: "/", label: "Accueil" },
   { to: "/dashboard", label: "Tableau de bord" },
-  { to: "/admin", label: "Admin" },
+];
+const adminLinks = [
+  { to: "/admin", label: "Console Admin" },
+  { to: "/", label: "Site public" },
 ];
 
 export function SiteNav() {
   const { theme, toggle } = useTheme();
   const [open, setOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!active) return;
+      setSignedIn(!!session);
+      if (!session) { setIsAdmin(false); return; }
+      const { data: roles } = await supabase
+        .from("user_roles").select("role").eq("user_id", session.user.id);
+      if (!active) return;
+      setIsAdmin((roles ?? []).some((r: any) => r.role === "admin"));
+    }
+    load();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => load());
+    return () => { active = false; sub.subscription.unsubscribe(); };
+  }, []);
+
+  const links = isAdmin ? adminLinks : publicLinks;
+  async function logout() { await supabase.auth.signOut(); }
 
   return (
     <header className="sticky top-0 z-50 glass border-b border-border/40">
