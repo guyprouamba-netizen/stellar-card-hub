@@ -214,7 +214,106 @@ export const cardDetails = createServerFn({ method: "POST" })
 export const cardAction = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ card_id: z.string().min(1), action: z.enum(["freeze","unfreeze","terminate"]) }).parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
     const { strowalletCardAction } = await import("./strowallet.server");
-    return strowalletCardAction(data.action, data.card_id);
+    // Verify ownership via provider_card_id
+    const { data: card } = await supabase.from("cards").select("id,user_id").eq("provider_card_id", data.card_id).maybeSingle();
+    if (!card || card.user_id !== userId) {
+      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+      if (!isAdmin) return { ok: false as const, error: "Carte introuvable" };
+    }
+    try {
+      const res = await strowalletCardAction(data.action, data.card_id);
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const newStatus = data.action === "freeze" ? "frozen" : data.action === "unfreeze" ? "active" : "terminated";
+      await supabaseAdmin.from("cards").update({ status: newStatus, ...(data.action === "unfreeze" ? { failed_attempts: 0, auto_frozen_at: null } : {}) }).eq("provider_card_id", data.card_id);
+      return { ok: true as const, data: res };
+    } catch (e) {
+      return { ok: false as const, error: (e as Error).message };
+    }
+  });
+
+export const listCardTransactions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ card_id: z.string().min(1) }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: card } = await supabase.from("cards").select("user_id").eq("provider_card_id", data.card_id).maybeSingle();
+    if (!card || card.user_id !== userId) {
+      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+      if (!isAdmin) return { ok: false as const, error: "Carte introuvable" };
+    }
+    try {
+      const { getStrowalletCardTransactions } = await import("./strowallet.server");
+      const res = await getStrowalletCardTransactions({ card_id: data.card_id });
+      return { ok: true as const, data: res };
+    } catch (e) {
+      return { ok: false as const, error: (e as Error).message };
+    }
+  });
+
+const fundSchema = z.object({ card_id: z.string().min(1), amountUsd: z.number().min(1).max(1000) });
+
+export const fundCard = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => fundSchema.parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { fundStrowalletCard } = await import("./strowallet.server");
+    const { computeFundCost, loadPricingConfig } = await import("./pricing.server");
+
+    const { data: card } = await supabase.from("cards").select("id,user_id,balance,provider_card_id,status").eq("provider_card_id", data.card_id).maybeSingle();
+    if (!card || card.user_id !== userId) return { ok: false as const, error: "Carte introuvable" };
+    if (card.status === "terminated") return { ok: false as const, error: "Carte résiliée" };
+
+    const cfg = await loadPricingConfig();
+    const cost = computeFundCost(data.amountUsd, cfg);
+    const requiredXof = cost.totalXof;
+
+    const { data: wallet, error: wErr } = await supabase
+      .from("wallets").select("id,balance").eq("user_id", userId).eq("currency", "XOF").maybeSingle();
+    if (wErr) throw new Error(wErr.message);
+    if (!wallet || Number(wallet.balance) < requiredXof) {
+      return { ok: false as const, error: "Solde XOF insuffisant", required: requiredXof, available: Number(wallet?.balance ?? 0) };
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: debErr } = await supabaseAdmin.from("wallets").update({ balance: Number(wallet.balance) - requiredXof }).eq("id", wallet.id);
+    if (debErr) throw new Error(debErr.message);
+
+    try {
+      const res = await fundStrowalletCard({ card_id: data.card_id, amount: data.amountUsd });
+      await supabaseAdmin.from("cards").update({ balance: Number(card.balance) + data.amountUsd }).eq("id", card.id);
+      await supabaseAdmin.from("transactions").insert({
+        user_id: userId, type: "card_fund", status: "success",
+        amount: requiredXof, currency: "XOF", provider: "strowallet",
+        provider_ref: data.card_id,
+        description: `Recharge carte ${data.amountUsd} USD (≈ ${requiredXof} XOF)`,
+        metadata: { pricing: cost, response: res } as any,
+      });
+      return { ok: true as const, data: res };
+    } catch (e) {
+      await supabaseAdmin.from("wallets").update({ balance: Number(wallet.balance) }).eq("id", wallet.id);
+      await supabaseAdmin.from("transactions").insert({
+        user_id: userId, type: "card_fund", status: "failed",
+        amount: requiredXof, currency: "XOF", provider: "strowallet",
+        description: "Recharge carte échouée — remboursée",
+        metadata: { error: (e as Error).message } as any,
+      });
+      return { ok: false as const, error: (e as Error).message };
+    }
+  });
+
+export const listMyCards = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data, error } = await supabase
+      .from("cards")
+      .select("id,brand,last4,currency,balance,status,provider_card_id,failed_attempts,auto_frozen_at,created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data ?? [];
   });
