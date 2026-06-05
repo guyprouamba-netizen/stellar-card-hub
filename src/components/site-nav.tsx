@@ -69,12 +69,21 @@ export function SiteNav() {
           >
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
-          <Link
-            to="/auth"
-            className="hidden rounded-full bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-glow transition-transform hover:scale-105 md:inline-flex"
-          >
-            Commencer
-          </Link>
+          {signedIn ? (
+            <button
+              onClick={logout}
+              className="hidden rounded-full border border-border/60 px-5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted md:inline-flex"
+            >
+              Déconnexion
+            </button>
+          ) : (
+            <Link
+              to="/auth"
+              className="hidden rounded-full bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-glow transition-transform hover:scale-105 md:inline-flex"
+            >
+              Commencer
+            </Link>
+          )}
           <button
             className="grid h-9 w-9 place-items-center rounded-full border border-border/60 md:hidden"
             onClick={() => setOpen((v) => !v)}
