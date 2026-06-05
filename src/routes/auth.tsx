@@ -14,6 +14,14 @@ export const Route = createFileRoute("/auth")({
 
 function Auth() {
   const navigate = useNavigate();
+  async function redirectByRole() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { navigate({ to: "/dashboard" }); return; }
+    const { data: roles } = await supabase
+      .from("user_roles").select("role").eq("user_id", session.user.id);
+    const isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
+    navigate({ to: isAdmin ? "/admin" : "/dashboard" });
+  }
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -79,19 +87,19 @@ function Auth() {
         // Auto-confirmation via trigger DB — session est immédiate
         if (signUpData.session) {
           toast.success("Compte créé — bienvenue !");
-          navigate({ to: "/dashboard" });
+          await redirectByRole();
         } else {
           // Fallback : connexion explicite si pas de session retournée
           const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
           if (signInErr) throw signInErr;
           toast.success("Compte créé — bienvenue !");
-          navigate({ to: "/dashboard" });
+          await redirectByRole();
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Bienvenue !");
-        navigate({ to: "/dashboard" });
+        await redirectByRole();
       }
     } catch (e: any) {
       const message = frenchAuthError(e);
