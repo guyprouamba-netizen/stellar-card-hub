@@ -6,16 +6,20 @@ function pub() {
   return key;
 }
 
-async function call(path: string, init: RequestInit = {}): Promise<any> {
-  const url = `${BASE.replace(/\/$/, "")}${path}`;
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      "Accept": "application/json",
-      "Content-Type": "application/json",
-      ...(init.headers || {}),
-    },
-  });
+function buildQuery(params: Record<string, string | number | undefined>) {
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null) continue;
+    sp.append(k, String(v));
+  }
+  return sp.toString();
+}
+
+// Strowallet bitvcard endpoints use GET with query-string parameters.
+async function callGet(path: string, params: Record<string, string | number | undefined>): Promise<any> {
+  const qs = buildQuery({ public_key: pub(), ...params });
+  const url = `${BASE.replace(/\/$/, "")}${path}${path.includes("?") ? "&" : "?"}${qs}`;
+  const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
   const text = await res.text();
   let body: any = text;
   try { body = JSON.parse(text); } catch { /* keep text */ }
@@ -24,8 +28,7 @@ async function call(path: string, init: RequestInit = {}): Promise<any> {
 }
 
 export async function getStrowalletBalance() {
-  // Strowallet exposes account info via /bitvcard/balance endpoint
-  return call(`/bitvcard/balance?public_key=${encodeURIComponent(pub())}`);
+  return callGet(`/bitvcard/balance/`, {});
 }
 
 export async function createStrowalletCustomer(payload: {
@@ -42,26 +45,22 @@ export async function createStrowalletCustomer(payload: {
   city: string;
   country: string;
 }) {
-  return call(`/bitvcard/create-user/`, {
-    method: "POST",
-    body: JSON.stringify({
-      public_key: pub(),
-      firstName: payload.firstName,
-      lastName: payload.lastName,
-      customerEmail: payload.email,
-      phoneNumber: payload.phone,
-      dateOfBirth: payload.dob,
-      idType: payload.idType,
-      idNumber: payload.idNumber,
-      idImage: payload.idImage,
-      userPhoto: payload.selfie,
-      line1: payload.address,
-      city: payload.city,
-      country: payload.country,
-      state: payload.city,
-      zipCode: "00000",
-      houseNumber: "1",
-    }),
+  return callGet(`/bitvcard/create-user/`, {
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+    customerEmail: payload.email,
+    phoneNumber: payload.phone,
+    dateOfBirth: payload.dob,
+    idType: payload.idType,
+    idNumber: payload.idNumber,
+    idImage: payload.idImage,
+    userPhoto: payload.selfie,
+    line1: payload.address,
+    city: payload.city,
+    country: payload.country,
+    state: payload.city,
+    zipCode: "00000",
+    houseNumber: "1",
   });
 }
 
@@ -70,27 +69,20 @@ export async function createStrowalletCard(payload: {
   amount: number;
   brand?: "Visa" | "MasterCard";
 }) {
-  return call(`/bitvcard/create-card/`, {
-    method: "POST",
-    body: JSON.stringify({
-      public_key: pub(),
-      name_on_card: payload.customerEmail,
-      card_type: "virtual",
-      amount: payload.amount,
-      customerEmail: payload.customerEmail,
-      mode: "sandbox",
-    }),
+  return callGet(`/bitvcard/create-card/`, {
+    name_on_card: payload.customerEmail,
+    card_type: "virtual",
+    amount: payload.amount,
+    customerEmail: payload.customerEmail,
+    mode: "sandbox",
   });
 }
 
 export async function getStrowalletCardDetails(card_id: string) {
-  return call(`/bitvcard/fetch-card-detail/`, {
-    method: "POST",
-    body: JSON.stringify({ public_key: pub(), card_id }),
-  });
+  return callGet(`/bitvcard/fetch-card-detail/`, { card_id });
 }
 
 export async function strowalletCardAction(action: "freeze" | "unfreeze" | "terminate", card_id: string) {
   const path = action === "freeze" ? "/bitvcard/freeze-card/" : action === "unfreeze" ? "/bitvcard/unfreeze-card/" : "/bitvcard/terminate-card/";
-  return call(path, { method: "POST", body: JSON.stringify({ public_key: pub(), card_id }) });
+  return callGet(path, { card_id });
 }
