@@ -62,9 +62,45 @@ export const adminReviewKyc = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     if (data.decision === "approved") {
-      const { data: profile } = await supabaseAdmin.from("profiles").select("strowallet_customer_id").eq("id", data.user_id).maybeSingle();
+      const [{ data: profile }, { data: kyc }] = await Promise.all([
+        supabaseAdmin.from("profiles").select("email,phone,full_name,country,strowallet_customer_id").eq("id", data.user_id).maybeSingle(),
+        supabaseAdmin.from("kyc_submissions").select("first_name,last_name,date_of_birth,id_type,id_number,id_image_url,selfie_url,address,city,country").eq("user_id", data.user_id).maybeSingle(),
+      ]);
+
       if (!profile?.strowallet_customer_id) {
-        throw new Error("Impossible d'approuver ce KYC : aucun identifiant client Strowallet n'a été créé pour cet utilisateur.");
+        if (!profile?.email || !profile?.phone || !kyc?.first_name || !kyc?.last_name || !kyc?.date_of_birth || !kyc?.id_type || !kyc?.id_number || !kyc?.id_image_url || !kyc?.selfie_url || !kyc?.address || !kyc?.city) {
+          throw new Error("Impossible d'approuver ce KYC : les informations nécessaires pour créer le client Strowallet sont incomplètes.");
+        }
+
+        const { ensureStrowalletCustomer } = await import("./strowallet.server");
+        const ensured = await ensureStrowalletCustomer({
+          firstName: kyc.first_name,
+          lastName: kyc.last_name,
+          email: profile.email,
+          phone: profile.phone,
+          dob: kyc.date_of_birth,
+          idType: kyc.id_type,
+          idNumber: kyc.id_number,
+          idImage: kyc.id_image_url,
+          selfie: kyc.selfie_url,
+          address: kyc.address,
+          city: kyc.city,
+          country: kyc.country || profile.country || "BF",
+          state: kyc.city,
+          zipCode: "00000",
+          houseNumber: "1",
+        });
+
+        const { error: profileUpdateError } = await supabaseAdmin
+          .from("profiles")
+          .update({ strowallet_customer_id: ensured.customerId })
+          .eq("id", data.user_id);
+        if (profileUpdateError) throw new Error(profileUpdateError.message);
+
+        await supabaseAdmin.from("kyc_submissions").update({
+          provider_status: ensured.created ? "sent" : "synced",
+          provider_response: ensured.response as any,
+        }).eq("user_id", data.user_id);
       }
     }
     const { error } = await supabaseAdmin.from("kyc_submissions").update({
