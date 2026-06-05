@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Mail, Lock, ArrowRight, User, Phone, Loader2 } from "lucide-react";
+import { Mail, Lock, ArrowRight, User, Phone, Loader2, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { VirtualCard } from "@/components/virtual-card";
 import { BackButton } from "@/components/back-button";
@@ -20,9 +20,46 @@ function Auth() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  function frenchAuthError(err: any): string {
+    const code = err?.code ?? err?.error_code ?? "";
+    const msg = (err?.message ?? "").toString();
+    if (code === "invalid_credentials" || /invalid login credentials/i.test(msg))
+      return "Email ou mot de passe incorrect.";
+    if (code === "email_exists" || code === "user_already_exists" || /already registered|already exists/i.test(msg))
+      return "Un compte existe déjà avec cet email. Connectez-vous.";
+    if (code === "weak_password" || /weak[_ ]password|pwned/i.test(msg))
+      return "Mot de passe trop faible ou compromis. Choisissez un mot de passe unique d'au moins 8 caractères (lettres + chiffres + symbole).";
+    if (code === "validation_failed" || /invalid.*email/i.test(msg))
+      return "Adresse email invalide.";
+    if (code === "over_email_send_rate_limit" || /rate limit/i.test(msg))
+      return "Trop de tentatives. Patientez quelques minutes puis réessayez.";
+    if (code === "email_not_confirmed")
+      return "Email non confirmé. Réessayez dans quelques secondes.";
+    if (/network|failed to fetch/i.test(msg))
+      return "Connexion réseau perdue. Vérifiez votre internet puis réessayez.";
+    return msg || "Une erreur est survenue. Réessayez.";
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setFormError(null);
+
+    // Validation côté client avant d'appeler l'API
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setFormError("Adresse email invalide.");
+      return;
+    }
+    if (password.length < 8) {
+      setFormError("Le mot de passe doit contenir au moins 8 caractères.");
+      return;
+    }
+    if (mode === "signup") {
+      if (!fullName.trim()) { setFormError("Renseignez votre nom complet."); return; }
+      if (!phone.trim())    { setFormError("Renseignez votre numéro de téléphone."); return; }
+    }
+
     setLoading(true);
     try {
       if (mode === "signup") {
@@ -34,6 +71,11 @@ function Auth() {
           },
         });
         if (error) throw error;
+        // Supabase renvoie 200 avec identities=[] quand l'email existe déjà
+        const identities = (signUpData as any)?.user?.identities;
+        if (Array.isArray(identities) && identities.length === 0) {
+          throw { code: "user_already_exists", message: "Un compte existe déjà avec cet email." };
+        }
         // Auto-confirmation via trigger DB — session est immédiate
         if (signUpData.session) {
           toast.success("Compte créé — bienvenue !");
@@ -52,7 +94,9 @@ function Auth() {
         navigate({ to: "/dashboard" });
       }
     } catch (e: any) {
-      toast.error(e?.message ?? "Erreur d'authentification");
+      const message = frenchAuthError(e);
+      setFormError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -90,6 +134,12 @@ function Auth() {
           </p>
 
           <form className="mt-8 space-y-4" onSubmit={submit}>
+            {formError && (
+              <div role="alert" className="flex items-start gap-2 rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
             {mode === "signup" && (
               <>
                 <div className="relative">
