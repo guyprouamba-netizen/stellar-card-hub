@@ -231,7 +231,15 @@ export const issueCard = createServerFn({ method: "POST" })
 export const cardDetails = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ card_id: z.string().min(1) }).parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: card } = await supabase
+      .from("cards").select("user_id")
+      .eq("provider_card_id", data.card_id).maybeSingle();
+    if (!card || card.user_id !== userId) {
+      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+      if (!isAdmin) throw new Error("Carte introuvable");
+    }
     const { getStrowalletCardDetails } = await import("./strowallet.server");
     return getStrowalletCardDetails(data.card_id);
   });
