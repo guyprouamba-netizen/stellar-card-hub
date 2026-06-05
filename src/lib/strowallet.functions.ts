@@ -81,7 +81,7 @@ export const submitKyc = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId, claims } = context;
     const email = (claims as { email?: string }).email!;
-    const { createStrowalletCustomer } = await import("./strowallet.server");
+    const { ensureStrowalletCustomer } = await import("./strowallet.server");
     // Persist locally first
     const { error: insErr } = await supabase.from("kyc_submissions").upsert({
       user_id: userId,
@@ -102,17 +102,13 @@ export const submitKyc = createServerFn({ method: "POST" })
 
     // Forward to Strowallet
     try {
-      const { extractStrowalletCustomerId } = await import("./strowallet.server");
-      const res = await createStrowalletCustomer({ ...data, email });
-      const customerId = extractStrowalletCustomerId(res);
-      await supabase.from("kyc_submissions").update({ provider_status: "sent", provider_response: res }).eq("user_id", userId);
-      if ((res as any)?.success === true && !customerId) {
-        throw new Error("Strowallet a confirmé la création, mais aucun customerId n'a été renvoyé.");
-      }
+      const ensured = await ensureStrowalletCustomer({ ...data, email, state: data.city, zipCode: "00000", houseNumber: "1" });
+      const customerId = ensured.customerId;
+      await supabase.from("kyc_submissions").update({ provider_status: ensured.created ? "sent" : "synced", provider_response: ensured.response }).eq("user_id", userId);
       if (customerId) {
         await supabase.from("profiles").update({ strowallet_customer_id: String(customerId) }).eq("id", userId);
       }
-      return { ok: true as const, data: res };
+      return { ok: true as const, data: ensured.response };
     } catch (e) {
       const msg = (e as Error).message;
       await supabase.from("kyc_submissions").update({ provider_status: "error", provider_response: { error: msg } }).eq("user_id", userId);
