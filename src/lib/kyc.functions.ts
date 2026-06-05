@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createStrowalletCustomer } from "./strowallet.server";
 
 const schema = z.object({
   firstName: z.string().min(1).max(80),
@@ -26,6 +25,7 @@ export const submitFullKyc = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId, claims } = context;
     const email = (claims as { email?: string }).email!;
+    const { createStrowalletCustomer } = await import("./strowallet.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Build signed URLs for Strowallet (7 days)

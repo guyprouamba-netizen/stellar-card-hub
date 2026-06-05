@@ -1,20 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import {
-  getStrowalletBalance,
-  createStrowalletCustomer,
-  createStrowalletCard,
-  getStrowalletCardDetails,
-  strowalletCardAction,
-} from "./strowallet.server";
-import { computeCardCost, loadPricingConfig } from "./pricing.server";
 
 // Admin only — Strowallet master account balance
 export const fetchStrowalletBalance = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
+    const { getStrowalletBalance } = await import("./strowallet.server");
     const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
     if (!isAdmin) throw new Error("Forbidden");
     try {
@@ -45,6 +38,7 @@ export const submitKyc = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId, claims } = context;
     const email = (claims as { email?: string }).email!;
+    const { createStrowalletCustomer } = await import("./strowallet.server");
     // Persist locally first
     const { error: insErr } = await supabase.from("kyc_submissions").upsert({
       user_id: userId,
@@ -90,6 +84,8 @@ export const issueCard = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId, claims } = context;
     const email = (claims as { email?: string }).email!;
+    const { createStrowalletCard } = await import("./strowallet.server");
+    const { computeCardCost, loadPricingConfig } = await import("./pricing.server");
 
     // KYC gate
     const { data: profile } = await supabase.from("profiles").select("strowallet_customer_id").eq("id", userId).maybeSingle();
@@ -163,9 +159,15 @@ export const issueCard = createServerFn({ method: "POST" })
 export const cardDetails = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ card_id: z.string().min(1) }).parse(d))
-  .handler(async ({ data }) => getStrowalletCardDetails(data.card_id));
+  .handler(async ({ data }) => {
+    const { getStrowalletCardDetails } = await import("./strowallet.server");
+    return getStrowalletCardDetails(data.card_id);
+  });
 
 export const cardAction = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ card_id: z.string().min(1), action: z.enum(["freeze","unfreeze","terminate"]) }).parse(d))
-  .handler(async ({ data }) => strowalletCardAction(data.action, data.card_id));
+  .handler(async ({ data }) => {
+    const { strowalletCardAction } = await import("./strowallet.server");
+    return strowalletCardAction(data.action, data.card_id);
+  });

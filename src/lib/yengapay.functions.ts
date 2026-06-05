@@ -1,13 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createYengaPayment } from "./yengapay.server";
 
 export const initRecharge = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ amount: z.number().min(500).max(2_000_000) }).parse(d))
   .handler(async ({ context, data }): Promise<any> => {
     const { userId } = context;
+    const { createYengaPayment } = await import("./yengapay.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const reference = `FIP-${Date.now()}-${userId.slice(0, 8)}`;
     const { error: txErr } = await supabaseAdmin.from("transactions").insert({
