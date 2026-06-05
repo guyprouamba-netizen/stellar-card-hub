@@ -106,7 +106,7 @@ export async function createStrowalletCustomer(payload: {
     customerEmail: payload.email,
     phoneNumber: payload.phone.replace(/[^0-9]/g, ''),
     dateOfBirth: (() => { const [y, m, d] = payload.dob.split("-"); return `${m}/${d}/${y}`; })(),
-    idType: (() => { const t = payload.idType.toLowerCase(); if (t === "nin") return "national_id"; if (t === "voters_card") return "voters_card"; if (t === "id_card") return "id_card"; return t; })(),
+    idType: String(payload.idType).toUpperCase(),
     idNumber: payload.idNumber,
     idImage: payload.idImage,
     userPhoto: payload.selfie,
