@@ -1,4 +1,4 @@
-const BASE = process.env.STROWALLET_BASE_URL || "https://strowallet.com/api";
+const RAW_BASE = process.env.STROWALLET_BASE_URL || "https://strowallet.com/api";
 
 function pub() {
   const key = process.env.STROWALLET_PUBLIC_KEY;
@@ -15,10 +15,20 @@ function buildQuery(params: Record<string, string | number | undefined>) {
   return sp.toString();
 }
 
+function base() {
+  return RAW_BASE.replace(/\/$/, "");
+}
+
+function apiPath(path: string) {
+  const clean = path.startsWith("/") ? path : `/${path}`;
+  return clean.startsWith("/api/") ? clean : `/api${clean}`;
+}
+
 // Strowallet bitvcard endpoints use GET with query-string parameters.
 async function callGet(path: string, params: Record<string, string | number | undefined>): Promise<any> {
   const qs = buildQuery({ public_key: pub(), ...params });
-  const url = `${BASE.replace(/\/$/, "")}${path}${path.includes("?") ? "&" : "?"}${qs}`;
+  const finalPath = apiPath(path);
+  const url = `${base()}${finalPath}${finalPath.includes("?") ? "&" : "?"}${qs}`;
   const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
   const text = await res.text();
   let body: any = text;
@@ -30,7 +40,8 @@ async function callGet(path: string, params: Record<string, string | number | un
 // Strowallet bitvcard write endpoints (create/freeze/etc.) use POST with form-encoded body.
 async function callPost(path: string, params: Record<string, string | number | undefined>): Promise<any> {
   const body = buildQuery({ public_key: pub(), ...params });
-  const url = `${BASE.replace(/\/$/, "")}${path}`;
+  const finalPath = apiPath(path);
+  const url = `${base()}${finalPath}`;
   const res = await fetch(url, {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" },
@@ -114,13 +125,14 @@ export async function strowalletDiagnostic(): Promise<{
   publicKeyPresent: boolean;
   attempts: Array<{ method: string; path: string; status: number; contentType: string; bodyPreview: string }>;
 }> {
-  const base = BASE.replace(/\/$/, "");
+  const apiBase = base();
   const publicKey = process.env.STROWALLET_PUBLIC_KEY || "";
   const attempts: Array<{ method: string; path: string; status: number; contentType: string; bodyPreview: string }> = [];
 
   async function probe(method: "GET" | "POST", path: string, params: Record<string, string>) {
     const qs = new URLSearchParams({ public_key: publicKey, ...params }).toString();
-    const url = method === "GET" ? `${base}${path}?${qs}` : `${base}${path}`;
+    const finalPath = apiPath(path);
+    const url = method === "GET" ? `${apiBase}${finalPath}?${qs}` : `${apiBase}${finalPath}`;
     try {
       const res = await fetch(url, {
         method,
@@ -153,5 +165,5 @@ export async function strowalletDiagnostic(): Promise<{
     zipCode: "00226", houseNumber: "1",
   });
 
-  return { base, publicKeyPresent: !!publicKey, attempts };
+  return { base: apiBase, publicKeyPresent: !!publicKey, attempts };
 }
