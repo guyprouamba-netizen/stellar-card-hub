@@ -1,0 +1,1 @@
+ALTER TABLE public.kyc_submissions ADD CONSTRAINT kyc_submissions_user_id_unique UNIQUE (user_id);
