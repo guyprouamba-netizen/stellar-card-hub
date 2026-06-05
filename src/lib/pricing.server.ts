@@ -43,6 +43,21 @@ export function computeCardCost(amountUsd: number, cfg: PricingConfig = DEFAULT_
   };
 }
 
+// Recharge : pas de frais d'émission, juste le coût Strowallet (fixe + %) converti en XOF
+export function computeFundCost(amountUsd: number, cfg: PricingConfig = DEFAULT_PRICING) {
+  const strowalletPctUsd = +(amountUsd * cfg.strowallet_pct_fee).toFixed(4);
+  const loadedUsd = +(amountUsd + cfg.strowallet_fixed_fee_usd + strowalletPctUsd).toFixed(4);
+  const totalXof = Math.ceil(loadedUsd * cfg.usd_rate_xof);
+  return {
+    amountUsd,
+    strowalletFixedUsd: cfg.strowallet_fixed_fee_usd,
+    strowalletPctUsd,
+    rateXof: cfg.usd_rate_xof,
+    loadedUsd,
+    totalXof,
+  };
+}
+
 export async function loadPricingConfig(): Promise<PricingConfig> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data } = await supabaseAdmin.from("platform_config").select("key,value");

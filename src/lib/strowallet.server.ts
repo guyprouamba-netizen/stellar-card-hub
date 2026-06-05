@@ -149,6 +149,17 @@ export async function getStrowalletCardDetails(card_id: string) {
   return callGet(`/bitvcard/fetch-card-detail/`, { card_id });
 }
 
+export async function fundStrowalletCard(params: { card_id: string; amount: number }) {
+  return callPost(`/bitvcard/fund-card/`, {
+    card_id: params.card_id,
+    amount: params.amount,
+  });
+}
+
+export async function getStrowalletCardTransactions(params: { card_id: string }) {
+  return callGet(`/bitvcard/card-transactions/`, { card_id: params.card_id });
+}
+
 export async function getStrowalletCardholder(params: { customerEmail?: string; customerId?: string }) {
   return callGet(`/bitvcard/getcardholder/`, {
     customerEmail: params.customerEmail,
