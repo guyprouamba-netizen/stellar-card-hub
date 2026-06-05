@@ -79,19 +79,19 @@ function Auth() {
         // Auto-confirmation via trigger DB — session est immédiate
         if (signUpData.session) {
           toast.success("Compte créé — bienvenue !");
-          navigate({ to: "/dashboard" });
+          await redirectByRole();
         } else {
           // Fallback : connexion explicite si pas de session retournée
           const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
           if (signInErr) throw signInErr;
           toast.success("Compte créé — bienvenue !");
-          navigate({ to: "/dashboard" });
+          await redirectByRole();
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Bienvenue !");
-        navigate({ to: "/dashboard" });
+        await redirectByRole();
       }
     } catch (e: any) {
       const message = frenchAuthError(e);
