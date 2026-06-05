@@ -4,12 +4,14 @@ import { ArrowRight, ShieldCheck, Zap, Globe2, Smartphone, CheckCircle2, Lock, B
 import { SiteNav } from "@/components/site-nav";
 import { VirtualCard } from "@/components/virtual-card";
 import logo from "@/assets/logo.png";
+import heroCustomer from "@/assets/hero-customer.jpg";
+import sectionPayment from "@/assets/section-payment.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "FASO-INVEST PAY — Cartes virtuelles & Mobile Money" },
-      { name: "description", content: "Émettez vos cartes virtuelles USD depuis le Burkina Faso. Rechargez en Mobile Money via YengaPay, payez partout dans le monde." },
+      { name: "description", content: "Émettez votre carte virtuelle USD/XOF depuis le Burkina Faso. Rechargez en Mobile Money, payez partout dans le monde." },
       { property: "og:title", content: "FASO-INVEST PAY" },
       { property: "og:description", content: "Cartes virtuelles instantanées + Mobile Money pour l'Afrique de l'Ouest." },
     ],
@@ -18,17 +20,17 @@ export const Route = createFileRoute("/")({
 });
 
 const features = [
-  { icon: Zap, title: "Émission instantanée", desc: "Créez une carte virtuelle USD en quelques secondes après validation KYC." },
-  { icon: ShieldCheck, title: "KYC sécurisé", desc: "Vos pièces sont chiffrées et transmises directement à Strowallet pour validation." },
-  { icon: Smartphone, title: "Recharge Mobile Money", desc: "Rechargez votre compte en XOF via YengaPay : Orange, Moov, Wave." },
+  { icon: Zap, title: "Émission instantanée", desc: "Créez votre carte virtuelle USD ou XOF en quelques secondes après validation KYC." },
+  { icon: ShieldCheck, title: "KYC sécurisé", desc: "Vos pièces sont chiffrées et stockées sur notre infrastructure protégée." },
+  { icon: Smartphone, title: "Recharge Mobile Money", desc: "Rechargez votre compte en XOF en Mobile Money : Orange, Moov, Wave." },
   { icon: Globe2, title: "Paiements mondiaux", desc: "Visa & Mastercard acceptées partout : Netflix, Amazon, AliExpress, AdSense…" },
 ];
 
 const steps = [
   { n: "01", t: "Créez votre compte", d: "Inscription en 2 minutes avec votre email et votre numéro mobile." },
-  { n: "02", t: "Validez votre KYC", d: "Photo de pièce + selfie. Transmis automatiquement à notre partenaire émetteur." },
+  { n: "02", t: "Validez votre KYC", d: "Photo de pièce + selfie. Validation rapide par notre équipe." },
   { n: "03", t: "Rechargez en Mobile Money", d: "Orange Money, Moov, Wave — crédit instantané sur votre portefeuille XOF." },
-  { n: "04", t: "Émettez votre carte USD", d: "Visa ou Mastercard virtuelle, utilisable partout dans le monde immédiatement." },
+  { n: "04", t: "Émettez votre carte", d: "Visa ou Mastercard virtuelle en USD ou XOF, utilisable partout dans le monde immédiatement." },
 ];
 
 const partners = ["Netflix","Amazon","Spotify","AliExpress","Google Ads","Meta Ads","Apple","Microsoft","ChatGPT","Shopify"];
@@ -40,11 +42,11 @@ const testimonials = [
 ];
 
 const faqs = [
-  { q: "Combien coûte la création d'une carte ?", a: "4 500 F CFA de frais d'émission unique, plus le montant chargé (taux 1 USD = 869 F + frais Strowallet 1,9 $ + 1 %)." },
-  { q: "Quels moyens de recharge sont acceptés ?", a: "Orange Money, Moov Money, et Wave via YengaPay — crédit instantané sur votre portefeuille XOF." },
-  { q: "Que se passe-t-il si un paiement échoue ?", a: "Pour éviter la résiliation automatique de Strowallet (3 échecs), nous gelons votre carte dès la 1ʳᵉ tentative refusée. Vous pouvez la débloquer en un clic depuis votre tableau de bord." },
+  { q: "Combien coûte la création d'une carte ?", a: "4 500 F CFA de frais d'émission unique, plus le montant chargé (taux 1 USD = 869 F + 1,9 $ + 1 % de frais de traitement)." },
+  { q: "Quels moyens de recharge sont acceptés ?", a: "Orange Money, Moov Money, et Wave en Mobile Money — crédit instantané sur votre portefeuille XOF." },
+  { q: "Que se passe-t-il si un paiement échoue ?", a: "Pour protéger votre carte, nous la gelons automatiquement dès la 1ʳᵉ tentative refusée. Vous pouvez la débloquer en un clic depuis votre tableau de bord." },
   { q: "Où puis-je utiliser la carte ?", a: "Partout où Visa/Mastercard sont acceptées : Netflix, Amazon, AliExpress, Google Ads, Meta Ads, AdSense, SaaS, formations en ligne…" },
-  { q: "Mes données sont-elles sécurisées ?", a: "Oui. Vos pièces KYC sont stockées dans un bucket privé chiffré et transmises uniquement à Strowallet, notre émetteur certifié." },
+  { q: "Mes données sont-elles sécurisées ?", a: "Oui. Vos pièces KYC sont stockées dans un espace privé chiffré, accessible uniquement par notre équipe de validation." },
 ];
 
 function Index() {
@@ -80,10 +82,16 @@ function Index() {
           </motion.div>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, delay: 0.1 }} className="relative">
             <div className="absolute inset-0 -z-10 rounded-[3rem] bg-gradient-primary opacity-20 blur-3xl" />
-            <div className="relative space-y-4">
-              <VirtualCard variant="primary" holder="GUY ROUAMBA" number="4242  ••••  ••••  4242" balance="$ 1 250.00" brand="Visa" />
-              <div className="ml-12">
-                <VirtualCard variant="sunset" holder="GUY ROUAMBA" number="5577  ••••  ••••  8841" balance="$ 480.00" brand="MasterCard" />
+            <div className="relative">
+              <img
+                src={heroCustomer}
+                alt="Cliente FASO-INVEST PAY effectuant un paiement en ligne"
+                width={1024}
+                height={1024}
+                className="w-full rounded-[2.5rem] object-cover shadow-card-premium aspect-square"
+              />
+              <div className="absolute -bottom-8 -left-6 w-[60%] rotate-[-6deg] md:-left-10">
+                <VirtualCard variant="primary" holder="GUY ROUAMBA" number="4242  ••••  ••••  4242" balance="$ 1 250.00" brand="Visa" />
               </div>
             </div>
           </motion.div>
@@ -136,8 +144,8 @@ function Index() {
                 {[
                   "Création de carte : 4 500 F CFA (unique, à vie)",
                   "Taux de change : 1 USD = 869 F CFA",
-                  "Frais Strowallet : 1,9 $ + 1 % du chargement",
-                  "Recharge Mobile Money : frais YengaPay seulement",
+                  "Frais de traitement : 1,9 $ + 1 % du chargement",
+                  "Recharge Mobile Money : frais opérateur uniquement",
                   "Aucun frais mensuel, aucun abonnement",
                 ].map((t) => (<li key={t} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" /> {t}</li>))}
               </ul>
@@ -147,7 +155,7 @@ function Index() {
               <p className="mt-1 text-sm text-muted-foreground">Carte chargée à 20 $</p>
               <dl className="mt-6 space-y-3 text-sm">
                 <Row k="Montant souhaité" v="20,00 $" />
-                <Row k="Frais Strowallet (1,9 $ + 1 %)" v="2,10 $" />
+                <Row k="Frais de traitement (1,9 $ + 1 %)" v="2,10 $" />
                 <Row k="Total USD" v="22,10 $" />
                 <Row k="Conversion (× 869 F)" v="19 205 F" />
                 <Row k="Frais d'émission" v="4 500 F" />
@@ -171,6 +179,23 @@ function Index() {
               <p className="mt-1 text-sm text-muted-foreground">{b.d}</p>
             </div>
           ))}
+        </section>
+
+        {/* HUMAN PAYMENT SECTION */}
+        <section className="container mx-auto grid items-center gap-10 px-4 pb-20 sm:px-6 md:grid-cols-2">
+          <div className="order-2 md:order-1">
+            <span className="text-xs font-semibold uppercase tracking-widest text-primary">Pensé pour vous</span>
+            <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Payez en ligne où que vous soyez, en toute confiance.</h2>
+            <p className="mt-4 text-muted-foreground">Que vous régliez vos abonnements, vos publicités en ligne ou vos achats e-commerce, FASO-INVEST PAY vous accompagne avec une carte virtuelle locale et fiable.</p>
+            <ul className="mt-6 space-y-3 text-sm">
+              {["Compatible avec tous les marchands en ligne","Suivi instantané dans votre tableau de bord","Support client basé à Ouagadougou"].map(t => (
+                <li key={t} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" /> {t}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="order-1 md:order-2">
+            <img src={sectionPayment} alt="Entrepreneur effectuant un paiement en ligne" loading="lazy" width={1920} height={1080} className="w-full rounded-3xl object-cover shadow-card-premium" />
+          </div>
         </section>
 
         {/* STATS */}

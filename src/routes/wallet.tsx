@@ -9,8 +9,8 @@ import { RechargeSheet } from "@/components/recharge-sheet";
 export const Route = createFileRoute("/wallet")({
   head: () => ({
     meta: [
-      { title: "Mon portefeuille — Volty" },
-      { name: "description", content: "Rechargez votre solde via YengaPay et suivez vos mouvements." },
+      { title: "Mon portefeuille — FASO-INVEST PAY" },
+      { name: "description", content: "Rechargez votre solde en Mobile Money et suivez vos mouvements." },
     ],
   }),
   component: WalletPage,
@@ -23,11 +23,11 @@ const wallets = [
 ];
 
 const movements = [
-  { type: "in", label: "Recharge YengaPay", method: "Orange Money", amount: 50000, currency: "XOF", date: "Aujourd'hui · 11:24", status: "success" as const },
-  { type: "out", label: "Émission carte USD", method: "Strowallet", amount: -25000, currency: "XOF", date: "Hier · 17:02", status: "success" as const },
-  { type: "in", label: "Recharge YengaPay", method: "MTN MoMo", amount: 25000, currency: "XOF", date: "12 mai · 09:11", status: "success" as const },
-  { type: "out", label: "Transfert vers @marie", method: "Volty", amount: -7500, currency: "XOF", date: "10 mai · 18:46", status: "success" as const },
-  { type: "in", label: "Recharge YengaPay", method: "Wave", amount: 10000, currency: "XOF", date: "08 mai · 14:00", status: "pending" as const },
+  { type: "in", label: "Recharge Mobile Money", method: "Orange Money", amount: 50000, currency: "XOF", date: "Aujourd'hui · 11:24", status: "success" as const },
+  { type: "out", label: "Émission carte USD", method: "FASO-INVEST PAY", amount: -25000, currency: "XOF", date: "Hier · 17:02", status: "success" as const },
+  { type: "in", label: "Recharge Mobile Money", method: "MTN MoMo", amount: 25000, currency: "XOF", date: "12 mai · 09:11", status: "success" as const },
+  { type: "out", label: "Transfert vers @marie", method: "FASO-INVEST PAY", amount: -7500, currency: "XOF", date: "10 mai · 18:46", status: "success" as const },
+  { type: "in", label: "Recharge Mobile Money", method: "Wave", amount: 10000, currency: "XOF", date: "08 mai · 14:00", status: "pending" as const },
 ];
 
 function WalletPage() {
@@ -130,7 +130,7 @@ function WalletPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold">Mouvements récents</h2>
-              <p className="text-xs text-muted-foreground">Recharges YengaPay, achats de cartes et transferts</p>
+              <p className="text-xs text-muted-foreground">Recharges Mobile Money, achats de cartes et transferts</p>
             </div>
             <Link to="/dashboard" className="text-sm text-primary hover:underline">Voir tout</Link>
           </div>

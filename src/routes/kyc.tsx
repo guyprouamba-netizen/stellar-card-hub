@@ -59,7 +59,7 @@ function KycPage() {
     try {
       const [idPath, selfiePath] = await Promise.all([uploadOne(idFile, "id"), uploadOne(selfieFile, "selfie")]);
       const res: any = await submit({ data: { ...f, idType: f.idType as any, idImagePath: idPath, selfiePath } });
-      if (res?.ok) { setDone(true); toast.success("KYC envoyé à Strowallet ✓"); }
+      if (res?.ok) { setDone(true); toast.success("KYC envoyé ✓"); }
       else toast.error(res?.error ?? "Échec");
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   }
@@ -71,7 +71,7 @@ function KycPage() {
       <div className="max-w-md text-center">
         <CheckCircle2 className="mx-auto h-16 w-16 text-success" />
         <h1 className="mt-6 font-[Space_Grotesk] text-3xl font-bold">KYC envoyé !</h1>
-        <p className="mt-2 text-muted-foreground">Votre dossier a été transmis à Strowallet. Vous pourrez émettre des cartes dès validation (généralement sous 24-48h).</p>
+        <p className="mt-2 text-muted-foreground">Votre dossier a été transmis à notre équipe de validation. Vous pourrez émettre votre carte dès approbation (généralement sous 24-48h).</p>
         <Link to="/dashboard" className="mt-6 inline-flex rounded-full bg-gradient-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-glow">Retour au tableau de bord</Link>
       </div>
     </div>
@@ -85,8 +85,8 @@ function KycPage() {
           <div className="flex items-center gap-3">
             <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary"><ShieldCheck className="h-6 w-6" /></span>
             <div>
-              <h1 className="font-[Space_Grotesk] text-2xl font-bold">Validation KYC Strowallet</h1>
-              <p className="text-sm text-muted-foreground">Vos informations sont transmises directement à Strowallet pour validation.</p>
+              <h1 className="font-[Space_Grotesk] text-2xl font-bold">Validation KYC</h1>
+              <p className="text-sm text-muted-foreground">Vos informations sont vérifiées par notre équipe de conformité.</p>
             </div>
           </div>
 
@@ -124,7 +124,7 @@ function KycPage() {
 
             <button type="submit" disabled={busy}
               className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
-              {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Envoi…</> : "Envoyer mon dossier à Strowallet"}
+              {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Envoi…</> : "Envoyer mon dossier KYC"}
             </button>
           </form>
         </div>

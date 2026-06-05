@@ -45,7 +45,7 @@ export function RechargeSheet({ open, onClose }: { open: boolean; onClose: () =>
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-[Space_Grotesk] text-2xl font-bold tracking-tight">Recharger</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Via Mobile Money (YengaPay)</p>
+                <p className="mt-1 text-sm text-muted-foreground">Via Mobile Money</p>
               </div>
               <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full border border-border hover:bg-muted">
                 <X className="h-4 w-4" />
@@ -87,7 +87,7 @@ export function RechargeSheet({ open, onClose }: { open: boolean; onClose: () =>
                     <Smartphone className="h-4 w-4" />
                   </span>
                   <div>
-                    <p className="text-sm font-semibold">YengaPay · Mobile Money</p>
+                    <p className="text-sm font-semibold">Mobile Money</p>
                     <p className="text-xs text-muted-foreground">Orange · MTN · Moov · Wave</p>
                   </div>
                 </div>
@@ -107,7 +107,7 @@ export function RechargeSheet({ open, onClose }: { open: boolean; onClose: () =>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Continuer vers le paiement <ArrowRight className="h-4 w-4" /></>}
             </button>
             <p className="mt-3 text-center text-[11px] text-muted-foreground">
-              Vous serez redirigé(e) vers YengaPay pour finaliser la transaction en toute sécurité.
+              Vous serez redirigé(e) vers la page de paiement Mobile Money sécurisée.
             </p>
           </motion.div>
         </>
