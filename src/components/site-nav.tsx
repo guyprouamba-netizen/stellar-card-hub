@@ -48,7 +48,7 @@ export function SiteNav() {
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">
-          {links.map((l) => (
+          {publicLinks.map((l) => (
             <Link
               key={l.to}
               to={l.to}
@@ -58,6 +58,15 @@ export function SiteNav() {
               {l.label}
             </Link>
           ))}
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className="rounded-full bg-primary/15 px-4 py-1.5 text-sm font-semibold text-primary ring-1 ring-primary/30 transition-colors hover:bg-primary/25"
+              activeProps={{ className: "bg-primary/25" }}
+            >
+              Console Admin
+            </Link>
+          )}
         </nav>
 
         <div className="flex items-center gap-2">
