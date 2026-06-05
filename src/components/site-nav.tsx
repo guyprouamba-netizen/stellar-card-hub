@@ -9,9 +9,8 @@ const publicLinks = [
   { to: "/", label: "Accueil" },
   { to: "/dashboard", label: "Tableau de bord" },
 ];
-const adminLinks = [
+const adminExtraLinks = [
   { to: "/admin", label: "Console Admin" },
-  { to: "/", label: "Site public" },
 ];
 
 export function SiteNav() {
@@ -37,7 +36,7 @@ export function SiteNav() {
     return () => { active = false; sub.subscription.unsubscribe(); };
   }, []);
 
-  const links = isAdmin ? adminLinks : publicLinks;
+  const links = isAdmin ? [...publicLinks, ...adminExtraLinks] : publicLinks;
   async function logout() { await supabase.auth.signOut(); }
 
   return (
