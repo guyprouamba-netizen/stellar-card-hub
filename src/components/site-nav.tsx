@@ -36,7 +36,8 @@ export function SiteNav() {
     return () => { active = false; sub.subscription.unsubscribe(); };
   }, []);
 
-  const links = isAdmin ? [...publicLinks, ...adminExtraLinks] : publicLinks;
+  const links = [...publicLinks, ...adminExtraLinks];
+  void isAdmin;
   async function logout() { await supabase.auth.signOut(); }
 
   return (
