@@ -2,6 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+export const diagnoseStrowallet = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { strowalletDiagnostic } = await import("./strowallet.server");
+    return strowalletDiagnostic();
+  });
+
 // Admin only — Strowallet master account balance
 export const fetchStrowalletBalance = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

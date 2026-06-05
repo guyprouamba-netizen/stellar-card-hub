@@ -107,3 +107,51 @@ export async function strowalletCardAction(action: "freeze" | "unfreeze" | "term
   const path = action === "freeze" ? "/bitvcard/freeze-card/" : action === "unfreeze" ? "/bitvcard/unfreeze-card/" : "/bitvcard/terminate-card/";
   return callPost(path, { card_id });
 }
+
+// Raw diagnostic call — returns status + raw body so we can debug Strowallet routing without throwing.
+export async function strowalletDiagnostic(): Promise<{
+  base: string;
+  publicKeyPresent: boolean;
+  attempts: Array<{ method: string; path: string; status: number; contentType: string; bodyPreview: string }>;
+}> {
+  const base = BASE.replace(/\/$/, "");
+  const publicKey = process.env.STROWALLET_PUBLIC_KEY || "";
+  const attempts: Array<{ method: string; path: string; status: number; contentType: string; bodyPreview: string }> = [];
+
+  async function probe(method: "GET" | "POST", path: string, params: Record<string, string>) {
+    const qs = new URLSearchParams({ public_key: publicKey, ...params }).toString();
+    const url = method === "GET" ? `${base}${path}?${qs}` : `${base}${path}`;
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: method === "POST"
+          ? { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" }
+          : { Accept: "application/json" },
+        body: method === "POST" ? qs : undefined,
+        redirect: "follow",
+      });
+      const text = await res.text();
+      attempts.push({
+        method, path, status: res.status,
+        contentType: res.headers.get("content-type") || "",
+        bodyPreview: text.slice(0, 400),
+      });
+    } catch (e) {
+      attempts.push({ method, path, status: 0, contentType: "", bodyPreview: `fetch error: ${(e as Error).message}` });
+    }
+  }
+
+  // Probe balance (read-only) in both modes, then create-user OPTIONS-like check
+  await probe("GET", "/bitvcard/balance/", {});
+  await probe("POST", "/bitvcard/balance/", {});
+  await probe("POST", "/bitvcard/create-user/", {
+    firstName: "TEST", lastName: "PROBE", customerEmail: "probe@example.com",
+    phoneNumber: "+22600000000", dateOfBirth: "1990-01-01",
+    idType: "PASSPORT", idNumber: "TEST123",
+    idImage: "https://via.placeholder.com/300", userPhoto: "https://via.placeholder.com/300",
+    line1: "Test street", city: "Ouagadougou", country: "BF", state: "Centre",
+    zipCode: "00226", houseNumber: "1",
+  });
+
+  return { base, publicKeyPresent: !!publicKey, attempts };
+}
