@@ -66,9 +66,13 @@ export const submitKyc = createServerFn({ method: "POST" })
 
     // Forward to Strowallet
     try {
+      const { extractStrowalletCustomerId } = await import("./strowallet.server");
       const res = await createStrowalletCustomer({ ...data, email });
-      const customerId = (res as any)?.response?.bitvcard_customer_id || (res as any)?.customerId || null;
+      const customerId = extractStrowalletCustomerId(res);
       await supabase.from("kyc_submissions").update({ provider_status: "sent", provider_response: res }).eq("user_id", userId);
+      if ((res as any)?.success === true && !customerId) {
+        throw new Error("Strowallet a confirmé la création, mais aucun customerId n'a été renvoyé.");
+      }
       if (customerId) {
         await supabase.from("profiles").update({ strowallet_customer_id: String(customerId) }).eq("id", userId);
       }
