@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowDownLeft, ArrowUpRight, Plus, Repeat, Send, TrendingUp, Wallet as WalletIcon, Zap } from "lucide-react";
 import { useState } from "react";

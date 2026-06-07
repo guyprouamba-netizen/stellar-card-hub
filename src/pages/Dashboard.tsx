@@ -1,6 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
+import { useServerFn } from "@/lib/server-fn";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
@@ -33,12 +33,12 @@ function Dashboard() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) navigate({ to: "/auth" });
+      if (!data.session) navigate("/auth");
       else setSession(data.session);
       setCheckingAuth(false);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      if (!s) navigate({ to: "/auth" });
+      if (!s) navigate("/auth");
       setSession(s);
     });
     return () => sub.subscription.unsubscribe();
@@ -118,7 +118,7 @@ function Sidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   ];
   async function logout() {
     await supabase.auth.signOut();
-    navigate({ to: "/" });
+    navigate("/");
   }
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-border bg-card/30 p-4 md:flex md:flex-col">

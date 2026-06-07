@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowRight, ShieldCheck, Zap, Globe2, Smartphone, CheckCircle2, Lock, Banknote, CreditCard, TrendingUp, Users, Star, ChevronDown, Sparkles } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
