@@ -1,65 +1,88 @@
-# Plan FASO-INVEST PAY — finalisation production
+# Plan : SPA statique cPanel + backend Supabase
 
-## Pourquoi tu vois "l'ancienne version"
-Tu es sur `/pricing` qui n'a pas encore été refait. Les routes déjà migrées sont `/auth`, `/wallet`, `/cards`, `/admin`, le `__root.tsx` (logo + meta). La home `/`, `/pricing`, `/dashboard` portent encore l'ancien contenu mocké. → je nettoie tout dans ce lot.
+## Objectif
+Pouvoir téléverser le contenu de `dist/` dans `public_html` cPanel et que tout fonctionne. La base de données, l'auth, les paiements (YengaPay) et les cartes (Strowallet) tournent sur Supabase (Edge Functions + secrets).
+
+## Architecture cible
+
+```text
+cPanel (public_html/)          Supabase
+├── index.html                 ├── DB (RLS)
+├── assets/*.js,*.css   ───►   ├── Auth
+└── .htaccess (SPA fallback)   ├── Storage (kyc)
+                               └── Edge Functions
+                                   ├── strowallet-proxy (cartes)
+                                   ├── yengapay-proxy (paiements)
+                                   ├── kyc-approve (admin)
+                                   ├── admin-actions
+                                   └── webhooks (strowallet, yengapay)
+```
+
+## Étapes
+
+### 1. Remplacer TanStack Start par Vite SPA + React Router
+- Nouveau `vite.config.ts` : plugin React seul, pas de SSR/Nitro
+- `package.json` : retrait de `@tanstack/react-start`, `@tanstack/start-*`, `nitro`, `@cloudflare/*`, `@lovable.dev/vite-tanstack-config`. Ajout de `react-router-dom`
+- Suppression de `src/start.ts`, `src/server.ts`, `src/router.tsx`, `src/routeTree.gen.ts`, `src/integrations/supabase/auth-middleware.ts`, `src/integrations/supabase/auth-attacher.ts`, `src/integrations/supabase/client.server.ts`
+- Nouveau `src/main.tsx` + `src/App.tsx` avec `BrowserRouter` + routes
+- Conversion de chaque `src/routes/*.tsx` en composant page classique (suppression de `createFileRoute`, `head()`, `Route.useLoaderData`)
+
+### 2. Migrer les server functions vers Edge Functions Supabase
+Pour chaque fichier `src/lib/*.functions.ts` :
+- Logique extraite vers `supabase/functions/<nom>/index.ts`
+- Secrets lus via `Deno.env.get('STROWALLET_SECRET_KEY')` etc. (déjà configurés)
+- Appel auth : vérification du JWT via `supabase.auth.getUser(authHeader)`
+- CORS : `Access-Control-Allow-Origin: *` + handler OPTIONS
+
+Fonctions à créer :
+- `strowallet-create-customer`, `strowallet-create-card`, `strowallet-balance`, `strowallet-recharge`
+- `yengapay-create-payment`, `yengapay-status`
+- `kyc-approve`, `kyc-reject` (admin, vérif role)
+- `admin-block-user`, `admin-withdraw-approve`, `admin-stats`
+- Webhooks publics : `strowallet-webhook`, `yengapay-webhook` (déjà existants comme routes TSS → portage Deno)
+
+### 3. Côté frontend : appels via `supabase.functions.invoke`
+- Remplacement de tous les `useServerFn(xxx)` par `supabase.functions.invoke('xxx', { body })`
+- L'auth JWT est envoyé automatiquement par le SDK Supabase
+- Les lectures DB simples (profils, wallets, transactions) restent en appels Supabase directs (RLS protège)
+
+### 4. Routing SPA cPanel
+- `public/.htaccess` :
+  ```apache
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+  ```
+- `vite.config.ts` : `base: './'` pour chemins relatifs (utilisable sous-dossier)
+- Build → un seul `dist/` contenant `index.html` + `assets/` + `.htaccess`
+
+### 5. Webhooks (URLs à mettre à jour chez Strowallet/YengaPay)
+Les URLs webhook ne sont plus `https://votresite.com/api/public/...` mais :
+- `https://bbepprxkkwdfzmiycqqi.supabase.co/functions/v1/strowallet-webhook`
+- `https://bbepprxkkwdfzmiycqqi.supabase.co/functions/v1/yengapay-webhook`
+
+Je documenterai cela dans un README pour que vous mettiez à jour les dashboards Strowallet et YengaPay après déploiement.
+
+### 6. Build & déploiement
+- `npm install` (sans conflits, plus de nitro/TanStack Start)
+- `npm run build` → `dist/`
+- Téléversement du contenu de `dist/` dans `public_html`
+
+## Ce qui change pour l'utilisateur final
+- **Rien fonctionnellement** : auth, KYC, cartes, recharges, retraits, admin — tout marche pareil
+- Seul l'hébergement diffère : frontend cPanel, backend Supabase
+
+## Volume de travail
+- ~25-30 fichiers modifiés ou créés
+- ~10 nouvelles Edge Functions Deno
+- 1-2 cycles d'itération probable pour corriger les détails de signature webhook / typage
+
+## Validation
+À la fin je vérifie : `npm run build` réussit, `dist/` contient `index.html`+`assets/`+`.htaccess`, le site preview Lovable continue de fonctionner (en mode SPA preview Vite).
 
 ---
 
-## 1. Super-admin
-- Promotion de **ilboudoibonydo@gmail.com** en `admin` dans `user_roles` (dès qu'il aura créé son compte sur `/auth`, sinon je crée un trigger qui le promeut automatiquement à l'inscription).
-
-## 2. Tarification (constantes côté serveur, modifiables par admin plus tard)
-- **Frais d'émission carte** : 4 500 XOF (fixe)
-- **Taux USD** : 1 USD = 869 XOF (plafond plateforme)
-- **Frais Strowallet répercutés** : 1,9 USD + 1 % du montant chargé
-- Formule pour une carte chargée à X USD :
-  `coût_XOF = 4500 + ceil((X + 1.9 + X*0.01) * 869)`
-- Affichage transparent dans le sheet "Nouvelle carte" : montant carte / frais émission / frais Strowallet / **total à débiter en XOF**.
-
-## 3. KYC complet (copie exacte du formulaire Strowallet)
-Champs Strowallet `create-user` que je vais demander : prénom, nom, email, téléphone, date de naissance, type de pièce (passport/id_card/drivers_license), n° de pièce, **photo pièce (upload)**, **selfie (upload)**, adresse complète (ligne1, ville, état, code postal, n° de maison, pays).
-- Bucket Supabase Storage privé `kyc` (RLS : user ne lit que ses propres fichiers, admin lit tout).
-- Upload côté client → URL signée → server fn `submitKyc` : (a) sauvegarde locale dans `kyc_submissions`, (b) POST `/bitvcard/create-user/` Strowallet, (c) stocke `bitvcard_customer_id` dans `profiles`.
-- L'utilisateur **ne peut émettre de carte tant que** `profiles.strowallet_customer_id` est null OU `kyc_submissions.provider_status != 'approved'`.
-
-## 4. Anti-fraude carte (gèle automatique)
-- Webhook Strowallet `/api/public/strowallet-webhook` qui écoute les events de transaction.
-- Sur event `card.transaction.declined` ou `card.payment.failed` : 
-  - on incrémente `cards.failed_attempts`
-  - **dès la 1ère tentative échouée** → appel `strowalletCardAction("freeze", card_id)` + update `cards.status = 'frozen_auto'`
-  - notification dans `transactions` (type `card_auto_freeze`)
-  - l'utilisateur voit un bandeau "Carte gelée automatiquement — débloquer" → bouton qui appelle `unfreeze` après reset compteur.
-
-## 5. Vrais tableaux de bord
-
-### Dashboard utilisateur (`/dashboard` refait)
-Menu latéral : Tableau de bord · Dépôt · Retrait · Mes cartes · Mes transactions · Mon profil · Déconnexion
-- **Tableau de bord** : 3 cartes wallet (XOF/USD/EUR) en temps réel, 5 dernières transactions, état KYC, bouton "Émettre une carte" (désactivé si KYC non validé).
-- **Dépôt** : recharge YengaPay (montant XOF → checkout).
-- **Retrait** : formulaire de retrait XOF (statut `pending`, validé manuellement par admin pour ce lot).
-- **Mes cartes** : liste cartes, freeze/unfreeze, détails (PAN/CVV via Strowallet).
-- **Mes transactions** : table filtrable (dépôts, retraits, émissions, frais).
-- **Mon profil** : infos + KYC.
-
-### Dashboard super-admin (`/admin` refait)
-Menu : Utilisateurs · Flux financier · API Strowallet · API YengaPay · KYC à valider · Retraits à valider
-- **Utilisateurs** : liste, recherche, activer/désactiver (`profiles.is_active`), créer un utilisateur (server fn admin), promouvoir admin.
-- **Flux financier** : total dépôts/retraits/émissions du jour/mois.
-- **API Strowallet** : widget **solde temps réel** (appel `getStrowalletBalance`) + bouton refresh, dernières créations de cartes.
-- **API YengaPay** : derniers paiements + statut webhooks.
-- **KYC à valider** : liste des soumissions, voir pièce/selfie, approuver/refuser (sync vers Strowallet).
-- **Retraits à valider** : approuver/rejeter (débite le wallet).
-
-## 6. Nettoyage
-- Refonte `/` (landing FASO-INVEST PAY) et suppression de `/pricing` (intégrée dans la landing).
-- Suppression des composants S.D.G FINANCE résiduels.
-- Garde l'identité visuelle actuelle (bleu/vert/sombre — pas de bleu nuit).
-
----
-
-## Ce dont j'ai besoin de toi pour démarrer
-1. **Confirmer l'email super-admin** : `ilboudoibonydo@gmail.com` ✅
-2. **Le webhook Strowallet** : tu m'envoies le secret webhook Strowallet (variable `STROWALLET_WEBHOOK_SECRET`) **OU** je le mets sans vérif signature pour l'instant et tu l'ajouteras après.
-3. **Retraits** : on garde "validation manuelle admin" pour le MVP ou tu veux brancher un payout YengaPay automatique ?
-
-Dès que tu réponds (ou que tu dis "go" pour les défauts ci-dessus), je code tout en un seul lot.
+**Confirmez pour que je lance la conversion.** C'est ~1h de travail dense de ma part et le projet sera momentanément cassé pendant la transition.
