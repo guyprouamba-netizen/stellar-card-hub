@@ -9,9 +9,6 @@ const publicLinks = [
   { to: "/", label: "Accueil" },
   { to: "/dashboard", label: "Tableau de bord" },
 ];
-const adminExtraLinks = [
-  { to: "/admin", label: "Console Admin" },
-];
 
 export function SiteNav() {
   const { theme, toggle } = useTheme();
@@ -36,8 +33,8 @@ export function SiteNav() {
     return () => { active = false; sub.subscription.unsubscribe(); };
   }, []);
 
-  const links = [...publicLinks, ...adminExtraLinks];
   void isAdmin;
+  const links = publicLinks;
   async function logout() { await supabase.auth.signOut(); }
 
   return (
@@ -58,12 +55,6 @@ export function SiteNav() {
               {l.label}
             </Link>
           ))}
-          <Link
-            to="/admin"
-            className="rounded-full bg-primary/15 px-4 py-1.5 text-sm font-semibold text-primary ring-1 ring-primary/30 transition-colors hover:bg-primary/25"
-          >
-            Console Admin
-          </Link>
         </nav>
 
         <div className="flex items-center gap-2">

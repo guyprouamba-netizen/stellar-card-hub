@@ -4,15 +4,15 @@ import { useServerFn } from "@/lib/server-fn";
 import { useQuery } from "@tanstack/react-query";
 import {
   Users, TrendingUp, CreditCard, ShieldCheck, ArrowDownUp, LogOut, RefreshCw,
-  Loader2, CheckCircle2, XCircle, Wallet, Server, Eye,
+  Loader2, CheckCircle2, XCircle, Wallet, Server, Eye, SlidersHorizontal,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
-import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet } from "@/lib/admin.functions";
+import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig } from "@/lib/admin.functions";
 import { toast } from "sonner";
 
-type Tab = "users" | "flow" | "strowallet" | "yengapay" | "kyc" | "withdrawals";
+type Tab = "users" | "flow" | "strowallet" | "yengapay" | "kyc" | "withdrawals" | "settings";
 
 function AdminPage() {
   const navigate = useNavigate();
@@ -58,6 +58,7 @@ function AdminPage() {
               {tab === "yengapay" && <YengaTab tx={data.transactions} />}
               {tab === "kyc" && <KycTab kyc={data.kyc} onAction={refetch} />}
               {tab === "withdrawals" && <WithdrawalsTab withdrawals={data.withdrawals} onAction={refetch} />}
+              {tab === "settings" && <SettingsTab />}
             </>
           )}
         </main>
@@ -75,6 +76,7 @@ function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "yengapay", label: "API YengaPay", Icon: Wallet },
     { id: "kyc", label: "KYC à valider", Icon: ShieldCheck },
     { id: "withdrawals", label: "Retraits à valider", Icon: ArrowDownUp },
+    { id: "settings", label: "Paramètres", Icon: SlidersHorizontal },
   ];
   async function logout() { await supabase.auth.signOut(); navigate("/"); }
   return (
@@ -379,3 +381,64 @@ function WithdrawalsTab({ withdrawals, onAction }: { withdrawals: any[]; onActio
 
 
 export default AdminPage;
+
+function SettingsTab() {
+  const getCfg = useServerFn(adminGetConfig);
+  const updCfg = useServerFn(adminUpdateConfig);
+  const [cfg, setCfg] = useState<any>(null);
+  const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState<any>({});
+
+  useEffect(() => { (async () => {
+    try { const r: any = await getCfg(); setCfg(r.config); setDraft(r.config); }
+    catch (e) { toast.error((e as Error).message); }
+  })(); }, []);
+
+  function field(k: string, label: string, hint: string, step = "any") {
+    return (
+      <label className="block">
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+        <input
+          type="number"
+          step={step}
+          value={draft[k] ?? ""}
+          onChange={(e) => setDraft((d: any) => ({ ...d, [k]: e.target.value }))}
+          className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none"
+        />
+        <span className="mt-1 block text-[11px] text-muted-foreground">{hint}</span>
+      </label>
+    );
+  }
+
+  async function save() {
+    setBusy(true);
+    try {
+      const r: any = await updCfg({ data: draft });
+      if (r?.ok === false) throw new Error(r.error);
+      setCfg(r.config); setDraft(r.config);
+      toast.success("Paramètres mis à jour");
+    } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+  }
+
+  if (!cfg) return <Loader2 className="h-5 w-5 animate-spin" />;
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Paramètres plateforme</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Taux de change et frais appliqués à toutes les nouvelles opérations.</p>
+      </div>
+      <div className="grid gap-4 rounded-2xl border border-border bg-card p-6 md:grid-cols-2">
+        {field("usd_rate_xof", "Taux USD → XOF", "Combien de francs CFA pour 1 USD (ex: 869)", "0.01")}
+        {field("card_issue_fee_xof", "Frais d'émission (XOF)", "Marge plateforme par carte émise (ex: 4500)", "1")}
+        {field("strowallet_fixed_fee_usd", "Frais fixe émetteur (USD)", "Frais Strowallet par opération (ex: 1.90)", "0.01")}
+        {field("strowallet_pct_fee", "Frais % émetteur", "Pourcentage Strowallet en décimal (ex: 0.01 = 1%)", "0.001")}
+      </div>
+      <div className="flex justify-end gap-2">
+        <button onClick={() => setDraft(cfg)} className="rounded-full border border-border bg-surface-2 px-4 py-2 text-sm">Réinitialiser</button>
+        <button onClick={save} disabled={busy} className="rounded-full bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
+        </button>
+      </div>
+    </div>
+  );
+}
