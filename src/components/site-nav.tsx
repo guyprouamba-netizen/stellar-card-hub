@@ -53,14 +53,14 @@ export function SiteNav() {
             <Link
               key={l.to}
               to={l.to}
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"}
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               {l.label}
             </Link>
           ))}
           <Link
             to="/admin"
-            className="rounded-full bg-primary/15 px-4 py-1.5 text-sm font-semibold text-primary ring-1 ring-primary/30 transition-colors hover:bg-primary/25"}
+            className="rounded-full bg-primary/15 px-4 py-1.5 text-sm font-semibold text-primary ring-1 ring-primary/30 transition-colors hover:bg-primary/25"
           >
             Console Admin
           </Link>
