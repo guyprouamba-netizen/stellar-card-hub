@@ -12,11 +12,6 @@ import logo from "@/assets/logo.png";
 import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal } from "@/lib/admin.functions";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/admin")({
-  head: () => ({ meta: [{ title: "Super-Admin — FASO-INVEST PAY" }] }),
-  component: AdminPage,
-});
-
 type Tab = "users" | "flow" | "strowallet" | "yengapay" | "kyc" | "withdrawals";
 
 function AdminPage() {
@@ -307,3 +302,6 @@ function WithdrawalsTab({ withdrawals, onAction }: { withdrawals: any[]; onActio
     </div>
   );
 }
+
+
+export default AdminPage;

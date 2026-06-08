@@ -7,11 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 
-export const Route = createFileRoute("/auth")({
-  head: () => ({ meta: [{ title: "Connexion — FASO-INVEST PAY" }] }),
-  component: Auth,
-});
-
 function Auth() {
   const navigate = useNavigate();
   async function redirectByRole() {
@@ -191,3 +186,5 @@ function Auth() {
     </div>
   );
 }
+
+export default Auth;

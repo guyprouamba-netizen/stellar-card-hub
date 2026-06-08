@@ -6,16 +6,6 @@ import { SiteNav } from "@/components/site-nav";
 import { BackButton } from "@/components/back-button";
 import { RechargeSheet } from "@/components/recharge-sheet";
 
-export const Route = createFileRoute("/wallet")({
-  head: () => ({
-    meta: [
-      { title: "Mon portefeuille — FASO-INVEST PAY" },
-      { name: "description", content: "Rechargez votre solde en Mobile Money et suivez vos mouvements." },
-    ],
-  }),
-  component: WalletPage,
-});
-
 const wallets = [
   { code: "XOF", label: "Franc CFA", balance: 1_245_000, symbol: "FCFA" },
   { code: "USD", label: "Dollar US", balance: 820.5, symbol: "$" },
@@ -172,3 +162,5 @@ function WalletPage() {
     </div>
   );
 }
+
+export default WalletPage;

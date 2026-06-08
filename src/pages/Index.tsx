@@ -7,18 +7,6 @@ import logo from "@/assets/logo.png";
 import heroCustomer from "@/assets/hero-customer.jpg";
 import sectionPayment from "@/assets/section-payment.jpg";
 
-export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "FASO-INVEST PAY — Cartes virtuelles & Mobile Money" },
-      { name: "description", content: "Émettez votre carte virtuelle USD/XOF depuis le Burkina Faso. Rechargez en Mobile Money, payez partout dans le monde." },
-      { property: "og:title", content: "FASO-INVEST PAY" },
-      { property: "og:description", content: "Cartes virtuelles instantanées + Mobile Money pour l'Afrique de l'Ouest." },
-    ],
-  }),
-  component: Index,
-});
-
 const features = [
   { icon: Zap, title: "Émission instantanée", desc: "Créez votre carte virtuelle USD ou XOF en quelques secondes après validation KYC." },
   { icon: ShieldCheck, title: "KYC sécurisé", desc: "Vos pièces sont chiffrées et stockées sur notre infrastructure protégée." },
@@ -337,3 +325,6 @@ function Row({ k, v, strong }: { k: string; v: string; strong?: boolean }) {
     </div>
   );
 }
+
+
+export default Index;

@@ -13,16 +13,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-export const Route = createFileRoute("/cards")({
-  head: () => ({
-    meta: [
-      { title: "Mes cartes — Volty" },
-      { name: "description", content: "Gérez l'ensemble de vos cartes virtuelles." },
-    ],
-  }),
-  component: CardsPage,
-});
-
 const variantByIndex = ["primary", "teal", "sunset"] as const;
 
 function statusLabel(s: string) {
@@ -229,3 +219,5 @@ function TransactionsDialog({ cardId, onClose }: { cardId: string; onClose: () =
     </Dialog>
   );
 }
+
+export default CardsPage;

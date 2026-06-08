@@ -18,11 +18,6 @@ import { requestWithdrawal } from "@/lib/withdrawal.functions";
 import { initRecharge } from "@/lib/yengapay.functions";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/dashboard")({
-  head: () => ({ meta: [{ title: "Tableau de bord — FASO-INVEST PAY" }] }),
-  component: Dashboard,
-});
-
 type Tab = "home" | "deposit" | "withdraw" | "cards" | "tx" | "profile";
 
 function Dashboard() {
@@ -500,3 +495,6 @@ function ProfileTab({ profile, kyc }: { profile: any; kyc: any }) {
 function Info({ k, v }: { k: string; v: any }) {
   return <div className="flex items-baseline justify-between gap-2"><span className="text-xs uppercase tracking-wider text-muted-foreground">{k}</span><span className="text-sm font-medium">{v ?? "—"}</span></div>;
 }
+
+
+export default Dashboard;
