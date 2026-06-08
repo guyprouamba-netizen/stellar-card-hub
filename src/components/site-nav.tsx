@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import { Moon, Sun, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTheme } from "./theme-provider";
@@ -54,7 +54,6 @@ export function SiteNav() {
               key={l.to}
               to={l.to}
               className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-              activeProps={{ className: "text-foreground" }}
             >
               {l.label}
             </Link>
@@ -62,7 +61,6 @@ export function SiteNav() {
           <Link
             to="/admin"
             className="rounded-full bg-primary/15 px-4 py-1.5 text-sm font-semibold text-primary ring-1 ring-primary/30 transition-colors hover:bg-primary/25"
-            activeProps={{ className: "bg-primary/25" }}
           >
             Console Admin
           </Link>

@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
 interface BackButtonProps {
@@ -13,7 +13,7 @@ export function BackButton({ to, label = "Retour", className }: BackButtonProps)
     <button
       onClick={() => {
         if (to) {
-          navigate({ to });
+          navigate(to);
         } else {
           window.history.back();
         }

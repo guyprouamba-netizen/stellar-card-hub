@@ -1,6 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
+import { useServerFn } from "@/lib/server-fn";
 import { useQuery } from "@tanstack/react-query";
 import {
   Users, TrendingUp, CreditCard, ShieldCheck, ArrowDownUp, LogOut, RefreshCw,
@@ -12,11 +12,6 @@ import logo from "@/assets/logo.png";
 import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal } from "@/lib/admin.functions";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/admin")({
-  head: () => ({ meta: [{ title: "Super-Admin — FASO-INVEST PAY" }] }),
-  component: AdminPage,
-});
-
 type Tab = "users" | "flow" | "strowallet" | "yengapay" | "kyc" | "withdrawals";
 
 function AdminPage() {
@@ -27,7 +22,7 @@ function AdminPage() {
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { navigate({ to: "/auth" }); return; }
+      if (!session) { navigate("/auth"); return; }
       const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", session.user.id);
       const isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
       setAuthState(isAdmin ? "ok" : "denied");
@@ -81,7 +76,7 @@ function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "kyc", label: "KYC à valider", Icon: ShieldCheck },
     { id: "withdrawals", label: "Retraits à valider", Icon: ArrowDownUp },
   ];
-  async function logout() { await supabase.auth.signOut(); navigate({ to: "/" }); }
+  async function logout() { await supabase.auth.signOut(); navigate("/"); }
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-border bg-card/30 p-4 md:flex md:flex-col">
       <Link to="/" className="mb-2 flex items-center gap-2 px-2">
@@ -307,3 +302,6 @@ function WithdrawalsTab({ withdrawals, onAction }: { withdrawals: any[]; onActio
     </div>
   );
 }
+
+
+export default AdminPage;

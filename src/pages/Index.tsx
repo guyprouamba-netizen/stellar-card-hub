@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowRight, ShieldCheck, Zap, Globe2, Smartphone, CheckCircle2, Lock, Banknote, CreditCard, TrendingUp, Users, Star, ChevronDown, Sparkles } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
@@ -6,18 +6,6 @@ import { VirtualCard } from "@/components/virtual-card";
 import logo from "@/assets/logo.png";
 import heroCustomer from "@/assets/hero-customer.jpg";
 import sectionPayment from "@/assets/section-payment.jpg";
-
-export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "FASO-INVEST PAY — Cartes virtuelles & Mobile Money" },
-      { name: "description", content: "Émettez votre carte virtuelle USD/XOF depuis le Burkina Faso. Rechargez en Mobile Money, payez partout dans le monde." },
-      { property: "og:title", content: "FASO-INVEST PAY" },
-      { property: "og:description", content: "Cartes virtuelles instantanées + Mobile Money pour l'Afrique de l'Ouest." },
-    ],
-  }),
-  component: Index,
-});
 
 const features = [
   { icon: Zap, title: "Émission instantanée", desc: "Créez votre carte virtuelle USD ou XOF en quelques secondes après validation KYC." },
@@ -337,3 +325,6 @@ function Row({ k, v, strong }: { k: string; v: string; strong?: boolean }) {
     </div>
   );
 }
+
+
+export default Index;

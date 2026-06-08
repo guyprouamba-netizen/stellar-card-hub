@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+
 import { Plus, Snowflake, Trash2, Sun, Wallet, History, Loader2 } from "lucide-react";
 import { useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
+import { useServerFn } from "@/lib/server-fn";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { SiteNav } from "@/components/site-nav";
@@ -12,16 +12,6 @@ import { listMyCards, cardAction, fundCard, listCardTransactions } from "@/lib/s
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-
-export const Route = createFileRoute("/cards")({
-  head: () => ({
-    meta: [
-      { title: "Mes cartes — Volty" },
-      { name: "description", content: "Gérez l'ensemble de vos cartes virtuelles." },
-    ],
-  }),
-  component: CardsPage,
-});
 
 const variantByIndex = ["primary", "teal", "sunset"] as const;
 
@@ -229,3 +219,5 @@ function TransactionsDialog({ cardId, onClose }: { cardId: string; onClose: () =
     </Dialog>
   );
 }
+
+export default CardsPage;

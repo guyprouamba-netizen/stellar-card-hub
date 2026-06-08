@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, ArrowRight, User, Phone, Loader2, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { VirtualCard } from "@/components/virtual-card";
@@ -7,20 +7,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 
-export const Route = createFileRoute("/auth")({
-  head: () => ({ meta: [{ title: "Connexion — FASO-INVEST PAY" }] }),
-  component: Auth,
-});
-
 function Auth() {
   const navigate = useNavigate();
   async function redirectByRole() {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { navigate({ to: "/dashboard" }); return; }
+    if (!session) { navigate("/dashboard"); return; }
     const { data: roles } = await supabase
       .from("user_roles").select("role").eq("user_id", session.user.id);
     const isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
-    navigate({ to: isAdmin ? "/admin" : "/dashboard" });
+    navigate(isAdmin ? "/admin" : "/dashboard");
   }
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -191,3 +186,5 @@ function Auth() {
     </div>
   );
 }
+
+export default Auth;

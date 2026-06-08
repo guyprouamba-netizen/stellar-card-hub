@@ -1,6 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
+import { useServerFn } from "@/lib/server-fn";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
@@ -18,11 +18,6 @@ import { requestWithdrawal } from "@/lib/withdrawal.functions";
 import { initRecharge } from "@/lib/yengapay.functions";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/dashboard")({
-  head: () => ({ meta: [{ title: "Tableau de bord — FASO-INVEST PAY" }] }),
-  component: Dashboard,
-});
-
 type Tab = "home" | "deposit" | "withdraw" | "cards" | "tx" | "profile";
 
 function Dashboard() {
@@ -33,12 +28,12 @@ function Dashboard() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) navigate({ to: "/auth" });
+      if (!data.session) navigate("/auth");
       else setSession(data.session);
       setCheckingAuth(false);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      if (!s) navigate({ to: "/auth" });
+      if (!s) navigate("/auth");
       setSession(s);
     });
     return () => sub.subscription.unsubscribe();
@@ -63,7 +58,7 @@ function Dashboard() {
             <>
               {tab === "home" && <HomeTab data={data} onAction={() => refetch()} />}
               {tab === "deposit" && <DepositTab onDone={() => refetch()} />}
-              {tab === "withdraw" && <WithdrawTab balance={Number(data.wallets.find(w => w.currency === "XOF")?.balance ?? 0)} onDone={() => refetch()} />}
+              {tab === "withdraw" && <WithdrawTab balance={Number(data.wallets.find((w: any) => w.currency === "XOF")?.balance ?? 0)} onDone={() => refetch()} />}
               {tab === "cards" && <CardsTab cards={data.cards} kycReady={data.kycReady} onAction={() => refetch()} />}
               {tab === "tx" && <TxTab transactions={data.transactions} />}
               {tab === "profile" && <ProfileTab profile={data.profile} kyc={data.kyc} />}
@@ -118,7 +113,7 @@ function Sidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   ];
   async function logout() {
     await supabase.auth.signOut();
-    navigate({ to: "/" });
+    navigate("/");
   }
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-border bg-card/30 p-4 md:flex md:flex-col">
@@ -500,3 +495,6 @@ function ProfileTab({ profile, kyc }: { profile: any; kyc: any }) {
 function Info({ k, v }: { k: string; v: any }) {
   return <div className="flex items-baseline justify-between gap-2"><span className="text-xs uppercase tracking-wider text-muted-foreground">{k}</span><span className="text-sm font-medium">{v ?? "—"}</span></div>;
 }
+
+
+export default Dashboard;

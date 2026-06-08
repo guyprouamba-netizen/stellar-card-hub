@@ -1,38 +1,12 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useNavigate, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
+import { useServerFn } from "@/lib/server-fn";
 import { Loader2, Upload, ShieldCheck, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import { submitFullKyc, createKycUploadUrl } from "@/lib/kyc.functions";
 import { diagnoseStrowallet } from "@/lib/strowallet.functions";
 import { toast } from "sonner";
-
-export const Route = createFileRoute("/kyc")({
-  head: () => ({ meta: [{ title: "Validation KYC — FASO-INVEST PAY" }] }),
-  component: KycPage,
-  errorComponent: ({ error, reset }) => (
-    <div className="grid min-h-screen place-items-center p-4">
-      <div className="max-w-md text-center">
-        <h1 className="font-[Space_Grotesk] text-2xl font-bold">Une erreur est survenue</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{error?.message ?? "Impossible d'envoyer votre dossier KYC."}</p>
-        <div className="mt-6 flex justify-center gap-2">
-          <button onClick={reset} className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Réessayer</button>
-          <Link to="/dashboard" className="rounded-full border border-border px-4 py-2 text-sm font-semibold">Tableau de bord</Link>
-        </div>
-      </div>
-    </div>
-  ),
-  notFoundComponent: () => (
-    <div className="grid min-h-screen place-items-center p-4">
-      <div className="max-w-md text-center">
-        <h1 className="font-[Space_Grotesk] text-2xl font-bold">Page KYC introuvable</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Retournez au tableau de bord pour relancer la procédure.</p>
-        <Link to="/dashboard" className="mt-6 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Tableau de bord</Link>
-      </div>
-    </div>
-  ),
-});
 
 const ID_TYPES = [
   { v: "NIN", l: "CNIB / Carte d'identité nationale" },
@@ -47,7 +21,7 @@ function KycPage() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) navigate({ to: "/auth" });
+      if (!data.session) navigate("/auth");
       else setReady(true);
     });
   }, [navigate]);
@@ -203,3 +177,6 @@ function FileField({ label, file, setFile }: { label: string; file: File | null;
     </label>
   );
 }
+
+
+export default KycPage;
