@@ -41,7 +41,7 @@ export function VirtualCard({
   }
   return (
     <div
-      className={`relative aspect-[1.586/1] w-full max-w-sm cursor-pointer select-none ${className}`}
+      className={`relative aspect-[1.586/1] w-full cursor-pointer select-none ${className}`}
       style={{ perspective: 1200 }}
       onClick={toggle}
       role="button"
@@ -79,19 +79,19 @@ export function VirtualCard({
               <div className="mb-2 flex items-center gap-3">
                 <div className="h-7 w-10 rounded-md bg-gradient-to-br from-yellow-200 to-yellow-500 shadow-inner sm:h-8 sm:w-11" />
               </div>
-              <p className="font-mono text-[15px] font-semibold tracking-[0.1em] leading-tight sm:text-xl sm:tracking-[0.18em]">
+              <p className="font-mono text-[15px] font-semibold tracking-[0.1em] leading-tight sm:text-2xl sm:tracking-[0.18em]">
                 {number ? formatPan(number) : "•••• •••• •••• ••••"}
               </p>
-              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 sm:flex sm:items-end sm:justify-between sm:gap-3">
-                <div className="min-w-0 col-span-2 sm:col-span-1">
+              <div className="mt-3 flex items-end justify-between gap-3">
+                <div className="min-w-0 flex-1">
                   <p className="text-[9px] uppercase tracking-[0.16em] opacity-60 sm:text-[10px] sm:tracking-widest">Titulaire</p>
                   <p className="truncate text-xs font-semibold uppercase tracking-[0.08em] sm:text-sm sm:tracking-wider">{holder}</p>
                 </div>
-                <div className="text-left sm:text-right">
+                <div className="text-right">
                   <p className="text-[9px] uppercase tracking-[0.16em] opacity-60 sm:text-[10px] sm:tracking-widest">Exp</p>
                   <p className="text-xs font-medium tabular-nums sm:text-sm">{formatExpiry(expiry)}</p>
                 </div>
-                <p className="text-right italic text-base font-semibold sm:text-lg">{brand}</p>
+                <p className="italic text-base font-semibold sm:text-lg">{brand}</p>
               </div>
               <p className="mt-2 text-[9px] uppercase tracking-[0.16em] opacity-60 sm:text-[10px] sm:tracking-widest">Touchez pour voir le CVV</p>
             </div>
