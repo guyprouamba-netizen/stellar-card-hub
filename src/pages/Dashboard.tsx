@@ -75,17 +75,26 @@ function FullPageLoader() {
 }
 
 function KycStatusBanner({ kyc, onAction }: { kyc: any; onAction: () => void }) {
-  const isRejected = kyc?.status === "rejected" || /reject|declin|denied|fail/i.test(String(kyc?.provider_status ?? ""));
-  const reason = (kyc?.provider_response?.reason || kyc?.provider_response?.message || kyc?.provider_response?.response?.message || "").toString();
+  const ps = String(kyc?.provider_status ?? "").toLowerCase();
+  const isRejected =
+    kyc?.status === "rejected" ||
+    /reject|declin|denied|fail/i.test(ps) ||
+    /low\s*kyc/i.test(ps) ||
+    /retry/i.test(ps);
+  const rawReason = (kyc?.provider_response?.reason || kyc?.provider_response?.message || kyc?.provider_response?.response?.message || "").toString();
+  const reason = rawReason
+    || (/low\s*kyc/i.test(ps) ? "Dossier refusé par l'émetteur (low kyc) : la qualité du selfie ou de la pièce est jugée insuffisante. Reprenez une photo nette en plein jour, sans reflet, et vérifiez que le nom et la date de naissance correspondent exactement à votre pièce officielle." : "")
+    || (/retry/i.test(ps) ? "L'émetteur exige une nouvelle soumission de votre dossier." : "");
   if (isRejected) {
     return (
       <div className="flex items-start gap-3 rounded-2xl border border-destructive/40 bg-destructive/5 p-4">
         <AlertTriangle className="mt-0.5 h-5 w-5 text-destructive" />
         <div className="flex-1">
-          <p className="font-semibold text-destructive">Dossier KYC rejeté</p>
+          <p className="font-semibold text-destructive">Dossier KYC rejeté{ps ? ` — ${ps}` : ""}</p>
           <p className="mt-1 text-sm text-muted-foreground">{reason || "Votre dossier a été refusé par notre service de vérification. Causes fréquentes : selfie tenant la pièce, photo floue, données ne correspondant pas à la pièce officielle."}</p>
           <Link to="/kyc" className="mt-3 inline-flex rounded-full bg-destructive px-4 py-2 text-xs font-semibold text-destructive-foreground">Resoumettre mon dossier</Link>
         </div>
+        <SyncKycButton onDone={onAction} />
       </div>
     );
   }
