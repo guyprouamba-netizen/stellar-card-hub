@@ -156,16 +156,28 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (!(await isAdmin(admin, user.id))) throw new Error("Carte introuvable");
     }
     let res = await SW.getNfcCardDetails(data.card_id);
-    const details = SW.extractCardDetails(res);
+    let details = SW.extractCardDetails(res);
     if (String(details.status || "").toLowerCase() === "frozen") {
       const { data: local } = await admin.from("cards").select("status,auto_frozen_at").eq("provider_card_id", data.card_id).maybeSingle();
       const frozenBySecurity = !!local?.auto_frozen_at || String(local?.status || "") === "frozen_auto";
       if (!frozenBySecurity) {
         try {
-          await SW.unfreezeNfcCard(data.card_id);
-          await admin.from("cards").update({ status: "active", failed_attempts: 0, auto_frozen_at: null }).eq("provider_card_id", data.card_id);
-          res = await SW.getNfcCardDetails(data.card_id);
-        } catch { /* ignore */ }
+          const ensured = await SW.ensureNfcCardActive(data.card_id);
+          res = ensured.details;
+          details = SW.extractCardDetails(res);
+          await admin.from("cards").update({
+            status: "active",
+            failed_attempts: 0,
+            auto_frozen_at: null,
+            metadata: { provider_sync: ensured.attempts, details: res },
+          }).eq("provider_card_id", data.card_id);
+        } catch (e) {
+          await admin.from("cards").update({
+            status: "frozen",
+            metadata: { provider_unfreeze_error: (e as Error).message, checked_at: new Date().toISOString() },
+          }).eq("provider_card_id", data.card_id);
+          return { ok: false, error: (e as Error).message, provider_status: details.status, data: res };
+        }
       }
     }
     return res;
@@ -191,7 +203,18 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         const { data: local } = await admin.from("cards").select("status,auto_frozen_at").eq("provider_card_id", data.card_id).maybeSingle();
         const frozenBySecurity = !!local?.auto_frozen_at || String(local?.status || "") === "frozen_auto";
         if (!frozenBySecurity) {
-          try { await SW.unfreezeNfcCard(data.card_id); upd.status = "active"; } catch { /* ignore */ }
+          try {
+            const ensured = await SW.ensureNfcCardActive(data.card_id);
+            const parsed = SW.extractCardDetails(ensured.details);
+            upd.status = "active";
+            upd.metadata = { provider_sync: ensured.attempts, details: ensured.details };
+            if (parsed.last4) upd.last4 = String(parsed.last4);
+            if (parsed.brand) upd.brand = String(parsed.brand).toLowerCase();
+            if (parsed.balance !== null && Number.isFinite(Number(parsed.balance))) upd.balance = Number(parsed.balance);
+          } catch (e) {
+            upd.status = "frozen";
+            upd.metadata = { provider_unfreeze_error: (e as Error).message, details: res };
+          }
         }
       }
       await admin.from("cards").update(upd).eq("provider_card_id", data.card_id);
@@ -221,10 +244,11 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       const res = data.action === "freeze"
         ? await SW.freezeNfcCard(data.card_id)
         : data.action === "unfreeze"
-          ? await SW.unfreezeNfcCard(data.card_id)
+          ? await SW.ensureNfcCardActive(data.card_id)
           : await SW.freezeNfcCard(data.card_id);
       const patch: any = { status: data.action === "terminate" ? "terminated" : target };
       if (target === "active") { patch.failed_attempts = 0; patch.auto_frozen_at = null; }
+      if (data.action === "unfreeze") patch.metadata = { provider_sync: (res as any)?.attempts, details: (res as any)?.details };
       await admin.from("cards").update(patch).eq("provider_card_id", data.card_id);
       return { ok: true, data: res };
     } catch (e) {
