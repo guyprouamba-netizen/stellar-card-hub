@@ -1,6 +1,6 @@
 
 import { Plus, Snowflake, Trash2, Sun, Wallet, History, Loader2, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useServerFn } from "@/lib/server-fn";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -76,6 +76,12 @@ function CardsPage() {
       setDetails((d) => ({ ...d, [provider_card_id]: { number: number ?? undefined, cvv: cvv ?? undefined, expiry: exp ?? undefined, holder: holder ?? undefined } }));
     } catch { /* silencieux */ }
   }
+
+  // Précharge automatiquement les détails (numéro 16 chiffres, expiration, titulaire) pour toutes les cartes
+  useEffect(() => {
+    cards.forEach((c) => { if (c.provider_card_id) loadDetails(c.provider_card_id); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cards.length]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
