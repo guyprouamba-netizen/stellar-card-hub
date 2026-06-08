@@ -176,7 +176,6 @@ function Sidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
 function HomeTab({ data, onAction }: { data: any; onAction: () => void }) {
   const xof = data.wallets.find((w: any) => w.currency === "XOF");
   const usd = data.wallets.find((w: any) => w.currency === "USD");
-  const eur = data.wallets.find((w: any) => w.currency === "EUR");
   return (
     <div className="space-y-8">
       <header>
@@ -198,10 +197,9 @@ function HomeTab({ data, onAction }: { data: any; onAction: () => void }) {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <WalletCard label="Solde XOF" amount={xof?.balance ?? 0} currency="XOF" highlight />
-        <WalletCard label="Solde USD" amount={usd?.balance ?? 0} currency="USD" />
-        <WalletCard label="Solde EUR" amount={eur?.balance ?? 0} currency="EUR" />
+        <WalletCard label="Solde USD (carte)" amount={usd?.balance ?? 0} currency="USD" />
       </div>
 
       <section className="rounded-2xl border border-border bg-card p-6">
