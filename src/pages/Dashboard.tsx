@@ -86,7 +86,7 @@ function SyncKycButton({ onDone }: { onDone: () => void }) {
           if (r.ok) {
             if (r.verdict === "approved") toast.success("KYC approuvé ✅");
             else if (r.verdict === "rejected") toast.error(`KYC rejeté${r.reason ? " — " + r.reason : ""}`);
-            else toast.info("Toujours en attente côté Strowallet.");
+            else toast.info("Toujours en attente de validation par notre émetteur.");
           } else {
             toast.error(r.error || "Impossible de synchroniser");
           }
@@ -149,14 +149,7 @@ function HomeTab({ data, onAction }: { data: any; onAction: () => void }) {
       </header>
 
       {data.kycSubmitted && !data.kycReady && (
-        <div className="flex items-start gap-3 rounded-2xl border border-primary/40 bg-primary/5 p-4">
-          <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
-          <div className="flex-1">
-            <p className="font-medium">KYC soumis — en attente de validation</p>
-            <p className="mt-1 text-sm text-muted-foreground">Votre dossier a bien été enregistré et transmis au prestataire. Vous pourrez émettre une carte dès que le client Strowallet sera confirmé et validé.</p>
-          </div>
-          <SyncKycButton onDone={onAction} />
-        </div>
+        <KycStatusBanner kyc={data.kyc} onAction={onAction} />
       )}
       {!data.kycSubmitted && !data.kycReady && (
         <div className="flex items-start gap-3 rounded-2xl border border-warning/40 bg-warning/5 p-4">

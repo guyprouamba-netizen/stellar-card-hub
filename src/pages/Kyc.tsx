@@ -101,6 +101,14 @@ function KycPage() {
           </div>
 
           <form onSubmit={onSubmit} className="mt-8 space-y-5">
+            <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-xs text-muted-foreground">
+              <p className="font-semibold text-foreground">📸 Conseils pour éviter un rejet</p>
+              <ul className="mt-2 list-disc space-y-1 pl-4">
+                <li><b>Photo de la pièce</b> : nette, lisible, les 4 coins visibles, sans reflet ni flash.</li>
+                <li><b>Selfie</b> : votre visage seul, bien éclairé, <u>sans tenir la pièce</u> (motif fréquent de rejet).</li>
+                <li>Nom, prénom et date de naissance <b>identiques</b> à votre pièce officielle.</li>
+              </ul>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Prénom"><input required value={f.firstName} onChange={(e) => setF({...f, firstName: e.target.value})} className={inputCls} /></Field>
               <Field label="Nom"><input required value={f.lastName} onChange={(e) => setF({...f, lastName: e.target.value})} className={inputCls} /></Field>
@@ -116,7 +124,7 @@ function KycPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <FileField label="Photo de la pièce" file={idFile} setFile={setIdFile} />
-              <FileField label="Selfie avec pièce" file={selfieFile} setFile={setSelfieFile} />
+              <FileField label="Photo de votre visage (selfie seul)" file={selfieFile} setFile={setSelfieFile} />
             </div>
 
             <div className="grid gap-4">
@@ -140,12 +148,12 @@ function KycPage() {
             <div className="rounded-2xl border border-dashed border-border bg-surface-2 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold">Diagnostic Strowallet</p>
-                  <p className="text-xs text-muted-foreground">Teste l'appel API depuis le serveur (sans soumettre votre dossier).</p>
+                  <p className="text-sm font-semibold">Diagnostic technique</p>
+                  <p className="text-xs text-muted-foreground">Teste la connexion à notre émetteur de cartes (sans soumettre votre dossier).</p>
                 </div>
                 <button type="button" onClick={runDiag} disabled={diagBusy}
                   className="rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold hover:bg-muted disabled:opacity-50">
-                  {diagBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Tester l'appel Strowallet"}
+                  {diagBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Tester la connexion émetteur"}
                 </button>
               </div>
               {diag && (
