@@ -294,7 +294,7 @@ function CardRow({ card, onAction }: { card: any; onAction: () => void }) {
         <Link to="/cards" className="text-xs font-semibold text-primary hover:underline">Gérer →</Link>
       </div>
       {card.auto_frozen_at && (
-        <p className="mt-3 flex items-center gap-2 rounded-xl bg-warning/10 p-3 text-xs text-warning"><AlertTriangle className="h-4 w-4" /> Gelée automatiquement le {new Date(card.auto_frozen_at).toLocaleString("fr-FR")} après tentative échouée.</p>
+        <p className="mt-3 flex items-center gap-2 rounded-xl bg-warning/10 p-3 text-xs text-warning"><AlertTriangle className="h-4 w-4" /> Gelée automatiquement le {new Date(card.auto_frozen_at).toLocaleString("fr-FR")} après 2 tentatives de paiement échouées.</p>
       )}
       <div className="mt-4 flex gap-2">
         {isFrozen ? (
