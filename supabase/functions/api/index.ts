@@ -215,42 +215,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     return data ?? [];
   },
 
-  // ---------- KYC ----------
-  async submitFullKyc({ data, user, admin, userClient }) {
-    const userId = user.id; const email = user.email;
-    const [idSig, selfieSig] = await Promise.all([
-      admin.storage.from("kyc").createSignedUrl(data.idImagePath, 60 * 60 * 24 * 7),
-      admin.storage.from("kyc").createSignedUrl(data.selfiePath, 60 * 60 * 24 * 7),
-    ]);
-    const idImage = idSig.data?.signedUrl ?? "";
-    const selfie = selfieSig.data?.signedUrl ?? "";
-    const { error: upsertErr } = await userClient.from("kyc_submissions").upsert({
-      user_id: userId, status: "submitted",
-      first_name: data.firstName, last_name: data.lastName,
-      date_of_birth: data.dob, id_type: data.idType, id_number: data.idNumber,
-      id_image_url: idImage, selfie_url: selfie,
-      address: data.address, city: data.city, country: data.country,
-      submitted_at: new Date().toISOString(),
-    }, { onConflict: "user_id" });
-    if (upsertErr) return { ok: false, error: `Sauvegarde KYC échouée : ${upsertErr.message}` };
-    try {
-      const ensured = await SW.ensureStrowalletCustomer({
-        firstName: data.firstName, lastName: data.lastName, email, phone: data.phone,
-        dob: data.dob, idType: data.idType, idNumber: data.idNumber,
-        idImage, selfie,
-        address: data.address, city: data.city, country: data.country,
-        state: data.state, zipCode: data.zipCode, houseNumber: data.houseNumber,
-      });
-      await admin.from("kyc_submissions").update({ provider_status: ensured.created ? "sent" : "synced", provider_response: ensured.response }).eq("user_id", userId);
-      if (ensured.customerId) await admin.from("profiles").update({ strowallet_customer_id: String(ensured.customerId) }).eq("id", userId);
-      return { ok: true, customerId: ensured.customerId };
-    } catch (e) {
-      const msg = (e as Error).message;
-      await admin.from("kyc_submissions").update({ provider_status: "error", provider_response: { error: msg } }).eq("user_id", userId);
-      return { ok: false, error: msg };
-    }
-  },
-
+  // ---------- KYC (no-op stubs : page KYC supprimée du flow) ----------
+  async submitFullKyc() { return { ok: true }; },
   async createKycUploadUrl({ data, user, admin }) {
     const path = `${user.id}/${data.kind}-${Date.now()}.${String(data.ext).toLowerCase()}`;
     const { data: signed, error } = await admin.storage.from("kyc").createSignedUploadUrl(path);
@@ -393,27 +359,6 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   async adminReviewKyc({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
-    if (data.decision === "approved") {
-      const [{ data: profile }, { data: kyc }] = await Promise.all([
-        admin.from("profiles").select("email,phone,full_name,country,strowallet_customer_id").eq("id", data.user_id).maybeSingle(),
-        admin.from("kyc_submissions").select("first_name,last_name,date_of_birth,id_type,id_number,id_image_url,selfie_url,address,city,country").eq("user_id", data.user_id).maybeSingle(),
-      ]);
-      if (!profile?.strowallet_customer_id) {
-        if (!profile?.email || !profile?.phone || !kyc?.first_name || !kyc?.last_name || !kyc?.date_of_birth || !kyc?.id_type || !kyc?.id_number || !kyc?.id_image_url || !kyc?.selfie_url || !kyc?.address || !kyc?.city) {
-          throw new Error("Impossible d'approuver ce KYC : informations nécessaires incomplètes.");
-        }
-        const ensured = await SW.ensureStrowalletCustomer({
-          firstName: kyc.first_name, lastName: kyc.last_name, email: profile.email, phone: profile.phone,
-          dob: kyc.date_of_birth, idType: kyc.id_type, idNumber: kyc.id_number,
-          idImage: kyc.id_image_url, selfie: kyc.selfie_url,
-          address: kyc.address, city: kyc.city, country: kyc.country || profile.country || "BF",
-          state: kyc.city, zipCode: "00000", houseNumber: "1",
-        });
-        const { error: pErr } = await admin.from("profiles").update({ strowallet_customer_id: ensured.customerId }).eq("id", data.user_id);
-        if (pErr) throw new Error(pErr.message);
-        await admin.from("kyc_submissions").update({ provider_status: ensured.created ? "sent" : "synced", provider_response: ensured.response }).eq("user_id", data.user_id);
-      }
-    }
     const { error } = await admin.from("kyc_submissions").update({
       provider_status: data.decision, status: data.decision,
       provider_response: { admin_note: data.note ?? null, reviewed_at: new Date().toISOString() },
