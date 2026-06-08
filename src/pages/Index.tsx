@@ -26,7 +26,7 @@ const partners: Array<{ name: string; slug: string }> = [
   { name: "Amazon", slug: "amazon" },
   { name: "Spotify", slug: "spotify" },
   { name: "AliExpress", slug: "aliexpress" },
-  { name: "Google Ads", slug: "googleads" },
+  { name: "Google", slug: "google" },
   { name: "Meta", slug: "meta" },
   { name: "Apple", slug: "apple" },
   { name: "Microsoft", slug: "microsoft" },
@@ -59,7 +59,7 @@ function Index() {
         <section className="container mx-auto grid gap-12 px-4 py-16 sm:px-6 md:grid-cols-2 md:py-24">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Burkina Faso · UEMOA
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Burkina Faso
             </span>
             <h1 className="mt-6 font-[Space_Grotesk] text-5xl font-bold leading-tight tracking-tight md:text-6xl">
               Cartes virtuelles <span className="bg-gradient-primary bg-clip-text text-transparent">USD</span>,<br />paiements mondiaux.
@@ -120,6 +120,7 @@ function Index() {
                     height={28}
                     className="h-7 w-7 object-contain dark:invert"
                     loading="lazy"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                   />
                   <span className="whitespace-nowrap text-sm font-semibold tracking-wide text-foreground/80">{p.name}</span>
                 </div>
