@@ -18,7 +18,28 @@ export const walletApi = {
 };
 
 export const cardApi = {
-  buy: async ({ amount, brand }: { amount: number; currency?: string; brand?: string }) => {
-    return callApi("issueCard", { amountUsd: amount, brand: brand || "Visa" });
+  buy: async (payload: {
+    amount: number; currency?: string; brand?: string;
+    firstName: string; lastName: string; dob: string;
+    idType: string; idNumber: string; phone: string;
+    line1: string; city: string; state: string; postalCode: string; country: string;
+    nameOnCard?: string;
+  }) => {
+    return callApi("issueCard", {
+      amountUsd: payload.amount,
+      brand: payload.brand || "Visa",
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      dob: payload.dob,
+      idType: payload.idType,
+      idNumber: payload.idNumber,
+      phone: payload.phone,
+      line1: payload.line1,
+      city: payload.city,
+      state: payload.state,
+      postalCode: payload.postalCode,
+      country: payload.country,
+      nameOnCard: payload.nameOnCard,
+    });
   },
 };

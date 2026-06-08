@@ -37,50 +37,25 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   // ---------- Dashboard ----------
   async getDashboardData({ user, admin, userClient }) {
     const userId = user.id;
-    const [w, t, c, p, k] = await Promise.all([
+    const [w, t, c, p] = await Promise.all([
       userClient.from("wallets").select("id,currency,balance").eq("user_id", userId),
       userClient.from("transactions").select("id,type,status,amount,currency,description,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
       userClient.from("cards").select("id,brand,last4,currency,balance,status,failed_attempts,auto_frozen_at,created_at").eq("user_id", userId).order("created_at", { ascending: false }),
-      userClient.from("profiles").select("full_name,email,phone,strowallet_customer_id,is_active,country").eq("id", userId).maybeSingle(),
-      userClient.from("kyc_submissions").select("status,provider_status,submitted_at,first_name,last_name,date_of_birth,id_type,id_number,id_image_url,selfie_url,address,city,country").eq("user_id", userId).maybeSingle(),
+      userClient.from("profiles").select("full_name,email,phone,is_active,country").eq("id", userId).maybeSingle(),
     ]);
-    const wallets = w.data ?? []; const transactions = t.data ?? []; const cards = c.data ?? [];
-    let profile = p.data; let kyc = k.data;
     const pricing = await loadPricingConfig(admin);
-    const kycSubmitted = !!kyc && (kyc.status === "submitted" || kyc.status === "approved" || !!kyc.submitted_at);
-    const kycApproved = !!profile?.strowallet_customer_id && (kyc?.provider_status === "approved" || kyc?.status === "approved");
-    const needsSync = !!kyc && !kycApproved && kyc.status !== "rejected" && (kycSubmitted || !!profile?.strowallet_customer_id);
-    if (needsSync) {
-      try {
-        let customerId = profile?.strowallet_customer_id ?? undefined;
-        if (!customerId && profile?.email && profile?.phone && kyc?.first_name && kyc?.last_name && kyc?.date_of_birth && kyc?.id_type && kyc?.id_number && kyc?.id_image_url && kyc?.selfie_url && kyc?.address && kyc?.city) {
-          const ensured = await SW.ensureStrowalletCustomer({
-            firstName: kyc.first_name, lastName: kyc.last_name, email: profile.email, phone: profile.phone,
-            dob: kyc.date_of_birth, idType: kyc.id_type, idNumber: kyc.id_number,
-            idImage: kyc.id_image_url, selfie: kyc.selfie_url,
-            address: kyc.address, city: kyc.city, country: kyc.country || profile.country || "BF",
-            state: kyc.city, zipCode: "00000", houseNumber: "1",
-          });
-          customerId = ensured.customerId;
-          await admin.from("profiles").update({ strowallet_customer_id: ensured.customerId }).eq("id", userId);
-          await admin.from("kyc_submissions").update({ provider_status: ensured.created ? "sent" : "synced", provider_response: ensured.response }).eq("user_id", userId);
-          profile = { ...(profile ?? {} as any), strowallet_customer_id: ensured.customerId };
-        }
-        const res = await SW.getStrowalletCardholder({ customerEmail: profile?.email ?? undefined, customerId });
-        const { raw, verdict } = SW.normalizeKycVerdict(res);
-        const newCustomerId = SW.extractStrowalletCustomerId(res);
-        if (newCustomerId && newCustomerId !== profile?.strowallet_customer_id) {
-          await admin.from("profiles").update({ strowallet_customer_id: newCustomerId }).eq("id", userId);
-          profile = { ...(profile ?? {} as any), strowallet_customer_id: newCustomerId };
-        }
-        const status = verdict === "approved" ? "approved" : verdict === "rejected" ? "rejected" : undefined;
-        await admin.from("kyc_submissions").update({ provider_status: raw ?? verdict, provider_response: res, ...(status ? { status } : {}) }).eq("user_id", userId);
-        kyc = { ...(kyc as any), provider_status: raw ?? verdict, ...(status ? { status } : {}) };
-      } catch { /* keep local state */ }
-    }
-    const finalApproved = !!profile?.strowallet_customer_id && (kyc?.provider_status === "approved" || kyc?.status === "approved");
-    const finalSubmitted = !!kyc && (kyc.status === "submitted" || kyc.status === "approved" || !!kyc.submitted_at);
-    return { wallets, transactions, cards, profile, kyc, pricing, kycSubmitted: finalSubmitted, kycApproved: finalApproved, kycReady: finalApproved && !!profile?.strowallet_customer_id };
+    // KYC supprimé : l'API NFC ne nécessite plus de profil client. Les infos perso sont saisies à l'émission.
+    return {
+      wallets: w.data ?? [],
+      transactions: t.data ?? [],
+      cards: c.data ?? [],
+      profile: p.data,
+      kyc: null,
+      pricing,
+      kycSubmitted: true,
+      kycApproved: true,
+      kycReady: true,
+    };
   },
 
   async computePricingPreview({ data, user, admin, userClient }) {
@@ -94,38 +69,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   // ---------- Strowallet user-facing ----------
   async diagnoseStrowallet() { return SW.strowalletDiagnostic(); },
 
-  async syncKycStatus({ user, admin, userClient }) {
-    const userId = user.id; const email = user.email;
-    const [{ data: profile }, { data: kyc }] = await Promise.all([
-      userClient.from("profiles").select("strowallet_customer_id,email,phone").eq("id", userId).maybeSingle(),
-      userClient.from("kyc_submissions").select("first_name,last_name,date_of_birth,id_type,id_number,id_image_url,selfie_url,address,city,country").eq("user_id", userId).maybeSingle(),
-    ]);
-    const customerEmail = profile?.email || email;
-    let customerId = profile?.strowallet_customer_id || undefined;
-    if (!customerEmail && !customerId) return { ok: false, error: "Aucun identifiant Strowallet à interroger." };
-    try {
-      if (!customerId && customerEmail && profile?.phone && kyc?.first_name && kyc?.last_name && kyc?.date_of_birth && kyc?.id_type && kyc?.id_number && kyc?.id_image_url && kyc?.selfie_url && kyc?.address && kyc?.city) {
-        const ensured = await SW.ensureStrowalletCustomer({
-          firstName: kyc.first_name, lastName: kyc.last_name, email: customerEmail, phone: profile.phone,
-          dob: kyc.date_of_birth, idType: kyc.id_type, idNumber: kyc.id_number,
-          idImage: kyc.id_image_url, selfie: kyc.selfie_url,
-          address: kyc.address, city: kyc.city, country: kyc.country || "BF",
-          state: kyc.city, zipCode: "00000", houseNumber: "1",
-        });
-        customerId = ensured.customerId;
-        await admin.from("profiles").update({ strowallet_customer_id: ensured.customerId }).eq("id", userId);
-        await admin.from("kyc_submissions").update({ provider_status: ensured.created ? "sent" : "synced", provider_response: ensured.response }).eq("user_id", userId);
-      }
-      const res = await SW.getStrowalletCardholder({ customerEmail, customerId });
-      const { raw, verdict, reason } = SW.normalizeKycVerdict(res);
-      const newCustomerId = SW.extractStrowalletCustomerId(res);
-      if (newCustomerId && newCustomerId !== profile?.strowallet_customer_id) {
-        await admin.from("profiles").update({ strowallet_customer_id: newCustomerId }).eq("id", userId);
-      }
-      const status = verdict === "approved" ? "approved" : verdict === "rejected" ? "rejected" : undefined;
-      await admin.from("kyc_submissions").update({ provider_status: raw ?? verdict, provider_response: res, ...(status ? { status } : {}) }).eq("user_id", userId);
-      return { ok: true, verdict, raw, reason };
-    } catch (e) { return { ok: false, error: (e as Error).message }; }
+  // Stub conservé pour compat : l'API NFC ne fait plus de KYC séparé.
+  async syncKycStatus() {
+    return { ok: true, verdict: "approved" as const, raw: null, reason: null };
   },
 
   async fetchStrowalletBalance({ user, admin }) {
@@ -134,57 +80,47 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     catch (e) { return { ok: false, error: (e as Error).message }; }
   },
 
-  async submitKyc({ data, user, admin }) {
-    const userId = user.id; const email = user.email;
-    const { error: insErr } = await admin.from("kyc_submissions").upsert({
-      user_id: userId, status: "submitted",
-      first_name: data.firstName, last_name: data.lastName,
-      date_of_birth: data.dob, id_type: data.idType, id_number: data.idNumber,
-      id_image_url: data.idImage, selfie_url: data.selfie,
-      address: data.address, city: data.city, country: data.country,
-      submitted_at: new Date().toISOString(),
-    }, { onConflict: "user_id" });
-    if (insErr) throw new Error(insErr.message);
-    try {
-      const ensured = await SW.ensureStrowalletCustomer({ ...data, email, state: data.city, zipCode: "00000", houseNumber: "1" });
-      const customerId = ensured.customerId;
-      await admin.from("kyc_submissions").update({ provider_status: ensured.created ? "sent" : "synced", provider_response: ensured.response }).eq("user_id", userId);
-      if (customerId) await admin.from("profiles").update({ strowallet_customer_id: String(customerId) }).eq("id", userId);
-      return { ok: true, data: ensured.response };
-    } catch (e) {
-      const msg = (e as Error).message;
-      await admin.from("kyc_submissions").update({ provider_status: "error", provider_response: { error: msg } }).eq("user_id", userId);
-      return { ok: false, error: msg };
-    }
-  },
+  // Conservé pour compat front : ne fait rien, retourne ok.
+  async submitKyc() { return { ok: true }; },
 
   async issueCard({ data, user, admin, userClient }) {
     const userId = user.id; const email = user.email;
-    const { data: profile } = await userClient.from("profiles").select("strowallet_customer_id").eq("id", userId).maybeSingle();
-    if (!profile?.strowallet_customer_id) return { ok: false, error: "KYC non validé — soumettez votre dossier avant d'émettre une carte." };
     const cfg = await loadPricingConfig(admin);
-    const cost = computeCardCost(Number(data.amountUsd), cfg);
+    const amountUsd = Number(data.amountUsd);
+    if (!Number.isFinite(amountUsd) || amountUsd <= 0) return { ok: false, error: "Montant USD invalide" };
+    const cost = computeCardCost(amountUsd, cfg);
     const requiredXof = cost.totalXof;
+    // Validation des infos perso requises par l'API NFC
+    const required = ["firstName","lastName","dob","idType","idNumber","line1","city","state","postalCode","country","phone"] as const;
+    for (const k of required) {
+      if (!data?.[k] || String(data[k]).trim() === "") return { ok: false, error: `Champ requis manquant : ${k}` };
+    }
     const { data: wallet, error: wErr } = await userClient.from("wallets").select("balance,id").eq("user_id", userId).eq("currency", "XOF").maybeSingle();
     if (wErr) throw new Error(wErr.message);
     if (!wallet || Number(wallet.balance) < requiredXof) return { ok: false, error: "Solde XOF insuffisant", required: requiredXof, available: Number(wallet?.balance ?? 0) };
     const { error: debErr } = await admin.from("wallets").update({ balance: Number(wallet.balance) - requiredXof }).eq("id", wallet.id);
     if (debErr) throw new Error(debErr.message);
     try {
-      const res = await SW.createStrowalletCard({ customerEmail: email, amount: cost.loadedToStrowalletUsd, brand: data.brand });
-      const providerCardId = (res as any)?.response?.card_id || (res as any)?.card_id || null;
-      const last4 = (res as any)?.response?.last4 || null;
+      const res = await SW.createNfcCard({
+        firstName: data.firstName, lastName: data.lastName, dob: data.dob,
+        idType: data.idType, idNumber: data.idNumber, email,
+        line1: data.line1, city: data.city, state: data.state,
+        postalCode: data.postalCode, country: data.country,
+        amountUsd, phone: data.phone,
+        nameOnCard: data.nameOnCard,
+      });
+      const { card_id, last4, brand } = SW.extractNfcCard(res);
       await admin.from("cards").insert({
         user_id: userId, provider: "strowallet",
-        provider_card_id: providerCardId ? String(providerCardId) : null,
-        brand: String(data.brand).toLowerCase(), last4, currency: "USD",
-        balance: Number(data.amountUsd), status: "active", metadata: res,
+        provider_card_id: card_id,
+        brand: (brand || "visa").toLowerCase(), last4, currency: "USD",
+        balance: amountUsd, status: "active", metadata: res,
       });
       await admin.from("transactions").insert({
         user_id: userId, type: "card_issue", status: "success",
         amount: requiredXof, currency: "XOF", provider: "strowallet",
-        provider_ref: providerCardId ? String(providerCardId) : null,
-        description: `Émission carte ${data.brand} ${data.amountUsd} USD (frais ${cfg.card_issue_fee_xof} XOF)`,
+        provider_ref: card_id,
+        description: `Émission carte NFC ${amountUsd} USD (frais ${cfg.card_issue_fee_xof} XOF)`,
         metadata: { pricing: cost },
       });
       return { ok: true, data: res };
@@ -204,7 +140,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!card || card.user_id !== user.id) {
       if (!(await isAdmin(admin, user.id))) throw new Error("Carte introuvable");
     }
-    return SW.getStrowalletCardDetails(data.card_id);
+    return SW.getNfcCardDetails(data.card_id);
   },
 
   async cardAction({ data, user, admin, userClient }) {
@@ -212,10 +148,17 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!card || card.user_id !== user.id) {
       if (!(await isAdmin(admin, user.id))) return { ok: false, error: "Carte introuvable" };
     }
+    // L'API NFC ne propose plus que active/frozen (pas de terminate).
+    const target: "active" | "frozen" =
+      data.action === "freeze" ? "frozen" :
+      data.action === "unfreeze" ? "active" :
+      data.action === "terminate" ? "frozen" : "active";
     try {
-      const res = await SW.strowalletCardAction(data.action, data.card_id);
-      const newStatus = data.action === "freeze" ? "frozen" : data.action === "unfreeze" ? "active" : "terminated";
-      await admin.from("cards").update({ status: newStatus, ...(data.action === "unfreeze" ? { failed_attempts: 0, auto_frozen_at: null } : {}) }).eq("provider_card_id", data.card_id);
+      const res = await SW.nfcCardStatus(data.card_id, target);
+      await admin.from("cards").update({
+        status: target,
+        ...(target === "active" ? { failed_attempts: 0, auto_frozen_at: null } : {}),
+      }).eq("provider_card_id", data.card_id);
       return { ok: true, data: res };
     } catch (e) { return { ok: false, error: (e as Error).message }; }
   },
@@ -225,7 +168,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!card || card.user_id !== user.id) {
       if (!(await isAdmin(admin, user.id))) return { ok: false, error: "Carte introuvable" };
     }
-    try { return { ok: true, data: await SW.getStrowalletCardTransactions({ card_id: data.card_id }) }; }
+    try { return { ok: true, data: await SW.getNfcCardHistory(data.card_id) }; }
     catch (e) { return { ok: false, error: (e as Error).message }; }
   },
 
@@ -233,7 +176,6 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const userId = user.id;
     const { data: card } = await userClient.from("cards").select("id,user_id,balance,provider_card_id,status").eq("provider_card_id", data.card_id).maybeSingle();
     if (!card || card.user_id !== userId) return { ok: false, error: "Carte introuvable" };
-    if (card.status === "terminated") return { ok: false, error: "Carte résiliée" };
     const cfg = await loadPricingConfig(admin);
     const cost = computeFundCost(Number(data.amountUsd), cfg);
     const requiredXof = cost.totalXof;
@@ -243,7 +185,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const { error: debErr } = await admin.from("wallets").update({ balance: Number(wallet.balance) - requiredXof }).eq("id", wallet.id);
     if (debErr) throw new Error(debErr.message);
     try {
-      const res = await SW.fundStrowalletCard({ card_id: data.card_id, amount: Number(data.amountUsd) });
+      const res = await SW.fundWithdrawNfcCard({ card_id: data.card_id, amount: Number(data.amountUsd), type: "fund" });
       await admin.from("cards").update({ balance: Number(card.balance) + Number(data.amountUsd) }).eq("id", card.id);
       await admin.from("transactions").insert({
         user_id: userId, type: "card_fund", status: "success",
@@ -273,42 +215,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     return data ?? [];
   },
 
-  // ---------- KYC ----------
-  async submitFullKyc({ data, user, admin, userClient }) {
-    const userId = user.id; const email = user.email;
-    const [idSig, selfieSig] = await Promise.all([
-      admin.storage.from("kyc").createSignedUrl(data.idImagePath, 60 * 60 * 24 * 7),
-      admin.storage.from("kyc").createSignedUrl(data.selfiePath, 60 * 60 * 24 * 7),
-    ]);
-    const idImage = idSig.data?.signedUrl ?? "";
-    const selfie = selfieSig.data?.signedUrl ?? "";
-    const { error: upsertErr } = await userClient.from("kyc_submissions").upsert({
-      user_id: userId, status: "submitted",
-      first_name: data.firstName, last_name: data.lastName,
-      date_of_birth: data.dob, id_type: data.idType, id_number: data.idNumber,
-      id_image_url: idImage, selfie_url: selfie,
-      address: data.address, city: data.city, country: data.country,
-      submitted_at: new Date().toISOString(),
-    }, { onConflict: "user_id" });
-    if (upsertErr) return { ok: false, error: `Sauvegarde KYC échouée : ${upsertErr.message}` };
-    try {
-      const ensured = await SW.ensureStrowalletCustomer({
-        firstName: data.firstName, lastName: data.lastName, email, phone: data.phone,
-        dob: data.dob, idType: data.idType, idNumber: data.idNumber,
-        idImage, selfie,
-        address: data.address, city: data.city, country: data.country,
-        state: data.state, zipCode: data.zipCode, houseNumber: data.houseNumber,
-      });
-      await admin.from("kyc_submissions").update({ provider_status: ensured.created ? "sent" : "synced", provider_response: ensured.response }).eq("user_id", userId);
-      if (ensured.customerId) await admin.from("profiles").update({ strowallet_customer_id: String(ensured.customerId) }).eq("id", userId);
-      return { ok: true, customerId: ensured.customerId };
-    } catch (e) {
-      const msg = (e as Error).message;
-      await admin.from("kyc_submissions").update({ provider_status: "error", provider_response: { error: msg } }).eq("user_id", userId);
-      return { ok: false, error: msg };
-    }
-  },
-
+  // ---------- KYC (no-op stubs : page KYC supprimée du flow) ----------
+  async submitFullKyc() { return { ok: true }; },
   async createKycUploadUrl({ data, user, admin }) {
     const path = `${user.id}/${data.kind}-${Date.now()}.${String(data.ext).toLowerCase()}`;
     const { data: signed, error } = await admin.storage.from("kyc").createSignedUploadUrl(path);
@@ -451,27 +359,6 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   async adminReviewKyc({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
-    if (data.decision === "approved") {
-      const [{ data: profile }, { data: kyc }] = await Promise.all([
-        admin.from("profiles").select("email,phone,full_name,country,strowallet_customer_id").eq("id", data.user_id).maybeSingle(),
-        admin.from("kyc_submissions").select("first_name,last_name,date_of_birth,id_type,id_number,id_image_url,selfie_url,address,city,country").eq("user_id", data.user_id).maybeSingle(),
-      ]);
-      if (!profile?.strowallet_customer_id) {
-        if (!profile?.email || !profile?.phone || !kyc?.first_name || !kyc?.last_name || !kyc?.date_of_birth || !kyc?.id_type || !kyc?.id_number || !kyc?.id_image_url || !kyc?.selfie_url || !kyc?.address || !kyc?.city) {
-          throw new Error("Impossible d'approuver ce KYC : informations nécessaires incomplètes.");
-        }
-        const ensured = await SW.ensureStrowalletCustomer({
-          firstName: kyc.first_name, lastName: kyc.last_name, email: profile.email, phone: profile.phone,
-          dob: kyc.date_of_birth, idType: kyc.id_type, idNumber: kyc.id_number,
-          idImage: kyc.id_image_url, selfie: kyc.selfie_url,
-          address: kyc.address, city: kyc.city, country: kyc.country || profile.country || "BF",
-          state: kyc.city, zipCode: "00000", houseNumber: "1",
-        });
-        const { error: pErr } = await admin.from("profiles").update({ strowallet_customer_id: ensured.customerId }).eq("id", data.user_id);
-        if (pErr) throw new Error(pErr.message);
-        await admin.from("kyc_submissions").update({ provider_status: ensured.created ? "sent" : "synced", provider_response: ensured.response }).eq("user_id", data.user_id);
-      }
-    }
     const { error } = await admin.from("kyc_submissions").update({
       provider_status: data.decision, status: data.decision,
       provider_response: { admin_note: data.note ?? null, reviewed_at: new Date().toISOString() },
