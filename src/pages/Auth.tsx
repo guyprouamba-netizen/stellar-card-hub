@@ -15,7 +15,7 @@ function Auth() {
     const { data: roles } = await supabase
       .from("user_roles").select("role").eq("user_id", session.user.id);
     const isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
-    navigate({ to: isAdmin ? "/admin" : "/dashboard" });
+    navigate(isAdmin ? "/admin" : "/dashboard");
   }
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");

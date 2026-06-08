@@ -13,7 +13,7 @@ export function BackButton({ to, label = "Retour", className }: BackButtonProps)
     <button
       onClick={() => {
         if (to) {
-          navigate({ to });
+          navigate(to);
         } else {
           window.history.back();
         }
