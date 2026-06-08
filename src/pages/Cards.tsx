@@ -1,5 +1,5 @@
 
-import { Plus, Snowflake, Trash2, Sun, Wallet, History, Loader2 } from "lucide-react";
+import { Plus, Snowflake, Trash2, Sun, Wallet, History, Loader2, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useServerFn } from "@/lib/server-fn";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,7 +8,7 @@ import { SiteNav } from "@/components/site-nav";
 import { BackButton } from "@/components/back-button";
 import { VirtualCard } from "@/components/virtual-card";
 import { IssueCardSheet } from "@/components/issue-card-sheet";
-import { listMyCards, cardAction, fundCard, listCardTransactions } from "@/lib/strowallet.functions";
+import { listMyCards, cardAction, fundCard, listCardTransactions, refreshCard } from "@/lib/strowallet.functions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ function statusLabel(s: string) {
     case "frozen": return "Gelée";
     case "frozen_auto": return "Gelée (auto)";
     case "terminated": return "Résiliée";
+    case "processing": return "En cours d'émission";
     default: return s;
   }
 }
@@ -40,6 +41,17 @@ function CardsPage() {
     onSuccess: (r) => {
       if ((r as any)?.ok === false) toast.error((r as any).error || "Action échouée");
       else toast.success("Action exécutée");
+      qc.invalidateQueries({ queryKey: ["my-cards"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const doRefresh = useServerFn(refreshCard);
+  const refreshMut = useMutation({
+    mutationFn: (card_id: string) => doRefresh({ data: { card_id } }),
+    onSuccess: (r: any) => {
+      if (r?.ok === false) toast.error(r.error || "Rafraîchissement échoué");
+      else toast.success("Carte mise à jour");
       qc.invalidateQueries({ queryKey: ["my-cards"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -88,10 +100,15 @@ function CardsPage() {
                 <div className="mt-5">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold">{(c.brand || "Carte").toUpperCase()} {c.last4 ? `••${c.last4}` : ""}</p>
-                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${isActive ? "bg-success/15 text-success" : isTerminated ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
+                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${isActive ? "bg-success/15 text-success" : isTerminated ? "bg-destructive/15 text-destructive" : c.status === "processing" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
                       {statusLabel(c.status)}
                     </span>
                   </div>
+                  {c.status === "processing" && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      L'émetteur finalise votre carte. Cliquez sur « Rafraîchir » dans quelques instants pour récupérer le numéro et le statut.
+                    </p>
+                  )}
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     <button
                       disabled={!c.provider_card_id || isTerminated}
@@ -109,6 +126,14 @@ function CardsPage() {
                     </button>
                   </div>
                   <div className="mt-2 flex gap-2">
+                    <button
+                      disabled={!c.provider_card_id || refreshMut.isPending}
+                      onClick={() => c.provider_card_id && refreshMut.mutate(c.provider_card_id)}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                      title="Rafraîchir depuis Strowallet"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${refreshMut.isPending ? "animate-spin" : ""}`} />
+                    </button>
                     {isActive ? (
                       <button
                         disabled={!c.provider_card_id || actionMut.isPending}

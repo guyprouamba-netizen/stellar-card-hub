@@ -110,11 +110,13 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         nameOnCard: data.nameOnCard,
       });
       const { card_id, last4, brand } = SW.extractNfcCard(res);
+      const respCardStatus = String(res?.response?.card_status || res?.data?.card_status || "").toLowerCase();
+      const dbStatus = respCardStatus === "active" ? "active" : respCardStatus === "frozen" ? "frozen" : "processing";
       await admin.from("cards").insert({
         user_id: userId, provider: "strowallet",
         provider_card_id: card_id,
         brand: (brand || "visa").toLowerCase(), last4, currency: "USD",
-        balance: amountUsd, status: "active", metadata: res,
+        balance: amountUsd, status: dbStatus, metadata: res,
       });
       await admin.from("transactions").insert({
         user_id: userId, type: "card_issue", status: "success",
@@ -141,6 +143,30 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (!(await isAdmin(admin, user.id))) throw new Error("Carte introuvable");
     }
     return SW.getNfcCardDetails(data.card_id);
+  },
+
+  // Rafraîchit la carte depuis Strowallet et met à jour la BDD (utile si webhook non reçu)
+  async refreshCard({ data, user, admin, userClient }) {
+    const { data: card } = await userClient.from("cards").select("id,user_id").eq("provider_card_id", data.card_id).maybeSingle();
+    if (!card || card.user_id !== user.id) {
+      if (!(await isAdmin(admin, user.id))) return { ok: false, error: "Carte introuvable" };
+    }
+    try {
+      const res = await SW.getNfcCardDetails(data.card_id);
+      const r = (res as any)?.response ?? (res as any)?.data ?? res ?? {};
+      const last4 = r.last4 || r.lastFour || r.last_four || (r.card_number ? String(r.card_number).slice(-4) : null);
+      const brand = r.cardBrand || r.brand || r.card_brand || null;
+      const st = String(r.card_status || r.status || "").toLowerCase();
+      const dbStatus = st === "active" ? "active" : st === "frozen" ? "frozen" : st === "terminated" ? "terminated" : st === "processing" ? "processing" : null;
+      const bal = r.balance ?? r.card_balance ?? null;
+      const upd: any = { metadata: res };
+      if (last4) upd.last4 = String(last4);
+      if (brand) upd.brand = String(brand).toLowerCase();
+      if (dbStatus) upd.status = dbStatus;
+      if (bal !== null && Number.isFinite(Number(bal))) upd.balance = Number(bal);
+      await admin.from("cards").update(upd).eq("provider_card_id", data.card_id);
+      return { ok: true, data: res };
+    } catch (e) { return { ok: false, error: (e as Error).message }; }
   },
 
   async cardAction({ data, user, admin, userClient }) {
