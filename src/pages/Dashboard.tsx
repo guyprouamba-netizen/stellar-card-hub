@@ -5,17 +5,17 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, ArrowDownLeft, ArrowUpRight, CreditCard, History,
-  UserCircle, LogOut, Plus, ShieldAlert, ShieldCheck, Snowflake, Loader2,
+  UserCircle, LogOut, Plus, Snowflake, Loader2,
   AlertTriangle, Wallet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
-import { getDashboardData, computePricingPreview } from "@/lib/dashboard.functions";
-import { issueCard, cardAction } from "@/lib/strowallet.functions";
-import { syncKycStatus } from "@/lib/strowallet.functions";
+import { getDashboardData } from "@/lib/dashboard.functions";
+import { cardAction } from "@/lib/strowallet.functions";
 import { requestWithdrawal } from "@/lib/withdrawal.functions";
 import { initRecharge } from "@/lib/yengapay.functions";
+import { IssueCardSheet } from "@/components/issue-card-sheet";
 import { toast } from "sonner";
 
 type Tab = "home" | "deposit" | "withdraw" | "cards" | "tx" | "profile";
@@ -59,9 +59,9 @@ function Dashboard() {
               {tab === "home" && <HomeTab data={data} onAction={() => refetch()} />}
               {tab === "deposit" && <DepositTab onDone={() => refetch()} />}
               {tab === "withdraw" && <WithdrawTab balance={Number(data.wallets.find((w: any) => w.currency === "XOF")?.balance ?? 0)} onDone={() => refetch()} />}
-              {tab === "cards" && <CardsTab cards={data.cards} kycReady={data.kycReady} onAction={() => refetch()} />}
+              {tab === "cards" && <CardsTab cards={data.cards} onAction={() => refetch()} />}
               {tab === "tx" && <TxTab transactions={data.transactions} />}
-              {tab === "profile" && <ProfileTab profile={data.profile} kyc={data.kyc} />}
+              {tab === "profile" && <ProfileTab profile={data.profile} />}
             </>
           )}
         </main>
@@ -72,69 +72,6 @@ function Dashboard() {
 
 function FullPageLoader() {
   return <div className="grid min-h-screen place-items-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
-}
-
-function KycStatusBanner({ kyc, onAction }: { kyc: any; onAction: () => void }) {
-  const ps = String(kyc?.provider_status ?? "").toLowerCase();
-  const isRejected =
-    kyc?.status === "rejected" ||
-    /reject|declin|denied|fail/i.test(ps) ||
-    /low\s*kyc/i.test(ps) ||
-    /retry/i.test(ps);
-  const rawReason = (kyc?.provider_response?.reason || kyc?.provider_response?.message || kyc?.provider_response?.response?.message || "").toString();
-  const reason = rawReason
-    || (/low\s*kyc/i.test(ps) ? "Dossier refusé par l'émetteur (low kyc) : la qualité du selfie ou de la pièce est jugée insuffisante. Reprenez une photo nette en plein jour, sans reflet, et vérifiez que le nom et la date de naissance correspondent exactement à votre pièce officielle." : "")
-    || (/retry/i.test(ps) ? "L'émetteur exige une nouvelle soumission de votre dossier." : "");
-  if (isRejected) {
-    return (
-      <div className="flex items-start gap-3 rounded-2xl border border-destructive/40 bg-destructive/5 p-4">
-        <AlertTriangle className="mt-0.5 h-5 w-5 text-destructive" />
-        <div className="flex-1">
-          <p className="font-semibold text-destructive">Dossier KYC rejeté{ps ? ` — ${ps}` : ""}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{reason || "Votre dossier a été refusé par notre service de vérification. Causes fréquentes : selfie tenant la pièce, photo floue, données ne correspondant pas à la pièce officielle."}</p>
-          <Link to="/kyc" className="mt-3 inline-flex rounded-full bg-destructive px-4 py-2 text-xs font-semibold text-destructive-foreground">Resoumettre mon dossier</Link>
-        </div>
-        <SyncKycButton onDone={onAction} />
-      </div>
-    );
-  }
-  return (
-    <div className="flex items-start gap-3 rounded-2xl border border-primary/40 bg-primary/5 p-4">
-      <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
-      <div className="flex-1">
-        <p className="font-medium">KYC soumis — en attente de validation</p>
-        <p className="mt-1 text-sm text-muted-foreground">Votre dossier a bien été transmis à notre service de vérification. La validation est généralement faite sous 24-48h ouvrées.</p>
-      </div>
-      <SyncKycButton onDone={onAction} />
-    </div>
-  );
-}
-
-function SyncKycButton({ onDone }: { onDone: () => void }) {
-  const sync = useServerFn(syncKycStatus);
-  const [busy, setBusy] = useState(false);
-  return (
-    <button
-      onClick={async () => {
-        setBusy(true);
-        try {
-          const r = await sync();
-          if (r.ok) {
-            if (r.verdict === "approved") toast.success("KYC approuvé ✅");
-            else if (r.verdict === "rejected") toast.error(`KYC rejeté${r.reason ? " — " + r.reason : ""}`);
-            else toast.info("Toujours en attente de validation par notre émetteur.");
-          } else {
-            toast.error(r.error || "Impossible de synchroniser");
-          }
-          onDone();
-        } finally { setBusy(false); }
-      }}
-      disabled={busy}
-      className="rounded-full border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary disabled:opacity-50"
-    >
-      {busy ? "Synchro…" : "Actualiser le statut"}
-    </button>
-  );
 }
 
 function Sidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
@@ -173,7 +110,7 @@ function Sidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   );
 }
 
-function HomeTab({ data, onAction }: { data: any; onAction: () => void }) {
+function HomeTab({ data }: { data: any; onAction: () => void }) {
   const xof = data.wallets.find((w: any) => w.currency === "XOF");
   const usd = data.wallets.find((w: any) => w.currency === "USD");
   return (
@@ -182,20 +119,6 @@ function HomeTab({ data, onAction }: { data: any; onAction: () => void }) {
         <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Bonjour {data.profile?.full_name?.split(" ")[0] ?? ""} 👋</h1>
         <p className="mt-1 text-sm text-muted-foreground">Voici un aperçu de votre compte FASO-INVEST PAY.</p>
       </header>
-
-      {data.kycSubmitted && !data.kycReady && (
-        <KycStatusBanner kyc={data.kyc} onAction={onAction} />
-      )}
-      {!data.kycSubmitted && !data.kycReady && (
-        <div className="flex items-start gap-3 rounded-2xl border border-warning/40 bg-warning/5 p-4">
-          <ShieldAlert className="mt-0.5 h-5 w-5 text-warning" />
-          <div className="flex-1">
-            <p className="font-medium">KYC requis pour émettre une carte</p>
-            <p className="mt-1 text-sm text-muted-foreground">Soumettez votre dossier KYC pour activer l'émission de votre carte.</p>
-          </div>
-          <Link to="/kyc" className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground">Compléter le KYC</Link>
-        </div>
-      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <WalletCard label="Solde XOF" amount={xof?.balance ?? 0} currency="XOF" highlight />
@@ -325,28 +248,23 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <label className="block text-sm"><span className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</span>{children}</label>;
 }
 
-function CardsTab({ cards, kycReady, onAction }: { cards: any[]; kycReady: boolean; onAction: () => void }) {
+function CardsTab({ cards, onAction }: { cards: any[]; onAction: () => void }) {
   const [issueOpen, setIssueOpen] = useState(false);
   return (
     <div className="space-y-6">
       <header className="flex items-center justify-between">
         <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Mes cartes</h1>
-        <button onClick={() => setIssueOpen(true)} disabled={!kycReady}
-          className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
+        <button onClick={() => setIssueOpen(true)}
+          className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow">
           <Plus className="h-4 w-4" /> Émettre une carte
         </button>
       </header>
-      {!kycReady && (
-        <div className="rounded-2xl border border-warning/40 bg-warning/5 p-4 text-sm">
-          <ShieldAlert className="inline h-4 w-4 text-warning" /> KYC non validé — la création de carte sera disponible après validation de votre dossier.
-        </div>
-      )}
-      {cards.length === 0 ? <p className="text-sm text-muted-foreground">Aucune carte. Émettez-en une après validation KYC.</p> : (
+      {cards.length === 0 ? <p className="text-sm text-muted-foreground">Aucune carte. Cliquez sur « Émettre une carte » pour créer votre première carte NFC.</p> : (
         <div className="grid gap-4 md:grid-cols-2">
           {cards.map((c) => <CardRow key={c.id} card={c} onAction={onAction} />)}
         </div>
       )}
-      {issueOpen && <IssueCardModal onClose={() => setIssueOpen(false)} onDone={() => { setIssueOpen(false); onAction(); }} />}
+      <IssueCardSheet open={issueOpen} onClose={() => setIssueOpen(false)} onIssued={() => { setIssueOpen(false); onAction(); }} />
     </div>
   );
 }
@@ -388,77 +306,6 @@ function CardRow({ card, onAction }: { card: any; onAction: () => void }) {
   );
 }
 
-function IssueCardModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const [amount, setAmount] = useState(5);
-  const [brand, setBrand] = useState<"Visa" | "MasterCard">("Visa");
-  const [preview, setPreview] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const previewFn = useServerFn(computePricingPreview);
-  const issue = useServerFn(issueCard);
-
-  useEffect(() => {
-    let cancel = false;
-    previewFn({ data: { amountUsd: amount } }).then((r) => !cancel && setPreview(r));
-    return () => { cancel = true; };
-  }, [amount, previewFn]);
-
-  async function submit() {
-    setLoading(true);
-    try {
-      const r: any = await issue({ data: { amountUsd: amount, brand } });
-      if (r?.ok) { toast.success("Carte émise ✓"); onDone(); }
-      else toast.error(r?.error ?? "Erreur");
-    } catch (e) { toast.error((e as Error).message); } finally { setLoading(false); }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-3xl border border-border bg-card p-6">
-        <h2 className="font-[Space_Grotesk] text-2xl font-bold">Émettre une carte</h2>
-        <div className="mt-5 grid grid-cols-2 gap-2">
-          {(["Visa","MasterCard"] as const).map((b) => (
-            <button key={b} onClick={() => setBrand(b)} className={`rounded-2xl border p-3 text-sm font-semibold ${brand === b ? "border-primary bg-primary/10" : "border-border bg-surface-2"}`}>{b}</button>
-          ))}
-        </div>
-        <div className="mt-5 rounded-2xl border border-border bg-surface-2 p-4">
-          <label className="text-xs uppercase tracking-wider text-muted-foreground">Montant carte (USD)</label>
-          <input type="number" min={2} max={500} value={amount} onChange={(e) => setAmount(Number(e.target.value) || 0)}
-            className="mt-1 w-full bg-transparent font-[Space_Grotesk] text-3xl font-bold tabular-nums outline-none" />
-          <div className="mt-2 flex gap-2">
-            {[5, 10, 25, 50, 100].map(q => <button key={q} onClick={() => setAmount(q)} className="rounded-full border border-border px-3 py-1 text-xs">${q}</button>)}
-          </div>
-        </div>
-        {preview && (
-          <div className="mt-5 space-y-1.5 rounded-2xl border border-border bg-surface-2 p-4 text-sm">
-            <Row k="Frais d'émission" v={`${preview.feeXof.toLocaleString("fr-FR")} XOF`} />
-            <Row k={`Charge carte (${amount} + frais émetteur ${preview.strowalletFixedUsd}$ + 1%)`} v={`${preview.loadedToStrowalletUsd.toFixed(2)} USD`} />
-            <Row k={`Conversion (1$ = ${preview.rateXof} F)`} v={`${preview.loadedToStrowalletXof.toLocaleString("fr-FR")} XOF`} />
-            <div className="my-2 h-px bg-border" />
-            <Row k="Total à débiter" v={`${preview.totalXof.toLocaleString("fr-FR")} XOF`} bold />
-            <Row k="Solde XOF disponible" v={`${preview.available.toLocaleString("fr-FR")} XOF`} muted />
-          </div>
-        )}
-        <div className="mt-5 flex gap-2">
-          <button onClick={onClose} className="flex-1 rounded-full border border-border py-3 text-sm font-semibold">Annuler</button>
-          <button onClick={submit} disabled={loading || !preview?.canAfford}
-            className="flex-1 rounded-full bg-gradient-primary py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
-            {loading ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : preview?.canAfford ? "Émettre" : "Solde insuffisant"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Row({ k, v, bold, muted }: { k: string; v: string; bold?: boolean; muted?: boolean }) {
-  return (
-    <div className={`flex items-baseline justify-between gap-2 ${bold ? "text-base font-bold" : muted ? "text-xs text-muted-foreground" : ""}`}>
-      <span className="truncate">{k}</span>
-      <span className="tabular-nums">{v}</span>
-    </div>
-  );
-}
-
 function TxTab({ transactions }: { transactions: any[] }) {
   return (
     <div className="space-y-6">
@@ -486,7 +333,7 @@ function TxTab({ transactions }: { transactions: any[] }) {
   );
 }
 
-function ProfileTab({ profile, kyc }: { profile: any; kyc: any }) {
+function ProfileTab({ profile }: { profile: any }) {
   return (
     <div className="max-w-2xl space-y-6">
       <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Mon profil</h1>
@@ -497,28 +344,8 @@ function ProfileTab({ profile, kyc }: { profile: any; kyc: any }) {
         <Info k="Pays" v={profile?.country} />
         <Info k="Compte actif" v={profile?.is_active ? "Oui" : "Non (désactivé)"} />
       </div>
-      <div className="rounded-2xl border border-border bg-card p-6">
-        <h2 className="font-semibold">État du KYC</h2>
-        {!kyc ? (
-          <div className="mt-3 flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Aucun dossier KYC soumis.</p>
-            <Link to="/kyc" className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground">Soumettre</Link>
-          </div>
-        ) : (
-          <div className="mt-3 space-y-2 text-sm">
-            <Info k="Statut local" v={kyc.status} />
-            <Info k="Statut émetteur" v={prettyProviderStatus(kyc.provider_status)} />
-            <Info k="ID client" v={profile?.strowallet_customer_id ?? "—"} />
-            {(kyc.status === "rejected" || /reject|declin|denied|fail/i.test(String(kyc.provider_status ?? ""))) && (
-              <p className="mt-3 rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
-                ❌ Dossier rejeté. {(kyc?.provider_response?.reason || kyc?.provider_response?.message || "Vérifiez vos pièces et resoumettez.")}
-              </p>
-            )}
-            {profile?.strowallet_customer_id ? (
-              <p className="mt-3 flex items-center gap-2 text-success"><ShieldCheck className="h-4 w-4" /> KYC validé — vous pouvez émettre des cartes.</p>
-            ) : <p className="mt-3 text-xs text-muted-foreground">Votre dossier est en cours d'examen. Vous serez notifié dès qu'il est validé.</p>}
-          </div>
-        )}
+      <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
+        Les informations d'identité sont saisies directement lors de l'émission d'une carte NFC, et transmises à l'émetteur uniquement à ce moment-là.
       </div>
     </div>
   );
@@ -526,15 +353,6 @@ function ProfileTab({ profile, kyc }: { profile: any; kyc: any }) {
 
 function Info({ k, v }: { k: string; v: any }) {
   return <div className="flex items-baseline justify-between gap-2"><span className="text-xs uppercase tracking-wider text-muted-foreground">{k}</span><span className="text-sm font-medium">{v ?? "—"}</span></div>;
-}
-
-function prettyProviderStatus(s: any): string {
-  if (!s) return "—";
-  const v = String(s).toLowerCase();
-  if (/approved|verified|active|success|high_kyc/.test(v)) return "Validé";
-  if (/reject|declin|denied|fail/.test(v)) return "Rejeté";
-  if (/pending|review|processing|low_kyc|wait|submitted|sent|synced/.test(v)) return "En cours de vérification";
-  return "En cours de vérification";
 }
 
 
