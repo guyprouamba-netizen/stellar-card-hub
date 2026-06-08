@@ -16,7 +16,13 @@ type Form = {
 const DEFAULT_FORM: Form = {
   firstName: "", lastName: "", dob: "", idType: "national_id",
   idNumber: "", phone: "",
-  line1: "", city: "", state: "", postalCode: "", country: "BFA",
+  // Adresse de facturation officielle Faso-Invest (Miami) — pré-remplie pour
+  // accélérer l'émission. L'utilisateur peut toujours la modifier.
+  line1: "3401 N. Miami Ave, Ste 230",
+  city: "Miami",
+  state: "FL",
+  postalCode: "33127",
+  country: "USA",
 };
 
 export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onClose: () => void; onIssued?: () => void }) {
