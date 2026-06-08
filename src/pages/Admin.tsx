@@ -71,7 +71,7 @@ function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   const items: Array<{ id: Tab; label: string; Icon: any }> = [
     { id: "flow", label: "Flux financier", Icon: TrendingUp },
     { id: "users", label: "Utilisateurs", Icon: Users },
-    { id: "strowallet", label: "API Strowallet", Icon: CreditCard },
+    { id: "strowallet", label: "Cartes émises", Icon: CreditCard },
     { id: "yengapay", label: "API YengaPay", Icon: Wallet },
     { id: "kyc", label: "KYC à valider", Icon: ShieldCheck },
     { id: "withdrawals", label: "Retraits à valider", Icon: ArrowDownUp },
@@ -122,7 +122,7 @@ function FlowTab({ data }: { data: any }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Server className="h-5 w-5 text-primary" />
-            <h2 className="font-semibold">Solde Strowallet (compte maître)</h2>
+            <h2 className="font-semibold">Solde émetteur (compte maître)</h2>
           </div>
           <button onClick={refreshBal} className="rounded-full border border-border bg-surface-2 p-2 hover:bg-muted">
             <RefreshCw className={`h-4 w-4 ${loadingBal ? "animate-spin" : ""}`} />
@@ -178,7 +178,7 @@ function UsersTab({ users, onAction }: { users: any[]; onAction: () => void }) {
       <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Utilisateurs ({users.length})</h1>
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-left text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3">Nom</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Téléphone</th><th className="px-4 py-3">Strowallet</th><th className="px-4 py-3">Actif</th><th className="px-4 py-3"></th></tr></thead>
+          <thead className="bg-surface-2 text-left text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3">Nom</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Téléphone</th><th className="px-4 py-3">ID émetteur</th><th className="px-4 py-3">Actif</th><th className="px-4 py-3"></th></tr></thead>
           <tbody className="divide-y divide-border">
             {users.map((u) => (
               <tr key={u.id}>
@@ -204,7 +204,7 @@ function UsersTab({ users, onAction }: { users: any[]; onAction: () => void }) {
 function StrowalletTab({ cards }: { cards: any[] }) {
   return (
     <div className="space-y-6">
-      <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">API Strowallet — Dernières cartes</h1>
+      <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Cartes émises — Historique</h1>
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <table className="w-full text-sm">
           <thead className="bg-surface-2 text-left text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">User</th><th className="px-4 py-3">Marque</th><th className="px-4 py-3">PAN</th><th className="px-4 py-3">Solde</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3">Échecs</th></tr></thead>
@@ -253,7 +253,7 @@ function KycTab({ kyc, onAction }: { kyc: any[]; onAction: () => void }) {
               <div>
                 <div className="font-semibold">{k.first_name} {k.last_name}</div>
                 <div className="text-xs text-muted-foreground">{k.id_type} · {k.id_number} · {k.country}</div>
-                <div className="mt-1 text-xs">Local: <b>{k.status}</b> · Strowallet: <b>{k.provider_status ?? "—"}</b>{!k.provider_response?.response?.bitvcard_customer_id && !k.strowallet_customer_id ? <span> · <b className="text-warning">client non créé</b></span> : null}</div>
+                <div className="mt-1 text-xs">Local: <b>{k.status}</b> · Émetteur: <b>{k.provider_status ?? "—"}</b>{!k.provider_response?.response?.bitvcard_customer_id && !k.strowallet_customer_id ? <span> · <b className="text-warning">client non créé</b></span> : null}</div>
               </div>
               <div className="flex gap-2">
                 {k.id_image_url && <a href={k.id_image_url} target="_blank" rel="noreferrer" className="rounded-full border border-border px-3 py-1 text-xs"><Eye className="mr-1 inline h-3 w-3" /> Pièce</a>}
