@@ -68,11 +68,11 @@ function CardsPage() {
     if (details[provider_card_id]) return;
     try {
       const r: any = await fetchDetails({ data: { card_id: provider_card_id } });
-      const raw = r?.response ?? r?.data ?? r ?? {};
+      const raw = r?.response?.card_detail ?? r?.data?.card_detail ?? r?.card_detail ?? r?.response ?? r?.data ?? r ?? {};
       const number = raw.card_number || raw.cardNumber || raw.pan || null;
       const cvv = raw.cvv || raw.cvv2 || raw.card_cvv || null;
       const exp = raw.expiry || raw.expiry_date || raw.expiration || (raw.expiry_month && raw.expiry_year ? `${String(raw.expiry_month).padStart(2, "0")}/${String(raw.expiry_year).slice(-2)}` : null);
-      const holder = raw.name_on_card || raw.holder || raw.card_holder || raw.name || null;
+      const holder = raw.name_on_card || raw.card_holder_name || raw.holder || raw.card_holder || raw.card_name || raw.name || null;
       setDetails((d) => ({ ...d, [provider_card_id]: { number: number ?? undefined, cvv: cvv ?? undefined, expiry: exp ?? undefined, holder: holder ?? undefined } }));
     } catch { /* silencieux */ }
   }
