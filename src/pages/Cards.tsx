@@ -1,5 +1,5 @@
 
-import { Plus, Snowflake, Trash2, Sun, Wallet, History, Loader2, RefreshCw, MapPin } from "lucide-react";
+import { Plus, Snowflake, Trash2, Sun, Wallet, History, Loader2, RefreshCw, MapPin, Copy } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useServerFn } from "@/lib/server-fn";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -118,7 +118,7 @@ function CardsPage() {
             const isTerminated = c.status === "terminated";
             return (
               <div key={c.id} className="rounded-3xl border border-border bg-card p-4 shadow-soft sm:p-6">
-                <div className="mx-auto w-full max-w-md">
+                <div className="mx-auto w-full max-w-lg">
                 <VirtualCard
                   variant={variant}
                   number={number}
@@ -130,6 +130,7 @@ function CardsPage() {
                   onFlip={(flipped) => { if (flipped && c.provider_card_id) loadDetails(c.provider_card_id); }}
                 />
                 </div>
+                <CardDetailsCopy det={det} />
                 <BillingAddress />
                 <div className="mt-5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
