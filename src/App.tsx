@@ -3,7 +3,6 @@ import Index from "@/pages/Index";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
-import Kyc from "@/pages/Kyc";
 import Cards from "@/pages/Cards";
 import Wallet from "@/pages/Wallet";
 import NotFound from "@/pages/NotFound";
@@ -15,7 +14,6 @@ export default function App() {
       <Route path="/auth" element={<Auth />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/admin" element={<Admin />} />
-      <Route path="/kyc" element={<Kyc />} />
       <Route path="/cards" element={<Cards />} />
       <Route path="/wallet" element={<Wallet />} />
       <Route path="*" element={<NotFound />} />
