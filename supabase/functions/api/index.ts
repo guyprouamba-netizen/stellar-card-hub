@@ -114,7 +114,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       // Certaines cartes reviennent en "frozen" / "pending" par défaut : on force l'activation.
       let finalLast4 = last4; let finalBrand = brand; let finalBalance = amountUsd; let finalMeta: any = res;
       if (card_id) {
-        try { await SW.nfcCardStatus(card_id, "active"); } catch { /* tolérant */ }
+        try { await SW.unfreezeNfcCard(card_id); } catch { /* tolérant */ }
         try {
           const det = await SW.getNfcCardDetails(card_id);
           const d = SW.extractCardDetails(det);
@@ -177,7 +177,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (bal !== null && Number.isFinite(Number(bal))) upd.balance = Number(bal);
       // Si Strowallet a remis la carte en "frozen" sans action user, on tente une réactivation silencieuse.
       const st = String(r.card_status || r.status || "").toLowerCase();
-      if (st === "frozen") { try { await SW.nfcCardStatus(data.card_id, "active"); } catch { /* ignore */ } }
+      if (st === "frozen") { try { await SW.unfreezeNfcCard(data.card_id); } catch { /* ignore */ } }
       await admin.from("cards").update(upd).eq("provider_card_id", data.card_id);
       return { ok: true, data: res };
     } catch (e) { return { ok: false, error: (e as Error).message }; }
@@ -202,7 +202,11 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       data.action === "unfreeze" ? "active" :
       data.action === "terminate" ? "frozen" : "active";
     try {
-      const res = await SW.nfcCardStatus(data.card_id, target);
+      const res = data.action === "freeze"
+        ? await SW.freezeNfcCard(data.card_id)
+        : data.action === "unfreeze"
+          ? await SW.unfreezeNfcCard(data.card_id)
+          : await SW.freezeNfcCard(data.card_id);
       const patch: any = { status: data.action === "terminate" ? "terminated" : target };
       if (target === "active") { patch.failed_attempts = 0; patch.auto_frozen_at = null; }
       await admin.from("cards").update(patch).eq("provider_card_id", data.card_id);

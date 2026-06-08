@@ -93,6 +93,26 @@ export async function nfcCardStatus(card_id: string, status: "active" | "frozen"
   return call("POST", "/bitvcard/nfc-cards/status", { card_id, status });
 }
 
+export async function nfcCardAction(card_id: string, action: "freeze" | "unfreeze") {
+  return call("POST", "/bitvcard/action/status/", { card_id, action });
+}
+
+export async function freezeNfcCard(card_id: string) {
+  try {
+    return await nfcCardAction(card_id, "freeze");
+  } catch {
+    return await nfcCardStatus(card_id, "frozen");
+  }
+}
+
+export async function unfreezeNfcCard(card_id: string) {
+  try {
+    return await nfcCardAction(card_id, "unfreeze");
+  } catch {
+    return await nfcCardStatus(card_id, "active");
+  }
+}
+
 export async function getStrowalletBalance(currency: "USD" | "NGN" = "USD") {
   return call("GET", `/check-balance/${currency}/`, {}).catch(() => call("GET", `/wallet/balance/${currency}/`, {}));
 }
