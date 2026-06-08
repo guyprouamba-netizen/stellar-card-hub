@@ -58,7 +58,7 @@ function Dashboard() {
             <>
               {tab === "home" && <HomeTab data={data} onAction={() => refetch()} />}
               {tab === "deposit" && <DepositTab onDone={() => refetch()} />}
-              {tab === "withdraw" && <WithdrawTab balance={Number(data.wallets.find(w => w.currency === "XOF")?.balance ?? 0)} onDone={() => refetch()} />}
+              {tab === "withdraw" && <WithdrawTab balance={Number(data.wallets.find((w: any) => w.currency === "XOF")?.balance ?? 0)} onDone={() => refetch()} />}
               {tab === "cards" && <CardsTab cards={data.cards} kycReady={data.kycReady} onAction={() => refetch()} />}
               {tab === "tx" && <TxTab transactions={data.transactions} />}
               {tab === "profile" && <ProfileTab profile={data.profile} kyc={data.kyc} />}
