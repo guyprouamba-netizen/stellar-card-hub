@@ -13,6 +13,7 @@ import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
 import { getDashboardData } from "@/lib/dashboard.functions";
 import { cardAction } from "@/lib/strowallet.functions";
+import { cardDetails } from "@/lib/strowallet.functions";
 import { requestWithdrawal } from "@/lib/withdrawal.functions";
 import { initRecharge } from "@/lib/yengapay.functions";
 import { IssueCardSheet } from "@/components/issue-card-sheet";
@@ -273,6 +274,24 @@ function CardsTab({ cards, onAction }: { cards: any[]; onAction: () => void }) {
 function CardRow({ card, onAction }: { card: any; onAction: () => void }) {
   const [busy, setBusy] = useState(false);
   const act = useServerFn(cardAction);
+  const fetchDetails = useServerFn(cardDetails);
+  const [det, setDet] = useState<{ number?: string; cvv?: string; expiry?: string; holder?: string }>({});
+  useEffect(() => {
+    if (!card.provider_card_id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r: any = await fetchDetails({ data: { card_id: card.provider_card_id } });
+        const raw = r?.response?.card_detail ?? r?.data?.card_detail ?? r?.card_detail ?? r?.response ?? r?.data ?? r ?? {};
+        const number = raw.card_number || raw.cardNumber || raw.pan || undefined;
+        const cvv = raw.cvv || raw.cvv2 || raw.card_cvv || undefined;
+        const exp = raw.expiry || raw.expiry_date || raw.expiration || (raw.expiry_month && raw.expiry_year ? `${String(raw.expiry_month).padStart(2, "0")}/${String(raw.expiry_year).slice(-2)}` : undefined);
+        const holder = raw.name_on_card || raw.card_holder_name || raw.holder || raw.card_holder || raw.card_name || raw.name || undefined;
+        if (!cancelled) setDet({ number, cvv, expiry: exp, holder });
+      } catch { /* silencieux */ }
+    })();
+    return () => { cancelled = true; };
+  }, [card.provider_card_id]);
   async function doAct(action: "freeze" | "unfreeze") {
     setBusy(true);
     try { await act({ data: { card_id: card.provider_card_id, action } }); toast.success("OK"); onAction(); }
@@ -285,9 +304,10 @@ function CardRow({ card, onAction }: { card: any; onAction: () => void }) {
         variant="primary"
         brand={(card.brand || "visa").toUpperCase()}
         balance={`$ ${Number(card.balance).toFixed(2)}`}
-        number={card.last4 ? `•••• •••• •••• ${card.last4}` : undefined}
-        holder="TITULAIRE"
-        expiry="••/••"
+        number={det.number || (card.last4 ? `•••• •••• •••• ${card.last4}` : undefined)}
+        holder={(det.holder || "TITULAIRE").toUpperCase()}
+        expiry={det.expiry || "••/••"}
+        cvv={det.cvv}
       />
       <div className="mt-4 flex items-center justify-between">
         <span className={`rounded-full px-3 py-1 text-xs font-medium ${isFrozen ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>{card.status}</span>
