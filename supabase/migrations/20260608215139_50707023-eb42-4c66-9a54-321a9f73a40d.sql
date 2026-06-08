@@ -1,0 +1,1 @@
+UPDATE public.cards SET status = 'active' WHERE status = 'frozen' AND auto_frozen_at IS NULL;
