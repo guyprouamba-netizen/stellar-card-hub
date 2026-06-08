@@ -155,7 +155,20 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!card || card.user_id !== user.id) {
       if (!(await isAdmin(admin, user.id))) throw new Error("Carte introuvable");
     }
-    return SW.getNfcCardDetails(data.card_id);
+    let res = await SW.getNfcCardDetails(data.card_id);
+    const details = SW.extractCardDetails(res);
+    if (String(details.status || "").toLowerCase() === "frozen") {
+      const { data: local } = await admin.from("cards").select("status,auto_frozen_at").eq("provider_card_id", data.card_id).maybeSingle();
+      const frozenBySecurity = !!local?.auto_frozen_at || String(local?.status || "") === "frozen_auto";
+      if (!frozenBySecurity) {
+        try {
+          await SW.unfreezeNfcCard(data.card_id);
+          await admin.from("cards").update({ status: "active", failed_attempts: 0, auto_frozen_at: null }).eq("provider_card_id", data.card_id);
+          res = await SW.getNfcCardDetails(data.card_id);
+        } catch { /* ignore */ }
+      }
+    }
+    return res;
   },
 
   // Rafraîchit la carte depuis Strowallet et met à jour la BDD (utile si webhook non reçu)
