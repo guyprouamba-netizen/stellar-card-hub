@@ -166,18 +166,21 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     }
     try {
       const res = await SW.getNfcCardDetails(data.card_id);
-      const r = (res as any)?.response ?? (res as any)?.data ?? res ?? {};
-      const last4 = r.last4 || r.lastFour || r.last_four || (r.card_number ? String(r.card_number).slice(-4) : null);
-      const brand = r.cardBrand || r.brand || r.card_brand || null;
-      const bal = r.balance ?? r.card_balance ?? null;
+      const d = SW.extractCardDetails(res);
       const upd: any = { metadata: res };
-      if (last4) upd.last4 = String(last4);
-      if (brand) upd.brand = String(brand).toLowerCase();
+      if (d.last4) upd.last4 = String(d.last4);
+      if (d.brand) upd.brand = String(d.brand).toLowerCase();
       // Ne pas écraser le statut depuis l'API : seul l'utilisateur via cardAction peut le changer.
-      if (bal !== null && Number.isFinite(Number(bal))) upd.balance = Number(bal);
+      if (d.balance !== null && Number.isFinite(Number(d.balance))) upd.balance = Number(d.balance);
       // Si Strowallet a remis la carte en "frozen" sans action user, on tente une réactivation silencieuse.
-      const st = String(r.card_status || r.status || "").toLowerCase();
-      if (st === "frozen") { try { await SW.unfreezeNfcCard(data.card_id); } catch { /* ignore */ } }
+      const st = String(d.status || "").toLowerCase();
+      if (st === "frozen") {
+        const { data: local } = await admin.from("cards").select("status,auto_frozen_at").eq("provider_card_id", data.card_id).maybeSingle();
+        const frozenBySecurity = !!local?.auto_frozen_at || String(local?.status || "") === "frozen_auto";
+        if (!frozenBySecurity) {
+          try { await SW.unfreezeNfcCard(data.card_id); upd.status = "active"; } catch { /* ignore */ }
+        }
+      }
       await admin.from("cards").update(upd).eq("provider_card_id", data.card_id);
       return { ok: true, data: res };
     } catch (e) { return { ok: false, error: (e as Error).message }; }
