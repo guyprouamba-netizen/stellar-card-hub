@@ -303,3 +303,38 @@ function BillingAddress() {
     </div>
   );
 }
+
+function CardDetailsCopy({ det }: { det?: { number?: string; cvv?: string; expiry?: string; holder?: string } }) {
+  if (!det || (!det.number && !det.cvv && !det.expiry && !det.holder)) return null;
+  const copy = async (val?: string, label?: string) => {
+    if (!val) return;
+    try { await navigator.clipboard.writeText(val); toast.success(`${label} copié`); }
+    catch { toast.error("Copie impossible"); }
+  };
+  const Row = ({ label, value }: { label: string; value?: string }) => (
+    <div className="flex items-center justify-between gap-2 rounded-lg bg-surface-2/60 px-3 py-2">
+      <div className="min-w-0">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+        <p className="truncate font-mono text-sm">{value || "—"}</p>
+      </div>
+      <button
+        onClick={() => copy(value, label)}
+        disabled={!value}
+        className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
+        title={`Copier ${label}`}
+      >
+        <Copy className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+  return (
+    <div className="mt-4 grid gap-2">
+      <Row label="Numéro" value={det.number} />
+      <div className="grid grid-cols-2 gap-2">
+        <Row label="Expiration" value={det.expiry} />
+        <Row label="CVV" value={det.cvv} />
+      </div>
+      <Row label="Titulaire" value={det.holder} />
+    </div>
+  );
+}
