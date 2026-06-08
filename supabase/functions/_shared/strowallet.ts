@@ -146,10 +146,12 @@ export function normalizeKycVerdict(payload: unknown): { raw: string | null; ver
   const raw = cands.length ? String(cands[0]) : null;
   const reason = (typeof c?.reason === "string" && c.reason) || (typeof c?.message === "string" && c.message) || null;
   if (!raw) return { raw: null, verdict: "unknown", reason };
-  const v = raw.toLowerCase();
+  // Normalise: minuscules + espaces -> _
+  const v = raw.toLowerCase().replace(/\s+/g, "_");
   if (["approved", "high_kyc", "verified", "active", "success", "successful"].some((k) => v.includes(k))) return { raw, verdict: "approved", reason };
-  if (["reject", "declin", "denied", "failed", "fail"].some((k) => v.includes(k))) return { raw, verdict: "rejected", reason };
-  if (["pending", "review", "processing", "low_kyc", "unreview", "submitted", "wait"].some((k) => v.includes(k))) return { raw, verdict: "pending", reason };
+  // "low_kyc" et "retry_required" = rejet par l'émetteur, l'utilisateur doit resoumettre
+  if (["reject", "declin", "denied", "failed", "fail", "low_kyc", "retry"].some((k) => v.includes(k))) return { raw, verdict: "rejected", reason: reason || (v.includes("low") ? "Qualité KYC insuffisante (low kyc) — photo floue, selfie incorrect ou informations non lisibles." : v.includes("retry") ? "L'émetteur demande une nouvelle soumission de votre dossier." : null) };
+  if (["pending", "review", "processing", "unreview", "submitted", "wait"].some((k) => v.includes(k))) return { raw, verdict: "pending", reason };
   return { raw, verdict: "unknown", reason };
 }
 

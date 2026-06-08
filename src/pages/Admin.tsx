@@ -9,7 +9,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
-import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal } from "@/lib/admin.functions";
+import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet } from "@/lib/admin.functions";
 import { toast } from "sonner";
 
 type Tab = "users" | "flow" | "strowallet" | "yengapay" | "kyc" | "withdrawals";
@@ -169,8 +169,17 @@ function SimpleTxTable({ items }: { items: any[] }) {
 
 function UsersTab({ users, onAction }: { users: any[]; onAction: () => void }) {
   const toggle = useServerFn(adminToggleUser);
+  const del = useServerFn(adminDeleteUser);
+  const adjust = useServerFn(adminAdjustWallet);
+  const [adjustFor, setAdjustFor] = useState<any | null>(null);
   async function flip(u: any) {
     try { await toggle({ data: { user_id: u.id, is_active: !u.is_active } }); toast.success("Utilisateur mis à jour"); onAction(); }
+    catch (e) { toast.error((e as Error).message); }
+  }
+  async function remove(u: any) {
+    const ok = window.confirm(`Supprimer définitivement le compte de ${u.full_name || u.email} ? Cette action est irréversible et supprimera ses portefeuilles, cartes et transactions.`);
+    if (!ok) return;
+    try { await del({ data: { user_id: u.id } }); toast.success("Compte supprimé"); onAction(); }
     catch (e) { toast.error((e as Error).message); }
   }
   return (
@@ -187,15 +196,80 @@ function UsersTab({ users, onAction }: { users: any[]; onAction: () => void }) {
                 <td className="px-4 py-3 text-muted-foreground">{u.phone ?? "—"}</td>
                 <td className="px-4 py-3 text-xs">{u.strowallet_customer_id ? <span className="text-success">ID {u.strowallet_customer_id}</span> : <span className="text-muted-foreground">—</span>}</td>
                 <td className="px-4 py-3">{u.is_active ? <span className="text-success">●</span> : <span className="text-destructive">●</span>}</td>
-                <td className="px-4 py-3 text-right">
-                  <button onClick={() => flip(u)} className="rounded-full border border-border bg-surface-2 px-3 py-1 text-xs hover:bg-muted">
-                    {u.is_active ? "Désactiver" : "Réactiver"}
-                  </button>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <button onClick={() => setAdjustFor(u)} className="rounded-full border border-success/40 bg-success/10 px-3 py-1 text-xs font-semibold text-success hover:bg-success/20">
+                      Ajuster solde
+                    </button>
+                    <button onClick={() => flip(u)} className="rounded-full border border-border bg-surface-2 px-3 py-1 text-xs hover:bg-muted">
+                      {u.is_active ? "Suspendre" : "Réactiver"}
+                    </button>
+                    <button onClick={() => remove(u)} className="rounded-full border border-destructive/40 bg-destructive/10 px-3 py-1 text-xs font-semibold text-destructive hover:bg-destructive/20">
+                      Supprimer
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+      {adjustFor && (
+        <AdjustWalletModal
+          user={adjustFor}
+          onClose={() => setAdjustFor(null)}
+          onDone={() => { setAdjustFor(null); onAction(); }}
+          adjust={adjust}
+        />
+      )}
+    </div>
+  );
+}
+
+function AdjustWalletModal({ user, onClose, onDone, adjust }: { user: any; onClose: () => void; onDone: () => void; adjust: any }) {
+  const [direction, setDirection] = useState<"credit" | "debit">("credit");
+  const [currency, setCurrency] = useState<"XOF" | "USD" | "EUR">("XOF");
+  const [amount, setAmount] = useState<number>(1000);
+  const [note, setNote] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+  async function submit() {
+    if (!amount || amount <= 0) { toast.error("Montant invalide"); return; }
+    setBusy(true);
+    try {
+      const signed = direction === "credit" ? amount : -amount;
+      await adjust({ data: { user_id: user.id, currency, amount: signed, note } });
+      toast.success(direction === "credit" ? "Solde crédité" : "Solde débité");
+      onDone();
+    } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+  }
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6">
+        <h3 className="text-lg font-semibold">Ajuster le solde — {user.full_name || user.email}</h3>
+        <p className="mt-1 text-xs text-muted-foreground">Cette opération est tracée dans les transactions de l'utilisateur.</p>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button onClick={() => setDirection("credit")} className={`rounded-xl px-3 py-2 text-sm font-semibold ${direction === "credit" ? "bg-success text-success-foreground" : "border border-border bg-surface-2"}`}>+ Créditer</button>
+          <button onClick={() => setDirection("debit")} className={`rounded-xl px-3 py-2 text-sm font-semibold ${direction === "debit" ? "bg-destructive text-destructive-foreground" : "border border-border bg-surface-2"}`}>− Débiter</button>
+        </div>
+        <div className="mt-4 space-y-3">
+          <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">Devise
+            <select value={currency} onChange={(e) => setCurrency(e.target.value as any)} className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm outline-none">
+              <option value="XOF">XOF</option><option value="USD">USD</option><option value="EUR">EUR</option>
+            </select>
+          </label>
+          <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">Montant
+            <input type="number" min={1} value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm outline-none" />
+          </label>
+          <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">Motif (optionnel)
+            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ex: Remboursement, correction…" className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm outline-none" />
+          </label>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-full border border-border px-4 py-2 text-sm">Annuler</button>
+          <button onClick={submit} disabled={busy} className="rounded-full bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmer"}
+          </button>
+        </div>
       </div>
     </div>
   );

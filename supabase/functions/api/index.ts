@@ -404,6 +404,51 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     return { ok: true };
   },
 
+  // Supprime complètement un utilisateur (profil, wallets, cartes, transactions, kyc, retraits, rôles, auth.users)
+  async adminDeleteUser({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const uid = String(data.user_id);
+    if (!uid) throw new Error("user_id manquant");
+    if (uid === user.id) throw new Error("Vous ne pouvez pas supprimer votre propre compte admin.");
+    await admin.from("withdrawals").delete().eq("user_id", uid);
+    await admin.from("transactions").delete().eq("user_id", uid);
+    await admin.from("cards").delete().eq("user_id", uid);
+    await admin.from("kyc_submissions").delete().eq("user_id", uid);
+    await admin.from("wallets").delete().eq("user_id", uid);
+    await admin.from("user_roles").delete().eq("user_id", uid);
+    await admin.from("profiles").delete().eq("id", uid);
+    const { error } = await admin.auth.admin.deleteUser(uid);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  },
+
+  // Ajuste manuellement le solde d'un portefeuille utilisateur (crédit ou débit)
+  async adminAdjustWallet({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const uid = String(data.user_id);
+    const currency = String(data.currency || "XOF").toUpperCase();
+    const delta = Number(data.amount); // positif = crédit, négatif = débit
+    const note = String(data.note || "").slice(0, 500);
+    if (!uid) throw new Error("user_id manquant");
+    if (!Number.isFinite(delta) || delta === 0) throw new Error("Montant invalide");
+    const { data: wallet } = await admin.from("wallets").select("id,balance").eq("user_id", uid).eq("currency", currency).maybeSingle();
+    if (!wallet) throw new Error(`Portefeuille ${currency} introuvable pour cet utilisateur`);
+    const newBalance = Number(wallet.balance) + delta;
+    if (newBalance < 0) throw new Error(`Solde insuffisant — solde actuel ${wallet.balance} ${currency}`);
+    const { error: uErr } = await admin.from("wallets").update({ balance: newBalance }).eq("id", wallet.id);
+    if (uErr) throw new Error(uErr.message);
+    await admin.from("transactions").insert({
+      user_id: uid,
+      type: delta > 0 ? "admin_credit" : "admin_debit",
+      status: "success",
+      amount: Math.abs(delta),
+      currency,
+      description: (delta > 0 ? "Crédit manuel admin" : "Débit manuel admin") + (note ? ` — ${note}` : ""),
+      metadata: { admin_id: user.id, note },
+    });
+    return { ok: true, new_balance: newBalance };
+  },
+
   async adminReviewKyc({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     if (data.decision === "approved") {
