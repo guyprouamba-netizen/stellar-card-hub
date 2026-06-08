@@ -104,31 +104,31 @@ export async function nfcCardAction(card_id: string, action: "freeze" | "unfreez
 
 export async function freezeNfcCard(card_id: string) {
   try {
-    return await nfcCardAction(card_id, "freeze");
-  } catch {
     return await nfcCardStatus(card_id, "frozen");
+  } catch {
+    return await nfcCardAction(card_id, "freeze");
   }
 }
 
 export async function unfreezeNfcCard(card_id: string) {
   try {
-    return await nfcCardAction(card_id, "unfreeze");
-  } catch {
     return await nfcCardStatus(card_id, "active");
+  } catch {
+    return await nfcCardAction(card_id, "unfreeze");
   }
 }
 
 export async function ensureNfcCardActive(card_id: string) {
   const attempts: any[] = [];
   try {
-    attempts.push({ step: "action", response: await nfcCardAction(card_id, "unfreeze") });
-  } catch (e) {
-    attempts.push({ step: "action", error: (e as Error).message });
-  }
-  try {
     attempts.push({ step: "status", response: await nfcCardStatus(card_id, "active") });
   } catch (e) {
     attempts.push({ step: "status", error: (e as Error).message });
+  }
+  try {
+    attempts.push({ step: "action", response: await nfcCardAction(card_id, "unfreeze") });
+  } catch (e) {
+    attempts.push({ step: "action", error: (e as Error).message });
   }
 
   const details = await getNfcCardDetails(card_id);
