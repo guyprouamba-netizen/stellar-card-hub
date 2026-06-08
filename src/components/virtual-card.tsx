@@ -57,67 +57,65 @@ export function VirtualCard({
       >
         {/* RECTO */}
         <div
-          className={`absolute inset-0 overflow-hidden rounded-3xl p-6 text-white shadow-card-premium ${variants[variant]}`}
+          className={`absolute inset-0 overflow-hidden rounded-[22px] p-4 text-white shadow-card-premium sm:rounded-3xl sm:p-6 ${variants[variant]}`}
           style={{ backfaceVisibility: "hidden" }}
         >
-          <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-          <div className="absolute -bottom-16 -left-10 h-48 w-48 rounded-full bg-black/20 blur-2xl" />
+          <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/10 blur-2xl sm:h-40 sm:w-40" />
+          <div className="absolute -bottom-16 -left-10 h-32 w-32 rounded-full bg-black/20 blur-2xl sm:h-48 sm:w-48" />
           <div className="relative flex h-full flex-col justify-between">
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <img src={logo} alt="" className="h-7 w-7 rounded-md ring-1 ring-white/40" />
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em]">FASO-INVEST <span className="opacity-80">PAY</span></p>
+                  <img src={logo} alt="" className="h-6 w-6 rounded-md ring-1 ring-white/40 sm:h-7 sm:w-7" />
+                  <p className="text-[9px] font-bold uppercase tracking-[0.12em] sm:text-[11px] sm:tracking-[0.18em]">FASO-INVEST <span className="opacity-80">PAY</span></p>
                 </div>
-                <p className="mt-3 text-[10px] uppercase tracking-widest opacity-70">Solde</p>
-                <p className="mt-1 text-2xl font-semibold tabular-nums">{balance ?? "$ 0.00"}</p>
+                <p className="mt-2 text-[9px] uppercase tracking-[0.16em] opacity-70 sm:mt-3 sm:text-[10px] sm:tracking-widest">Solde</p>
+                <p className="mt-1 text-lg font-semibold tabular-nums sm:text-2xl">{balance ?? "$ 0.00"}</p>
               </div>
-              <Wifi className="h-6 w-6 rotate-90 opacity-80" />
+              <Wifi className="h-5 w-5 rotate-90 opacity-80 sm:h-6 sm:w-6" />
             </div>
 
             <div>
               <div className="mb-2 flex items-center gap-3">
-                <div className="h-8 w-11 rounded-md bg-gradient-to-br from-yellow-200 to-yellow-500 shadow-inner" />
+                <div className="h-7 w-10 rounded-md bg-gradient-to-br from-yellow-200 to-yellow-500 shadow-inner sm:h-8 sm:w-11" />
               </div>
-              {/* Numéro à 16 chiffres sur le recto */}
-              <p className="font-mono text-lg sm:text-xl font-semibold tracking-[0.18em]">
+              <p className="font-mono text-[15px] font-semibold tracking-[0.1em] leading-tight sm:text-xl sm:tracking-[0.18em]">
                 {number ? formatPan(number) : "•••• •••• •••• ••••"}
               </p>
-              <div className="mt-3 flex items-end justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-widest opacity-60">Titulaire</p>
-                  <p className="truncate text-sm font-semibold uppercase tracking-wider">{holder}</p>
+              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 sm:flex sm:items-end sm:justify-between sm:gap-3">
+                <div className="min-w-0 col-span-2 sm:col-span-1">
+                  <p className="text-[9px] uppercase tracking-[0.16em] opacity-60 sm:text-[10px] sm:tracking-widest">Titulaire</p>
+                  <p className="truncate text-xs font-semibold uppercase tracking-[0.08em] sm:text-sm sm:tracking-wider">{holder}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-[10px] uppercase tracking-widest opacity-60">Exp</p>
-                  <p className="text-sm font-medium tabular-nums">{expiry}</p>
+                <div className="text-left sm:text-right">
+                  <p className="text-[9px] uppercase tracking-[0.16em] opacity-60 sm:text-[10px] sm:tracking-widest">Exp</p>
+                  <p className="text-xs font-medium tabular-nums sm:text-sm">{formatExpiry(expiry)}</p>
                 </div>
-                <p className="italic font-semibold text-lg">{brand}</p>
+                <p className="text-right italic text-base font-semibold sm:text-lg">{brand}</p>
               </div>
-              <p className="mt-2 text-[10px] uppercase tracking-widest opacity-60">Touchez pour voir le CVV</p>
+              <p className="mt-2 text-[9px] uppercase tracking-[0.16em] opacity-60 sm:text-[10px] sm:tracking-widest">Touchez pour voir le CVV</p>
             </div>
           </div>
         </div>
 
         {/* VERSO */}
         <div
-          className={`absolute inset-0 overflow-hidden rounded-3xl text-white shadow-card-premium ${variants[variant]}`}
+          className={`absolute inset-0 overflow-hidden rounded-[22px] text-white shadow-card-premium sm:rounded-3xl ${variants[variant]}`}
           style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
         >
-          <div className="absolute inset-x-0 top-6 h-10 bg-black/70" />
-          <div className="absolute inset-x-6 top-24 flex items-center gap-3">
-            <div className="h-10 flex-1 rounded bg-white/85" />
-            <div className="grid h-10 min-w-[80px] place-items-center rounded bg-white text-right font-mono text-lg font-bold tracking-widest text-black px-3">
+          <div className="absolute inset-x-0 top-5 h-9 bg-black/70 sm:top-6 sm:h-10" />
+          <div className="absolute inset-x-4 top-20 flex items-center gap-2 sm:inset-x-6 sm:top-24 sm:gap-3">
+            <div className="h-9 flex-1 rounded bg-white/85 sm:h-10" />
+            <div className="grid h-9 min-w-[72px] place-items-center rounded bg-white px-2.5 text-right font-mono text-base font-bold tracking-[0.16em] text-black sm:h-10 sm:min-w-[80px] sm:px-3 sm:text-lg sm:tracking-widest">
               {cvv || "•••"}
             </div>
           </div>
-          <div className="absolute inset-x-6 top-40">
-            <p className="text-[10px] uppercase tracking-widest opacity-70">Code de sécurité (CVV)</p>
-            <p className="mt-1 text-xs opacity-80">Les 3 chiffres au dos de votre carte.</p>
+          <div className="absolute inset-x-4 top-32 sm:inset-x-6 sm:top-40">
+            <p className="text-[9px] uppercase tracking-[0.16em] opacity-70 sm:text-[10px] sm:tracking-widest">CVV</p>
           </div>
-          <div className="absolute bottom-5 left-6 right-6 flex items-end justify-between">
-            <p className="text-[10px] uppercase tracking-widest opacity-70">Touchez pour revenir</p>
-            <p className="italic font-semibold text-lg">{brand}</p>
+          <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between sm:bottom-5 sm:left-6 sm:right-6">
+            <p className="text-[9px] uppercase tracking-[0.16em] opacity-70 sm:text-[10px] sm:tracking-widest">Touchez pour revenir</p>
+            <p className="italic text-base font-semibold sm:text-lg">{brand}</p>
           </div>
         </div>
       </motion.div>
@@ -128,4 +126,10 @@ export function VirtualCard({
 function formatPan(pan: string) {
   const s = pan.replace(/\s+/g, "");
   return s.match(/.{1,4}/g)?.join(" ") || pan;
+}
+
+function formatExpiry(expiry: string) {
+  const match = expiry.match(/^(\d{2})\/(\d{4})$/);
+  if (!match) return expiry;
+  return `${match[1]}/${match[2].slice(-2)}`;
 }

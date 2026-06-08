@@ -33,6 +33,11 @@ async function call(method: "GET" | "POST", path: string, params: Record<string,
   if (typeof body === "string" && body.includes("<html")) {
     throw new Error(`Strowallet a renvoyé une page HTML pour ${path}`);
   }
+  const nestedStatusCode = Number(body?.statusCode ?? body?.data?.statusCode ?? body?.response?.statusCode ?? 0);
+  if (Number.isFinite(nestedStatusCode) && nestedStatusCode >= 400) {
+    const msg = body?.message ?? body?.data?.message ?? body?.error ?? body?.data?.error ?? JSON.stringify(body);
+    throw new Error(`Strowallet: ${typeof msg === "string" ? msg : JSON.stringify(msg)}`);
+  }
   if (body && typeof body === "object" && body.success === false) {
     const msg = body.message || body.error || JSON.stringify(body);
     throw new Error(`Strowallet: ${typeof msg === "string" ? msg : JSON.stringify(msg)}`);
@@ -99,18 +104,42 @@ export async function nfcCardAction(card_id: string, action: "freeze" | "unfreez
 
 export async function freezeNfcCard(card_id: string) {
   try {
-    return await nfcCardAction(card_id, "freeze");
-  } catch {
     return await nfcCardStatus(card_id, "frozen");
+  } catch {
+    return await nfcCardAction(card_id, "freeze");
   }
 }
 
 export async function unfreezeNfcCard(card_id: string) {
   try {
-    return await nfcCardAction(card_id, "unfreeze");
-  } catch {
     return await nfcCardStatus(card_id, "active");
+  } catch {
+    return await nfcCardAction(card_id, "unfreeze");
   }
+}
+
+export async function ensureNfcCardActive(card_id: string) {
+  const attempts: any[] = [];
+  try {
+    attempts.push({ step: "status", response: await nfcCardStatus(card_id, "active") });
+  } catch (e) {
+    attempts.push({ step: "status", error: (e as Error).message });
+  }
+  try {
+    attempts.push({ step: "action", response: await nfcCardAction(card_id, "unfreeze") });
+  } catch (e) {
+    attempts.push({ step: "action", error: (e as Error).message });
+  }
+
+  const details = await getNfcCardDetails(card_id);
+  const parsed = extractCardDetails(details);
+  const status = String(parsed.status || "").toLowerCase();
+  if (status && status !== "active") {
+    const err: any = new Error(`La carte est toujours ${status} chez l'émetteur`);
+    err.details = { attempts, details };
+    throw err;
+  }
+  return { attempts, details };
 }
 
 export async function getStrowalletBalance(currency: "USD" | "NGN" = "USD") {
