@@ -117,8 +117,18 @@ export async function getStrowalletBalance(currency: "USD" | "NGN" = "USD") {
   return call("GET", `/check-balance/${currency}/`, {}).catch(() => call("GET", `/wallet/balance/${currency}/`, {}));
 }
 
+function cardNode(resp: any) {
+  return resp?.response?.card_detail
+    || resp?.data?.card_detail
+    || resp?.card_detail
+    || resp?.response
+    || resp?.data
+    || resp
+    || {};
+}
+
 export function extractNfcCard(resp: any): { card_id: string | null; last4: string | null; brand: string | null } {
-  const r = resp?.response ?? resp?.data ?? resp ?? {};
+  const r = cardNode(resp);
   const card_id = r.card_id || r.cardId || r.id || resp?.card_id || null;
   const last4 = r.last4 || r.lastFour || r.last_four || (r.card_number ? String(r.card_number).slice(-4) : null);
   const brand = r.cardBrand || r.brand || r.card_brand || null;
@@ -126,11 +136,11 @@ export function extractNfcCard(resp: any): { card_id: string | null; last4: stri
 }
 
 export function extractCardDetails(resp: any): { number: string | null; cvv: string | null; expiry: string | null; holder: string | null; status: string | null; balance: number | null; last4: string | null; brand: string | null } {
-  const r = resp?.response ?? resp?.data ?? resp ?? {};
+  const r = cardNode(resp);
   const number = r.card_number || r.cardNumber || r.pan || null;
   const cvv = r.cvv || r.cvv2 || r.card_cvv || null;
   const exp = r.expiry || r.expiry_date || r.expiration || (r.expiry_month && r.expiry_year ? `${String(r.expiry_month).padStart(2, "0")}/${String(r.expiry_year).slice(-2)}` : null);
-  const holder = r.name_on_card || r.holder || r.card_holder || r.name || null;
+  const holder = r.name_on_card || r.card_holder_name || r.holder || r.card_holder || r.card_name || r.name || null;
   const status = (r.card_status || r.status || null) as string | null;
   const bal = r.balance ?? r.card_balance ?? null;
   const last4 = r.last4 || r.lastFour || r.last_four || (number ? String(number).slice(-4) : null);
