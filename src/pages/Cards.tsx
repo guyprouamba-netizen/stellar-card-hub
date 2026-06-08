@@ -285,3 +285,20 @@ function TransactionsDialog({ cardId, onClose }: { cardId: string; onClose: () =
 }
 
 export default CardsPage;
+
+function BillingAddress() {
+  return (
+    <div className="mt-4 rounded-2xl border border-border bg-surface-2/60 p-3">
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <MapPin className="h-3.5 w-3.5" /> Adresse de facturation
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+        <div><span className="text-muted-foreground">Adresse</span><p className="font-medium">3401 N. Miami Ave, Ste 230</p></div>
+        <div><span className="text-muted-foreground">Ville</span><p className="font-medium">Miami</p></div>
+        <div><span className="text-muted-foreground">État</span><p className="font-medium">Floride (FL)</p></div>
+        <div><span className="text-muted-foreground">Code postal</span><p className="font-medium">33127</p></div>
+        <div className="col-span-2"><span className="text-muted-foreground">Pays</span><p className="font-medium">États-Unis (USA)</p></div>
+      </div>
+    </div>
+  );
+}
