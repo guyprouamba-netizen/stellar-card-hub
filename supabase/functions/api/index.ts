@@ -461,6 +461,31 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     }).eq("id", data.id);
     return { ok: true };
   },
+
+  // ---------- Paramètres plateforme (taux + frais) ----------
+  async adminGetConfig({ user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const cfg = await loadPricingConfig(admin);
+    return { ok: true, config: cfg };
+  },
+
+  async adminUpdateConfig({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const allowed = ["card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee"];
+    const updates: Array<{ key: string; value: string }> = [];
+    for (const k of allowed) {
+      if (data?.[k] !== undefined && data[k] !== null && data[k] !== "") {
+        const n = Number(data[k]);
+        if (!Number.isFinite(n) || n < 0) return { ok: false, error: `Valeur invalide pour ${k}` };
+        updates.push({ key: k, value: String(n) });
+      }
+    }
+    for (const u of updates) {
+      await admin.from("platform_config").upsert({ key: u.key, value: u.value }, { onConflict: "key" });
+    }
+    const cfg = await loadPricingConfig(admin);
+    return { ok: true, config: cfg };
+  },
 };
 
 Deno.serve(async (req) => {
