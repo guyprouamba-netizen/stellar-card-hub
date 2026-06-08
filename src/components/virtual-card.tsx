@@ -79,12 +79,14 @@ export function VirtualCard({
               <div className="mb-2 flex items-center gap-3">
                 <div className="h-8 w-11 rounded-md bg-gradient-to-br from-yellow-200 to-yellow-500 shadow-inner" />
               </div>
-              {/* Nom du titulaire à la place du numéro */}
-              <p className="font-[Space_Grotesk] text-xl font-semibold uppercase tracking-[0.18em]">{holder}</p>
-              <div className="mt-3 flex items-end justify-between">
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest opacity-60">Touchez pour CVV</p>
-                  <p className="text-xs font-medium opacity-80">{number ? `•• ${number.slice(-4)}` : "•• ••••"}</p>
+              {/* Numéro à 16 chiffres sur le recto */}
+              <p className="font-mono text-lg sm:text-xl font-semibold tracking-[0.18em]">
+                {number ? formatPan(number) : "•••• •••• •••• ••••"}
+              </p>
+              <div className="mt-3 flex items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-widest opacity-60">Titulaire</p>
+                  <p className="truncate text-sm font-semibold uppercase tracking-wider">{holder}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] uppercase tracking-widest opacity-60">Exp</p>
@@ -92,6 +94,7 @@ export function VirtualCard({
                 </div>
                 <p className="italic font-semibold text-lg">{brand}</p>
               </div>
+              <p className="mt-2 text-[10px] uppercase tracking-widest opacity-60">Touchez pour voir le CVV</p>
             </div>
           </div>
         </div>
@@ -104,13 +107,13 @@ export function VirtualCard({
           <div className="absolute inset-x-0 top-6 h-10 bg-black/70" />
           <div className="absolute inset-x-6 top-24 flex items-center gap-3">
             <div className="h-10 flex-1 rounded bg-white/85" />
-            <div className="grid h-10 min-w-[72px] place-items-center rounded bg-white text-right font-mono text-base font-bold tracking-widest text-black px-2">
+            <div className="grid h-10 min-w-[80px] place-items-center rounded bg-white text-right font-mono text-lg font-bold tracking-widest text-black px-3">
               {cvv || "•••"}
             </div>
           </div>
           <div className="absolute inset-x-6 top-40">
-            <p className="text-[10px] uppercase tracking-widest opacity-70">Numéro de carte</p>
-            <p className="mt-1 font-mono text-base tracking-[0.2em]">{number ? formatPan(number) : "•••• •••• •••• ••••"}</p>
+            <p className="text-[10px] uppercase tracking-widest opacity-70">Code de sécurité (CVV)</p>
+            <p className="mt-1 text-xs opacity-80">Les 3 chiffres au dos de votre carte.</p>
           </div>
           <div className="absolute bottom-5 left-6 right-6 flex items-end justify-between">
             <p className="text-[10px] uppercase tracking-widest opacity-70">Touchez pour revenir</p>

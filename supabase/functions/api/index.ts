@@ -110,21 +110,21 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         nameOnCard: data.nameOnCard,
       });
       const { card_id, last4, brand } = SW.extractNfcCard(res);
-      // La nouvelle API NFC ne demande aucune validation : la carte est livrée active.
-      // On essaie un refresh immédiat pour récupérer last4/brand/cvv/expiry si non renvoyés.
-      let finalLast4 = last4; let finalBrand = brand; let finalStatus: "active" | "frozen" | "processing" = "active"; let finalBalance = amountUsd; let finalMeta: any = res;
+      // La nouvelle API NFC ne demande aucune validation : la carte doit être livrée active.
+      // Certaines cartes reviennent en "frozen" / "pending" par défaut : on force l'activation.
+      let finalLast4 = last4; let finalBrand = brand; let finalBalance = amountUsd; let finalMeta: any = res;
       if (card_id) {
+        try { await SW.nfcCardStatus(card_id, "active"); } catch { /* tolérant */ }
         try {
           const det = await SW.getNfcCardDetails(card_id);
           const d = SW.extractCardDetails(det);
           if (d.last4) finalLast4 = d.last4;
           if (d.brand) finalBrand = d.brand;
           if (d.balance !== null) finalBalance = d.balance;
-          const st = (d.status || "").toLowerCase();
-          finalStatus = st === "frozen" ? "frozen" : st === "processing" ? "processing" : "active";
           finalMeta = { create: res, details: det };
-        } catch { /* tolérant : on garde "active" */ }
+        } catch { /* tolérant */ }
       }
+      const finalStatus: "active" = "active";
       await admin.from("cards").insert({
         user_id: userId, provider: "strowallet",
         provider_card_id: card_id,
@@ -169,14 +169,15 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       const r = (res as any)?.response ?? (res as any)?.data ?? res ?? {};
       const last4 = r.last4 || r.lastFour || r.last_four || (r.card_number ? String(r.card_number).slice(-4) : null);
       const brand = r.cardBrand || r.brand || r.card_brand || null;
-      const st = String(r.card_status || r.status || "").toLowerCase();
-      const dbStatus = st === "active" ? "active" : st === "frozen" ? "frozen" : st === "terminated" ? "terminated" : st === "processing" ? "processing" : null;
       const bal = r.balance ?? r.card_balance ?? null;
       const upd: any = { metadata: res };
       if (last4) upd.last4 = String(last4);
       if (brand) upd.brand = String(brand).toLowerCase();
-      if (dbStatus) upd.status = dbStatus;
+      // Ne pas écraser le statut depuis l'API : seul l'utilisateur via cardAction peut le changer.
       if (bal !== null && Number.isFinite(Number(bal))) upd.balance = Number(bal);
+      // Si Strowallet a remis la carte en "frozen" sans action user, on tente une réactivation silencieuse.
+      const st = String(r.card_status || r.status || "").toLowerCase();
+      if (st === "frozen") { try { await SW.nfcCardStatus(data.card_id, "active"); } catch { /* ignore */ } }
       await admin.from("cards").update(upd).eq("provider_card_id", data.card_id);
       return { ok: true, data: res };
     } catch (e) { return { ok: false, error: (e as Error).message }; }
