@@ -102,6 +102,28 @@ export function extractNfcCard(resp: any): { card_id: string | null; last4: stri
   return { card_id: card_id ? String(card_id) : null, last4: last4 ? String(last4) : null, brand: brand ? String(brand) : null };
 }
 
+export function extractCardDetails(resp: any): { number: string | null; cvv: string | null; expiry: string | null; holder: string | null; status: string | null; balance: number | null; last4: string | null; brand: string | null } {
+  const r = resp?.response ?? resp?.data ?? resp ?? {};
+  const number = r.card_number || r.cardNumber || r.pan || null;
+  const cvv = r.cvv || r.cvv2 || r.card_cvv || null;
+  const exp = r.expiry || r.expiry_date || r.expiration || (r.expiry_month && r.expiry_year ? `${String(r.expiry_month).padStart(2, "0")}/${String(r.expiry_year).slice(-2)}` : null);
+  const holder = r.name_on_card || r.holder || r.card_holder || r.name || null;
+  const status = (r.card_status || r.status || null) as string | null;
+  const bal = r.balance ?? r.card_balance ?? null;
+  const last4 = r.last4 || r.lastFour || r.last_four || (number ? String(number).slice(-4) : null);
+  const brand = r.cardBrand || r.brand || r.card_brand || null;
+  return {
+    number: number ? String(number) : null,
+    cvv: cvv ? String(cvv) : null,
+    expiry: exp ? String(exp) : null,
+    holder: holder ? String(holder) : null,
+    status: status ? String(status) : null,
+    balance: bal !== null && Number.isFinite(Number(bal)) ? Number(bal) : null,
+    last4: last4 ? String(last4) : null,
+    brand: brand ? String(brand) : null,
+  };
+}
+
 export async function strowalletDiagnostic() {
   const publicKey = Deno.env.get("STROWALLET_PUBLIC_KEY") || "";
   const attempts: any[] = [];

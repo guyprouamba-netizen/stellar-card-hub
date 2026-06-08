@@ -110,13 +110,26 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         nameOnCard: data.nameOnCard,
       });
       const { card_id, last4, brand } = SW.extractNfcCard(res);
-      const respCardStatus = String(res?.response?.card_status || res?.data?.card_status || "").toLowerCase();
-      const dbStatus = respCardStatus === "active" ? "active" : respCardStatus === "frozen" ? "frozen" : "processing";
+      // La nouvelle API NFC ne demande aucune validation : la carte est livrée active.
+      // On essaie un refresh immédiat pour récupérer last4/brand/cvv/expiry si non renvoyés.
+      let finalLast4 = last4; let finalBrand = brand; let finalStatus: "active" | "frozen" | "processing" = "active"; let finalBalance = amountUsd; let finalMeta: any = res;
+      if (card_id) {
+        try {
+          const det = await SW.getNfcCardDetails(card_id);
+          const d = SW.extractCardDetails(det);
+          if (d.last4) finalLast4 = d.last4;
+          if (d.brand) finalBrand = d.brand;
+          if (d.balance !== null) finalBalance = d.balance;
+          const st = (d.status || "").toLowerCase();
+          finalStatus = st === "frozen" ? "frozen" : st === "processing" ? "processing" : "active";
+          finalMeta = { create: res, details: det };
+        } catch { /* tolérant : on garde "active" */ }
+      }
       await admin.from("cards").insert({
         user_id: userId, provider: "strowallet",
         provider_card_id: card_id,
-        brand: (brand || "visa").toLowerCase(), last4, currency: "USD",
-        balance: amountUsd, status: dbStatus, metadata: res,
+        brand: (finalBrand || "visa").toLowerCase(), last4: finalLast4, currency: "USD",
+        balance: finalBalance, status: finalStatus, metadata: finalMeta,
       });
       await admin.from("transactions").insert({
         user_id: userId, type: "card_issue", status: "success",
@@ -174,19 +187,35 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!card || card.user_id !== user.id) {
       if (!(await isAdmin(admin, user.id))) return { ok: false, error: "Carte introuvable" };
     }
-    // L'API NFC ne propose plus que active/frozen (pas de terminate).
+    // L'API NFC ne propose que active/frozen. Une "résiliation" est mappée sur "frozen" + flag.
+    // Blocage : après 2 tentatives de résiliation échouées, on refuse les suivantes.
+    if (data.action === "terminate") {
+      const { data: row } = await admin.from("cards").select("metadata,status").eq("provider_card_id", data.card_id).maybeSingle();
+      const attempts = Number((row?.metadata as any)?.terminate_attempts || 0);
+      if (attempts >= 2) {
+        return { ok: false, error: "Résiliation bloquée après 2 tentatives échouées. Contactez le support." };
+      }
+    }
     const target: "active" | "frozen" =
       data.action === "freeze" ? "frozen" :
       data.action === "unfreeze" ? "active" :
       data.action === "terminate" ? "frozen" : "active";
     try {
       const res = await SW.nfcCardStatus(data.card_id, target);
-      await admin.from("cards").update({
-        status: target,
-        ...(target === "active" ? { failed_attempts: 0, auto_frozen_at: null } : {}),
-      }).eq("provider_card_id", data.card_id);
+      const patch: any = { status: data.action === "terminate" ? "terminated" : target };
+      if (target === "active") { patch.failed_attempts = 0; patch.auto_frozen_at = null; }
+      await admin.from("cards").update(patch).eq("provider_card_id", data.card_id);
       return { ok: true, data: res };
-    } catch (e) { return { ok: false, error: (e as Error).message }; }
+    } catch (e) {
+      if (data.action === "terminate") {
+        const { data: row } = await admin.from("cards").select("metadata").eq("provider_card_id", data.card_id).maybeSingle();
+        const meta = (row?.metadata as any) || {};
+        meta.terminate_attempts = Number(meta.terminate_attempts || 0) + 1;
+        meta.last_terminate_error = (e as Error).message;
+        await admin.from("cards").update({ metadata: meta }).eq("provider_card_id", data.card_id);
+      }
+      return { ok: false, error: (e as Error).message };
+    }
   },
 
   async listCardTransactions({ data, user, admin, userClient }) {
@@ -194,8 +223,27 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!card || card.user_id !== user.id) {
       if (!(await isAdmin(admin, user.id))) return { ok: false, error: "Carte introuvable" };
     }
-    try { return { ok: true, data: await SW.getNfcCardHistory(data.card_id) }; }
-    catch (e) { return { ok: false, error: (e as Error).message }; }
+    try {
+      const res = await SW.getNfcCardHistory(data.card_id);
+      // Journalisation : enregistre chaque transaction carte dans `transactions` (dédup par provider_ref).
+      const raw: any = (res as any)?.response ?? (res as any)?.data ?? res;
+      const items: any[] = Array.isArray(raw) ? raw : Array.isArray(raw?.response) ? raw.response : Array.isArray(raw?.data) ? raw.data : [];
+      const ownerId = card?.user_id || user.id;
+      for (const t of items) {
+        const sig = `cardtx:${data.card_id}:${t.id || t.transaction_id || t.reference || `${t.date || t.created_at || ""}-${t.amount || ""}`}`;
+        const { data: existing } = await admin.from("transactions").select("id").eq("provider_ref", sig).maybeSingle();
+        if (existing) continue;
+        await admin.from("transactions").insert({
+          user_id: ownerId, type: "card_tx",
+          status: String(t.status || t.transaction_status || "success").toLowerCase().includes("fail") ? "failed" : "success",
+          amount: Number(t.amount || 0), currency: String(t.currency || "USD"),
+          provider: "strowallet", provider_ref: sig,
+          description: t.description || t.narration || t.type || "Transaction carte",
+          metadata: { card_id: data.card_id, raw: t },
+        });
+      }
+      return { ok: true, data: res };
+    } catch (e) { return { ok: false, error: (e as Error).message }; }
   },
 
   async fundCard({ data, user, admin, userClient }) {
