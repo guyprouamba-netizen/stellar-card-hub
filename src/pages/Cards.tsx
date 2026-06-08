@@ -1,5 +1,5 @@
 
-import { Plus, Snowflake, Trash2, Sun, Wallet, History, Loader2, RefreshCw } from "lucide-react";
+import { Plus, Snowflake, Trash2, Sun, Wallet, History, Loader2, RefreshCw, MapPin } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useServerFn } from "@/lib/server-fn";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -65,7 +65,7 @@ function CardsPage() {
   const fetchDetails = useServerFn(cardDetails);
   const [details, setDetails] = useState<Record<string, { number?: string; cvv?: string; expiry?: string; holder?: string }>>({});
   async function loadDetails(provider_card_id: string) {
-    if (details[provider_card_id]) return;
+    if (details[provider_card_id]?.number) return;
     try {
       const r: any = await fetchDetails({ data: { card_id: provider_card_id } });
       const raw = r?.response?.card_detail ?? r?.data?.card_detail ?? r?.card_detail ?? r?.response ?? r?.data ?? r ?? {};
@@ -109,7 +109,7 @@ function CardsPage() {
             Vous n'avez pas encore de carte virtuelle. Cliquez sur « Nouvelle carte » pour en émettre une.
           </div>
         ) : (
-        <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-10 grid gap-8 md:grid-cols-2">
           {cards.map((c, i) => {
             const variant = variantByIndex[i % variantByIndex.length];
             const det = c.provider_card_id ? details[c.provider_card_id] : undefined;
@@ -118,6 +118,7 @@ function CardsPage() {
             const isTerminated = c.status === "terminated";
             return (
               <div key={c.id} className="rounded-3xl border border-border bg-card p-4 shadow-soft sm:p-6">
+                <div className="mx-auto w-full max-w-md">
                 <VirtualCard
                   variant={variant}
                   number={number}
@@ -128,6 +129,8 @@ function CardsPage() {
                   cvv={det?.cvv}
                   onFlip={(flipped) => { if (flipped && c.provider_card_id) loadDetails(c.provider_card_id); }}
                 />
+                </div>
+                <BillingAddress />
                 <div className="mt-5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-semibold">{(c.brand || "Carte").toUpperCase()} {c.last4 ? `••${c.last4}` : ""}</p>
