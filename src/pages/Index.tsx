@@ -194,7 +194,7 @@ function Index() {
           {[
             { i: Lock, t: "Chiffrement bout-en-bout", d: "Toutes vos données KYC sont stockées chiffrées et transmises uniquement à notre émetteur certifié." },
             { i: ShieldCheck, t: "Gèle anti-fraude", d: "Carte automatiquement gelée à la 1ʳᵉ tentative de paiement échouée pour éviter toute résiliation." },
-            { i: Banknote, t: "Fonds séparés", d: "Vos soldes XOF / USD / EUR sont cloisonnés. Vous gardez le contrôle total à tout moment." },
+            { i: Banknote, t: "Fonds séparés", d: "Votre solde XOF (recharges Mobile Money) et votre carte USD sont cloisonnés. Vous gardez le contrôle total à tout moment." },
           ].map((b) => (
             <div key={b.t} className="rounded-2xl border border-border bg-card p-6">
               <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary"><b.i className="h-6 w-6" /></span>
