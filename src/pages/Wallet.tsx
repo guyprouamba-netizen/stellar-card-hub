@@ -8,8 +8,7 @@ import { RechargeSheet } from "@/components/recharge-sheet";
 
 const wallets = [
   { code: "XOF", label: "Franc CFA", balance: 1_245_000, symbol: "FCFA" },
-  { code: "USD", label: "Dollar US", balance: 820.5, symbol: "$" },
-  { code: "EUR", label: "Euro", balance: 312.2, symbol: "€" },
+  { code: "USD", label: "Dollar US (carte)", balance: 820.5, symbol: "$" },
 ];
 
 const movements = [
