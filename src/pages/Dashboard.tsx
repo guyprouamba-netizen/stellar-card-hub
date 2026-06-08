@@ -16,6 +16,7 @@ import { cardAction } from "@/lib/strowallet.functions";
 import { requestWithdrawal } from "@/lib/withdrawal.functions";
 import { initRecharge } from "@/lib/yengapay.functions";
 import { IssueCardSheet } from "@/components/issue-card-sheet";
+import { VirtualCard } from "@/components/virtual-card";
 import { toast } from "sonner";
 
 type Tab = "home" | "deposit" | "withdraw" | "cards" | "tx" | "profile";
@@ -279,14 +280,18 @@ function CardRow({ card, onAction }: { card: any; onAction: () => void }) {
   }
   const isFrozen = card.status?.startsWith("frozen");
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">{card.brand}</div>
-          <div className="mt-1 font-[Space_Grotesk] text-2xl font-bold tabular-nums">•••• {card.last4 ?? "????"}</div>
-          <div className="mt-1 text-sm">Solde : <span className="font-semibold tabular-nums">{Number(card.balance).toFixed(2)} {card.currency}</span></div>
-        </div>
+    <div className="rounded-3xl border border-border bg-card p-5">
+      <VirtualCard
+        variant="primary"
+        brand={(card.brand || "visa").toUpperCase()}
+        balance={`$ ${Number(card.balance).toFixed(2)}`}
+        number={card.last4 ? `•••• •••• •••• ${card.last4}` : undefined}
+        holder="TITULAIRE"
+        expiry="••/••"
+      />
+      <div className="mt-4 flex items-center justify-between">
         <span className={`rounded-full px-3 py-1 text-xs font-medium ${isFrozen ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>{card.status}</span>
+        <Link to="/cards" className="text-xs font-semibold text-primary hover:underline">Gérer →</Link>
       </div>
       {card.auto_frozen_at && (
         <p className="mt-3 flex items-center gap-2 rounded-xl bg-warning/10 p-3 text-xs text-warning"><AlertTriangle className="h-4 w-4" /> Gelée automatiquement le {new Date(card.auto_frozen_at).toLocaleString("fr-FR")} après tentative échouée.</p>
