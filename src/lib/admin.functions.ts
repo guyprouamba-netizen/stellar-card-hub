@@ -5,3 +5,5 @@ export const adminStrowalletBalance = (_args?: any) => callApi("adminStrowalletB
 export const adminToggleUser = (args: { data: { user_id: string; is_active: boolean } }) => callApi("adminToggleUser", args.data);
 export const adminReviewKyc = (args: { data: { user_id: string; decision: "approved" | "rejected"; note?: string } }) => callApi("adminReviewKyc", args.data);
 export const adminReviewWithdrawal = (args: { data: { id: string; decision: "approved" | "rejected" | "paid"; note?: string } }) => callApi("adminReviewWithdrawal", args.data);
+export const adminDeleteUser = (args: { data: { user_id: string } }) => callApi("adminDeleteUser", args.data);
+export const adminAdjustWallet = (args: { data: { user_id: string; currency: string; amount: number; note?: string } }) => callApi("adminAdjustWallet", args.data);
