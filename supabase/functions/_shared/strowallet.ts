@@ -20,7 +20,10 @@ function buildQuery(params: Record<string, string | number | undefined>) {
 }
 
 async function call(method: "GET" | "POST", path: string, params: Record<string, string | number | undefined>): Promise<any> {
-  const qs = buildQuery({ public_key: pub(), mode: MODE, ...params });
+  // NOTE: l'API NFC (/bitvcard/...) n'accepte PAS le paramètre `mode`
+  // (réservé à l'ancienne API USA virtual card). L'inclure provoque
+  // 422 {"mode":["The selected mode is invalid."]}.
+  const qs = buildQuery({ public_key: pub(), ...params });
   const url = `${base()}${path}?${qs}`;
   const res = await fetch(url, { method, headers: { Accept: "application/json" } });
   const text = await res.text();
