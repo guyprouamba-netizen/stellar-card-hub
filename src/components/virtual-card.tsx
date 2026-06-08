@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Wifi } from "lucide-react";
+import { useState } from "react";
 import logo from "@/assets/logo.png";
 
 type Variant = "primary" | "teal" | "sunset";
@@ -12,10 +13,12 @@ const variants: Record<Variant, string> = {
 export function VirtualCard({
   variant = "primary",
   holder = "ALEX MARTIN",
-  number = "4242  4242  4242  4242",
+  number,
   expiry = "09/29",
   balance,
   brand = "Visa",
+  cvv,
+  onFlip,
   floating = false,
   className = "",
 }: {
@@ -25,51 +28,101 @@ export function VirtualCard({
   expiry?: string;
   balance?: string;
   brand?: string;
+  cvv?: string;
+  onFlip?: (flipped: boolean) => void;
   floating?: boolean;
   className?: string;
 }) {
+  const [flipped, setFlipped] = useState(false);
+  function toggle() {
+    const next = !flipped;
+    setFlipped(next);
+    onFlip?.(next);
+  }
   return (
-    <motion.div
-      initial={floating ? { opacity: 0, y: 30, rotate: -6 } : { opacity: 0 }}
-      animate={floating ? { opacity: 1, y: 0, rotate: -6 } : { opacity: 1 }}
-      whileHover={{ y: -6, rotate: floating ? -3 : 0, scale: 1.02 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
-      className={`relative aspect-[1.586/1] w-full max-w-sm overflow-hidden rounded-3xl p-6 text-white shadow-card-premium ${variants[variant]} ${className}`}
+    <div
+      className={`relative aspect-[1.586/1] w-full max-w-sm cursor-pointer select-none ${className}`}
+      style={{ perspective: 1200 }}
+      onClick={toggle}
+      role="button"
+      aria-label={flipped ? "Voir le recto" : "Voir le CVV"}
     >
-      <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-      <div className="absolute -bottom-16 -left-10 h-48 w-48 rounded-full bg-black/20 blur-2xl" />
-
-      <div className="relative flex h-full flex-col justify-between">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <img src={logo} alt="" className="h-6 w-6 rounded-md ring-1 ring-white/40" />
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em]">FASO-INVEST <span className="opacity-80">PAY</span></p>
+      <motion.div
+        animate={{ rotateY: flipped ? 180 : 0, y: floating && !flipped ? 0 : 0 }}
+        initial={floating ? { opacity: 0, y: 30 } : { opacity: 0 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="relative h-full w-full"
+        style={{ transformStyle: "preserve-3d" }}
+      >
+        {/* RECTO */}
+        <div
+          className={`absolute inset-0 overflow-hidden rounded-3xl p-6 text-white shadow-card-premium ${variants[variant]}`}
+          style={{ backfaceVisibility: "hidden" }}
+        >
+          <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+          <div className="absolute -bottom-16 -left-10 h-48 w-48 rounded-full bg-black/20 blur-2xl" />
+          <div className="relative flex h-full flex-col justify-between">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <img src={logo} alt="" className="h-7 w-7 rounded-md ring-1 ring-white/40" />
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em]">FASO-INVEST <span className="opacity-80">PAY</span></p>
+                </div>
+                <p className="mt-3 text-[10px] uppercase tracking-widest opacity-70">Solde</p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums">{balance ?? "$ 0.00"}</p>
+              </div>
+              <Wifi className="h-6 w-6 rotate-90 opacity-80" />
             </div>
-            <p className="mt-3 text-xs uppercase tracking-widest opacity-70">Solde</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">{balance ?? "$ 2 480.50"}</p>
+
+            <div>
+              <div className="mb-2 flex items-center gap-3">
+                <div className="h-8 w-11 rounded-md bg-gradient-to-br from-yellow-200 to-yellow-500 shadow-inner" />
+              </div>
+              {/* Nom du titulaire à la place du numéro */}
+              <p className="font-[Space_Grotesk] text-xl font-semibold uppercase tracking-[0.18em]">{holder}</p>
+              <div className="mt-3 flex items-end justify-between">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest opacity-60">Touchez pour CVV</p>
+                  <p className="text-xs font-medium opacity-80">{number ? `•• ${number.slice(-4)}` : "•• ••••"}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] uppercase tracking-widest opacity-60">Exp</p>
+                  <p className="text-sm font-medium tabular-nums">{expiry}</p>
+                </div>
+                <p className="italic font-semibold text-lg">{brand}</p>
+              </div>
+            </div>
           </div>
-          <Wifi className="h-6 w-6 rotate-90 opacity-80" />
         </div>
 
-        <div>
-          <div className="mb-1 flex items-center gap-3">
-            <div className="h-8 w-11 rounded-md bg-gradient-to-br from-yellow-200 to-yellow-500 shadow-inner" />
+        {/* VERSO */}
+        <div
+          className={`absolute inset-0 overflow-hidden rounded-3xl text-white shadow-card-premium ${variants[variant]}`}
+          style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
+        >
+          <div className="absolute inset-x-0 top-6 h-10 bg-black/70" />
+          <div className="absolute inset-x-6 top-24 flex items-center gap-3">
+            <div className="h-10 flex-1 rounded bg-white/85" />
+            <div className="grid h-10 min-w-[72px] place-items-center rounded bg-white text-right font-mono text-base font-bold tracking-widest text-black px-2">
+              {cvv || "•••"}
+            </div>
           </div>
-          <p className="font-mono text-lg tracking-[0.2em]">{number}</p>
-          <div className="mt-3 flex items-end justify-between">
-            <div>
-              <p className="text-[10px] uppercase tracking-widest opacity-60">Titulaire</p>
-              <p className="text-sm font-medium">{holder}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] uppercase tracking-widest opacity-60">Exp</p>
-              <p className="text-sm font-medium tabular-nums">{expiry}</p>
-            </div>
+          <div className="absolute inset-x-6 top-40">
+            <p className="text-[10px] uppercase tracking-widest opacity-70">Numéro de carte</p>
+            <p className="mt-1 font-mono text-base tracking-[0.2em]">{number ? formatPan(number) : "•••• •••• •••• ••••"}</p>
+          </div>
+          <div className="absolute bottom-5 left-6 right-6 flex items-end justify-between">
+            <p className="text-[10px] uppercase tracking-widest opacity-70">Touchez pour revenir</p>
             <p className="italic font-semibold text-lg">{brand}</p>
           </div>
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
+    </div>
   );
+}
+
+function formatPan(pan: string) {
+  const s = pan.replace(/\s+/g, "");
+  return s.match(/.{1,4}/g)?.join(" ") || pan;
 }

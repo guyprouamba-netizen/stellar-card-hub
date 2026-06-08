@@ -8,7 +8,7 @@ import { SiteNav } from "@/components/site-nav";
 import { BackButton } from "@/components/back-button";
 import { VirtualCard } from "@/components/virtual-card";
 import { IssueCardSheet } from "@/components/issue-card-sheet";
-import { listMyCards, cardAction, fundCard, listCardTransactions, refreshCard } from "@/lib/strowallet.functions";
+import { listMyCards, cardAction, fundCard, listCardTransactions, refreshCard, cardDetails } from "@/lib/strowallet.functions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,21 @@ function CardsPage() {
     balance: number; status: string; provider_card_id: string | null;
   }>;
 
+  const fetchDetails = useServerFn(cardDetails);
+  const [details, setDetails] = useState<Record<string, { number?: string; cvv?: string; expiry?: string; holder?: string }>>({});
+  async function loadDetails(provider_card_id: string) {
+    if (details[provider_card_id]) return;
+    try {
+      const r: any = await fetchDetails({ data: { card_id: provider_card_id } });
+      const raw = r?.response ?? r?.data ?? r ?? {};
+      const number = raw.card_number || raw.cardNumber || raw.pan || null;
+      const cvv = raw.cvv || raw.cvv2 || raw.card_cvv || null;
+      const exp = raw.expiry || raw.expiry_date || raw.expiration || (raw.expiry_month && raw.expiry_year ? `${String(raw.expiry_month).padStart(2, "0")}/${String(raw.expiry_year).slice(-2)}` : null);
+      const holder = raw.name_on_card || raw.holder || raw.card_holder || raw.name || null;
+      setDetails((d) => ({ ...d, [provider_card_id]: { number: number ?? undefined, cvv: cvv ?? undefined, expiry: exp ?? undefined, holder: holder ?? undefined } }));
+    } catch { /* silencieux */ }
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SiteNav />
@@ -91,12 +106,22 @@ function CardsPage() {
         <div className="mt-10 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           {cards.map((c, i) => {
             const variant = variantByIndex[i % variantByIndex.length];
-            const number = c.last4 ? `••••  ••••  ••••  ${c.last4}` : "••••  ••••  ••••  ••••";
+            const det = c.provider_card_id ? details[c.provider_card_id] : undefined;
+            const number = det?.number || (c.last4 ? `•••• •••• •••• ${c.last4}` : "•••• •••• •••• ••••");
             const isActive = c.status === "active";
             const isTerminated = c.status === "terminated";
             return (
               <div key={c.id} className="rounded-3xl border border-border bg-card p-6 shadow-soft">
-                <VirtualCard variant={variant} number={number} brand={(c.brand || "visa").toUpperCase()} balance={`$ ${Number(c.balance).toFixed(2)}`} />
+                <VirtualCard
+                  variant={variant}
+                  number={number}
+                  brand={(c.brand || "visa").toUpperCase()}
+                  balance={`$ ${Number(c.balance).toFixed(2)}`}
+                  holder={(det?.holder || "TITULAIRE").toUpperCase()}
+                  expiry={det?.expiry || "••/••"}
+                  cvv={det?.cvv}
+                  onFlip={(flipped) => { if (flipped && c.provider_card_id) loadDetails(c.provider_card_id); }}
+                />
                 <div className="mt-5">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold">{(c.brand || "Carte").toUpperCase()} {c.last4 ? `••${c.last4}` : ""}</p>
