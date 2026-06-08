@@ -89,7 +89,7 @@ export function VirtualCard({
                 </div>
                 <div className="text-left sm:text-right">
                   <p className="text-[9px] uppercase tracking-[0.16em] opacity-60 sm:text-[10px] sm:tracking-widest">Exp</p>
-                  <p className="text-xs font-medium tabular-nums sm:text-sm">{expiry}</p>
+                  <p className="text-xs font-medium tabular-nums sm:text-sm">{formatExpiry(expiry)}</p>
                 </div>
                 <p className="text-right italic text-base font-semibold sm:text-lg">{brand}</p>
               </div>
@@ -126,4 +126,10 @@ export function VirtualCard({
 function formatPan(pan: string) {
   const s = pan.replace(/\s+/g, "");
   return s.match(/.{1,4}/g)?.join(" ") || pan;
+}
+
+function formatExpiry(expiry: string) {
+  const match = expiry.match(/^(\d{2})\/(\d{4})$/);
+  if (!match) return expiry;
+  return `${match[1]}/${match[2].slice(-2)}`;
 }
