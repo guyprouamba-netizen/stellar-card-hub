@@ -40,7 +40,7 @@ function CardsPage() {
     mutationFn: (v: { card_id: string; action: "freeze" | "unfreeze" | "terminate" }) => doAction({ data: v }),
     onSuccess: (r) => {
       if ((r as any)?.ok === false) toast.error((r as any).error || "Action échouée");
-      else toast.success("Action exécutée");
+      else toast.success((r as any)?.data?.details ? "Carte dégelée et revalidée" : "Action exécutée");
       qc.invalidateQueries({ queryKey: ["my-cards"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -109,7 +109,7 @@ function CardsPage() {
             Vous n'avez pas encore de carte virtuelle. Cliquez sur « Nouvelle carte » pour en émettre une.
           </div>
         ) : (
-        <div className="mt-10 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {cards.map((c, i) => {
             const variant = variantByIndex[i % variantByIndex.length];
             const det = c.provider_card_id ? details[c.provider_card_id] : undefined;
@@ -117,7 +117,7 @@ function CardsPage() {
             const isActive = c.status === "active";
             const isTerminated = c.status === "terminated";
             return (
-              <div key={c.id} className="rounded-3xl border border-border bg-card p-6 shadow-soft">
+              <div key={c.id} className="rounded-3xl border border-border bg-card p-4 shadow-soft sm:p-6">
                 <VirtualCard
                   variant={variant}
                   number={number}
@@ -129,12 +129,17 @@ function CardsPage() {
                   onFlip={(flipped) => { if (flipped && c.provider_card_id) loadDetails(c.provider_card_id); }}
                 />
                 <div className="mt-5">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-semibold">{(c.brand || "Carte").toUpperCase()} {c.last4 ? `••${c.last4}` : ""}</p>
                     <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${isActive ? "bg-success/15 text-success" : isTerminated ? "bg-destructive/15 text-destructive" : c.status === "processing" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
                       {statusLabel(c.status)}
                     </span>
                   </div>
+                  {!isActive && !isTerminated && c.provider_card_id && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Si l'émetteur confirme le dégel, le numéro, la date et le CVV réapparaîtront automatiquement.
+                    </p>
+                  )}
                   {c.status === "processing" && (
                     <p className="mt-2 text-xs text-muted-foreground">
                       L'émetteur finalise votre carte. Cliquez sur « Rafraîchir » dans quelques instants pour récupérer le numéro et le statut.
@@ -144,14 +149,14 @@ function CardsPage() {
                     <button
                       disabled={!c.provider_card_id || isTerminated}
                       onClick={() => c.provider_card_id && setFundOpen(c.provider_card_id)}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
                     >
                       <Wallet className="h-3.5 w-3.5" /> Recharger
                     </button>
                     <button
                       disabled={!c.provider_card_id}
                       onClick={() => c.provider_card_id && setTxOpen(c.provider_card_id)}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50"
                     >
                       <History className="h-3.5 w-3.5" /> Historique
                     </button>
@@ -160,7 +165,7 @@ function CardsPage() {
                     <button
                       disabled={!c.provider_card_id || refreshMut.isPending}
                       onClick={() => c.provider_card_id && refreshMut.mutate(c.provider_card_id)}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50"
                       title="Rafraîchir depuis Strowallet"
                     >
                       <RefreshCw className={`h-3.5 w-3.5 ${refreshMut.isPending ? "animate-spin" : ""}`} />
@@ -169,7 +174,7 @@ function CardsPage() {
                       <button
                         disabled={!c.provider_card_id || actionMut.isPending}
                         onClick={() => c.provider_card_id && actionMut.mutate({ card_id: c.provider_card_id, action: "freeze" })}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-surface-2 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                        className="flex-1 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50"
                       >
                         <Snowflake className="h-3.5 w-3.5" /> Geler
                       </button>
@@ -177,7 +182,7 @@ function CardsPage() {
                       <button
                         disabled={!c.provider_card_id || isTerminated || actionMut.isPending}
                         onClick={() => c.provider_card_id && actionMut.mutate({ card_id: c.provider_card_id, action: "unfreeze" })}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-surface-2 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                        className="flex-1 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50"
                       >
                         <Sun className="h-3.5 w-3.5" /> Dégeler
                       </button>
@@ -185,7 +190,7 @@ function CardsPage() {
                     <button
                       disabled={!c.provider_card_id || isTerminated || actionMut.isPending}
                       onClick={() => { if (c.provider_card_id && confirm("Résilier définitivement cette carte ?")) actionMut.mutate({ card_id: c.provider_card_id, action: "terminate" }); }}
-                      className="inline-flex items-center justify-center rounded-full border border-border bg-surface-2 px-3 py-2 text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                      className="inline-flex min-h-10 items-center justify-center rounded-full border border-border bg-surface-2 px-3 py-2 text-destructive hover:bg-destructive/10 disabled:opacity-50"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
