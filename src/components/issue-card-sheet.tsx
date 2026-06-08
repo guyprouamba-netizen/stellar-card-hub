@@ -16,7 +16,13 @@ type Form = {
 const DEFAULT_FORM: Form = {
   firstName: "", lastName: "", dob: "", idType: "national_id",
   idNumber: "", phone: "",
-  line1: "", city: "", state: "", postalCode: "", country: "BFA",
+  // Adresse de facturation officielle Faso-Invest (Miami) — pré-remplie pour
+  // accélérer l'émission. L'utilisateur peut toujours la modifier.
+  line1: "3401 N. Miami Ave, Ste 230",
+  city: "Miami",
+  state: "FL",
+  postalCode: "33127",
+  country: "USA",
 };
 
 export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onClose: () => void; onIssued?: () => void }) {
@@ -176,6 +182,11 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
                 <Input ph="Région / État" v={form.state} on={(v) => setField("state", v)} />
                 <Input ph="Code postal" v={form.postalCode} on={(v) => setField("postalCode", v)} />
                 <Input ph="Pays (3 lettres, ex: BFA)" v={form.country} on={(v) => setField("country", v.toUpperCase())} />
+              </div>
+              <div className="mt-3 rounded-xl border border-border bg-surface-2/60 p-3 text-[11px] text-muted-foreground">
+                <p className="font-medium text-foreground">Adresse de facturation par défaut</p>
+                <p className="mt-1">3401 N. Miami Ave, Ste 230 · Miami, FL 33127 · USA</p>
+                <p className="mt-1">Déjà pré-remplie — modifiez-la si nécessaire.</p>
               </div>
             </div>
 
