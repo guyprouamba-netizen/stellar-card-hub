@@ -74,6 +74,33 @@ function FullPageLoader() {
   return <div className="grid min-h-screen place-items-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
 }
 
+function KycStatusBanner({ kyc, onAction }: { kyc: any; onAction: () => void }) {
+  const isRejected = kyc?.status === "rejected" || /reject|declin|denied|fail/i.test(String(kyc?.provider_status ?? ""));
+  const reason = (kyc?.provider_response?.reason || kyc?.provider_response?.message || kyc?.provider_response?.response?.message || "").toString();
+  if (isRejected) {
+    return (
+      <div className="flex items-start gap-3 rounded-2xl border border-destructive/40 bg-destructive/5 p-4">
+        <AlertTriangle className="mt-0.5 h-5 w-5 text-destructive" />
+        <div className="flex-1">
+          <p className="font-semibold text-destructive">Dossier KYC rejeté</p>
+          <p className="mt-1 text-sm text-muted-foreground">{reason || "Votre dossier a été refusé par notre service de vérification. Causes fréquentes : selfie tenant la pièce, photo floue, données ne correspondant pas à la pièce officielle."}</p>
+          <Link to="/kyc" className="mt-3 inline-flex rounded-full bg-destructive px-4 py-2 text-xs font-semibold text-destructive-foreground">Resoumettre mon dossier</Link>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-start gap-3 rounded-2xl border border-primary/40 bg-primary/5 p-4">
+      <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
+      <div className="flex-1">
+        <p className="font-medium">KYC soumis — en attente de validation</p>
+        <p className="mt-1 text-sm text-muted-foreground">Votre dossier a bien été transmis à notre service de vérification. La validation est généralement faite sous 24-48h ouvrées.</p>
+      </div>
+      <SyncKycButton onDone={onAction} />
+    </div>
+  );
+}
+
 function SyncKycButton({ onDone }: { onDone: () => void }) {
   const sync = useServerFn(syncKycStatus);
   const [busy, setBusy] = useState(false);
@@ -397,7 +424,7 @@ function IssueCardModal({ onClose, onDone }: { onClose: () => void; onDone: () =
         {preview && (
           <div className="mt-5 space-y-1.5 rounded-2xl border border-border bg-surface-2 p-4 text-sm">
             <Row k="Frais d'émission" v={`${preview.feeXof.toLocaleString("fr-FR")} XOF`} />
-            <Row k={`Charge carte (${amount} + frais Strowallet ${preview.strowalletFixedUsd}$ + 1%)`} v={`${preview.loadedToStrowalletUsd.toFixed(2)} USD`} />
+            <Row k={`Charge carte (${amount} + frais émetteur ${preview.strowalletFixedUsd}$ + 1%)`} v={`${preview.loadedToStrowalletUsd.toFixed(2)} USD`} />
             <Row k={`Conversion (1$ = ${preview.rateXof} F)`} v={`${preview.loadedToStrowalletXof.toLocaleString("fr-FR")} XOF`} />
             <div className="my-2 h-px bg-border" />
             <Row k="Total à débiter" v={`${preview.totalXof.toLocaleString("fr-FR")} XOF`} bold />
@@ -473,11 +500,16 @@ function ProfileTab({ profile, kyc }: { profile: any; kyc: any }) {
         ) : (
           <div className="mt-3 space-y-2 text-sm">
             <Info k="Statut local" v={kyc.status} />
-            <Info k="Statut Strowallet" v={kyc.provider_status ?? "—"} />
-            <Info k="ID client Strowallet" v={profile?.strowallet_customer_id ?? "—"} />
+            <Info k="Statut émetteur" v={prettyProviderStatus(kyc.provider_status)} />
+            <Info k="ID client" v={profile?.strowallet_customer_id ?? "—"} />
+            {(kyc.status === "rejected" || /reject|declin|denied|fail/i.test(String(kyc.provider_status ?? ""))) && (
+              <p className="mt-3 rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
+                ❌ Dossier rejeté. {(kyc?.provider_response?.reason || kyc?.provider_response?.message || "Vérifiez vos pièces et resoumettez.")}
+              </p>
+            )}
             {profile?.strowallet_customer_id ? (
               <p className="mt-3 flex items-center gap-2 text-success"><ShieldCheck className="h-4 w-4" /> KYC validé — vous pouvez émettre des cartes.</p>
-            ) : <p className="mt-3 text-xs text-muted-foreground">Aucun identifiant client Strowallet n'a encore été créé pour ce dossier. Tant qu'il n'existe pas, le KYC reste en attente réelle côté fournisseur.</p>}
+            ) : <p className="mt-3 text-xs text-muted-foreground">Votre dossier est en cours d'examen. Vous serez notifié dès qu'il est validé.</p>}
           </div>
         )}
       </div>
@@ -487,6 +519,15 @@ function ProfileTab({ profile, kyc }: { profile: any; kyc: any }) {
 
 function Info({ k, v }: { k: string; v: any }) {
   return <div className="flex items-baseline justify-between gap-2"><span className="text-xs uppercase tracking-wider text-muted-foreground">{k}</span><span className="text-sm font-medium">{v ?? "—"}</span></div>;
+}
+
+function prettyProviderStatus(s: any): string {
+  if (!s) return "—";
+  const v = String(s).toLowerCase();
+  if (/approved|verified|active|success|high_kyc/.test(v)) return "Validé";
+  if (/reject|declin|denied|fail/.test(v)) return "Rejeté";
+  if (/pending|review|processing|low_kyc|wait|submitted|sent|synced/.test(v)) return "En cours de vérification";
+  return "En cours de vérification";
 }
 
 

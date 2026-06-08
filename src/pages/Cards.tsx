@@ -166,7 +166,7 @@ function FundDialog({ cardId, onClose, onDone }: { cardId: string; onClose: () =
         <div className="space-y-2">
           <label className="text-sm text-muted-foreground">Montant (USD)</label>
           <Input type="number" min={1} max={1000} step={1} value={amount} onChange={(e) => setAmount(e.target.value)} />
-          <p className="text-xs text-muted-foreground">Frais Strowallet (1,9 USD + 1 %) débités de votre solde XOF.</p>
+          <p className="text-xs text-muted-foreground">Frais émetteur (1,9 USD + 1 %) débités de votre solde XOF.</p>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Annuler</Button>
