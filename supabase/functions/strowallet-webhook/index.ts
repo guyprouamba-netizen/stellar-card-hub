@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { corsHeaders } from "../_shared/cors.ts";
-import { nfcCardStatus, extractNfcCard } from "../_shared/strowallet.ts";
+import { freezeNfcCard, extractNfcCard } from "../_shared/strowallet.ts";
 
 function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
@@ -60,14 +60,18 @@ Deno.serve(async (req) => {
     });
   } else if (isDeclined) {
     const attempts = (card.failed_attempts ?? 0) + 1;
-    try { await nfcCardStatus(cardId, "frozen"); } catch { /* ignore */ }
-    await admin.from("cards").update({ failed_attempts: attempts, status: "frozen_auto", auto_frozen_at: new Date().toISOString() }).eq("id", card.id);
-    await admin.from("transactions").insert({
-      user_id: card.user_id, type: "card_auto_freeze", status: "success",
-      amount: 0, currency: "USD", provider: "strowallet", provider_ref: cardId,
-      description: `Carte gelée automatiquement — ${payload?.reason || "tentative échouée"}`,
-      metadata: payload,
-    });
+    if (attempts >= 2) {
+      try { await freezeNfcCard(cardId); } catch { /* ignore */ }
+      await admin.from("cards").update({ failed_attempts: attempts, status: "frozen_auto", auto_frozen_at: new Date().toISOString() }).eq("id", card.id);
+      await admin.from("transactions").insert({
+        user_id: card.user_id, type: "card_auto_freeze", status: "success",
+        amount: 0, currency: "USD", provider: "strowallet", provider_ref: cardId,
+        description: `Carte gelée automatiquement après 2 tentatives échouées — ${payload?.reason || "paiement refusé"}`,
+        metadata: payload,
+      });
+    } else {
+      await admin.from("cards").update({ failed_attempts: attempts }).eq("id", card.id);
+    }
   } else if (isWithdraw && isSuccess) {
     const amt = Number(payload?.amount ?? 0);
     if (amt > 0) {
