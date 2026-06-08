@@ -228,7 +228,7 @@ function UsersTab({ users, onAction }: { users: any[]; onAction: () => void }) {
 
 function AdjustWalletModal({ user, onClose, onDone, adjust }: { user: any; onClose: () => void; onDone: () => void; adjust: any }) {
   const [direction, setDirection] = useState<"credit" | "debit">("credit");
-  const [currency, setCurrency] = useState<"XOF" | "USD" | "EUR">("XOF");
+  const [currency, setCurrency] = useState<"XOF" | "USD">("XOF");
   const [amount, setAmount] = useState<number>(1000);
   const [note, setNote] = useState<string>("");
   const [busy, setBusy] = useState(false);
@@ -254,7 +254,7 @@ function AdjustWalletModal({ user, onClose, onDone, adjust }: { user: any; onClo
         <div className="mt-4 space-y-3">
           <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">Devise
             <select value={currency} onChange={(e) => setCurrency(e.target.value as any)} className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm outline-none">
-              <option value="XOF">XOF</option><option value="USD">USD</option><option value="EUR">EUR</option>
+              <option value="XOF">XOF</option><option value="USD">USD</option>
             </select>
           </label>
           <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">Montant
