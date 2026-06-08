@@ -79,21 +79,23 @@ export function VirtualCard({
               <div className="mb-2 flex items-center gap-3">
                 <div className="h-7 w-10 rounded-md bg-gradient-to-br from-yellow-200 to-yellow-500 shadow-inner sm:h-8 sm:w-11" />
               </div>
-              <p className="font-mono text-[15px] font-semibold tracking-[0.1em] leading-tight sm:text-2xl sm:tracking-[0.18em]">
+              <p
+                className="font-mono text-[15px] font-semibold tracking-[0.1em] leading-tight sm:text-2xl sm:tracking-[0.18em] select-all cursor-text"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {number ? formatPan(number) : "•••• •••• •••• ••••"}
               </p>
               <div className="mt-3 flex items-end justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-[9px] uppercase tracking-[0.16em] opacity-60 sm:text-[10px] sm:tracking-widest">Titulaire</p>
-                  <p className="truncate text-xs font-semibold uppercase tracking-[0.08em] sm:text-sm sm:tracking-wider">{holder}</p>
+                  <p className="truncate text-xs font-semibold uppercase tracking-[0.08em] sm:text-sm sm:tracking-wider select-all" onClick={(e) => e.stopPropagation()}>{holder}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[9px] uppercase tracking-[0.16em] opacity-60 sm:text-[10px] sm:tracking-widest">Exp</p>
-                  <p className="text-xs font-medium tabular-nums sm:text-sm">{formatExpiry(expiry)}</p>
+                  <p className="text-xs font-medium tabular-nums sm:text-sm select-all" onClick={(e) => e.stopPropagation()}>{formatExpiry(expiry)}</p>
                 </div>
                 <p className="italic text-base font-semibold sm:text-lg">{brand}</p>
               </div>
-              <p className="mt-2 text-[9px] uppercase tracking-[0.16em] opacity-60 sm:text-[10px] sm:tracking-widest">Touchez pour voir le CVV</p>
             </div>
           </div>
         </div>
@@ -106,7 +108,10 @@ export function VirtualCard({
           <div className="absolute inset-x-0 top-5 h-9 bg-black/70 sm:top-6 sm:h-10" />
           <div className="absolute inset-x-4 top-20 flex items-center gap-2 sm:inset-x-6 sm:top-24 sm:gap-3">
             <div className="h-9 flex-1 rounded bg-white/85 sm:h-10" />
-            <div className="grid h-9 min-w-[72px] place-items-center rounded bg-white px-2.5 text-right font-mono text-base font-bold tracking-[0.16em] text-black sm:h-10 sm:min-w-[80px] sm:px-3 sm:text-lg sm:tracking-widest">
+            <div
+              className="grid h-9 min-w-[72px] place-items-center rounded bg-white px-2.5 text-right font-mono text-base font-bold tracking-[0.16em] text-black sm:h-10 sm:min-w-[80px] sm:px-3 sm:text-lg sm:tracking-widest select-all cursor-text"
+              onClick={(e) => e.stopPropagation()}
+            >
               {cvv || "•••"}
             </div>
           </div>
@@ -114,7 +119,7 @@ export function VirtualCard({
             <p className="text-[9px] uppercase tracking-[0.16em] opacity-70 sm:text-[10px] sm:tracking-widest">CVV</p>
           </div>
           <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between sm:bottom-5 sm:left-6 sm:right-6">
-            <p className="text-[9px] uppercase tracking-[0.16em] opacity-70 sm:text-[10px] sm:tracking-widest">Touchez pour revenir</p>
+            <span />
             <p className="italic text-base font-semibold sm:text-lg">{brand}</p>
           </div>
         </div>
