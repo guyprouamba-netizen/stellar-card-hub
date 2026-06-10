@@ -32,6 +32,29 @@ async function isAdmin(admin: any, userId: string) {
   return !!data;
 }
 
+const YENGAPAY_CASHOUT_METHODS = ["ORANGE_MONEY", "MOOV_MONEY", "TELECEL_MONEY", "SANK_MONEY", "WAVE_MONEY"] as const;
+
+function mapCashoutMethod(operator?: string | null) {
+  const opNorm = String(operator || "").toLowerCase();
+  if (opNorm.includes("orange")) return "ORANGE_MONEY";
+  if (opNorm.includes("moov")) return "MOOV_MONEY";
+  if (opNorm.includes("telecel")) return "TELECEL_MONEY";
+  if (opNorm.includes("sank")) return "SANK_MONEY";
+  if (opNorm.includes("wave")) return "WAVE_MONEY";
+  return null;
+}
+
+function normalizeBfPhone(phone?: string | null) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("226")) return `+${digits}`;
+  return `+226${digits}`;
+}
+
+function uniqueCashoutMethods(preferred?: string | null) {
+  return Array.from(new Set([preferred, ...YENGAPAY_CASHOUT_METHODS].filter(Boolean))) as string[];
+}
+
 // ============= Handlers =============
 const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userClient: any }) => Promise<any>> = {
   // ---------- Dashboard ----------
@@ -396,75 +419,100 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (error) throw new Error(error.message);
 
     // Auto-payout via YengaPay cash-out pour Mobile Money
-    const opNorm = String(data.operator || "").toLowerCase();
-    const cashoutMethod =
-      opNorm.includes("orange") ? "ORANGE_MONEY" :
-      opNorm.includes("moov") ? "MOOV_MONEY" :
-      opNorm.includes("sank") ? "SANK_MONEY" :
-      opNorm.includes("telecel") ? "TELECEL_MONEY" :
-      opNorm.includes("wave") ? "WAVE_MONEY" : null;
-
-    if (data.method === "mobile_money" && cashoutMethod) {
+    if (data.method === "mobile_money") {
       const apiKey = Deno.env.get("YENGAPAY_API_KEY");
       const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
       const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
+      const destNumber = normalizeBfPhone(data.phone);
+      const preferredMethod = mapCashoutMethod(data.operator);
+      const cashoutMethods = uniqueCashoutMethods(preferredMethod);
+      const holder = String(data.holder || user.user_metadata?.full_name || user.email || "").slice(0, 120);
+      const baseDestination = { operator: data.operator, phone: destNumber, account: data.account, holder };
+      if (!destNumber) {
+        await admin.from("wallets").update({ balance: Number(w.balance) }).eq("id", w.id);
+        await admin.from("withdrawals").update({ status: "failed", admin_note: "Numéro Mobile Money invalide" }).eq("id", row.id);
+        return { ok: false, error: "Numéro Mobile Money invalide" };
+      }
       if (!apiKey || !groupId || !projectId) {
+        await admin.from("withdrawals").update({ destination: baseDestination }).eq("id", row.id);
         await admin.from("transactions").insert({
           user_id: userId, type: "withdrawal", status: "pending",
-          amount, currency: "XOF",
+          amount, currency: "XOF", provider: "yengapay",
           description: `Demande de retrait ${data.method} ${data.operator} — validation manuelle`,
-          provider_ref: row.id,
+          provider_ref: row.id, metadata: { reason: "missing_yengapay_config" },
         });
-        return { ok: true, id: row.id, status: "pending", note: "Config YengaPay manquante — validation manuelle" };
+        return { ok: true, id: row.id, status: "submitted", note: "Config YengaPay manquante — validation manuelle" };
       }
-      const rawPhone = String(data.phone || "").replace(/[\s\-]/g, "");
-      const destNumber = rawPhone.startsWith("+") ? rawPhone : (rawPhone.startsWith("226") ? `+${rawPhone}` : `+226${rawPhone}`);
       try {
         const url = `https://api.yengapay.com/api/v1/groups/${groupId}/cash-out`;
-        const payRes = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-api-key": apiKey },
-          body: JSON.stringify({
-            cashoutMethod,
-            description: `Retrait FASO-INVEST PAY ${data.holder || ""}`.trim(),
-            amount, destNumber, groupId, projectId,
-          }),
-        });
-        const text = await payRes.text(); let body: any = text;
-        try { body = JSON.parse(text); } catch { /**/ }
-        if (!payRes.ok) throw new Error(`YengaPay ${payRes.status}: ${typeof body === "string" ? body : JSON.stringify(body)}`);
-        const provStatus = String(body?.status || "PENDING").toUpperCase();
-        const mapped =
-          ["SUCCESS","COMPLETED","PAID","SUCCESSFUL"].includes(provStatus) ? "paid" :
-          ["FAILED","REJECTED","ERROR"].includes(provStatus) ? "failed" : "processing";
-        const newDest = { operator: data.operator, phone: destNumber, account: data.account, holder: data.holder, yengapay: body };
-        await admin.from("withdrawals").update({ status: mapped, destination: newDest }).eq("id", row.id);
-        if (mapped === "failed") {
-          await admin.from("wallets").update({ balance: Number(w.balance) }).eq("id", w.id);
+        const attempts: Array<{ method: string; httpStatus: number; body: unknown }> = [];
+        let acceptedBody: any = null;
+        let acceptedMethod: string | null = null;
+        for (const cashoutMethod of cashoutMethods) {
+          const payRes = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+            body: JSON.stringify({
+              cashoutMethod,
+              description: `Retrait FASO-INVEST PAY ${holder}`.trim(),
+              amount, destNumber, groupId, projectId,
+            }),
+          });
+          const text = await payRes.text(); let body: any = text;
+          try { body = JSON.parse(text); } catch { /**/ }
+          attempts.push({ method: cashoutMethod, httpStatus: payRes.status, body });
+          if (!payRes.ok) continue;
+          acceptedBody = body;
+          acceptedMethod = cashoutMethod;
+          break;
         }
+
+        if (!acceptedBody || !acceptedMethod) {
+          const note = JSON.stringify(attempts).slice(0, 500);
+          await admin.from("withdrawals").update({
+            status: "pending",
+            destination: { ...baseDestination, yengapay_attempts: attempts },
+            admin_note: note,
+          }).eq("id", row.id);
+          await admin.from("transactions").insert({
+            user_id: userId, type: "withdrawal", status: "pending",
+            amount, currency: "XOF", provider: "yengapay",
+            provider_ref: row.id,
+            description: "Retrait soumis — en attente de traitement manuel",
+            metadata: { attempts, destNumber },
+          });
+          return { ok: true, id: row.id, status: "submitted", note: "Aucun opérateur automatique accepté" };
+        }
+
+        const provStatus = String(acceptedBody?.status || "PENDING").toUpperCase();
+        const mapped = ["SUCCESS", "COMPLETED", "PAID", "SUCCESSFUL", "DONE"].includes(provStatus)
+          ? "paid"
+          : ["PENDING", "PROCESSING", "IN_PROGRESS", "ACCEPTED"].includes(provStatus)
+            ? "processing"
+            : "pending";
+        const newDest = { ...baseDestination, operator: acceptedMethod, yengapay: acceptedBody, yengapay_attempts: attempts };
+        await admin.from("withdrawals").update({ status: mapped, destination: newDest }).eq("id", row.id);
         await admin.from("transactions").insert({
           user_id: userId, type: "withdrawal",
-          status: mapped === "paid" ? "success" : mapped === "failed" ? "failed" : "pending",
+          status: mapped === "paid" ? "success" : "pending",
           amount, currency: "XOF", provider: "yengapay",
-          provider_ref: body?.id || row.id,
-          description: `Retrait auto ${cashoutMethod} ${destNumber}`,
-          metadata: body,
+          provider_ref: acceptedBody?.id || row.id,
+          description: `Retrait auto ${acceptedMethod} ${destNumber}`,
+          metadata: { response: acceptedBody, attempts },
         });
-        return { ok: mapped !== "failed", id: row.id, status: mapped, provider: body };
+        return { ok: true, id: row.id, status: mapped, provider: acceptedBody };
       } catch (e) {
-        // Remboursement immédiat
-        await admin.from("wallets").update({ balance: Number(w.balance) }).eq("id", w.id);
         await admin.from("withdrawals").update({
-          status: "failed",
+          status: "pending",
           admin_note: (e as Error).message.slice(0, 500),
         }).eq("id", row.id);
         await admin.from("transactions").insert({
-          user_id: userId, type: "withdrawal", status: "failed",
+          user_id: userId, type: "withdrawal", status: "pending",
           amount, currency: "XOF", provider: "yengapay", provider_ref: row.id,
-          description: `Retrait auto échoué — remboursé`,
+          description: `Retrait soumis — reprise manuelle requise`,
           metadata: { error: (e as Error).message },
         });
-        return { ok: false, error: (e as Error).message };
+        return { ok: true, id: row.id, status: "submitted", note: (e as Error).message };
       }
     }
 
