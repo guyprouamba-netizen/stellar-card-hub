@@ -296,6 +296,43 @@ function TransactionsDialog({ cardId, onClose }: { cardId: string; onClose: () =
 
 export default CardsPage;
 
+function WithdrawDialog({ cardId, balance, onClose, onDone }: { cardId: string; balance: number; onClose: () => void; onDone: () => void }) {
+  const max = Math.max(0, +(balance).toFixed(2));
+  const [amount, setAmount] = useState(String(max > 1 ? Math.min(max, 10) : max));
+  const fn = useServerFn(withdrawCard);
+  const mut = useMutation({
+    mutationFn: () => fn({ data: { card_id: cardId, amountUsd: Number(amount) } }),
+    onSuccess: (r: any) => {
+      if (r?.ok === false) toast.error(r.error || "Retrait échoué");
+      else { toast.success(`Retrait OK : +${(r as any)?.netXof?.toLocaleString("fr-FR") ?? ""} XOF crédités`); onDone(); onClose(); }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const fee = 0.5;
+  const net = Math.max(0, Number(amount) - fee);
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Retirer depuis la carte</DialogTitle></DialogHeader>
+        <div className="space-y-2">
+          <label className="text-sm text-muted-foreground">Montant (USD) — solde carte ${max.toFixed(2)}</label>
+          <Input type="number" min={1} max={max} step={0.5} value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <div className="rounded-lg bg-surface-2/60 p-3 text-xs text-muted-foreground">
+            Frais de retrait carte : <span className="font-semibold text-foreground">{fee.toFixed(2)} USD</span><br />
+            Vous recevrez : <span className="font-semibold text-foreground">{net.toFixed(2)} USD</span> convertis en XOF sur votre portefeuille.
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Annuler</Button>
+          <Button onClick={() => mut.mutate()} disabled={mut.isPending || Number(amount) <= fee || Number(amount) > max}>
+            {mut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Retirer"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function BillingAddress() {
   return (
     <div className="mt-4 rounded-2xl border border-border bg-surface-2/60 p-3">
