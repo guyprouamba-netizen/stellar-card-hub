@@ -326,6 +326,42 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     }
   },
 
+  async withdrawCard({ data, user, admin, userClient }) {
+    const userId = user.id;
+    const { data: card } = await userClient.from("cards").select("id,user_id,balance,provider_card_id,status").eq("provider_card_id", data.card_id).maybeSingle();
+    if (!card || card.user_id !== userId) return { ok: false, error: "Carte introuvable" };
+    if (card.status === "terminated") return { ok: false, error: "Carte résiliée" };
+    const amountUsd = Number(data.amountUsd);
+    if (!Number.isFinite(amountUsd) || amountUsd <= 0) return { ok: false, error: "Montant USD invalide" };
+    if (Number(card.balance) < amountUsd) return { ok: false, error: "Solde carte insuffisant", available: Number(card.balance) };
+    const cfg = await loadPricingConfig(admin);
+    // Strowallet n'expose pas de frais de retrait carte explicite → 0,5 USD par défaut.
+    const feeUsd = 0.5;
+    const netUsd = +(amountUsd - feeUsd).toFixed(4);
+    if (netUsd <= 0) return { ok: false, error: `Montant trop faible — frais ${feeUsd} USD appliqués` };
+    const netXof = Math.floor(netUsd * cfg.usd_rate_xof);
+    try {
+      const res = await SW.fundWithdrawNfcCard({ card_id: data.card_id, amount: amountUsd, type: "withdraw" });
+      await admin.from("cards").update({ balance: Number(card.balance) - amountUsd }).eq("id", card.id);
+      const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", userId).eq("currency", "XOF").maybeSingle();
+      if (w) await admin.from("wallets").update({ balance: Number(w.balance) + netXof }).eq("id", w.id);
+      await admin.from("transactions").insert({
+        user_id: userId, type: "card_withdraw", status: "success",
+        amount: netXof, currency: "XOF", provider: "strowallet", provider_ref: data.card_id,
+        description: `Retrait carte ${amountUsd} USD → ${netXof} XOF (frais ${feeUsd} USD)`,
+        metadata: { amountUsd, feeUsd, netUsd, netXof, rate: cfg.usd_rate_xof, response: res },
+      });
+      return { ok: true, data: res, netXof, feeUsd, netUsd };
+    } catch (e) {
+      await admin.from("transactions").insert({
+        user_id: userId, type: "card_withdraw", status: "failed",
+        amount: amountUsd, currency: "USD", provider: "strowallet", provider_ref: data.card_id,
+        description: "Retrait carte échoué", metadata: { error: (e as Error).message },
+      });
+      return { ok: false, error: (e as Error).message };
+    }
+  },
+
   async listMyCards({ user, userClient }) {
     const { data, error } = await userClient.from("cards")
       .select("id,brand,last4,currency,balance,status,provider_card_id,failed_attempts,auto_frozen_at,created_at")
