@@ -214,8 +214,13 @@ function WithdrawTab({ balance, onDone }: { balance: number; onDone: () => void 
     setLoading(true);
     try {
       const res: any = await req({ data: form });
-      if (res?.ok) { toast.success("Demande de retrait soumise — en attente de validation admin"); onDone(); }
-      else toast.error(res?.error ?? "Erreur");
+      if (res?.ok) {
+        const st = res?.status;
+        if (st === "paid") toast.success("Retrait effectué et envoyé sur votre Mobile Money");
+        else if (st === "processing") toast.success("Retrait en cours de traitement par YengaPay");
+        else toast.success("Demande de retrait soumise — validation manuelle");
+        onDone();
+      } else toast.error(res?.error ?? "Erreur");
     } catch (e) { toast.error((e as Error).message); } finally { setLoading(false); }
   }
   return (

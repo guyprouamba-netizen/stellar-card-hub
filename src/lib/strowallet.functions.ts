@@ -10,4 +10,5 @@ export const refreshCard = (args: { data: { card_id: string } }) => callApi("ref
 export const cardAction = (args: { data: { card_id: string; action: "freeze" | "unfreeze" | "terminate" } }) => callApi("cardAction", args.data);
 export const listCardTransactions = (args: { data: { card_id: string } }) => callApi("listCardTransactions", args.data);
 export const fundCard = (args: { data: { card_id: string; amountUsd: number } }) => callApi("fundCard", args.data);
+export const withdrawCard = (args: { data: { card_id: string; amountUsd: number } }) => callApi("withdrawCard", args.data);
 export const listMyCards = (_args?: any) => callApi("listMyCards");
