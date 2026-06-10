@@ -254,6 +254,7 @@ function FundDialog({ cardId, onClose, onDone }: { cardId: string; onClose: () =
 }
 
 function TransactionsDialog({ cardId, onClose }: { cardId: string; onClose: () => void }) {
+  // placeholder
   const fn = useServerFn(listCardTransactions);
   const q = useQuery({ queryKey: ["card-tx", cardId], queryFn: () => fn({ data: { card_id: cardId } }) });
   const res = q.data as any;
