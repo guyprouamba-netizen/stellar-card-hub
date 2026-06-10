@@ -60,7 +60,7 @@ function Dashboard() {
             <>
               {tab === "home" && <HomeTab data={data} onAction={() => refetch()} />}
               {tab === "deposit" && <DepositTab onDone={() => refetch()} />}
-              {tab === "withdraw" && <WithdrawTab balance={Number(data.wallets.find((w: any) => w.currency === "XOF")?.balance ?? 0)} onDone={() => refetch()} />}
+              {tab === "withdraw" && <WithdrawTab balance={Number(data.wallets.find((w: any) => w.currency === "XOF")?.balance ?? 0)} profile={data.profile} onDone={() => refetch()} />}
               {tab === "cards" && <CardsTab cards={data.cards} onAction={() => refetch()} />}
               {tab === "tx" && <TxTab transactions={data.transactions} />}
               {tab === "profile" && <ProfileTab profile={data.profile} />}
@@ -206,10 +206,17 @@ function DepositTab({ onDone }: { onDone: () => void }) {
   );
 }
 
-function WithdrawTab({ balance, onDone }: { balance: number; onDone: () => void }) {
-  const [form, setForm] = useState({ amount: 1000, method: "mobile_money" as "mobile_money" | "bank", operator: "Orange Money", phone: "", account: "", holder: "" });
+function WithdrawTab({ balance, profile, onDone }: { balance: number; profile?: any; onDone: () => void }) {
+  const [form, setForm] = useState({ amount: 1000, method: "mobile_money" as const, operator: "", phone: profile?.phone ?? "", account: "", holder: profile?.full_name ?? "" });
   const [loading, setLoading] = useState(false);
   const req = useServerFn(requestWithdrawal);
+  useEffect(() => {
+    setForm((prev) => ({
+      ...prev,
+      phone: prev.phone || profile?.phone || "",
+      holder: prev.holder || profile?.full_name || "",
+    }));
+  }, [profile?.phone, profile?.full_name]);
   async function submit() {
     setLoading(true);
     try {
@@ -218,7 +225,7 @@ function WithdrawTab({ balance, onDone }: { balance: number; onDone: () => void 
         const st = res?.status;
         if (st === "paid") toast.success("Retrait effectué et envoyé sur votre Mobile Money");
         else if (st === "processing") toast.success("Retrait en cours de traitement par YengaPay");
-        else toast.success("Demande de retrait soumise — validation manuelle");
+        else toast.success("Retrait soumis à YengaPay — reprise manuelle seulement si aucun opérateur n'accepte la demande");
         onDone();
       } else toast.error(res?.error ?? "Erreur");
     } catch (e) { toast.error((e as Error).message); } finally { setLoading(false); }
@@ -229,23 +236,15 @@ function WithdrawTab({ balance, onDone }: { balance: number; onDone: () => void 
       <p className="text-sm text-muted-foreground">Solde XOF disponible : <span className="font-semibold text-foreground tabular-nums">{balance.toLocaleString("fr-FR")} XOF</span></p>
       <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
         <Field label="Montant (XOF)"><input type="number" min={500} value={form.amount} onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })} className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 outline-none" /></Field>
-        <Field label="Méthode">
-          <select value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value as any })} className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 outline-none">
-            <option value="mobile_money">Mobile Money</option>
-            <option value="bank">Virement bancaire</option>
-          </select>
-        </Field>
-        <Field label="Opérateur / Banque"><input value={form.operator} onChange={(e) => setForm({ ...form, operator: e.target.value })} className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 outline-none" /></Field>
-        {form.method === "mobile_money" ? (
-          <Field label="Numéro de téléphone"><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 outline-none" /></Field>
-        ) : (
-          <Field label="Numéro de compte / IBAN"><input value={form.account} onChange={(e) => setForm({ ...form, account: e.target.value })} className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 outline-none" /></Field>
-        )}
+        <div className="rounded-xl border border-border bg-surface-2/60 px-3 py-2 text-sm text-muted-foreground">
+          Mobile Money détecté automatiquement par YengaPay à partir du numéro saisi.
+        </div>
+        <Field label="Numéro de téléphone Mobile Money"><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 outline-none" /></Field>
         <Field label="Nom du bénéficiaire"><input value={form.holder} onChange={(e) => setForm({ ...form, holder: e.target.value })} className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 outline-none" /></Field>
       </div>
-      <button onClick={submit} disabled={loading || form.amount > balance || form.amount < 500 || !form.holder}
+      <button onClick={submit} disabled={loading || form.amount > balance || form.amount < 500 || !form.holder || !form.phone}
         className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Demander un retrait"}
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Retrait automatique"}
       </button>
     </div>
   );
