@@ -1,5 +1,5 @@
 
-import { Plus, Snowflake, Trash2, Sun, Wallet, History, Loader2, RefreshCw, MapPin, Copy } from "lucide-react";
+import { Plus, Snowflake, Trash2, Sun, Wallet, History, Loader2, RefreshCw, MapPin, Copy, ArrowDownToLine } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useServerFn } from "@/lib/server-fn";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,7 +8,7 @@ import { SiteNav } from "@/components/site-nav";
 import { BackButton } from "@/components/back-button";
 import { VirtualCard } from "@/components/virtual-card";
 import { IssueCardSheet } from "@/components/issue-card-sheet";
-import { listMyCards, cardAction, fundCard, listCardTransactions, refreshCard, cardDetails } from "@/lib/strowallet.functions";
+import { listMyCards, cardAction, fundCard, withdrawCard, listCardTransactions, refreshCard, cardDetails } from "@/lib/strowallet.functions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ function statusLabel(s: string) {
 function CardsPage() {
   const [open, setOpen] = useState(false);
   const [fundOpen, setFundOpen] = useState<string | null>(null);
+  const [withdrawOpen, setWithdrawOpen] = useState<{ card_id: string; balance: number } | null>(null);
   const [txOpen, setTxOpen] = useState<string | null>(null);
 
   const fetchCards = useServerFn(listMyCards);
@@ -158,9 +159,16 @@ function CardsPage() {
                       <Wallet className="h-3.5 w-3.5" /> Recharger
                     </button>
                     <button
+                      disabled={!c.provider_card_id || isTerminated || Number(c.balance) <= 0.5}
+                      onClick={() => c.provider_card_id && setWithdrawOpen({ card_id: c.provider_card_id, balance: Number(c.balance) })}
+                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary disabled:opacity-50"
+                    >
+                      <ArrowDownToLine className="h-3.5 w-3.5" /> Retirer
+                    </button>
+                    <button
                       disabled={!c.provider_card_id}
                       onClick={() => c.provider_card_id && setTxOpen(c.provider_card_id)}
-                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                      className="col-span-2 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50"
                     >
                       <History className="h-3.5 w-3.5" /> Historique
                     </button>
@@ -207,6 +215,7 @@ function CardsPage() {
 
         <IssueCardSheet open={open} onClose={() => setOpen(false)} />
         {fundOpen && <FundDialog cardId={fundOpen} onClose={() => setFundOpen(null)} onDone={() => qc.invalidateQueries({ queryKey: ["my-cards"] })} />}
+        {withdrawOpen && <WithdrawDialog cardId={withdrawOpen.card_id} balance={withdrawOpen.balance} onClose={() => setWithdrawOpen(null)} onDone={() => qc.invalidateQueries({ queryKey: ["my-cards"] })} />}
         {txOpen && <TransactionsDialog cardId={txOpen} onClose={() => setTxOpen(null)} />}
       </div>
     </div>
