@@ -55,7 +55,7 @@ function Dashboard() {
     <div className="min-h-screen bg-background text-foreground">
       <div className="flex">
         <Sidebar tab={tab} setTab={setTab} />
-        <main className="flex-1 px-4 py-8 sm:px-8">
+        <main className="flex-1 px-4 pb-24 pt-20 sm:px-8 md:py-8 md:pt-8">
           {isLoading || !data ? <FullPageLoader /> : (
             <>
               {tab === "home" && <HomeTab data={data} onAction={() => refetch()} />}
@@ -68,12 +68,53 @@ function Dashboard() {
           )}
         </main>
       </div>
+      <MobileNav tab={tab} setTab={setTab} />
     </div>
   );
 }
 
 function FullPageLoader() {
   return <div className="grid min-h-screen place-items-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+}
+
+function MobileNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+  const navigate = useNavigate();
+  const items: Array<{ id: Tab; label: string; Icon: any }> = [
+    { id: "home", label: "Accueil", Icon: LayoutDashboard },
+    { id: "deposit", label: "Dépôt", Icon: ArrowDownLeft },
+    { id: "withdraw", label: "Retrait", Icon: ArrowUpRight },
+    { id: "cards", label: "Cartes", Icon: CreditCard },
+    { id: "profile", label: "Profil", Icon: UserCircle },
+  ];
+  async function logout() {
+    await supabase.auth.signOut();
+    navigate("/");
+  }
+  return (
+    <>
+      <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between border-b border-border bg-card/90 px-4 py-3 backdrop-blur md:hidden">
+        <Link to="/" className="flex items-center gap-2">
+          <img src={logo} alt="FASO-INVEST PAY" className="h-8 w-8 rounded-lg" />
+          <span className="text-sm font-bold tracking-tight">FASO-INVEST <span className="text-primary">PAY</span></span>
+        </Link>
+        <button onClick={logout} aria-label="Déconnexion" className="grid h-9 w-9 place-items-center rounded-full border border-border text-muted-foreground hover:text-destructive">
+          <LogOut className="h-4 w-4" />
+        </button>
+      </header>
+      <nav className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-border bg-card/95 px-2 py-2 backdrop-blur md:hidden">
+        {items.map((it) => (
+          <button
+            key={it.id}
+            onClick={() => setTab(it.id)}
+            className={`flex flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 text-[10px] font-medium transition-colors ${tab === it.id ? "text-primary" : "text-muted-foreground"}`}
+          >
+            <it.Icon className="h-5 w-5" />
+            {it.label}
+          </button>
+        ))}
+      </nav>
+    </>
+  );
 }
 
 function Sidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
