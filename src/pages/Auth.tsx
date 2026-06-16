@@ -9,13 +9,15 @@ import logo from "@/assets/logo.png";
 
 function Auth() {
   const navigate = useNavigate();
-  async function redirectByRole() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { navigate("/dashboard"); return; }
-    const { data: roles } = await supabase
-      .from("user_roles").select("role").eq("user_id", session.user.id);
-    const isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
-    navigate(isAdmin ? "/admin" : "/dashboard");
+  // Redirection rapide : on va sur /dashboard immédiatement,
+  // puis on bascule vers /admin en arrière-plan si l'utilisateur est admin.
+  function fastRedirect(userId?: string) {
+    navigate("/dashboard");
+    if (!userId) return;
+    supabase.from("user_roles").select("role").eq("user_id", userId).then(({ data }) => {
+      const isAdmin = (data ?? []).some((r: any) => r.role === "admin");
+      if (isAdmin) navigate("/admin");
+    });
   }
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -82,19 +84,19 @@ function Auth() {
         // Auto-confirmation via trigger DB — session est immédiate
         if (signUpData.session) {
           toast.success("Compte créé — bienvenue !");
-          await redirectByRole();
+          fastRedirect(signUpData.session.user.id);
         } else {
           // Fallback : connexion explicite si pas de session retournée
-          const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+          const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
           if (signInErr) throw signInErr;
           toast.success("Compte créé — bienvenue !");
-          await redirectByRole();
+          fastRedirect(signInData.session?.user.id);
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Bienvenue !");
-        await redirectByRole();
+        fastRedirect(signInData.session?.user.id);
       }
     } catch (e: any) {
       const message = frenchAuthError(e);
@@ -174,6 +176,14 @@ function Auth() {
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (<>{mode === "login" ? "Se connecter" : "Créer mon compte"}<ArrowRight className="h-4 w-4" /></>)}
             </button>
           </form>
+
+          {mode === "login" && (
+            <p className="mt-4 text-center text-sm">
+              <Link to="/forgot-password" className="font-medium text-primary hover:underline">
+                Mot de passe oublié ?
+              </Link>
+            </p>
+          )}
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             {mode === "login" ? "Pas encore de compte ?" : "Déjà inscrit ?"}{" "}
