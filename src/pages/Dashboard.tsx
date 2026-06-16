@@ -55,7 +55,7 @@ function Dashboard() {
     <div className="min-h-screen bg-background text-foreground">
       <div className="flex">
         <Sidebar tab={tab} setTab={setTab} />
-        <main className="flex-1 px-4 py-8 pb-24 sm:px-8 md:pb-8">
+        <main className="flex-1 px-4 pb-24 pt-20 sm:px-8 md:py-8 md:pt-8">
           {isLoading || !data ? <FullPageLoader /> : (
             <>
               {tab === "home" && <HomeTab data={data} onAction={() => refetch()} />}
@@ -92,7 +92,7 @@ function MobileNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   }
   return (
     <>
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-card/80 px-4 py-3 backdrop-blur md:hidden">
+      <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between border-b border-border bg-card/90 px-4 py-3 backdrop-blur md:hidden">
         <Link to="/" className="flex items-center gap-2">
           <img src={logo} alt="FASO-INVEST PAY" className="h-8 w-8 rounded-lg" />
           <span className="text-sm font-bold tracking-tight">FASO-INVEST <span className="text-primary">PAY</span></span>
