@@ -8,7 +8,8 @@ const SMTP_HOST = Deno.env.get('SMTP_HOST')!;
 const SMTP_PORT = Number(Deno.env.get('SMTP_PORT') ?? '465');
 const SMTP_USER = Deno.env.get('SMTP_USER')!;
 const SMTP_PASSWORD = Deno.env.get('SMTP_PASSWORD')!;
-const SMTP_FROM = Deno.env.get('SMTP_FROM') ?? SMTP_USER;
+const SMTP_FROM_RAW = Deno.env.get('SMTP_FROM');
+const SMTP_FROM = SMTP_FROM_RAW && SMTP_FROM_RAW.includes('@') ? SMTP_FROM_RAW : SMTP_USER;
 
 function html(linkUrl: string) {
   return `<!doctype html><html lang="fr"><body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial,Helvetica,sans-serif;color:#1a1a2e">
