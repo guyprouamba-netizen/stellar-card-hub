@@ -3,8 +3,8 @@
 import { callApi } from "./api-client";
 
 export const walletApi = {
-  rechargeYengapay: async (amount: number, _currency = "XOF") => {
-    const r: any = await callApi("initRecharge", { amount });
+  rechargeYengapay: async (amount: number, _currency = "XOF", returnUrl?: string) => {
+    const r: any = await callApi("initRecharge", { amount, returnUrl });
     return { data: { checkout_url: r.checkout_url, reference: r.reference } };
   },
   canAffordCard: async (amount: number, currency = "USD") => {
