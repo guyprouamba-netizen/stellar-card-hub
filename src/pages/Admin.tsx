@@ -12,7 +12,7 @@ import logo from "@/assets/logo.png";
 import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig } from "@/lib/admin.functions";
 import { toast } from "sonner";
 
-type Tab = "users" | "flow" | "strowallet" | "yengapay" | "kyc" | "withdrawals" | "settings";
+type Tab = "users" | "flow" | "strowallet" | "payments" | "kyc" | "withdrawals" | "settings";
 
 function AdminPage() {
   const navigate = useNavigate();
@@ -55,7 +55,7 @@ function AdminPage() {
               {tab === "flow" && <FlowTab data={data} />}
               {tab === "users" && <UsersTab users={data.users} onAction={refetch} />}
               {tab === "strowallet" && <StrowalletTab cards={data.cards} />}
-              {tab === "yengapay" && <YengaTab tx={data.transactions} />}
+              {tab === "payments" && <PaymentsTab tx={data.transactions} />}
               {tab === "kyc" && <KycTab kyc={data.kyc} onAction={refetch} />}
               {tab === "withdrawals" && <WithdrawalsTab withdrawals={data.withdrawals} onAction={refetch} />}
               {tab === "settings" && <SettingsTab />}
@@ -73,7 +73,7 @@ function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "flow", label: "Flux financier", Icon: TrendingUp },
     { id: "users", label: "Utilisateurs", Icon: Users },
     { id: "strowallet", label: "Cartes émises", Icon: CreditCard },
-    { id: "yengapay", label: "API YengaPay", Icon: Wallet },
+    { id: "payments", label: "Paiements entrants", Icon: Wallet },
     { id: "kyc", label: "KYC à valider", Icon: ShieldCheck },
     { id: "withdrawals", label: "Retraits à valider", Icon: ArrowDownUp },
     { id: "settings", label: "Paramètres", Icon: SlidersHorizontal },
@@ -303,11 +303,11 @@ function StrowalletTab({ cards }: { cards: any[] }) {
   );
 }
 
-function YengaTab({ tx }: { tx: any[] }) {
+function PaymentsTab({ tx }: { tx: any[] }) {
   const ypTx = tx.filter((t) => t.type === "deposit");
   return (
     <div className="space-y-6">
-      <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">API YengaPay — Derniers paiements</h1>
+      <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Derniers paiements entrants</h1>
       <SimpleTxTable items={ypTx} />
     </div>
   );

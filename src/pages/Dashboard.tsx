@@ -48,7 +48,7 @@ function Dashboard() {
     enabled: !!session,
   });
 
-  // Vérification automatique du retour YengaPay (?recharge=REF)
+  // Vérification automatique du retour passerelle de paiement (?recharge=REF)
   const verifyFn = useServerFn(verifyRecharge);
   useEffect(() => {
     if (!session) return;
@@ -79,7 +79,7 @@ function Dashboard() {
         }
       } catch { /* ignore, retry */ }
       if (attempts < 20) setTimeout(tick, 3000);
-      else toast.message("Recharge en attente, elle sera créditée dès confirmation YengaPay.");
+      else toast.message("Recharge en attente, elle sera créditée dès confirmation du paiement.");
     };
     tick();
     return () => { cancelled = true; };
@@ -303,8 +303,8 @@ function WithdrawTab({ balance, profile, onDone }: { balance: number; profile?: 
       if (res?.ok) {
         const st = res?.status;
         if (st === "paid") toast.success("Retrait effectué et envoyé sur votre Mobile Money");
-        else if (st === "processing") toast.success("Retrait en cours de traitement par YengaPay");
-        else toast.success("Retrait soumis à YengaPay — reprise manuelle seulement si aucun opérateur n'accepte la demande");
+        else if (st === "processing") toast.success("Retrait en cours de traitement");
+        else toast.success("Retrait en cours de traitement — vous recevrez une notification dès l'envoi");
         onDone();
       } else toast.error(res?.error ?? "Erreur");
     } catch (e) { toast.error((e as Error).message); } finally { setLoading(false); }
@@ -316,7 +316,7 @@ function WithdrawTab({ balance, profile, onDone }: { balance: number; profile?: 
       <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
         <Field label="Montant (XOF)"><input type="number" min={500} value={form.amount} onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })} className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 outline-none" /></Field>
         <div className="rounded-xl border border-border bg-surface-2/60 px-3 py-2 text-sm text-muted-foreground">
-          Mobile Money détecté automatiquement par YengaPay à partir du numéro saisi.
+          L'opérateur Mobile Money est détecté automatiquement à partir du numéro saisi.
         </div>
         <Field label="Numéro de téléphone Mobile Money"><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 outline-none" /></Field>
         <Field label="Nom du bénéficiaire"><input value={form.holder} onChange={(e) => setForm({ ...form, holder: e.target.value })} className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 outline-none" /></Field>
