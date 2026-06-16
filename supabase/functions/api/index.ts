@@ -55,6 +55,41 @@ function uniqueCashoutMethods(preferred?: string | null) {
   return Array.from(new Set([preferred, ...YENGAPAY_CASHOUT_METHODS].filter(Boolean))) as string[];
 }
 
+// ============= Business helpers =============
+function slugify(input: string) {
+  return String(input || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "biz";
+}
+function randomHex(bytes = 16) {
+  const b = new Uint8Array(bytes);
+  crypto.getRandomValues(b);
+  return Array.from(b).map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+async function sha256Hex(input: string) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(buf)).map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+async function ensureUniqueSlug(admin: any, table: "businesses" | "payment_links", base: string) {
+  let slug = base;
+  for (let i = 0; i < 6; i++) {
+    const { data } = await admin.from(table).select("id").eq("slug", slug).maybeSingle();
+    if (!data) return slug;
+    slug = `${base}-${randomHex(2)}`;
+  }
+  return `${base}-${randomHex(3)}`;
+}
+async function assertBusinessOwner(admin: any, userId: string, businessId: string) {
+  const { data } = await admin.from("businesses").select("id,owner_id").eq("id", businessId).maybeSingle();
+  if (!data) throw new Error("Business introuvable");
+  if (data.owner_id !== userId && !(await isAdmin(admin, userId))) throw new Error("Forbidden");
+  return data;
+}
+
 // ============= Handlers =============
 const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userClient: any }) => Promise<any>> = {
   // ---------- Dashboard ----------
