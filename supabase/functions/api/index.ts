@@ -529,7 +529,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async initRecharge({ data, user, admin }) {
     const userId = user.id;
     const reference = `FIP-${Date.now()}-${userId.slice(0, 8)}`;
-    const returnUrl = String(data.returnUrl || "");
+    const baseReturn = String(data.returnUrl || "");
+    const returnUrl = baseReturn
+      ? (baseReturn + (baseReturn.includes("?") ? "&" : "?") + `recharge=${encodeURIComponent(reference)}`)
+      : "";
     const callbackUrl = `${SUPABASE_URL}/functions/v1/yengapay-webhook`;
     const apiKey = Deno.env.get("YENGAPAY_API_KEY");
     const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
