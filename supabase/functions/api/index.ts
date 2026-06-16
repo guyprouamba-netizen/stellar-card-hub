@@ -529,13 +529,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async initRecharge({ data, user, admin }) {
     const userId = user.id;
     const reference = `FIP-${Date.now()}-${userId.slice(0, 8)}`;
-    const { error: txErr } = await admin.from("transactions").insert({
-      user_id: userId, type: "deposit", status: "pending",
-      amount: Number(data.amount), currency: "XOF",
-      provider: "yengapay", provider_ref: reference,
-      description: "Recharge YengaPay",
-    });
-    if (txErr) throw new Error(txErr.message);
+    const baseReturn = String(data.returnUrl || "");
+    const returnUrl = baseReturn
+      ? (baseReturn + (baseReturn.includes("?") ? "&" : "?") + `recharge=${encodeURIComponent(reference)}`)
+      : "";
     const callbackUrl = `${SUPABASE_URL}/functions/v1/yengapay-webhook`;
     const apiKey = Deno.env.get("YENGAPAY_API_KEY");
     const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
@@ -549,12 +546,74 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         paymentAmount: Number(data.amount), reference,
         articles: [{ title: "Recharge FASO-INVEST PAY", description: "Recharge portefeuille", pictures: [], price: Number(data.amount) }],
         callbackUrl,
+        ...(returnUrl ? { returnUrl, successUrl: returnUrl, cancelUrl: returnUrl } : {}),
       }),
     });
     const text = await res.text(); let body: any = text;
     try { body = JSON.parse(text); } catch { /**/ }
     if (!res.ok) throw new Error(`YengaPay ${res.status}: ${typeof body === "string" ? body : JSON.stringify(body)}`);
-    return { ok: true, checkout_url: body?.checkoutPageUrlWithPaymentToken || body?.checkout_url || body?.paymentUrl, reference, raw: body };
+    const paymentIntentId = body?.id || body?.paymentIntentId || body?.paymentIntent?.id || body?.data?.id || null;
+    const { error: txErr } = await admin.from("transactions").insert({
+      user_id: userId, type: "deposit", status: "pending",
+      amount: Number(data.amount), currency: "XOF",
+      provider: "yengapay", provider_ref: reference,
+      description: "Recharge YengaPay",
+      metadata: { paymentIntentId, init: body },
+    });
+    if (txErr) throw new Error(txErr.message);
+    return { ok: true, checkout_url: body?.checkoutPageUrlWithPaymentToken || body?.checkout_url || body?.paymentUrl, reference, paymentIntentId, raw: body };
+  },
+
+  // Vérifie manuellement le statut d'une recharge auprès de YengaPay et crédite le wallet si payé.
+  // Idempotent : ne crédite qu'une fois (transaction.status passe de "pending" à "success").
+  async verifyRecharge({ data, user, admin }) {
+    const userId = user.id;
+    const reference = String(data?.reference || "");
+    if (!reference) return { ok: false, error: "reference manquante" };
+    const { data: tx } = await admin
+      .from("transactions").select("id,user_id,amount,status,metadata,provider_ref")
+      .eq("provider_ref", reference).maybeSingle();
+    if (!tx) return { ok: false, error: "Transaction introuvable" };
+    if (tx.user_id !== userId && !(await isAdmin(admin, userId))) return { ok: false, error: "Forbidden" };
+    if (tx.status === "success") return { ok: true, status: "success", credited: false };
+    if (tx.status === "failed") return { ok: true, status: "failed", credited: false };
+
+    const apiKey = Deno.env.get("YENGAPAY_API_KEY");
+    const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
+    if (!apiKey || !groupId) return { ok: false, error: "YengaPay env missing" };
+    const piid = (tx.metadata as any)?.paymentIntentId;
+    const candidates: string[] = [];
+    if (piid) candidates.push(`https://api.yengapay.com/api/v1/groups/${groupId}/payment-intent/${piid}`);
+    candidates.push(`https://api.yengapay.com/api/v1/groups/${groupId}/payment-intent/reference/${reference}`);
+    let body: any = null; let ok = false;
+    for (const u of candidates) {
+      try {
+        const r = await fetch(u, { headers: { "x-api-key": apiKey } });
+        const t = await r.text(); try { body = JSON.parse(t); } catch { body = t; }
+        if (r.ok) { ok = true; break; }
+      } catch { /* try next */ }
+    }
+    if (!ok) return { ok: false, error: "YengaPay lookup failed", raw: body };
+    const st = String(body?.status || body?.paymentStatus || body?.data?.status || "").toUpperCase();
+    const paid = ["DONE", "SUCCESS", "SUCCEEDED", "COMPLETED", "PAID"].includes(st);
+    const failed = ["FAILED", "CANCELLED", "CANCELED", "EXPIRED", "REJECTED"].includes(st);
+    if (paid) {
+      // Crédit atomique idempotent
+      const { data: updated } = await admin
+        .from("transactions").update({ status: "success", metadata: { ...(tx.metadata as any), verify: body } })
+        .eq("id", tx.id).eq("status", "pending").select("id").maybeSingle();
+      if (updated) {
+        const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", tx.user_id).eq("currency", "XOF").maybeSingle();
+        if (w) await admin.from("wallets").update({ balance: Number(w.balance) + Number(tx.amount) }).eq("id", w.id);
+        return { ok: true, status: "success", credited: true };
+      }
+      return { ok: true, status: "success", credited: false };
+    }
+    if (failed) {
+      await admin.from("transactions").update({ status: "failed", metadata: { ...(tx.metadata as any), verify: body } }).eq("id", tx.id).eq("status", "pending");
+      return { ok: true, status: "failed", credited: false };
+    }
+    return { ok: true, status: "pending", credited: false, providerStatus: st };
   },
 
   // ---------- Admin ----------

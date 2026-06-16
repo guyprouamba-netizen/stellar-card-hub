@@ -1,0 +1,2 @@
+UPDATE public.transactions SET status='success', metadata = COALESCE(metadata,'{}'::jsonb) || '{"manual_credit":"reconciled by support 2026-06-16"}'::jsonb WHERE id='5654bff6-1eb5-4295-b361-1ee101686a46' AND status='pending';
+UPDATE public.wallets SET balance = balance + 500 WHERE id='a586294b-1744-413f-8c0b-5d30d8ef4c39';
