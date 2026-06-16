@@ -801,6 +801,146 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const cfg = await loadPricingConfig(admin);
     return { ok: true, config: cfg };
   },
+
+  // ============================================================
+  // BUSINESS MODULE (merchant accounts, payment links, API keys)
+  // ============================================================
+
+  async listMyBusinesses({ user, admin }) {
+    const { data, error } = await admin.from("businesses")
+      .select("id,name,slug,description,logo_url,contact_email,contact_phone,country,status,fee_bps,balance,created_at")
+      .eq("owner_id", user.id).order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  },
+
+  async createBusiness({ data, user, admin }) {
+    const name = String(data?.name || "").trim();
+    if (name.length < 2) throw new Error("Nom du business requis");
+    const slug = await ensureUniqueSlug(admin, "businesses", slugify(name));
+    const { data: row, error } = await admin.from("businesses").insert({
+      owner_id: user.id, name, slug,
+      description: data?.description || null,
+      contact_email: data?.contact_email || user.email,
+      contact_phone: data?.contact_phone || null,
+      logo_url: data?.logo_url || null,
+      country: data?.country || "BF",
+      status: "active",
+    }).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+
+  async updateBusiness({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.id);
+    const patch: Record<string, any> = {};
+    for (const k of ["name", "description", "contact_email", "contact_phone", "logo_url"]) {
+      if (data?.[k] !== undefined) patch[k] = data[k];
+    }
+    const { data: row, error } = await admin.from("businesses").update(patch).eq("id", data.id).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+
+  async listPaymentLinks({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: rows, error } = await admin.from("payment_links")
+      .select("*").eq("business_id", data.business_id).order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  },
+
+  async createPaymentLink({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const title = String(data?.title || "").trim();
+    if (title.length < 2) throw new Error("Titre requis");
+    const slug = await ensureUniqueSlug(admin, "payment_links", slugify(title) + "-" + randomHex(2));
+    const { data: row, error } = await admin.from("payment_links").insert({
+      business_id: data.business_id, slug, title,
+      description: data?.description || null,
+      amount: data?.amount ?? null,
+      min_amount: data?.min_amount ?? null,
+      max_amount: data?.max_amount ?? null,
+      currency: data?.currency || "XOF",
+      redirect_url: data?.redirect_url || null,
+      callback_url: data?.callback_url || null,
+      status: "active",
+    }).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+
+  async updatePaymentLink({ data, user, admin }) {
+    const { data: link } = await admin.from("payment_links").select("business_id").eq("id", data.id).maybeSingle();
+    if (!link) throw new Error("Lien introuvable");
+    await assertBusinessOwner(admin, user.id, link.business_id);
+    const patch: Record<string, any> = {};
+    for (const k of ["title", "description", "amount", "min_amount", "max_amount", "status", "redirect_url", "callback_url"]) {
+      if (data?.[k] !== undefined) patch[k] = data[k];
+    }
+    const { data: row, error } = await admin.from("payment_links").update(patch).eq("id", data.id).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+
+  async listLinkPayments({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const q = admin.from("payment_link_payments").select("*").eq("business_id", data.business_id).order("created_at", { ascending: false }).limit(100);
+    const { data: rows, error } = data?.link_id ? await q.eq("link_id", data.link_id) : await q;
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  },
+
+  async listApiKeys({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: rows, error } = await admin.from("business_api_keys")
+      .select("id,label,key_prefix,mode,last_used_at,revoked_at,created_at")
+      .eq("business_id", data.business_id).order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  },
+
+  async createApiKey({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const mode = data?.mode === "test" ? "test" : "live";
+    const raw = `fip_${mode === "test" ? "test" : "live"}_${randomHex(24)}`;
+    const key_hash = await sha256Hex(raw);
+    const key_prefix = raw.slice(0, 16);
+    const { data: row, error } = await admin.from("business_api_keys").insert({
+      business_id: data.business_id, label: data?.label || "default",
+      mode, key_prefix, key_hash,
+    }).select("id,label,key_prefix,mode,created_at").single();
+    if (error) throw new Error(error.message);
+    // raw retourné une seule fois — afficher au marchand puis oublier
+    return { ...row, api_key: raw };
+  },
+
+  async revokeApiKey({ data, user, admin }) {
+    const { data: key } = await admin.from("business_api_keys").select("id,business_id").eq("id", data.id).maybeSingle();
+    if (!key) throw new Error("Clé introuvable");
+    await assertBusinessOwner(admin, user.id, key.business_id);
+    await admin.from("business_api_keys").update({ revoked_at: new Date().toISOString() }).eq("id", data.id);
+    return { ok: true };
+  },
+
+  // Permet au marchand de retirer son solde vers son wallet utilisateur (XOF)
+  async cashoutBusinessBalance({ data, user, admin }) {
+    const biz = await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: b } = await admin.from("businesses").select("balance,owner_id").eq("id", biz.id).single();
+    const amount = Number(b?.balance || 0);
+    if (amount <= 0) return { ok: false, error: "Solde nul" };
+    const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", b.owner_id).eq("currency", "XOF").maybeSingle();
+    if (!w) return { ok: false, error: "Wallet XOF introuvable" };
+    await admin.from("wallets").update({ balance: Number(w.balance) + amount }).eq("id", w.id);
+    await admin.from("businesses").update({ balance: 0 }).eq("id", biz.id);
+    await admin.from("transactions").insert({
+      user_id: b.owner_id, type: "deposit", status: "success",
+      amount, currency: "XOF",
+      description: `Transfert solde business → wallet`,
+      metadata: { business_id: biz.id },
+    });
+    return { ok: true, transferred: amount };
+  },
 };
 
 Deno.serve(async (req) => {
