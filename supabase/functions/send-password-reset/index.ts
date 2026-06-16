@@ -109,8 +109,10 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
-    console.error('send-password-reset error', e);
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
+    const err = e as Error & { previous?: { smtp?: string }; smtp?: string };
+    const smtpMessage = err.previous?.smtp ?? err.smtp ?? err.message;
+    console.error('send-password-reset error', smtpMessage.replace(/bad response on command '[^']+'/g, 'bad response on SMTP auth command'));
+    return new Response(JSON.stringify({ error: 'Impossible d’envoyer l’email de réinitialisation pour le moment.' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

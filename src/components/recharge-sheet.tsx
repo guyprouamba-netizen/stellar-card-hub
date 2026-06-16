@@ -14,7 +14,8 @@ export function RechargeSheet({ open, onClose }: { open: boolean; onClose: () =>
     setLoading(true);
     setError(null);
     try {
-      const res = await walletApi.rechargeYengapay(amount, "XOF");
+      const returnUrl = `${window.location.origin}/dashboard`;
+      const res = await walletApi.rechargeYengapay(amount, "XOF", returnUrl);
       const url = res?.data?.checkout_url;
       if (url) window.location.href = url;
       else throw new Error("Lien de paiement introuvable");
