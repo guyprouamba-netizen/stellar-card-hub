@@ -504,19 +504,26 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
         if (!acceptedBody || !acceptedMethod) {
           const note = JSON.stringify(attempts).slice(0, 500);
+          // Aucun opérateur n'a accepté → refund immédiat et marquage failed
+          await admin.from("wallets").update({ balance: Number(w.balance) }).eq("id", w.id);
           await admin.from("withdrawals").update({
-            status: "pending",
+            status: "failed",
             destination: { ...baseDestination, yengapay_attempts: attempts },
             admin_note: note,
           }).eq("id", row.id);
           await admin.from("transactions").insert({
-            user_id: userId, type: "withdrawal", status: "pending",
+            user_id: userId, type: "withdrawal", status: "failed",
             amount, currency: "XOF", provider: "yengapay",
             provider_ref: row.id,
-            description: "Retrait soumis — en attente de traitement manuel",
+            description: "Retrait refusé — aucun opérateur n'a accepté",
             metadata: { attempts, destNumber },
           });
-          return { ok: true, id: row.id, status: "submitted", note: "Aucun opérateur automatique accepté" };
+          await admin.from("transactions").insert({
+            user_id: userId, type: "withdrawal_refund", status: "success",
+            amount, currency: "XOF",
+            description: "Remboursement automatique — retrait refusé",
+          });
+          return { ok: false, id: row.id, status: "failed", error: "Aucun opérateur n'a accepté ce retrait. Montant remboursé." };
         }
 
         const provStatus = String(acceptedBody?.status || "PENDING").toUpperCase();
@@ -524,7 +531,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
           ? "paid"
           : ["PENDING", "PROCESSING", "IN_PROGRESS", "ACCEPTED"].includes(provStatus)
             ? "processing"
-            : "pending";
+            : "processing";
         const newDest = { ...baseDestination, operator: acceptedMethod, yengapay: acceptedBody, yengapay_attempts: attempts };
         await admin.from("withdrawals").update({ status: mapped, destination: newDest }).eq("id", row.id);
         await admin.from("transactions").insert({
@@ -537,17 +544,24 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         });
         return { ok: true, id: row.id, status: mapped, provider: acceptedBody };
       } catch (e) {
+        // Erreur réseau / exception → refund et marquage failed
+        await admin.from("wallets").update({ balance: Number(w.balance) }).eq("id", w.id);
         await admin.from("withdrawals").update({
-          status: "pending",
+          status: "failed",
           admin_note: (e as Error).message.slice(0, 500),
         }).eq("id", row.id);
         await admin.from("transactions").insert({
-          user_id: userId, type: "withdrawal", status: "pending",
+          user_id: userId, type: "withdrawal", status: "failed",
           amount, currency: "XOF", provider: "yengapay", provider_ref: row.id,
-          description: `Retrait soumis — reprise manuelle requise`,
+          description: `Retrait échoué — ${(e as Error).message.slice(0, 100)}`,
           metadata: { error: (e as Error).message },
         });
-        return { ok: true, id: row.id, status: "submitted", note: (e as Error).message };
+        await admin.from("transactions").insert({
+          user_id: userId, type: "withdrawal_refund", status: "success",
+          amount, currency: "XOF",
+          description: "Remboursement automatique — erreur passerelle",
+        });
+        return { ok: false, id: row.id, status: "failed", error: (e as Error).message };
       }
     }
 
