@@ -14,6 +14,101 @@ export type Database = {
   }
   public: {
     Tables: {
+      business_api_keys: {
+        Row: {
+          business_id: string
+          created_at: string
+          id: string
+          key_hash: string
+          key_prefix: string
+          label: string
+          last_used_at: string | null
+          mode: string
+          revoked_at: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          id?: string
+          key_hash: string
+          key_prefix: string
+          label?: string
+          last_used_at?: string | null
+          mode?: string
+          revoked_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          label?: string
+          last_used_at?: string | null
+          mode?: string
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_api_keys_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      businesses: {
+        Row: {
+          balance: number
+          contact_email: string | null
+          contact_phone: string | null
+          country: string
+          created_at: string
+          description: string | null
+          fee_bps: number
+          id: string
+          logo_url: string | null
+          name: string
+          owner_id: string
+          slug: string
+          status: Database["public"]["Enums"]["business_status"]
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          contact_email?: string | null
+          contact_phone?: string | null
+          country?: string
+          created_at?: string
+          description?: string | null
+          fee_bps?: number
+          id?: string
+          logo_url?: string | null
+          name: string
+          owner_id: string
+          slug: string
+          status?: Database["public"]["Enums"]["business_status"]
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          contact_email?: string | null
+          contact_phone?: string | null
+          country?: string
+          created_at?: string
+          description?: string | null
+          fee_bps?: number
+          id?: string
+          logo_url?: string | null
+          name?: string
+          owner_id?: string
+          slug?: string
+          status?: Database["public"]["Enums"]["business_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cards: {
         Row: {
           auto_frozen_at: string | null
@@ -127,6 +222,146 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      payment_link_payments: {
+        Row: {
+          amount: number
+          business_id: string
+          created_at: string
+          currency: string
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          fee_amount: number
+          id: string
+          link_id: string
+          metadata: Json | null
+          net_amount: number
+          paid_at: string | null
+          payment_intent_id: string | null
+          provider: string
+          provider_ref: string | null
+          reference: string
+          status: Database["public"]["Enums"]["payment_link_payment_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          business_id: string
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          fee_amount?: number
+          id?: string
+          link_id: string
+          metadata?: Json | null
+          net_amount?: number
+          paid_at?: string | null
+          payment_intent_id?: string | null
+          provider?: string
+          provider_ref?: string | null
+          reference: string
+          status?: Database["public"]["Enums"]["payment_link_payment_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          business_id?: string
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          fee_amount?: number
+          id?: string
+          link_id?: string
+          metadata?: Json | null
+          net_amount?: number
+          paid_at?: string | null
+          payment_intent_id?: string | null
+          provider?: string
+          provider_ref?: string | null
+          reference?: string
+          status?: Database["public"]["Enums"]["payment_link_payment_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_link_payments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_link_payments_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "payment_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_links: {
+        Row: {
+          amount: number | null
+          business_id: string
+          callback_url: string | null
+          created_at: string
+          currency: string
+          description: string | null
+          id: string
+          max_amount: number | null
+          min_amount: number | null
+          redirect_url: string | null
+          slug: string
+          status: Database["public"]["Enums"]["payment_link_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          business_id: string
+          callback_url?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          max_amount?: number | null
+          min_amount?: number | null
+          redirect_url?: string | null
+          slug: string
+          status?: Database["public"]["Enums"]["payment_link_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          business_id?: string
+          callback_url?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          max_amount?: number | null
+          min_amount?: number | null
+          redirect_url?: string | null
+          slug?: string
+          status?: Database["public"]["Enums"]["payment_link_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_links_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       platform_config: {
         Row: {
@@ -335,6 +570,9 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      business_status: "pending" | "active" | "suspended"
+      payment_link_payment_status: "pending" | "success" | "failed" | "expired"
+      payment_link_status: "active" | "paused" | "archived"
       tx_status: "pending" | "success" | "failed" | "cancelled"
       tx_type:
         | "deposit"
@@ -475,6 +713,9 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      business_status: ["pending", "active", "suspended"],
+      payment_link_payment_status: ["pending", "success", "failed", "expired"],
+      payment_link_status: ["active", "paused", "archived"],
       tx_status: ["pending", "success", "failed", "cancelled"],
       tx_type: [
         "deposit",
