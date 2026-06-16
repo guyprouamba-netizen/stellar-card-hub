@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.yengapay-webhook]
 verify_jwt = false
+
+[functions.pay]
+verify_jwt = false
+
+[functions.reconcile-withdrawals]
+verify_jwt = false
