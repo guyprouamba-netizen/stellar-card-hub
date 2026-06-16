@@ -15,7 +15,7 @@ import { getDashboardData } from "@/lib/dashboard.functions";
 import { cardAction } from "@/lib/strowallet.functions";
 import { cardDetails } from "@/lib/strowallet.functions";
 import { requestWithdrawal } from "@/lib/withdrawal.functions";
-import { initRecharge } from "@/lib/yengapay.functions";
+import { initRecharge, verifyRecharge } from "@/lib/yengapay.functions";
 import { IssueCardSheet } from "@/components/issue-card-sheet";
 import { VirtualCard } from "@/components/virtual-card";
 import { toast } from "sonner";
@@ -47,6 +47,43 @@ function Dashboard() {
     queryFn: () => fetchDash(),
     enabled: !!session,
   });
+
+  // Vérification automatique du retour YengaPay (?recharge=REF)
+  const verifyFn = useServerFn(verifyRecharge);
+  useEffect(() => {
+    if (!session) return;
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("recharge");
+    if (!ref) return;
+    let cancelled = false;
+    let attempts = 0;
+    const tick = async () => {
+      if (cancelled) return;
+      attempts++;
+      try {
+        const r: any = await verifyFn({ data: { reference: ref } });
+        if (r?.status === "success") {
+          toast.success(r.credited ? "Recharge créditée sur votre compte ✅" : "Recharge déjà créditée");
+          const url = new URL(window.location.href);
+          url.searchParams.delete("recharge");
+          window.history.replaceState({}, "", url.toString());
+          refetch();
+          return;
+        }
+        if (r?.status === "failed") {
+          toast.error("Recharge échouée ou annulée");
+          const url = new URL(window.location.href);
+          url.searchParams.delete("recharge");
+          window.history.replaceState({}, "", url.toString());
+          return;
+        }
+      } catch { /* ignore, retry */ }
+      if (attempts < 20) setTimeout(tick, 3000);
+      else toast.message("Recharge en attente, elle sera créditée dès confirmation YengaPay.");
+    };
+    tick();
+    return () => { cancelled = true; };
+  }, [session]);
 
   if (checkingAuth) return <FullPageLoader />;
   if (!session) return null;
@@ -217,7 +254,8 @@ function DepositTab({ onDone }: { onDone: () => void }) {
   async function pay() {
     setLoading(true);
     try {
-      const res: any = await init({ data: { amount, currency: "XOF" } });
+      const returnUrl = `${window.location.origin}/dashboard`;
+      const res: any = await init({ data: { amount, currency: "XOF", returnUrl } });
       if (res?.checkout_url) window.location.href = res.checkout_url;
       else toast.error(res?.error ?? "Erreur Mobile Money");
     } catch (e) { toast.error((e as Error).message); } finally { setLoading(false); onDone(); }
