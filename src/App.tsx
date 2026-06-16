@@ -7,6 +7,8 @@ import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
 import Cards from "@/pages/Cards";
 import Wallet from "@/pages/Wallet";
+import Business from "@/pages/Business";
+import Pay from "@/pages/Pay";
 import NotFound from "@/pages/NotFound";
 
 export default function App() {
@@ -20,6 +22,8 @@ export default function App() {
       <Route path="/admin" element={<Admin />} />
       <Route path="/cards" element={<Cards />} />
       <Route path="/wallet" element={<Wallet />} />
+      <Route path="/business" element={<Business />} />
+      <Route path="/pay/:slug" element={<Pay />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
