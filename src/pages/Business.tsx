@@ -5,14 +5,17 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   listMyBusinesses, createBusiness, listPaymentLinks, createPaymentLink,
   updatePaymentLink, listLinkPayments, listApiKeys, createApiKey, revokeApiKey,
-  cashoutBusinessBalance,
+  cashoutBusinessBalance, listProjects, createProject, getBusinessDashboard,
 } from "@/lib/business.functions";
-import { ArrowLeft, Building2, Copy, Key, Link2, Plus, Trash2, Wallet } from "lucide-react";
+import { uploadBusinessMedia } from "@/lib/upload";
+import { ArrowLeft, Building2, Copy, Key, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles } from "lucide-react";
 
 type Biz = { id: string; name: string; slug: string; status: string; balance: number; fee_bps: number };
 type PLink = { id: string; slug: string; title: string; amount: number | null; currency: string; status: string };
 type Payment = { id: string; reference: string; amount: number; status: string; net_amount: number; created_at: string };
 type ApiKey = { id: string; label: string; key_prefix: string; mode: string; revoked_at: string | null; last_used_at: string | null };
+type Project = { id: string; name: string; slug: string; logo_url: string | null; cover_url: string | null; balance: number; financial_goal: number; currency: string; status: string };
+type Dashboard = { business: any; projects: Project[]; kpis: { total30: number; totalPrev: number; trend: number; count30: number; light: "red" | "yellow" | "green" }; series: Array<{ date: string; value: number }> };
 
 export default function BusinessPage() {
   const navigate = useNavigate();
@@ -23,6 +26,8 @@ export default function BusinessPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [newKey, setNewKey] = useState<string | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [dash, setDash] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,10 +44,11 @@ export default function BusinessPage() {
     setLoading(false);
   }
   async function refreshCurrent(bizId: string) {
-    const [l, p, k] = await Promise.all([
+    const [l, p, k, pr, d] = await Promise.all([
       listPaymentLinks(bizId), listLinkPayments(bizId), listApiKeys(bizId),
+      listProjects(bizId), getBusinessDashboard(bizId),
     ]);
-    setLinks(l); setPayments(p); setKeys(k);
+    setLinks(l); setPayments(p); setKeys(k); setProjects(pr); setDash(d);
   }
   useEffect(() => { if (session) refreshAll(); /* eslint-disable-next-line */ }, [session]);
   useEffect(() => { if (current) refreshCurrent(current.id); }, [current?.id]);
@@ -103,7 +109,26 @@ export default function BusinessPage() {
     } catch (e: any) { toast.error(e.message); }
   }
 
+  async function onCreateProject() {
+    if (!current) return;
+    const name = prompt("Nom du projet (ex: Boutique Faso, Atelier couture)");
+    if (!name) return;
+    const goalStr = prompt("Objectif financier en XOF (optionnel)") || "0";
+    try {
+      const p = await createProject({ business_id: current.id, name, financial_goal: Number(goalStr) || 0 });
+      toast.success("Projet créé ✅");
+      setProjects((prev) => [p, ...prev]);
+    } catch (e: any) { toast.error(e.message); }
+  }
+
   function copy(text: string) { navigator.clipboard.writeText(text); toast.success("Copié"); }
+
+  const lightColors: Record<string, string> = {
+    green: "from-emerald-500/30 to-emerald-500/5 border-emerald-500/40 text-emerald-400",
+    yellow: "from-amber-500/30 to-amber-500/5 border-amber-500/40 text-amber-400",
+    red: "from-red-500/30 to-red-500/5 border-red-500/40 text-red-400",
+  };
+  const lightLabel: Record<string, string> = { green: "🟢 En croissance", yellow: "🟡 Stable", red: "🔴 En baisse" };
 
   if (loading) return <div className="grid min-h-screen place-items-center text-muted-foreground">Chargement…</div>;
 
@@ -162,7 +187,73 @@ export default function BusinessPage() {
                       </button>
                     </div>
                   </div>
+                  {dash && (
+                    <div className={`mt-6 grid gap-3 rounded-2xl border bg-gradient-to-br p-5 sm:grid-cols-3 ${lightColors[dash.kpis.light]}`}>
+                      <div>
+                        <p className="text-xs uppercase tracking-wider opacity-70">État (30j)</p>
+                        <p className="mt-1 text-xl font-bold">{lightLabel[dash.kpis.light]}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-wider opacity-70">Encaissé 30j</p>
+                        <p className="mt-1 font-[Space_Grotesk] text-2xl font-bold tabular-nums text-foreground">{dash.kpis.total30.toLocaleString("fr-FR")} <span className="text-sm opacity-70">XOF</span></p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-wider opacity-70">Tendance vs 30j précédents</p>
+                        <p className="mt-1 inline-flex items-center gap-1 text-2xl font-bold">
+                          {dash.kpis.trend >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+                          {(dash.kpis.trend * 100).toFixed(0)}%
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
+
+                {/* Projects */}
+                <section className="mt-8">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="font-[Space_Grotesk] text-xl font-bold inline-flex items-center gap-2"><FolderKanban className="h-5 w-5" /> Mes projets</h3>
+                    <button onClick={onCreateProject} className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow">
+                      <Plus className="h-3.5 w-3.5" /> Nouveau projet
+                    </button>
+                  </div>
+                  {projects.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-border bg-surface-2 p-8 text-center">
+                      <Sparkles className="mx-auto h-8 w-8 text-muted-foreground" />
+                      <p className="mt-3 text-sm text-muted-foreground">Créez votre premier projet pour ajouter produits, liens, QR codes, factures et un coach IA dédié.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {projects.map((p) => {
+                        const pct = p.financial_goal > 0 ? Math.min(100, (Number(p.balance) / Number(p.financial_goal)) * 100) : 0;
+                        const status = pct >= 100 ? "green" : pct >= 50 ? "yellow" : Number(p.balance) === 0 ? "red" : "yellow";
+                        return (
+                          <Link key={p.id} to={`/business/${current.id}/projects/${p.id}`}
+                            className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition hover:border-primary/40 hover:shadow-glow">
+                            {p.cover_url && <div className="absolute inset-0 opacity-10" style={{ backgroundImage: `url(${p.cover_url})`, backgroundSize: "cover" }} />}
+                            <div className="relative">
+                              <div className="flex items-center gap-3">
+                                {p.logo_url ? <img src={p.logo_url} className="h-10 w-10 rounded-xl object-cover" alt="" />
+                                  : <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-primary text-sm font-bold text-primary-foreground">{p.name[0]}</div>}
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate font-bold">{p.name}</p>
+                                  <p className="text-[10px] text-muted-foreground">{p.currency}</p>
+                                </div>
+                                <span className={`grid h-3 w-3 place-items-center rounded-full ${status === "green" ? "bg-emerald-500" : status === "yellow" ? "bg-amber-500" : "bg-red-500"} shadow-[0_0_12px_currentColor]`} />
+                              </div>
+                              <p className="mt-4 font-[Space_Grotesk] text-xl font-bold tabular-nums">{Number(p.balance).toLocaleString("fr-FR")} <span className="text-xs text-muted-foreground">/ {Number(p.financial_goal).toLocaleString("fr-FR")}</span></p>
+                              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                                <div className="h-full rounded-full bg-gradient-primary" style={{ width: `${pct}%` }} />
+                              </div>
+                              <div className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary opacity-0 transition group-hover:opacity-100">
+                                Ouvrir <ChevronRight className="h-3 w-3" />
+                              </div>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
 
                 {/* Payment links */}
                 <section className="mt-8">
