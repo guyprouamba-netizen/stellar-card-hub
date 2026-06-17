@@ -455,7 +455,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
     // Auto-payout via YengaPay cash-out pour Mobile Money
     if (data.method === "mobile_money") {
-      const apiKey = Deno.env.get("YENGAPAY_API_KEY");
+      // Clé dédiée cash-out (scope payout) avec fallback sur la clé générale.
+      const apiKey = Deno.env.get("YENGAPAY_CASHOUT_API_KEY") || Deno.env.get("YENGAPAY_API_KEY");
       const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
       const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
       const destNumber = normalizeBfPhone(data.phone);
