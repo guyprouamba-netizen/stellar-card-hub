@@ -16,6 +16,7 @@ export default function PayPage() {
   const [amount, setAmount] = useState<number>(0);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [verifyStatus, setVerifyStatus] = useState<"idle" | "checking" | "success" | "failed" | "pending">("idle");
 
@@ -53,6 +54,7 @@ export default function PayPage() {
     try {
       const r: any = await initCheckout({
         slug, amount: ctx.link.amount ? undefined : amount,
+        customer_email: email,
         customer_name: name || undefined, customer_phone: phone || undefined,
         returnUrl: window.location.origin + window.location.pathname,
       });
@@ -135,6 +137,8 @@ export default function PayPage() {
             <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Téléphone (optionnel)"
               className="rounded-2xl border border-border bg-surface-2 px-4 py-3 text-sm outline-none focus:border-primary" />
           </div>
+          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Votre email (pour recevoir le reçu) *"
+            className="mt-3 w-full rounded-2xl border border-border bg-surface-2 px-4 py-3 text-sm outline-none focus:border-primary" />
 
           <div className="mt-6 flex items-center gap-3 rounded-2xl border border-primary/40 bg-primary/5 p-3">
             <Smartphone className="h-4 w-4 text-primary" />
@@ -143,7 +147,7 @@ export default function PayPage() {
 
           {error && <p className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
 
-          <button onClick={submit} disabled={submitting || amount <= 0 || verifyStatus === "checking"}
+          <button onClick={submit} disabled={submitting || amount <= 0 || !email || verifyStatus === "checking"}
             className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
             {submitting || verifyStatus === "checking" ? <Loader2 className="h-4 w-4 animate-spin" /> : `Payer ${Number(amount).toLocaleString("fr-FR")} ${ctx.link.currency}`}
           </button>

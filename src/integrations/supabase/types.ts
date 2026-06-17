@@ -14,8 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
+      action_plans: {
+        Row: {
+          ai_generated: boolean
+          business_id: string
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          project_id: string
+          status: string
+          steps: Json
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          ai_generated?: boolean
+          business_id: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          project_id: string
+          status?: string
+          steps?: Json
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          ai_generated?: boolean
+          business_id?: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          project_id?: string
+          status?: string
+          steps?: Json
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "action_plans_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_plans_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      api_key_usage: {
+        Row: {
+          count: number
+          id: string
+          key_id: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          id?: string
+          key_id: string
+          window_start: string
+        }
+        Update: {
+          count?: number
+          id?: string
+          key_id?: string
+          window_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_key_usage_key_id_fkey"
+            columns: ["key_id"]
+            isOneToOne: false
+            referencedRelation: "business_api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_api_keys: {
         Row: {
+          allowed_ips: string[]
           business_id: string
           created_at: string
           id: string
@@ -24,9 +111,14 @@ export type Database = {
           label: string
           last_used_at: string | null
           mode: string
+          rate_limit_per_min: number
           revoked_at: string | null
+          scopes: string[]
+          webhook_secret: string | null
+          webhook_url: string | null
         }
         Insert: {
+          allowed_ips?: string[]
           business_id: string
           created_at?: string
           id?: string
@@ -35,9 +127,14 @@ export type Database = {
           label?: string
           last_used_at?: string | null
           mode?: string
+          rate_limit_per_min?: number
           revoked_at?: string | null
+          scopes?: string[]
+          webhook_secret?: string | null
+          webhook_url?: string | null
         }
         Update: {
+          allowed_ips?: string[]
           business_id?: string
           created_at?: string
           id?: string
@@ -46,11 +143,59 @@ export type Database = {
           label?: string
           last_used_at?: string | null
           mode?: string
+          rate_limit_per_min?: number
           revoked_at?: string | null
+          scopes?: string[]
+          webhook_secret?: string | null
+          webhook_url?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "business_api_keys_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          business_id: string | null
+          created_at: string
+          id: string
+          ip: unknown
+          metadata: Json
+          target: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          business_id?: string | null
+          created_at?: string
+          id?: string
+          ip?: unknown
+          metadata?: Json
+          target?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          business_id?: string | null
+          created_at?: string
+          id?: string
+          ip?: unknown
+          metadata?: Json
+          target?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_audit_log_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
@@ -160,6 +305,142 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_messages: {
+        Row: {
+          business_id: string
+          content: string
+          created_at: string
+          id: string
+          kind: string
+          metadata: Json
+          project_id: string | null
+          read_at: string | null
+          role: string
+        }
+        Insert: {
+          business_id: string
+          content: string
+          created_at?: string
+          id?: string
+          kind?: string
+          metadata?: Json
+          project_id?: string | null
+          read_at?: string | null
+          role?: string
+        }
+        Update: {
+          business_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          metadata?: Json
+          project_id?: string | null
+          read_at?: string | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_messages_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_messages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          business_id: string
+          created_at: string
+          currency: string
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          id: string
+          items: Json
+          kind: string
+          number: string
+          payment_id: string | null
+          pdf_url: string | null
+          project_id: string | null
+          status: string
+          subtotal: number
+          tax: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          items?: Json
+          kind?: string
+          number: string
+          payment_id?: string | null
+          pdf_url?: string | null
+          project_id?: string | null
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          items?: Json
+          kind?: string
+          number?: string
+          payment_id?: string | null
+          pdf_url?: string | null
+          project_id?: string | null
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payment_link_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kyc_submissions: {
         Row: {
           address: string | null
@@ -234,16 +515,22 @@ export type Database = {
           customer_phone: string | null
           fee_amount: number
           id: string
+          ip: unknown
           link_id: string
           metadata: Json | null
           net_amount: number
           paid_at: string | null
           payment_intent_id: string | null
+          product_id: string | null
+          project_id: string | null
           provider: string
           provider_ref: string | null
+          receipt_sent_at: string | null
+          receipt_url: string | null
           reference: string
           status: Database["public"]["Enums"]["payment_link_payment_status"]
           updated_at: string
+          user_agent: string | null
         }
         Insert: {
           amount: number
@@ -255,16 +542,22 @@ export type Database = {
           customer_phone?: string | null
           fee_amount?: number
           id?: string
+          ip?: unknown
           link_id: string
           metadata?: Json | null
           net_amount?: number
           paid_at?: string | null
           payment_intent_id?: string | null
+          product_id?: string | null
+          project_id?: string | null
           provider?: string
           provider_ref?: string | null
+          receipt_sent_at?: string | null
+          receipt_url?: string | null
           reference: string
           status?: Database["public"]["Enums"]["payment_link_payment_status"]
           updated_at?: string
+          user_agent?: string | null
         }
         Update: {
           amount?: number
@@ -276,16 +569,22 @@ export type Database = {
           customer_phone?: string | null
           fee_amount?: number
           id?: string
+          ip?: unknown
           link_id?: string
           metadata?: Json | null
           net_amount?: number
           paid_at?: string | null
           payment_intent_id?: string | null
+          product_id?: string | null
+          project_id?: string | null
           provider?: string
           provider_ref?: string | null
+          receipt_sent_at?: string | null
+          receipt_url?: string | null
           reference?: string
           status?: Database["public"]["Enums"]["payment_link_payment_status"]
           updated_at?: string
+          user_agent?: string | null
         }
         Relationships: [
           {
@@ -302,6 +601,20 @@ export type Database = {
             referencedRelation: "payment_links"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "payment_link_payments_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_link_payments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
         ]
       }
       payment_links: {
@@ -309,12 +622,15 @@ export type Database = {
           amount: number | null
           business_id: string
           callback_url: string | null
+          channel: string
           created_at: string
           currency: string
           description: string | null
           id: string
           max_amount: number | null
           min_amount: number | null
+          product_id: string | null
+          project_id: string | null
           redirect_url: string | null
           slug: string
           status: Database["public"]["Enums"]["payment_link_status"]
@@ -325,12 +641,15 @@ export type Database = {
           amount?: number | null
           business_id: string
           callback_url?: string | null
+          channel?: string
           created_at?: string
           currency?: string
           description?: string | null
           id?: string
           max_amount?: number | null
           min_amount?: number | null
+          product_id?: string | null
+          project_id?: string | null
           redirect_url?: string | null
           slug: string
           status?: Database["public"]["Enums"]["payment_link_status"]
@@ -341,12 +660,15 @@ export type Database = {
           amount?: number | null
           business_id?: string
           callback_url?: string | null
+          channel?: string
           created_at?: string
           currency?: string
           description?: string | null
           id?: string
           max_amount?: number | null
           min_amount?: number | null
+          product_id?: string | null
+          project_id?: string | null
           redirect_url?: string | null
           slug?: string
           status?: Database["public"]["Enums"]["payment_link_status"]
@@ -359,6 +681,20 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_links_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_links_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -380,6 +716,104 @@ export type Database = {
           value?: Json
         }
         Relationships: []
+      }
+      product_media: {
+        Row: {
+          created_at: string
+          id: string
+          position: number
+          product_id: string
+          type: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          position?: number
+          product_id: string
+          type?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          position?: number
+          product_id?: string
+          type?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_media_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          business_id: string
+          created_at: string
+          currency: string
+          description: string | null
+          id: string
+          name: string
+          price: number
+          project_id: string
+          sku: string | null
+          slug: string
+          status: string
+          stock: number | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          name: string
+          price?: number
+          project_id: string
+          sku?: string | null
+          slug: string
+          status?: string
+          stock?: number | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          name?: string
+          price?: number
+          project_id?: string
+          sku?: string | null
+          slug?: string
+          status?: string
+          stock?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -414,6 +848,92 @@ export type Database = {
           phone?: string | null
           strowallet_customer_id?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          balance: number
+          business_id: string
+          cover_url: string | null
+          created_at: string
+          currency: string
+          description: string | null
+          financial_goal: number
+          goal_deadline: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          slug: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          business_id: string
+          cover_url?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          financial_goal?: number
+          goal_deadline?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+          slug: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          business_id?: string
+          cover_url?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          financial_goal?: number
+          goal_deadline?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          slug?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_subscriptions: {
+        Row: {
+          created_at: string
+          endpoint: string
+          id: string
+          keys: Json
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          endpoint: string
+          id?: string
+          keys: Json
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string
+          id?: string
+          keys?: Json
+          user_agent?: string | null
+          user_id?: string
         }
         Relationships: []
       }

@@ -865,6 +865,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       currency: data?.currency || "XOF",
       redirect_url: data?.redirect_url || null,
       callback_url: data?.callback_url || null,
+      project_id: data?.project_id || null,
+      product_id: data?.product_id || null,
+      channel: data?.channel || "online",
       status: "active",
     }).select("*").single();
     if (error) throw new Error(error.message);
@@ -941,6 +944,256 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       metadata: { business_id: biz.id },
     });
     return { ok: true, transferred: amount };
+  },
+
+  // ===========================================================
+  // PROJECTS
+  // ===========================================================
+  async listProjects({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: rows, error } = await admin.from("projects")
+      .select("*").eq("business_id", data.business_id).order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  },
+  async createProject({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const name = String(data?.name || "").trim();
+    if (name.length < 2) throw new Error("Nom requis");
+    let baseSlug = slugify(name);
+    let slug = baseSlug;
+    for (let i = 0; i < 6; i++) {
+      const { data: ex } = await admin.from("projects").select("id").eq("slug", slug).maybeSingle();
+      if (!ex) break;
+      slug = `${baseSlug}-${randomHex(2)}`;
+    }
+    const { data: row, error } = await admin.from("projects").insert({
+      business_id: data.business_id, name, slug,
+      description: data?.description || null,
+      logo_url: data?.logo_url || null,
+      cover_url: data?.cover_url || null,
+      currency: data?.currency || "XOF",
+      financial_goal: data?.financial_goal || 0,
+      goal_deadline: data?.goal_deadline || null,
+    }).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+  async updateProject({ data, user, admin }) {
+    const { data: p } = await admin.from("projects").select("business_id").eq("id", data.id).maybeSingle();
+    if (!p) throw new Error("Projet introuvable");
+    await assertBusinessOwner(admin, user.id, p.business_id);
+    const patch: Record<string, any> = {};
+    for (const k of ["name", "description", "logo_url", "cover_url", "currency", "financial_goal", "goal_deadline", "status"]) {
+      if (data?.[k] !== undefined) patch[k] = data[k];
+    }
+    const { data: row, error } = await admin.from("projects").update(patch).eq("id", data.id).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+  async deleteProject({ data, user, admin }) {
+    const { data: p } = await admin.from("projects").select("business_id").eq("id", data.id).maybeSingle();
+    if (!p) throw new Error("Projet introuvable");
+    await assertBusinessOwner(admin, user.id, p.business_id);
+    await admin.from("projects").delete().eq("id", data.id);
+    return { ok: true };
+  },
+
+  // ===========================================================
+  // PRODUCTS
+  // ===========================================================
+  async listProducts({ data, user, admin }) {
+    const { data: p } = await admin.from("projects").select("business_id").eq("id", data.project_id).maybeSingle();
+    if (!p) throw new Error("Projet introuvable");
+    await assertBusinessOwner(admin, user.id, p.business_id);
+    const { data: rows, error } = await admin.from("products")
+      .select("*, product_media(id,type,url,position)").eq("project_id", data.project_id)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  },
+  async createProduct({ data, user, admin }) {
+    const { data: p } = await admin.from("projects").select("business_id").eq("id", data.project_id).maybeSingle();
+    if (!p) throw new Error("Projet introuvable");
+    await assertBusinessOwner(admin, user.id, p.business_id);
+    const name = String(data?.name || "").trim();
+    if (name.length < 2) throw new Error("Nom requis");
+    const slug = slugify(name) + "-" + randomHex(2);
+    const { data: row, error } = await admin.from("products").insert({
+      project_id: data.project_id, business_id: p.business_id,
+      name, slug,
+      description: data?.description || null,
+      price: Number(data?.price || 0),
+      currency: data?.currency || "XOF",
+      sku: data?.sku || null,
+      stock: data?.stock ?? null,
+    }).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+  async updateProduct({ data, user, admin }) {
+    const { data: prod } = await admin.from("products").select("business_id").eq("id", data.id).maybeSingle();
+    if (!prod) throw new Error("Produit introuvable");
+    await assertBusinessOwner(admin, user.id, prod.business_id);
+    const patch: Record<string, any> = {};
+    for (const k of ["name", "description", "price", "currency", "sku", "stock", "status"]) {
+      if (data?.[k] !== undefined) patch[k] = data[k];
+    }
+    const { data: row, error } = await admin.from("products").update(patch).eq("id", data.id).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+  async deleteProduct({ data, user, admin }) {
+    const { data: prod } = await admin.from("products").select("business_id").eq("id", data.id).maybeSingle();
+    if (!prod) throw new Error("Produit introuvable");
+    await assertBusinessOwner(admin, user.id, prod.business_id);
+    await admin.from("products").delete().eq("id", data.id);
+    return { ok: true };
+  },
+  async addProductMedia({ data, user, admin }) {
+    const { data: prod } = await admin.from("products").select("business_id").eq("id", data.product_id).maybeSingle();
+    if (!prod) throw new Error("Produit introuvable");
+    await assertBusinessOwner(admin, user.id, prod.business_id);
+    const { data: row, error } = await admin.from("product_media").insert({
+      product_id: data.product_id, type: data.type || "image", url: data.url, position: data.position || 0,
+    }).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+  async deleteProductMedia({ data, user, admin }) {
+    const { data: m } = await admin.from("product_media").select("product_id, products!inner(business_id)").eq("id", data.id).maybeSingle();
+    if (!m) throw new Error("Média introuvable");
+    await assertBusinessOwner(admin, user.id, (m as any).products.business_id);
+    await admin.from("product_media").delete().eq("id", data.id);
+    return { ok: true };
+  },
+
+  // ===========================================================
+  // INVOICES / RECEIPTS
+  // ===========================================================
+  async listInvoices({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const q = admin.from("invoices").select("*").eq("business_id", data.business_id).order("created_at", { ascending: false }).limit(100);
+    const { data: rows, error } = data?.project_id ? await q.eq("project_id", data.project_id) : await q;
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  },
+  async createInvoice({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    // Auto-number: BIZSLUG-YYYYMM-XXXX
+    const { data: biz } = await admin.from("businesses").select("slug").eq("id", data.business_id).single();
+    const ym = new Date().toISOString().slice(0, 7).replace("-", "");
+    const { count } = await admin.from("invoices").select("id", { count: "exact", head: true }).eq("business_id", data.business_id);
+    const number = `${(biz?.slug || "INV").toUpperCase().slice(0, 6)}-${ym}-${String((count || 0) + 1).padStart(4, "0")}`;
+    const items = Array.isArray(data.items) ? data.items : [];
+    const subtotal = items.reduce((s: number, it: any) => s + Number(it.qty || 1) * Number(it.price || 0), 0);
+    const tax = Number(data.tax || 0);
+    const total = subtotal + tax;
+    const { data: row, error } = await admin.from("invoices").insert({
+      business_id: data.business_id, project_id: data.project_id || null,
+      payment_id: data.payment_id || null,
+      kind: data.kind || "receipt", number,
+      customer_name: data.customer_name || null,
+      customer_email: data.customer_email || null,
+      customer_phone: data.customer_phone || null,
+      items, subtotal, tax, total,
+      currency: data.currency || "XOF",
+      status: data.status || "issued",
+      pdf_url: data.pdf_url || null,
+    }).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+  async updateInvoice({ data, user, admin }) {
+    const { data: inv } = await admin.from("invoices").select("business_id").eq("id", data.id).maybeSingle();
+    if (!inv) throw new Error("Facture introuvable");
+    await assertBusinessOwner(admin, user.id, inv.business_id);
+    const patch: Record<string, any> = {};
+    for (const k of ["status", "pdf_url", "customer_name", "customer_email", "customer_phone"]) {
+      if (data?.[k] !== undefined) patch[k] = data[k];
+    }
+    const { data: row, error } = await admin.from("invoices").update(patch).eq("id", data.id).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+
+  // ===========================================================
+  // ACTION PLANS
+  // ===========================================================
+  async listActionPlans({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const q = admin.from("action_plans").select("*").eq("business_id", data.business_id).order("created_at", { ascending: false });
+    const { data: rows, error } = data?.project_id ? await q.eq("project_id", data.project_id) : await q;
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  },
+  async createActionPlan({ data, user, admin }) {
+    const { data: p } = await admin.from("projects").select("business_id").eq("id", data.project_id).maybeSingle();
+    if (!p) throw new Error("Projet introuvable");
+    await assertBusinessOwner(admin, user.id, p.business_id);
+    const { data: row, error } = await admin.from("action_plans").insert({
+      project_id: data.project_id, business_id: p.business_id,
+      title: data.title, description: data.description || null,
+      steps: data.steps || [], due_date: data.due_date || null,
+    }).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+  async updateActionPlan({ data, user, admin }) {
+    const { data: pl } = await admin.from("action_plans").select("business_id").eq("id", data.id).maybeSingle();
+    if (!pl) throw new Error("Plan introuvable");
+    await assertBusinessOwner(admin, user.id, pl.business_id);
+    const patch: Record<string, any> = {};
+    for (const k of ["title", "description", "steps", "status", "due_date"]) {
+      if (data?.[k] !== undefined) patch[k] = data[k];
+    }
+    const { data: row, error } = await admin.from("action_plans").update(patch).eq("id", data.id).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+  async deleteActionPlan({ data, user, admin }) {
+    const { data: pl } = await admin.from("action_plans").select("business_id").eq("id", data.id).maybeSingle();
+    if (!pl) throw new Error("Plan introuvable");
+    await assertBusinessOwner(admin, user.id, pl.business_id);
+    await admin.from("action_plans").delete().eq("id", data.id);
+    return { ok: true };
+  },
+
+  // ===========================================================
+  // BUSINESS DASHBOARD (financial summary + traffic light)
+  // ===========================================================
+  async getBusinessDashboard({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const since = new Date(Date.now() - 30 * 86400_000).toISOString();
+    const prev = new Date(Date.now() - 60 * 86400_000).toISOString();
+    const [{ data: biz }, { data: projects }, { data: pays30 }, { data: paysPrev }] = await Promise.all([
+      admin.from("businesses").select("id,name,balance,fee_bps,currency").eq("id", data.business_id).single(),
+      admin.from("projects").select("id,name,balance,financial_goal,goal_deadline,currency,status").eq("business_id", data.business_id),
+      admin.from("payment_link_payments").select("amount,net_amount,fee_amount,status,created_at,project_id").eq("business_id", data.business_id).gte("created_at", since),
+      admin.from("payment_link_payments").select("net_amount,status").eq("business_id", data.business_id).gte("created_at", prev).lt("created_at", since),
+    ]);
+    const ok30 = (pays30 || []).filter((p: any) => p.status === "success");
+    const okPrev = (paysPrev || []).filter((p: any) => p.status === "success");
+    const total30 = ok30.reduce((s: number, p: any) => s + Number(p.net_amount || 0), 0);
+    const totalPrev = okPrev.reduce((s: number, p: any) => s + Number(p.net_amount || 0), 0);
+    const trend = totalPrev > 0 ? (total30 - totalPrev) / totalPrev : (total30 > 0 ? 1 : 0);
+    // Traffic light: vert si tendance >+10% ET total30>0 ; rouge si tendance <-20% ou total30=0 ; jaune sinon
+    const light = total30 === 0 || trend < -0.2 ? "red" : trend > 0.1 ? "green" : "yellow";
+    // Daily series last 30 days
+    const byDay: Record<string, number> = {};
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400_000).toISOString().slice(0, 10);
+      byDay[d] = 0;
+    }
+    for (const p of ok30) {
+      const d = String(p.created_at).slice(0, 10);
+      if (d in byDay) byDay[d] += Number(p.net_amount || 0);
+    }
+    return {
+      business: biz, projects: projects || [],
+      kpis: { total30, totalPrev, trend, count30: ok30.length, light },
+      series: Object.entries(byDay).map(([date, value]) => ({ date, value })),
+    };
   },
 };
 
