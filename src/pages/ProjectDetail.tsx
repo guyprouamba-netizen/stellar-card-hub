@@ -95,7 +95,7 @@ export default function ProjectDetailPage() {
   }
 
   async function onCreateLinkForProduct(prod: any) {
-    const channelAns = window.prompt("Canal: online / pos / both", "both") || "both";
+    const channelAns = (window.prompt("Canal: online / pos / both", "both") || "both") as "online" | "pos" | "both";
     try {
       const l = await createPaymentLink({
         business_id: businessId, project_id: projectId, product_id: prod.id,
