@@ -11,6 +11,7 @@ export const createPaymentLink = (data: {
   business_id: string; title: string; description?: string;
   amount?: number | null; min_amount?: number | null; max_amount?: number | null;
   currency?: string; redirect_url?: string; callback_url?: string;
+  project_id?: string; product_id?: string; channel?: "online" | "pos" | "both";
 }) => callApi("createPaymentLink", data);
 export const updatePaymentLink = (data: { id: string; [k: string]: any }) => callApi("updatePaymentLink", data);
 
