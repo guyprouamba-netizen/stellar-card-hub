@@ -5,6 +5,7 @@
 // and external systems use this endpoint.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
+import { sendEmail, receiptHtml } from "../_shared/email.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -90,7 +91,7 @@ function mapStatus(raw: string): "pending" | "success" | "failed" {
 // Crédite atomiquement le marchand si paiement marqué success (idempotent).
 async function settlePayment(db: any, paymentId: string, providerBody: any) {
   const { data: tx } = await db.from("payment_link_payments")
-    .select("id,business_id,amount,status,fee_amount,net_amount").eq("id", paymentId).maybeSingle();
+    .select("id,business_id,amount,status,fee_amount,net_amount,reference,currency,customer_email,customer_name,link_id,project_id,product_id").eq("id", paymentId).maybeSingle();
   if (!tx || tx.status !== "pending") return { credited: false };
   const { data: biz } = await db.from("businesses").select("id,balance,fee_bps").eq("id", tx.business_id).single();
   const fee = Math.round((Number(tx.amount) * Number(biz.fee_bps || 0)) / 10000);
@@ -102,6 +103,42 @@ async function settlePayment(db: any, paymentId: string, providerBody: any) {
   }).eq("id", paymentId).eq("status", "pending").select("id").maybeSingle();
   if (!updated) return { credited: false };
   await db.from("businesses").update({ balance: Number(biz.balance) + net }).eq("id", biz.id);
+  // Also credit project balance if linked
+  if ((tx as any).project_id) {
+    const { data: proj } = await db.from("projects").select("id,balance").eq("id", (tx as any).project_id).maybeSingle();
+    if (proj) await db.from("projects").update({ balance: Number(proj.balance) + net }).eq("id", proj.id);
+  }
+  // Auto-generate receipt invoice
+  try {
+    const { data: link } = await db.from("payment_links").select("title").eq("id", (tx as any).link_id).maybeSingle();
+    const { data: bizFull } = await db.from("businesses").select("name,slug").eq("id", tx.business_id).single();
+    const ym = new Date().toISOString().slice(0, 7).replace("-", "");
+    const { count } = await db.from("invoices").select("id", { count: "exact", head: true }).eq("business_id", tx.business_id);
+    const number = `${String(bizFull.slug).toUpperCase().slice(0, 6)}-${ym}-${String((count || 0) + 1).padStart(4, "0")}`;
+    await db.from("invoices").insert({
+      business_id: tx.business_id, project_id: (tx as any).project_id || null,
+      payment_id: tx.id, kind: "receipt", number,
+      customer_name: (tx as any).customer_name, customer_email: (tx as any).customer_email,
+      items: [{ label: link?.title || "Paiement", qty: 1, price: Number(tx.amount) }],
+      subtotal: Number(tx.amount), tax: 0, total: Number(tx.amount),
+      currency: tx.currency, status: "paid",
+    });
+    // Send confirmation email
+    if ((tx as any).customer_email) {
+      const html = receiptHtml({
+        business: bizFull.name, reference: (tx as any).reference,
+        amount: Number(tx.amount), currency: tx.currency,
+        title: link?.title || "Paiement", date: new Date().toLocaleString("fr-FR"),
+      });
+      await sendEmail({
+        to: (tx as any).customer_email,
+        subject: `Reçu ${number} — ${bizFull.name}`,
+        html, text: `Paiement confirmé de ${tx.amount} ${tx.currency} à ${bizFull.name}. Référence ${(tx as any).reference}.`,
+        fromName: bizFull.name,
+      }).catch((e) => console.error("receipt email failed", e));
+      await db.from("payment_link_payments").update({ receipt_sent_at: new Date().toISOString() }).eq("id", tx.id);
+    }
+  } catch (e) { console.error("invoice/email pipeline", e); }
   return { credited: true, fee, net };
 }
 
@@ -125,6 +162,11 @@ async function initCheckout(body: any) {
   const ctx = await getPublicLink(slug);
   if (!ctx) throw new Error("Lien introuvable ou inactif");
   const { link, business } = ctx;
+  // Email obligatoire pour recevoir le reçu (sécurité + UX)
+  const customerEmail = String(body?.customer_email || "").trim().toLowerCase();
+  if (!customerEmail || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(customerEmail)) {
+    throw new Error("Email client requis pour recevoir le reçu");
+  }
   let amount = Number(link.amount);
   if (!link.amount) {
     amount = Number(body?.amount);
@@ -145,10 +187,12 @@ async function initCheckout(body: any) {
   });
   const { error } = await db.from("payment_link_payments").insert({
     link_id: link.id, business_id: business.id,
+    project_id: (link as any).project_id || null,
+    product_id: (link as any).product_id || null,
     reference, amount, currency: link.currency,
     customer_name: body?.customer_name || null,
     customer_phone: body?.customer_phone || null,
-    customer_email: body?.customer_email || null,
+    customer_email: customerEmail,
     provider: "yengapay",
     payment_intent_id: yp.paymentIntentId,
     metadata: { init: yp.raw },
