@@ -5,7 +5,7 @@ import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const YENGAPAY_API_KEY = Deno.env.get("YENGAPAY_API_KEY");
+const YENGAPAY_API_KEY = Deno.env.get("YENGAPAY_CASHOUT_API_KEY") || Deno.env.get("YENGAPAY_API_KEY");
 const YENGAPAY_GROUP_ID = Deno.env.get("YENGAPAY_GROUP_ID");
 
 function db() { return createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } }); }
