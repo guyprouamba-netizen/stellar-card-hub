@@ -254,12 +254,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (d.last4) upd.last4 = String(d.last4);
       if (d.brand) upd.brand = String(d.brand).toLowerCase();
       // Ne pas écraser le statut depuis l'API : seul l'utilisateur via cardAction peut le changer.
-      // Ne pas écraser le solde depuis l'API si Strowallet renvoie 0/undefined alors
-      // que la carte a un solde local positif (les recharges peuvent ne pas être
-      // immédiatement reflétées côté provider). On garde uniquement les mises à jour positives.
-      if (d.balance !== null && Number.isFinite(Number(d.balance)) && Number(d.balance) > 0) {
-        upd.balance = Number(d.balance);
-      }
+      if (d.balance !== null && Number.isFinite(Number(d.balance))) upd.balance = Number(d.balance);
       // Si Strowallet a remis la carte en "frozen" sans action user, on tente une réactivation silencieuse.
       const st = String(d.status || "").toLowerCase();
       if (st === "frozen") {
@@ -273,9 +268,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
             upd.metadata = { provider_sync: ensured.attempts, details: ensured.details };
             if (parsed.last4) upd.last4 = String(parsed.last4);
             if (parsed.brand) upd.brand = String(parsed.brand).toLowerCase();
-            if (parsed.balance !== null && Number.isFinite(Number(parsed.balance)) && Number(parsed.balance) > 0) {
-              upd.balance = Number(parsed.balance);
-            }
+            if (parsed.balance !== null && Number.isFinite(Number(parsed.balance))) upd.balance = Number(parsed.balance);
           } catch (e) {
             upd.status = "frozen";
             upd.metadata = { provider_unfreeze_error: (e as Error).message, details: res };
@@ -333,78 +326,27 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!card || card.user_id !== user.id) {
       if (!(await isAdmin(admin, user.id))) return { ok: false, error: "Carte introuvable" };
     }
-    const ownerId = card?.user_id || user.id;
-    const TX_TYPES = ["card_issue", "card_fund", "card_withdraw", "card_terminated", "card_auto_freeze", "card_tx", "card_fee"];
-
-    // 1) Toujours charger d'abord les mouvements locaux liés à la carte (recharges, retraits, émission, etc.)
-    let localItems: any[] = [];
     try {
-      const { data: local } = await admin.from("transactions")
-        .select("id,type,status,amount,currency,description,provider_ref,metadata,created_at")
-        .eq("user_id", ownerId)
-        .in("type", TX_TYPES)
-        .order("created_at", { ascending: false })
-        .limit(200);
-      localItems = (local ?? []).filter((t: any) => {
-        if (t.provider_ref === data.card_id) return true;
-        if (typeof t.provider_ref === "string" && t.provider_ref.includes(data.card_id)) return true;
-        const meta = (t.metadata as any) || {};
-        return meta.card_id === data.card_id || meta?.raw?.card_id === data.card_id;
-      });
-    } catch (_) { /* ignore — on continue avec Strowallet */ }
-
-    // 2) Tente Strowallet — toute erreur est capturée et exposée via `warning`
-    let strowalletItems: any[] = [];
-    let warning: string | undefined;
-    let raw: any = null;
-    try {
-      raw = await SW.getNfcCardHistory(data.card_id);
-      const body: any = (raw as any)?.response ?? (raw as any)?.data ?? raw;
-      strowalletItems = Array.isArray(body) ? body : Array.isArray(body?.response) ? body.response : Array.isArray(body?.data) ? body.data : [];
-      // Journalisation (best-effort, ne bloque jamais le retour)
-      for (const t of strowalletItems) {
+      const res = await SW.getNfcCardHistory(data.card_id);
+      // Journalisation : enregistre chaque transaction carte dans `transactions` (dédup par provider_ref).
+      const raw: any = (res as any)?.response ?? (res as any)?.data ?? res;
+      const items: any[] = Array.isArray(raw) ? raw : Array.isArray(raw?.response) ? raw.response : Array.isArray(raw?.data) ? raw.data : [];
+      const ownerId = card?.user_id || user.id;
+      for (const t of items) {
         const sig = `cardtx:${data.card_id}:${t.id || t.transaction_id || t.reference || `${t.date || t.created_at || ""}-${t.amount || ""}`}`;
-        try {
-          const { data: existing } = await admin.from("transactions").select("id").eq("provider_ref", sig).maybeSingle();
-          if (existing) continue;
-          await admin.from("transactions").insert({
-            user_id: ownerId, type: "card_tx",
-            status: String(t.status || t.transaction_status || "success").toLowerCase().includes("fail") ? "failed" : "success",
-            amount: Number(t.amount || 0), currency: String(t.currency || "USD"),
-            provider: "strowallet", provider_ref: sig,
-            description: t.description || t.narration || t.type || "Transaction carte",
-            metadata: { card_id: data.card_id, raw: t },
-          });
-        } catch (_) { /* dédup ou enum inconnu → on saute cette ligne */ }
+        const { data: existing } = await admin.from("transactions").select("id").eq("provider_ref", sig).maybeSingle();
+        if (existing) continue;
+        await admin.from("transactions").insert({
+          user_id: ownerId, type: "card_tx",
+          status: String(t.status || t.transaction_status || "success").toLowerCase().includes("fail") ? "failed" : "success",
+          amount: Number(t.amount || 0), currency: String(t.currency || "USD"),
+          provider: "strowallet", provider_ref: sig,
+          description: t.description || t.narration || t.type || "Transaction carte",
+          metadata: { card_id: data.card_id, raw: t },
+        });
       }
-    } catch (e) {
-      warning = `Strowallet indisponible: ${(e as Error).message}`;
-    }
-
-    const merged = [
-      ...localItems.map((t: any) => ({
-        source: "local",
-        date: t.created_at,
-        description: t.description,
-        amount: t.amount,
-        currency: t.currency,
-        status: t.status,
-        type: t.type,
-        metadata: t.metadata,
-      })),
-      ...strowalletItems.map((t: any) => ({
-        source: "strowallet",
-        date: t.date || t.created_at || t.transaction_date,
-        description: t.description || t.narration || t.type || "Transaction carte",
-        amount: Number(t.amount || 0),
-        currency: t.currency || "USD",
-        status: t.status || t.transaction_status || "success",
-        type: t.type || "card_charge",
-        metadata: t,
-      })),
-    ].sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
-
-    return { ok: true, data: raw, merged, warning };
+      return { ok: true, data: res };
+    } catch (e) { return { ok: false, error: (e as Error).message }; }
   },
 
   async fundCard({ data, user, admin, userClient }) {

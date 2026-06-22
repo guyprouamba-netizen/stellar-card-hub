@@ -255,45 +255,33 @@ function FundDialog({ cardId, onClose, onDone }: { cardId: string; onClose: () =
 
 function TransactionsDialog({ cardId, onClose }: { cardId: string; onClose: () => void }) {
   const fn = useServerFn(listCardTransactions);
-  const q = useQuery({
-    queryKey: ["card-tx", cardId],
-    queryFn: () => fn({ data: { card_id: cardId } }),
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
+  const q = useQuery({ queryKey: ["card-tx", cardId], queryFn: () => fn({ data: { card_id: cardId } }) });
   const res = q.data as any;
-  // Liste fusionnée renvoyée par le serveur (mouvements locaux + Strowallet)
-  const list: any[] = Array.isArray(res?.merged) ? res.merged : [];
+  const raw = res?.data ?? res;
+  const list: any[] = Array.isArray(raw?.response) ? raw.response : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader><DialogTitle>Historique de la carte</DialogTitle></DialogHeader>
         {q.isLoading ? (
           <div className="flex items-center justify-center py-8 text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Chargement…</div>
-        ) : q.isError ? (
-          <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{(q.error as Error)?.message || "Erreur de chargement"}</div>
         ) : res?.ok === false ? (
           <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{res.error}</div>
         ) : list.length === 0 ? (
-          <>
-            {res?.warning && <div className="mb-2 rounded-lg bg-warning/10 p-2 text-xs text-warning">{res.warning}</div>}
-            <p className="py-6 text-center text-sm text-muted-foreground">Aucune transaction pour cette carte.</p>
-          </>
+          <p className="py-6 text-center text-sm text-muted-foreground">Aucune transaction pour cette carte.</p>
         ) : (
           <div className="max-h-[60vh] overflow-y-auto">
-            {res?.warning && <div className="mb-2 rounded-lg bg-warning/10 p-2 text-xs text-warning">{res.warning}</div>}
             <table className="w-full text-sm">
               <thead className="text-xs uppercase text-muted-foreground">
-                <tr><th className="text-left py-2">Date</th><th className="text-left">Description</th><th className="text-right">Montant</th><th className="text-right">Statut</th><th className="text-right">Source</th></tr>
+                <tr><th className="text-left py-2">Date</th><th className="text-left">Description</th><th className="text-right">Montant</th><th className="text-right">Statut</th></tr>
               </thead>
               <tbody>
                 {list.map((t, i) => (
                   <tr key={i} className="border-t border-border/40">
-                    <td className="py-2 text-muted-foreground">{t.date ? new Date(t.date).toLocaleString("fr-FR") : "—"}</td>
-                    <td>{t.description || "—"}</td>
+                    <td className="py-2 text-muted-foreground">{t.date || t.created_at || t.transaction_date || "—"}</td>
+                    <td>{t.description || t.narration || t.type || "—"}</td>
                     <td className="text-right tabular-nums">{t.amount ? `${t.amount} ${t.currency || "USD"}` : "—"}</td>
-                    <td className="text-right">{t.status || "—"}</td>
-                    <td className="text-right text-xs text-muted-foreground">{t.source || "api"}</td>
+                    <td className="text-right">{t.status || t.transaction_status || "—"}</td>
                   </tr>
                 ))}
               </tbody>
