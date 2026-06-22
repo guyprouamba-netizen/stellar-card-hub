@@ -257,8 +257,18 @@ function TransactionsDialog({ cardId, onClose }: { cardId: string; onClose: () =
   const fn = useServerFn(listCardTransactions);
   const q = useQuery({ queryKey: ["card-tx", cardId], queryFn: () => fn({ data: { card_id: cardId } }) });
   const res = q.data as any;
-  const raw = res?.data ?? res;
-  const list: any[] = Array.isArray(raw?.response) ? raw.response : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
+  // Liste fusionnée renvoyée par le serveur (mouvements locaux + Strowallet)
+  let list: any[] = Array.isArray(res?.merged) ? res.merged : [];
+  if (list.length === 0) {
+    const raw = res?.data ?? res;
+    const apiItems: any[] = Array.isArray(raw?.response) ? raw.response : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
+    list = apiItems.map((t: any) => ({
+      date: t.date || t.created_at || t.transaction_date,
+      description: t.description || t.narration || t.type,
+      amount: t.amount, currency: t.currency || "USD",
+      status: t.status || t.transaction_status,
+    }));
+  }
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl">
@@ -271,17 +281,19 @@ function TransactionsDialog({ cardId, onClose }: { cardId: string; onClose: () =
           <p className="py-6 text-center text-sm text-muted-foreground">Aucune transaction pour cette carte.</p>
         ) : (
           <div className="max-h-[60vh] overflow-y-auto">
+            {res?.warning && <div className="mb-2 rounded-lg bg-warning/10 p-2 text-xs text-warning">{res.warning}</div>}
             <table className="w-full text-sm">
               <thead className="text-xs uppercase text-muted-foreground">
-                <tr><th className="text-left py-2">Date</th><th className="text-left">Description</th><th className="text-right">Montant</th><th className="text-right">Statut</th></tr>
+                <tr><th className="text-left py-2">Date</th><th className="text-left">Description</th><th className="text-right">Montant</th><th className="text-right">Statut</th><th className="text-right">Source</th></tr>
               </thead>
               <tbody>
                 {list.map((t, i) => (
                   <tr key={i} className="border-t border-border/40">
-                    <td className="py-2 text-muted-foreground">{t.date || t.created_at || t.transaction_date || "—"}</td>
-                    <td>{t.description || t.narration || t.type || "—"}</td>
+                    <td className="py-2 text-muted-foreground">{t.date ? new Date(t.date).toLocaleString("fr-FR") : "—"}</td>
+                    <td>{t.description || "—"}</td>
                     <td className="text-right tabular-nums">{t.amount ? `${t.amount} ${t.currency || "USD"}` : "—"}</td>
-                    <td className="text-right">{t.status || t.transaction_status || "—"}</td>
+                    <td className="text-right">{t.status || "—"}</td>
+                    <td className="text-right text-xs text-muted-foreground">{t.source || "api"}</td>
                   </tr>
                 ))}
               </tbody>
