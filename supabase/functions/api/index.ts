@@ -254,7 +254,12 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (d.last4) upd.last4 = String(d.last4);
       if (d.brand) upd.brand = String(d.brand).toLowerCase();
       // Ne pas écraser le statut depuis l'API : seul l'utilisateur via cardAction peut le changer.
-      if (d.balance !== null && Number.isFinite(Number(d.balance))) upd.balance = Number(d.balance);
+      // Ne pas écraser le solde depuis l'API si Strowallet renvoie 0/undefined alors
+      // que la carte a un solde local positif (les recharges peuvent ne pas être
+      // immédiatement reflétées côté provider). On garde uniquement les mises à jour positives.
+      if (d.balance !== null && Number.isFinite(Number(d.balance)) && Number(d.balance) > 0) {
+        upd.balance = Number(d.balance);
+      }
       // Si Strowallet a remis la carte en "frozen" sans action user, on tente une réactivation silencieuse.
       const st = String(d.status || "").toLowerCase();
       if (st === "frozen") {
@@ -268,7 +273,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
             upd.metadata = { provider_sync: ensured.attempts, details: ensured.details };
             if (parsed.last4) upd.last4 = String(parsed.last4);
             if (parsed.brand) upd.brand = String(parsed.brand).toLowerCase();
-            if (parsed.balance !== null && Number.isFinite(Number(parsed.balance))) upd.balance = Number(parsed.balance);
+            if (parsed.balance !== null && Number.isFinite(Number(parsed.balance)) && Number(parsed.balance) > 0) {
+              upd.balance = Number(parsed.balance);
+            }
           } catch (e) {
             upd.status = "frozen";
             upd.metadata = { provider_unfreeze_error: (e as Error).message, details: res };
