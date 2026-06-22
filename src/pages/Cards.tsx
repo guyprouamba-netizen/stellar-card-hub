@@ -255,30 +255,30 @@ function FundDialog({ cardId, onClose, onDone }: { cardId: string; onClose: () =
 
 function TransactionsDialog({ cardId, onClose }: { cardId: string; onClose: () => void }) {
   const fn = useServerFn(listCardTransactions);
-  const q = useQuery({
-    queryKey: ["card-tx", cardId],
-    queryFn: () => fn({ data: { card_id: cardId } }),
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
+  const q = useQuery({ queryKey: ["card-tx", cardId], queryFn: () => fn({ data: { card_id: cardId } }) });
   const res = q.data as any;
   // Liste fusionnée renvoyée par le serveur (mouvements locaux + Strowallet)
-  const list: any[] = Array.isArray(res?.merged) ? res.merged : [];
+  let list: any[] = Array.isArray(res?.merged) ? res.merged : [];
+  if (list.length === 0) {
+    const raw = res?.data ?? res;
+    const apiItems: any[] = Array.isArray(raw?.response) ? raw.response : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
+    list = apiItems.map((t: any) => ({
+      date: t.date || t.created_at || t.transaction_date,
+      description: t.description || t.narration || t.type,
+      amount: t.amount, currency: t.currency || "USD",
+      status: t.status || t.transaction_status,
+    }));
+  }
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader><DialogTitle>Historique de la carte</DialogTitle></DialogHeader>
         {q.isLoading ? (
           <div className="flex items-center justify-center py-8 text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Chargement…</div>
-        ) : q.isError ? (
-          <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{(q.error as Error)?.message || "Erreur de chargement"}</div>
         ) : res?.ok === false ? (
           <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{res.error}</div>
         ) : list.length === 0 ? (
-          <>
-            {res?.warning && <div className="mb-2 rounded-lg bg-warning/10 p-2 text-xs text-warning">{res.warning}</div>}
-            <p className="py-6 text-center text-sm text-muted-foreground">Aucune transaction pour cette carte.</p>
-          </>
+          <p className="py-6 text-center text-sm text-muted-foreground">Aucune transaction pour cette carte.</p>
         ) : (
           <div className="max-h-[60vh] overflow-y-auto">
             {res?.warning && <div className="mb-2 rounded-lg bg-warning/10 p-2 text-xs text-warning">{res.warning}</div>}
