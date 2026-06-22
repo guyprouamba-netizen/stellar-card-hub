@@ -345,8 +345,65 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
           metadata: { card_id: data.card_id, raw: t },
         });
       }
-      return { ok: true, data: res };
-    } catch (e) { return { ok: false, error: (e as Error).message }; }
+      // Fusion : ajoute aussi les mouvements locaux liés à cette carte
+      // (card_issue, card_fund, card_withdraw, card_terminated, card_auto_freeze, card_tx)
+      const ownerId2 = card?.user_id || user.id;
+      const { data: local } = await admin.from("transactions")
+        .select("id,type,status,amount,currency,description,provider_ref,metadata,created_at")
+        .eq("user_id", ownerId2)
+        .in("type", ["card_issue", "card_fund", "card_withdraw", "card_terminated", "card_auto_freeze", "card_tx"])
+        .order("created_at", { ascending: false })
+        .limit(200);
+      const filtered = (local ?? []).filter((t: any) => {
+        if (t.provider_ref === data.card_id) return true;
+        if (typeof t.provider_ref === "string" && t.provider_ref.includes(data.card_id)) return true;
+        const meta = (t.metadata as any) || {};
+        return meta.card_id === data.card_id || meta?.raw?.card_id === data.card_id;
+      });
+      const merged = [
+        ...filtered.map((t: any) => ({
+          source: "local",
+          date: t.created_at,
+          description: t.description,
+          amount: t.amount,
+          currency: t.currency,
+          status: t.status,
+          type: t.type,
+          metadata: t.metadata,
+        })),
+        ...items.map((t: any) => ({
+          source: "strowallet",
+          date: t.date || t.created_at || t.transaction_date,
+          description: t.description || t.narration || t.type || "Transaction carte",
+          amount: Number(t.amount || 0),
+          currency: t.currency || "USD",
+          status: t.status || t.transaction_status || "success",
+          type: t.type || "card_charge",
+          metadata: t,
+        })),
+      ].sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+      return { ok: true, data: res, merged };
+    } catch (e) {
+      // Strowallet KO → renvoie au moins les mouvements locaux pour ne pas masquer l'historique
+      const ownerId2 = card?.user_id || user.id;
+      const { data: local } = await admin.from("transactions")
+        .select("id,type,status,amount,currency,description,provider_ref,metadata,created_at")
+        .eq("user_id", ownerId2)
+        .in("type", ["card_issue", "card_fund", "card_withdraw", "card_terminated", "card_auto_freeze", "card_tx"])
+        .order("created_at", { ascending: false })
+        .limit(200);
+      const filtered = (local ?? []).filter((t: any) => {
+        if (t.provider_ref === data.card_id) return true;
+        if (typeof t.provider_ref === "string" && t.provider_ref.includes(data.card_id)) return true;
+        const meta = (t.metadata as any) || {};
+        return meta.card_id === data.card_id || meta?.raw?.card_id === data.card_id;
+      });
+      const merged = filtered.map((t: any) => ({
+        source: "local", date: t.created_at, description: t.description,
+        amount: t.amount, currency: t.currency, status: t.status, type: t.type, metadata: t.metadata,
+      }));
+      return { ok: true, merged, warning: `Strowallet indisponible: ${(e as Error).message}` };
+    }
   },
 
   async fundCard({ data, user, admin, userClient }) {
