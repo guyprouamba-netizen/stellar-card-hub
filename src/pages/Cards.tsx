@@ -304,8 +304,13 @@ function TransactionsDialog({ cardId, onClose }: { cardId: string; onClose: () =
               <tbody>
                 {list.map((t, i) => (
                   <tr key={i} className="border-t border-border/40">
-                    <td className="py-2 text-muted-foreground">{t.date || t.created_at || t.transaction_date || "—"}</td>
-                    <td>{t.description || t.narration || t.type || "—"}</td>
+                    <td className="py-2 text-muted-foreground">{t.date || t.created_at || t.transaction_date || t.createdAt || "—"}</td>
+                    <td>
+                      <div className="font-medium">{t.merchant_name || t.merchant || t.merchantName || t.description || t.narration || t.type || "—"}</div>
+                      {(t.merchant_category || t.category || t.merchantCategory) && (
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{t.merchant_category || t.category || t.merchantCategory}</div>
+                      )}
+                    </td>
                     <td className="text-right tabular-nums">{t.amount ? `${t.amount} ${t.currency || "USD"}` : "—"}</td>
                     <td className="text-right">{t.status || t.transaction_status || "—"}</td>
                   </tr>
