@@ -61,12 +61,13 @@ function CardsPage() {
   const cards = (cardsQ.data ?? []) as Array<{
     id: string; brand: string | null; last4: string | null; currency: string;
     balance: number; status: string; provider_card_id: string | null;
+    metadata?: any;
   }>;
 
   const fetchDetails = useServerFn(cardDetails);
   const [details, setDetails] = useState<Record<string, { number?: string; cvv?: string; expiry?: string; holder?: string }>>({});
   async function loadDetails(provider_card_id: string) {
-    if (details[provider_card_id]?.number) return;
+    if (details[provider_card_id]?.number && details[provider_card_id]?.number !== "0000000000000000") return;
     try {
       const r: any = await fetchDetails({ data: { card_id: provider_card_id } });
       const raw = r?.response?.card_detail ?? r?.data?.card_detail ?? r?.card_detail ?? r?.response ?? r?.data ?? r ?? {};
@@ -78,9 +79,21 @@ function CardsPage() {
     } catch { /* silencieux */ }
   }
 
-  // Précharge automatiquement les détails (numéro 16 chiffres, expiration, titulaire) pour toutes les cartes
+  // Précharge depuis cache `metadata` (rapide) puis force un refresh API pour la vérité-terrain.
   useEffect(() => {
-    cards.forEach((c) => { if (c.provider_card_id) loadDetails(c.provider_card_id); });
+    cards.forEach((c) => {
+      if (!c.provider_card_id) return;
+      const cached = (c.metadata as any)?.response?.card_detail ?? (c.metadata as any)?.card_detail;
+      if (cached) {
+        const number = cached.card_number || cached.pan;
+        const cvv = cached.cvv || cached.cvv2;
+        const exp = cached.expiry || (cached.expiry_month && cached.expiry_year ? `${String(cached.expiry_month).padStart(2, "0")}/${String(cached.expiry_year).slice(-2)}` : null);
+        const holder = cached.card_holder_name || cached.name_on_card || cached.card_name;
+        setDetails((d) => ({ ...d, [c.provider_card_id!]: { number: number ?? undefined, cvv: cvv ?? undefined, expiry: exp ?? undefined, holder: holder ?? undefined } }));
+      }
+      // Force-sync depuis Strowallet pour rafraîchir solde + statut réels.
+      refreshMut.mutate(c.provider_card_id);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cards.length]);
 
@@ -114,9 +127,16 @@ function CardsPage() {
           {cards.map((c, i) => {
             const variant = variantByIndex[i % variantByIndex.length];
             const det = c.provider_card_id ? details[c.provider_card_id] : undefined;
-            const number = det?.number || (c.last4 ? `•••• •••• •••• ${c.last4}` : "•••• •••• •••• ••••");
+            const apiDetail = (c.metadata as any)?.response?.card_detail ?? (c.metadata as any)?.card_detail;
+            const apiStatus = String(apiDetail?.card_status || "").toLowerCase();
+            const apiBalance = apiDetail?.balance != null ? Number(apiDetail.balance) : Number(c.balance);
+            const isDummyPan = !det?.number || /^0+$/.test(String(det?.number || ""));
+            const number = !isDummyPan ? det!.number! : (c.last4 && c.last4 !== "0000" ? `•••• •••• •••• ${c.last4}` : "•••• •••• •••• ••••");
+            const cvvDisplay = det?.cvv && det.cvv !== "000" ? det.cvv : undefined;
+            const expiryDisplay = det?.expiry && det.expiry !== "00/00" ? det.expiry : "••/••";
             const isActive = c.status === "active";
             const isTerminated = c.status === "terminated";
+            const providerTerminated = apiStatus === "terminated" || apiStatus === "deleted" || apiStatus === "cancelled";
             return (
               <div key={c.id} className="rounded-3xl border border-border bg-card p-4 shadow-soft sm:p-6">
                 <div className="mx-auto w-full max-w-lg">
@@ -124,14 +144,20 @@ function CardsPage() {
                   variant={variant}
                   number={number}
                   brand={(c.brand || "visa").toUpperCase()}
-                  balance={`$ ${Number(c.balance).toFixed(2)}`}
+                  balance={`$ ${apiBalance.toFixed(2)}`}
                   holder={(det?.holder || "TITULAIRE").toUpperCase()}
-                  expiry={det?.expiry || "••/••"}
-                  cvv={det?.cvv}
+                  expiry={expiryDisplay}
+                  cvv={cvvDisplay}
                   onFlip={(flipped) => { if (flipped && c.provider_card_id) loadDetails(c.provider_card_id); }}
                 />
                 </div>
-                <CardDetailsCopy det={det} />
+                {providerTerminated && (
+                  <div className="mt-4 rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+                    <p className="font-semibold">Carte résiliée par l'émetteur (Strowallet).</p>
+                    <p className="mt-1 opacity-90">Le numéro complet, le CVV et la date d'expiration ne sont plus communiqués. Solde actuel chez l'émetteur : <span className="font-mono">{apiBalance.toFixed(2)} USD</span>. Émettez une nouvelle carte pour continuer.</p>
+                  </div>
+                )}
+                <CardDetailsCopy det={{ number: !isDummyPan ? det?.number : undefined, cvv: cvvDisplay, expiry: det?.expiry && det.expiry !== "00/00" ? det.expiry : undefined, holder: det?.holder }} />
                 <BillingAddress />
                 <div className="mt-5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
