@@ -427,7 +427,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   async listMyCards({ user, userClient }) {
     const { data, error } = await userClient.from("cards")
-      .select("id,brand,last4,currency,balance,status,provider_card_id,failed_attempts,auto_frozen_at,created_at")
+      .select("id,brand,last4,currency,balance,status,provider_card_id,failed_attempts,auto_frozen_at,created_at,metadata")
       .eq("user_id", user.id).order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
