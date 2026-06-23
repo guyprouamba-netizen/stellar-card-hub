@@ -166,7 +166,7 @@ function Index() {
               <p className="mt-4 text-muted-foreground">Tous nos frais sont affichés à l'écran avant la confirmation. Le taux USD est fixe sur notre plateforme.</p>
               <ul className="mt-6 space-y-3 text-sm">
                 {[
-                  "Création de carte : 4 500 F CFA (unique, à vie)",
+                  "Création de carte : 4 500 F CFA (unique, validité 3 ans)",
                   "Taux de change : 1 USD = 869 F CFA",
                   "Frais de traitement : 1,9 $ + 1 % du chargement",
                   "Recharge Mobile Money : frais opérateur uniquement",
