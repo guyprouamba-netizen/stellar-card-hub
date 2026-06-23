@@ -1105,6 +1105,9 @@ export type Database = {
         | "withdrawal_refund"
         | "card_auto_freeze"
         | "card_fee"
+        | "card_tx"
+        | "card_withdraw"
+        | "card_terminated"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1248,6 +1251,9 @@ export const Constants = {
         "withdrawal_refund",
         "card_auto_freeze",
         "card_fee",
+        "card_tx",
+        "card_withdraw",
+        "card_terminated",
       ],
     },
   },
