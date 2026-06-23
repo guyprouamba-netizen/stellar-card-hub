@@ -253,10 +253,15 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       const upd: any = { metadata: res };
       if (d.last4) upd.last4 = String(d.last4);
       if (d.brand) upd.brand = String(d.brand).toLowerCase();
-      // Ne pas écraser le statut depuis l'API : seul l'utilisateur via cardAction peut le changer.
       if (d.balance !== null && Number.isFinite(Number(d.balance))) upd.balance = Number(d.balance);
-      // Si Strowallet a remis la carte en "frozen" sans action user, on tente une réactivation silencieuse.
       const st = String(d.status || "").toLowerCase();
+      if (st === "terminated" || st === "deleted" || st === "cancelled" || st === "canceled") {
+        upd.status = "terminated";
+      } else if (st === "active") {
+        upd.status = "active";
+        upd.failed_attempts = 0;
+        upd.auto_frozen_at = null;
+      }
       if (st === "frozen") {
         const { data: local } = await admin.from("cards").select("status,auto_frozen_at").eq("provider_card_id", data.card_id).maybeSingle();
         const frozenBySecurity = !!local?.auto_frozen_at || String(local?.status || "") === "frozen_auto";
@@ -422,7 +427,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   async listMyCards({ user, userClient }) {
     const { data, error } = await userClient.from("cards")
-      .select("id,brand,last4,currency,balance,status,provider_card_id,failed_attempts,auto_frozen_at,created_at")
+      .select("id,brand,last4,currency,balance,status,provider_card_id,failed_attempts,auto_frozen_at,created_at,metadata")
       .eq("user_id", user.id).order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
