@@ -52,7 +52,6 @@ function CardsPage() {
     mutationFn: (card_id: string) => doRefresh({ data: { card_id } }),
     onSuccess: (r: any) => {
       if (r?.ok === false) toast.error(r.error || "Rafraîchissement échoué");
-      else toast.success("Carte mise à jour");
       qc.invalidateQueries({ queryKey: ["my-cards"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -79,7 +78,8 @@ function CardsPage() {
     } catch { /* silencieux */ }
   }
 
-  // Précharge depuis cache `metadata` (rapide) puis force un refresh API pour la vérité-terrain.
+  // Précharge depuis cache `metadata` (rapide). Le refresh API se fait à la demande
+  // (bouton ↻) pour ne pas spammer Strowallet à chaque ouverture de la page.
   useEffect(() => {
     cards.forEach((c) => {
       if (!c.provider_card_id) return;
@@ -91,8 +91,6 @@ function CardsPage() {
         const holder = cached.card_holder_name || cached.name_on_card || cached.card_name;
         setDetails((d) => ({ ...d, [c.provider_card_id!]: { number: number ?? undefined, cvv: cvv ?? undefined, expiry: exp ?? undefined, holder: holder ?? undefined } }));
       }
-      // Force-sync depuis Strowallet pour rafraîchir solde + statut réels.
-      refreshMut.mutate(c.provider_card_id);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cards.length]);

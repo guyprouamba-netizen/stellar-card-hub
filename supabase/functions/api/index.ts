@@ -256,7 +256,18 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (d.balance !== null && Number.isFinite(Number(d.balance))) upd.balance = Number(d.balance);
       const st = String(d.status || "").toLowerCase();
       if (st === "terminated" || st === "deleted" || st === "cancelled" || st === "canceled") {
-        upd.status = "terminated";
+        // SÉCURITÉ : on ne résilie JAMAIS automatiquement une carte côté plateforme.
+        // Si Strowallet remonte "terminated" sans action utilisateur, on la met simplement
+        // en gel auto — l'utilisateur peut la débloquer après avoir soldé son crédit.
+        const { data: local } = await admin.from("cards").select("status,auto_frozen_at,metadata").eq("provider_card_id", data.card_id).maybeSingle();
+        const userTerminated = !!(local?.metadata as any)?.user_terminated_at;
+        if (userTerminated) {
+          upd.status = "terminated";
+        } else {
+          upd.status = "frozen_auto";
+          upd.auto_frozen_at = (local?.auto_frozen_at as any) ?? new Date().toISOString();
+          upd.metadata = { ...(local?.metadata as any || {}), provider_status: st, auto_frozen_reason: "provider_terminated", details: res };
+        }
       } else if (st === "active") {
         upd.status = "active";
         upd.failed_attempts = 0;
