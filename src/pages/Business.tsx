@@ -137,11 +137,11 @@ export default function BusinessPage() {
       <header className="border-b border-border bg-surface-1/60 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6 sm:py-4">
           <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" /> <span className="hidden xs:inline sm:inline">Dashboard</span>
+            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Dashboard</span>
           </Link>
           <h1 className="order-3 w-full text-center font-[Space_Grotesk] text-lg font-bold tracking-tight sm:order-none sm:w-auto sm:text-xl">Espace Business</h1>
           <button onClick={onCreateBusiness} className="inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-glow sm:px-4 sm:py-2 sm:text-xs">
-            <Plus className="h-3.5 w-3.5" /> <span className="hidden xs:inline">Nouveau</span><span className="hidden sm:inline"> business</span>
+            <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Nouveau business</span>
           </button>
         </div>
       </header>
