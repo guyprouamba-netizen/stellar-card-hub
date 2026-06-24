@@ -360,16 +360,32 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   },
 
   async listCardTransactions({ data, user, admin, userClient }) {
-    const { data: card } = await userClient.from("cards").select("user_id").eq("provider_card_id", data.card_id).maybeSingle();
+    const { data: card } = await userClient.from("cards").select("user_id,status").eq("provider_card_id", data.card_id).maybeSingle();
     if (!card || card.user_id !== user.id) {
       if (!(await isAdmin(admin, user.id))) return { ok: false, error: "Carte introuvable" };
     }
+    const ownerId = card?.user_id || user.id;
+    // Toujours servir l'historique conservé en BDD (disponible même si la carte est résiliée).
+    const fallbackFromDb = async () => {
+      const { data: rows } = await admin.from("transactions")
+        .select("amount,currency,status,description,created_at,metadata,provider_ref")
+        .eq("user_id", ownerId).eq("type", "card_tx")
+        .order("created_at", { ascending: false }).limit(200);
+      const items = (rows || [])
+        .filter((r: any) => (r.metadata as any)?.card_id === data.card_id)
+        .map((r: any) => ({
+          date: r.created_at, amount: r.amount, currency: r.currency, status: r.status,
+          description: r.description, ...(r.metadata as any)?.raw,
+        }));
+      return { ok: true, data: { response: items }, source: "cache" as const };
+    };
+    // Carte résiliée : l'API émetteur ne renvoie plus rien — on sert le cache.
+    if (String(card?.status || "") === "terminated") return await fallbackFromDb();
     try {
       const res = await SW.getNfcCardHistory(data.card_id);
       // Journalisation : enregistre chaque transaction carte dans `transactions` (dédup par provider_ref).
       const raw: any = (res as any)?.response ?? (res as any)?.data ?? res;
       const items: any[] = Array.isArray(raw) ? raw : Array.isArray(raw?.response) ? raw.response : Array.isArray(raw?.data) ? raw.data : [];
-      const ownerId = card?.user_id || user.id;
       for (const t of items) {
         const sig = `cardtx:${data.card_id}:${t.id || t.transaction_id || t.reference || `${t.date || t.created_at || ""}-${t.amount || ""}`}`;
         const { data: existing } = await admin.from("transactions").select("id").eq("provider_ref", sig).maybeSingle();
@@ -378,13 +394,16 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
           user_id: ownerId, type: "card_tx",
           status: String(t.status || t.transaction_status || "success").toLowerCase().includes("fail") ? "failed" : "success",
           amount: Number(t.amount || 0), currency: String(t.currency || "USD"),
-          provider: "strowallet", provider_ref: sig,
+          provider: "issuer", provider_ref: sig,
           description: t.description || t.narration || t.type || "Transaction carte",
           metadata: { card_id: data.card_id, raw: t },
         });
       }
       return { ok: true, data: res };
-    } catch (e) { return { ok: false, error: (e as Error).message }; }
+    } catch (_e) {
+      // En cas d'échec côté émetteur, on sert le cache local.
+      return await fallbackFromDb();
+    }
   },
 
   async fundCard({ data, user, admin, userClient }) {
