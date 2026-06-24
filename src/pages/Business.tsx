@@ -135,18 +135,18 @@ export default function BusinessPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border bg-surface-1/60 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6 sm:py-4">
           <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" /> Dashboard
+            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Dashboard</span>
           </Link>
-          <h1 className="font-[Space_Grotesk] text-xl font-bold tracking-tight">Espace Business</h1>
-          <button onClick={onCreateBusiness} className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow">
-            <Plus className="h-3.5 w-3.5" /> Nouveau business
+          <h1 className="order-3 w-full text-center font-[Space_Grotesk] text-lg font-bold tracking-tight sm:order-none sm:w-auto sm:text-xl">Espace Business</h1>
+          <button onClick={onCreateBusiness} className="inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-glow sm:px-4 sm:py-2 sm:text-xs">
+            <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Nouveau business</span>
           </button>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-8">
+      <main className="mx-auto max-w-6xl px-3 py-4 sm:px-6 sm:py-8">
         {businesses.length === 0 ? (
           <div className="rounded-3xl border border-border bg-card p-12 text-center">
             <Building2 className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -171,16 +171,16 @@ export default function BusinessPage() {
             {current && (
               <>
                 {/* Header card */}
-                <div className="rounded-3xl border border-border bg-card p-6 shadow-card-premium">
+                <div className="rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <p className="text-xs uppercase tracking-wider text-muted-foreground">Business</p>
-                      <h2 className="mt-1 font-[Space_Grotesk] text-3xl font-bold">{current.name}</h2>
-                      <p className="mt-1 text-xs text-muted-foreground">slug: <code className="rounded bg-muted px-1.5 py-0.5">{current.slug}</code> · commission {(current.fee_bps / 100).toFixed(2)}%</p>
+                      <h2 className="mt-1 font-[Space_Grotesk] text-2xl font-bold sm:text-3xl">{current.name}</h2>
+                      <p className="mt-1 break-all text-xs text-muted-foreground">slug: <code className="rounded bg-muted px-1.5 py-0.5">{current.slug}</code> · commission {(current.fee_bps / 100).toFixed(2)}%</p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-left sm:text-right">
                       <p className="text-xs uppercase tracking-wider text-muted-foreground">Solde encaissé</p>
-                      <p className="mt-1 font-[Space_Grotesk] text-3xl font-bold tabular-nums">{Number(current.balance).toLocaleString("fr-FR")} <span className="text-sm text-muted-foreground">XOF</span></p>
+                      <p className="mt-1 font-[Space_Grotesk] text-2xl font-bold tabular-nums sm:text-3xl">{Number(current.balance).toLocaleString("fr-FR")} <span className="text-sm text-muted-foreground">XOF</span></p>
                       <button onClick={onCashout} disabled={Number(current.balance) <= 0}
                         className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background disabled:opacity-40">
                         <Wallet className="h-3.5 w-3.5" /> Transférer vers mon wallet
@@ -291,8 +291,8 @@ export default function BusinessPage() {
                 {/* Payments */}
                 <section className="mt-8">
                   <h3 className="mb-3 font-[Space_Grotesk] text-xl font-bold">Paiements reçus</h3>
-                  <div className="overflow-hidden rounded-2xl border border-border bg-surface-2">
-                    <table className="w-full text-sm">
+                  <div className="-mx-3 overflow-x-auto rounded-2xl border border-border bg-surface-2 sm:mx-0">
+                    <table className="w-full min-w-[640px] text-sm">
                       <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
                         <tr><th className="px-4 py-3 text-left">Référence</th><th className="px-4 py-3 text-right">Montant</th><th className="px-4 py-3 text-right">Net</th><th className="px-4 py-3 text-left">Statut</th><th className="px-4 py-3 text-left">Date</th></tr>
                       </thead>

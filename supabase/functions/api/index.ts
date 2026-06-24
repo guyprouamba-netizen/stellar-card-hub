@@ -32,6 +32,26 @@ async function isAdmin(admin: any, userId: string) {
   return !!data;
 }
 
+// Rembourse le solde USD restant d'une carte vers le portefeuille XOF de son propriétaire.
+// Convertit avec le taux courant. Idempotent par provider_ref unique.
+async function refundCardBalanceToWallet(admin: any, userId: string, providerCardId: string, balanceUsd: number) {
+  if (!userId || !Number.isFinite(balanceUsd) || balanceUsd <= 0) return;
+  const cfg = await loadPricingConfig(admin);
+  const xof = Math.floor(Number(balanceUsd) * Number(cfg.usd_rate_xof || 0));
+  if (xof <= 0) return;
+  const ref = `cardrefund:${providerCardId}`;
+  const { data: existing } = await admin.from("transactions").select("id").eq("provider_ref", ref).maybeSingle();
+  if (existing) return;
+  const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", userId).eq("currency", "XOF").maybeSingle();
+  if (w) await admin.from("wallets").update({ balance: Number(w.balance) + xof }).eq("id", w.id);
+  await admin.from("transactions").insert({
+    user_id: userId, type: "card_refund", status: "success",
+    amount: xof, currency: "XOF", provider: "internal", provider_ref: ref,
+    description: `Remboursement carte résiliée : ${balanceUsd.toFixed(2)} USD → ${xof} XOF`,
+    metadata: { card_id: providerCardId, balance_usd: balanceUsd, rate: cfg.usd_rate_xof },
+  });
+}
+
 const YENGAPAY_CASHOUT_METHODS = ["ORANGE_MONEY", "MOOV_MONEY", "TELECEL_MONEY", "SANK_MONEY", "WAVE_MONEY"] as const;
 
 function mapCashoutMethod(operator?: string | null) {
@@ -256,17 +276,15 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (d.balance !== null && Number.isFinite(Number(d.balance))) upd.balance = Number(d.balance);
       const st = String(d.status || "").toLowerCase();
       if (st === "terminated" || st === "deleted" || st === "cancelled" || st === "canceled") {
-        // SÉCURITÉ : on ne résilie JAMAIS automatiquement une carte côté plateforme.
-        // Si Strowallet remonte "terminated" sans action utilisateur, on la met simplement
-        // en gel auto — l'utilisateur peut la débloquer après avoir soldé son crédit.
-        const { data: local } = await admin.from("cards").select("status,auto_frozen_at,metadata").eq("provider_card_id", data.card_id).maybeSingle();
-        const userTerminated = !!(local?.metadata as any)?.user_terminated_at;
-        if (userTerminated) {
-          upd.status = "terminated";
-        } else {
-          upd.status = "frozen_auto";
-          upd.auto_frozen_at = (local?.auto_frozen_at as any) ?? new Date().toISOString();
-          upd.metadata = { ...(local?.metadata as any || {}), provider_status: st, auto_frozen_reason: "provider_terminated", details: res };
+        // La carte a été résiliée par l'émetteur (souvent après plusieurs tentatives échouées).
+        // On marque comme résiliée ET on rembourse automatiquement le solde restant
+        // vers le portefeuille XOF du client.
+        const { data: local } = await admin.from("cards").select("status,balance,auto_frozen_at,metadata,user_id").eq("provider_card_id", data.card_id).maybeSingle();
+        upd.status = "terminated";
+        upd.metadata = { ...(local?.metadata as any || {}), provider_status: st, terminated_reason: "issuer_terminated_after_failed_attempts", details: res };
+        if (local && String(local.status) !== "terminated") {
+          await refundCardBalanceToWallet(admin, local.user_id as string, data.card_id, Number(local.balance || 0));
+          upd.balance = 0;
         }
       } else if (st === "active") {
         upd.status = "active";
@@ -297,7 +315,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   },
 
   async cardAction({ data, user, admin, userClient }) {
-    const { data: card } = await userClient.from("cards").select("id,user_id").eq("provider_card_id", data.card_id).maybeSingle();
+    const { data: card } = await userClient.from("cards").select("id,user_id,balance,status").eq("provider_card_id", data.card_id).maybeSingle();
     if (!card || card.user_id !== user.id) {
       if (!(await isAdmin(admin, user.id))) return { ok: false, error: "Carte introuvable" };
     }
@@ -324,6 +342,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (target === "active") { patch.failed_attempts = 0; patch.auto_frozen_at = null; }
       if (data.action === "unfreeze") patch.metadata = { provider_sync: (res as any)?.attempts, details: (res as any)?.details };
       await admin.from("cards").update(patch).eq("provider_card_id", data.card_id);
+      if (data.action === "terminate" && card && String(card.status) !== "terminated") {
+        await refundCardBalanceToWallet(admin, card.user_id as string, data.card_id, Number(card.balance || 0));
+        await admin.from("cards").update({ balance: 0 }).eq("provider_card_id", data.card_id);
+      }
       return { ok: true, data: res };
     } catch (e) {
       if (data.action === "terminate") {
@@ -338,16 +360,32 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   },
 
   async listCardTransactions({ data, user, admin, userClient }) {
-    const { data: card } = await userClient.from("cards").select("user_id").eq("provider_card_id", data.card_id).maybeSingle();
+    const { data: card } = await userClient.from("cards").select("user_id,status").eq("provider_card_id", data.card_id).maybeSingle();
     if (!card || card.user_id !== user.id) {
       if (!(await isAdmin(admin, user.id))) return { ok: false, error: "Carte introuvable" };
     }
+    const ownerId = card?.user_id || user.id;
+    // Toujours servir l'historique conservé en BDD (disponible même si la carte est résiliée).
+    const fallbackFromDb = async () => {
+      const { data: rows } = await admin.from("transactions")
+        .select("amount,currency,status,description,created_at,metadata,provider_ref")
+        .eq("user_id", ownerId).eq("type", "card_tx")
+        .order("created_at", { ascending: false }).limit(200);
+      const items = (rows || [])
+        .filter((r: any) => (r.metadata as any)?.card_id === data.card_id)
+        .map((r: any) => ({
+          date: r.created_at, amount: r.amount, currency: r.currency, status: r.status,
+          description: r.description, ...(r.metadata as any)?.raw,
+        }));
+      return { ok: true, data: { response: items }, source: "cache" as const };
+    };
+    // Carte résiliée : l'API émetteur ne renvoie plus rien — on sert le cache.
+    if (String(card?.status || "") === "terminated") return await fallbackFromDb();
     try {
       const res = await SW.getNfcCardHistory(data.card_id);
       // Journalisation : enregistre chaque transaction carte dans `transactions` (dédup par provider_ref).
       const raw: any = (res as any)?.response ?? (res as any)?.data ?? res;
       const items: any[] = Array.isArray(raw) ? raw : Array.isArray(raw?.response) ? raw.response : Array.isArray(raw?.data) ? raw.data : [];
-      const ownerId = card?.user_id || user.id;
       for (const t of items) {
         const sig = `cardtx:${data.card_id}:${t.id || t.transaction_id || t.reference || `${t.date || t.created_at || ""}-${t.amount || ""}`}`;
         const { data: existing } = await admin.from("transactions").select("id").eq("provider_ref", sig).maybeSingle();
@@ -356,13 +394,16 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
           user_id: ownerId, type: "card_tx",
           status: String(t.status || t.transaction_status || "success").toLowerCase().includes("fail") ? "failed" : "success",
           amount: Number(t.amount || 0), currency: String(t.currency || "USD"),
-          provider: "strowallet", provider_ref: sig,
+          provider: "issuer", provider_ref: sig,
           description: t.description || t.narration || t.type || "Transaction carte",
           metadata: { card_id: data.card_id, raw: t },
         });
       }
       return { ok: true, data: res };
-    } catch (e) { return { ok: false, error: (e as Error).message }; }
+    } catch (_e) {
+      // En cas d'échec côté émetteur, on sert le cache local.
+      return await fallbackFromDb();
+    }
   },
 
   async fundCard({ data, user, admin, userClient }) {
