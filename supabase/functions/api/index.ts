@@ -315,7 +315,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   },
 
   async cardAction({ data, user, admin, userClient }) {
-    const { data: card } = await userClient.from("cards").select("id,user_id").eq("provider_card_id", data.card_id).maybeSingle();
+    const { data: card } = await userClient.from("cards").select("id,user_id,balance,status").eq("provider_card_id", data.card_id).maybeSingle();
     if (!card || card.user_id !== user.id) {
       if (!(await isAdmin(admin, user.id))) return { ok: false, error: "Carte introuvable" };
     }
@@ -342,6 +342,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (target === "active") { patch.failed_attempts = 0; patch.auto_frozen_at = null; }
       if (data.action === "unfreeze") patch.metadata = { provider_sync: (res as any)?.attempts, details: (res as any)?.details };
       await admin.from("cards").update(patch).eq("provider_card_id", data.card_id);
+      if (data.action === "terminate" && card && String(card.status) !== "terminated") {
+        await refundCardBalanceToWallet(admin, card.user_id as string, data.card_id, Number(card.balance || 0));
+        await admin.from("cards").update({ balance: 0 }).eq("provider_card_id", data.card_id);
+      }
       return { ok: true, data: res };
     } catch (e) {
       if (data.action === "terminate") {
