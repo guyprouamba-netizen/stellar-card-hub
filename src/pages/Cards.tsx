@@ -79,7 +79,7 @@ function CardsPage() {
   }
 
   // Précharge depuis cache `metadata` (rapide). Le refresh API se fait à la demande
-  // (bouton ↻) pour ne pas spammer Strowallet à chaque ouverture de la page.
+  // (bouton ↻) pour ne pas spammer l'émetteur à chaque ouverture de la page.
   useEffect(() => {
     cards.forEach((c) => {
       if (!c.provider_card_id) return;
@@ -149,10 +149,10 @@ function CardsPage() {
                   onFlip={(flipped) => { if (flipped && c.provider_card_id) loadDetails(c.provider_card_id); }}
                 />
                 </div>
-                {providerTerminated && (
+                {(providerTerminated || isTerminated) && (
                   <div className="mt-4 rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
-                    <p className="font-semibold">Carte résiliée par l'émetteur (Strowallet).</p>
-                    <p className="mt-1 opacity-90">Le numéro complet, le CVV et la date d'expiration ne sont plus communiqués. Solde actuel chez l'émetteur : <span className="font-mono">{apiBalance.toFixed(2)} USD</span>. Émettez une nouvelle carte pour continuer.</p>
+                    <p className="font-semibold">Carte résiliée — plusieurs tentatives de paiement échouées.</p>
+                    <p className="mt-1 opacity-90">Pour votre sécurité, le numéro complet, le CVV et la date d'expiration ne sont plus accessibles. Le solde restant a été automatiquement reversé sur votre portefeuille XOF. Vous pouvez toujours consulter l'historique de cette carte ci-dessous. Émettez une nouvelle carte pour continuer.</p>
                   </div>
                 )}
                 <CardDetailsCopy det={{ number: !isDummyPan ? det?.number : undefined, cvv: cvvDisplay, expiry: det?.expiry && det.expiry !== "00/00" ? det.expiry : undefined, holder: det?.holder }} />
@@ -202,7 +202,7 @@ function CardsPage() {
                       disabled={!c.provider_card_id || refreshMut.isPending}
                       onClick={() => c.provider_card_id && refreshMut.mutate(c.provider_card_id)}
                       className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50"
-                      title="Rafraîchir depuis Strowallet"
+                      title="Synchroniser"
                     >
                       <RefreshCw className={`h-3.5 w-3.5 ${refreshMut.isPending ? "animate-spin" : ""}`} />
                     </button>
