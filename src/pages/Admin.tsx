@@ -430,8 +430,8 @@ function SettingsTab() {
       <div className="grid gap-4 rounded-2xl border border-border bg-card p-6 md:grid-cols-2">
         {field("usd_rate_xof", "Taux USD → XOF", "Combien de francs CFA pour 1 USD (ex: 869)", "0.01")}
         {field("card_issue_fee_xof", "Frais d'émission (XOF)", "Marge plateforme par carte émise (ex: 4500)", "1")}
-        {field("strowallet_fixed_fee_usd", "Frais fixe émetteur (USD)", "Frais Strowallet par opération (ex: 1.90)", "0.01")}
-        {field("strowallet_pct_fee", "Frais % émetteur", "Pourcentage Strowallet en décimal (ex: 0.01 = 1%)", "0.001")}
+        {field("strowallet_fixed_fee_usd", "Frais fixe émetteur (USD)", "Frais émetteur par opération (ex: 1.90)", "0.01")}
+        {field("strowallet_pct_fee", "Frais % émetteur", "Pourcentage émetteur en décimal (ex: 0.01 = 1%)", "0.001")}
       </div>
       <div className="flex justify-end gap-2">
         <button onClick={() => setDraft(cfg)} className="rounded-full border border-border bg-surface-2 px-4 py-2 text-sm">Réinitialiser</button>
