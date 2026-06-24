@@ -256,17 +256,15 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (d.balance !== null && Number.isFinite(Number(d.balance))) upd.balance = Number(d.balance);
       const st = String(d.status || "").toLowerCase();
       if (st === "terminated" || st === "deleted" || st === "cancelled" || st === "canceled") {
-        // SÉCURITÉ : on ne résilie JAMAIS automatiquement une carte côté plateforme.
-        // Si Strowallet remonte "terminated" sans action utilisateur, on la met simplement
-        // en gel auto — l'utilisateur peut la débloquer après avoir soldé son crédit.
-        const { data: local } = await admin.from("cards").select("status,auto_frozen_at,metadata").eq("provider_card_id", data.card_id).maybeSingle();
-        const userTerminated = !!(local?.metadata as any)?.user_terminated_at;
-        if (userTerminated) {
-          upd.status = "terminated";
-        } else {
-          upd.status = "frozen_auto";
-          upd.auto_frozen_at = (local?.auto_frozen_at as any) ?? new Date().toISOString();
-          upd.metadata = { ...(local?.metadata as any || {}), provider_status: st, auto_frozen_reason: "provider_terminated", details: res };
+        // La carte a été résiliée par l'émetteur (souvent après plusieurs tentatives échouées).
+        // On marque comme résiliée ET on rembourse automatiquement le solde restant
+        // vers le portefeuille XOF du client.
+        const { data: local } = await admin.from("cards").select("status,balance,auto_frozen_at,metadata,user_id").eq("provider_card_id", data.card_id).maybeSingle();
+        upd.status = "terminated";
+        upd.metadata = { ...(local?.metadata as any || {}), provider_status: st, terminated_reason: "issuer_terminated_after_failed_attempts", details: res };
+        if (local && String(local.status) !== "terminated") {
+          await refundCardBalanceToWallet(admin, local.user_id as string, data.card_id, Number(local.balance || 0));
+          upd.balance = 0;
         }
       } else if (st === "active") {
         upd.status = "active";
