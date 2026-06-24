@@ -32,6 +32,26 @@ async function isAdmin(admin: any, userId: string) {
   return !!data;
 }
 
+// Rembourse le solde USD restant d'une carte vers le portefeuille XOF de son propriétaire.
+// Convertit avec le taux courant. Idempotent par provider_ref unique.
+async function refundCardBalanceToWallet(admin: any, userId: string, providerCardId: string, balanceUsd: number) {
+  if (!userId || !Number.isFinite(balanceUsd) || balanceUsd <= 0) return;
+  const cfg = await loadPricingConfig(admin);
+  const xof = Math.floor(Number(balanceUsd) * Number(cfg.usd_rate_xof || 0));
+  if (xof <= 0) return;
+  const ref = `cardrefund:${providerCardId}`;
+  const { data: existing } = await admin.from("transactions").select("id").eq("provider_ref", ref).maybeSingle();
+  if (existing) return;
+  const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", userId).eq("currency", "XOF").maybeSingle();
+  if (w) await admin.from("wallets").update({ balance: Number(w.balance) + xof }).eq("id", w.id);
+  await admin.from("transactions").insert({
+    user_id: userId, type: "card_refund", status: "success",
+    amount: xof, currency: "XOF", provider: "internal", provider_ref: ref,
+    description: `Remboursement carte résiliée : ${balanceUsd.toFixed(2)} USD → ${xof} XOF`,
+    metadata: { card_id: providerCardId, balance_usd: balanceUsd, rate: cfg.usd_rate_xof },
+  });
+}
+
 const YENGAPAY_CASHOUT_METHODS = ["ORANGE_MONEY", "MOOV_MONEY", "TELECEL_MONEY", "SANK_MONEY", "WAVE_MONEY"] as const;
 
 function mapCashoutMethod(operator?: string | null) {
