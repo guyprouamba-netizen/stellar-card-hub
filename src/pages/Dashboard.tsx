@@ -43,9 +43,9 @@ function Dashboard() {
 
   const fetchDash = useServerFn(getDashboardData);
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["dashboard"],
+    queryKey: ["dashboard", session?.user?.id],
     queryFn: () => fetchDash(),
-    enabled: !!session,
+    enabled: !!session?.user?.id,
   });
 
   // Vérification automatique du retour passerelle de paiement (?recharge=REF)
