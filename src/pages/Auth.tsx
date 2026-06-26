@@ -7,22 +7,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 
-const ADMIN_EMAIL = "ilboudoibonydo@gmail.com";
-
 function Auth() {
   const navigate = useNavigate();
-  function fastRedirect(userId?: string, userEmail?: string | null) {
-    if ((userEmail ?? email).trim().toLowerCase() === ADMIN_EMAIL) {
-      navigate("/admin", { replace: true });
-      return;
-    }
-
-    navigate("/dashboard", { replace: true });
+  async function fastRedirect(userId?: string) {
     if (!userId) return;
-    supabase.from("user_roles").select("role").eq("user_id", userId).then(({ data }) => {
+    const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
       const isAdmin = (data ?? []).some((r: any) => r.role === "admin");
-      if (isAdmin) navigate("/admin", { replace: true });
-    }).catch(() => undefined);
+    navigate(isAdmin ? "/admin" : "/dashboard", { replace: true });
   }
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -89,19 +80,19 @@ function Auth() {
         // Auto-confirmation via trigger DB — session est immédiate
         if (signUpData.session) {
           toast.success("Compte créé — bienvenue !");
-          fastRedirect(signUpData.session.user.id, signUpData.session.user.email);
+          await fastRedirect(signUpData.session.user.id);
         } else {
           // Fallback : connexion explicite si pas de session retournée
           const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
           if (signInErr) throw signInErr;
           toast.success("Compte créé — bienvenue !");
-          fastRedirect(signInData.session?.user.id, signInData.session?.user.email);
+          await fastRedirect(signInData.session?.user.id);
         }
       } else {
         const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Bienvenue !");
-        fastRedirect(signInData.session?.user.id, signInData.session?.user.email);
+        await fastRedirect(signInData.session?.user.id);
       }
     } catch (e: any) {
       const message = frenchAuthError(e);
