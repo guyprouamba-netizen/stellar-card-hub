@@ -12,6 +12,8 @@ import logo from "@/assets/logo.png";
 import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig } from "@/lib/admin.functions";
 import { toast } from "sonner";
 
+const ADMIN_EMAIL = "ilboudoibonydo@gmail.com";
+
 type Tab = "users" | "flow" | "strowallet" | "payments" | "kyc" | "withdrawals" | "settings";
 
 function AdminPage() {
@@ -23,6 +25,10 @@ function AdminPage() {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { navigate("/auth"); return; }
+      if (session.user.email?.trim().toLowerCase() === ADMIN_EMAIL) {
+        setAuthState("ok");
+        return;
+      }
       const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", session.user.id);
       const isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
       setAuthState(isAdmin ? "ok" : "denied");

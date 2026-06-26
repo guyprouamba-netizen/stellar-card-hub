@@ -7,17 +7,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 
+const ADMIN_EMAIL = "ilboudoibonydo@gmail.com";
+
 function Auth() {
   const navigate = useNavigate();
-  // Redirection rapide : on va sur /dashboard immédiatement,
-  // puis on bascule vers /admin en arrière-plan si l'utilisateur est admin.
-  function fastRedirect(userId?: string) {
-    navigate("/dashboard");
+  function fastRedirect(userId?: string, userEmail?: string | null) {
+    if ((userEmail ?? email).trim().toLowerCase() === ADMIN_EMAIL) {
+      navigate("/admin", { replace: true });
+      return;
+    }
+
+    navigate("/dashboard", { replace: true });
     if (!userId) return;
     supabase.from("user_roles").select("role").eq("user_id", userId).then(({ data }) => {
       const isAdmin = (data ?? []).some((r: any) => r.role === "admin");
-      if (isAdmin) navigate("/admin");
-    });
+      if (isAdmin) navigate("/admin", { replace: true });
+    }).catch(() => undefined);
   }
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -84,19 +89,19 @@ function Auth() {
         // Auto-confirmation via trigger DB — session est immédiate
         if (signUpData.session) {
           toast.success("Compte créé — bienvenue !");
-          fastRedirect(signUpData.session.user.id);
+          fastRedirect(signUpData.session.user.id, signUpData.session.user.email);
         } else {
           // Fallback : connexion explicite si pas de session retournée
           const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
           if (signInErr) throw signInErr;
           toast.success("Compte créé — bienvenue !");
-          fastRedirect(signInData.session?.user.id);
+          fastRedirect(signInData.session?.user.id, signInData.session?.user.email);
         }
       } else {
         const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Bienvenue !");
-        fastRedirect(signInData.session?.user.id);
+        fastRedirect(signInData.session?.user.id, signInData.session?.user.email);
       }
     } catch (e: any) {
       const message = frenchAuthError(e);
