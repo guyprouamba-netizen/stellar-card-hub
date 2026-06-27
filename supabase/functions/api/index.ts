@@ -544,7 +544,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       const baseDestination = { operator: data.operator, phone: destNumber, account: data.account, holder };
       if (!destNumber) {
         await admin.from("wallets").update({ balance: Number(w.balance) }).eq("id", w.id);
-        await admin.from("withdrawals").update({ status: "failed", admin_note: "Numéro Mobile Money invalide" }).eq("id", row.id);
+        await admin.from("withdrawals").update({ status: "failed", admin_note: "Numéro Mobile Money invalide", failure_reason: "Numéro Mobile Money invalide ou inactif" }).eq("id", row.id);
         return { ok: false, error: "Numéro Mobile Money invalide" };
       }
       if (!apiKey || !groupId || !projectId) {
@@ -583,26 +583,28 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
         if (!acceptedBody || !acceptedMethod) {
           const note = JSON.stringify(attempts).slice(0, 500);
+          const reason = humanizeYengaError(attempts);
           // Aucun opérateur n'a accepté → refund immédiat et marquage failed
           await admin.from("wallets").update({ balance: Number(w.balance) }).eq("id", w.id);
           await admin.from("withdrawals").update({
             status: "failed",
             destination: { ...baseDestination, yengapay_attempts: attempts },
             admin_note: note,
+            failure_reason: reason,
           }).eq("id", row.id);
           await admin.from("transactions").insert({
             user_id: userId, type: "withdrawal", status: "failed",
             amount, currency: "XOF", provider: "yengapay",
             provider_ref: row.id,
-            description: "Retrait refusé — aucun opérateur n'a accepté",
+            description: `Retrait échoué — ${reason}`,
             metadata: { attempts, destNumber },
           });
           await admin.from("transactions").insert({
             user_id: userId, type: "withdrawal_refund", status: "success",
             amount, currency: "XOF",
-            description: "Remboursement automatique — retrait refusé",
+            description: "Remboursement automatique — retrait échoué",
           });
-          return { ok: false, id: row.id, status: "failed", error: "Aucun opérateur n'a accepté ce retrait. Montant remboursé." };
+          return { ok: false, id: row.id, status: "failed", error: `${reason}. Montant remboursé sur votre portefeuille.` };
         }
 
         const provStatus = String(acceptedBody?.status || "PENDING").toUpperCase();
@@ -612,7 +614,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
             ? "processing"
             : "processing";
         const newDest = { ...baseDestination, operator: acceptedMethod, yengapay: acceptedBody, yengapay_attempts: attempts };
-        await admin.from("withdrawals").update({ status: mapped, destination: newDest }).eq("id", row.id);
+        await admin.from("withdrawals").update({
+          status: mapped, destination: newDest,
+          ...(mapped === "paid" ? { paid_at: new Date().toISOString() } : {}),
+        }).eq("id", row.id);
         await admin.from("transactions").insert({
           user_id: userId, type: "withdrawal",
           status: mapped === "paid" ? "success" : "pending",
@@ -623,24 +628,26 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         });
         return { ok: true, id: row.id, status: mapped, provider: acceptedBody };
       } catch (e) {
+        const reason = humanizeYengaError(null, (e as Error).message);
         // Erreur réseau / exception → refund et marquage failed
         await admin.from("wallets").update({ balance: Number(w.balance) }).eq("id", w.id);
         await admin.from("withdrawals").update({
           status: "failed",
           admin_note: (e as Error).message.slice(0, 500),
+          failure_reason: reason,
         }).eq("id", row.id);
         await admin.from("transactions").insert({
           user_id: userId, type: "withdrawal", status: "failed",
           amount, currency: "XOF", provider: "yengapay", provider_ref: row.id,
-          description: `Retrait échoué — ${(e as Error).message.slice(0, 100)}`,
+          description: `Retrait échoué — ${reason}`,
           metadata: { error: (e as Error).message },
         });
         await admin.from("transactions").insert({
           user_id: userId, type: "withdrawal_refund", status: "success",
           amount, currency: "XOF",
-          description: "Remboursement automatique — erreur passerelle",
+          description: "Remboursement automatique — retrait échoué",
         });
-        return { ok: false, id: row.id, status: "failed", error: (e as Error).message };
+        return { ok: false, id: row.id, status: "failed", error: `${reason}. Montant remboursé.` };
       }
     }
 
