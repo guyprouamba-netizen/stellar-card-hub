@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard, ArrowDownLeft, ArrowUpRight, CreditCard, History,
   UserCircle, LogOut, Plus, Snowflake, Loader2,
-  AlertTriangle, Wallet, Building2,
+  AlertTriangle, Wallet, Building2, CheckCircle2, XCircle, Clock, Copy,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
@@ -97,7 +97,7 @@ function Dashboard() {
             <>
               {tab === "home" && <HomeTab data={data} onAction={() => refetch()} />}
               {tab === "deposit" && <DepositTab onDone={() => refetch()} />}
-              {tab === "withdraw" && <WithdrawTab balance={Number(data.wallets.find((w: any) => w.currency === "XOF")?.balance ?? 0)} profile={data.profile} onDone={() => refetch()} />}
+              {tab === "withdraw" && <WithdrawTab balance={Number(data.wallets.find((w: any) => w.currency === "XOF")?.balance ?? 0)} profile={data.profile} withdrawals={data.withdrawals ?? []} onDone={() => refetch()} />}
               {tab === "cards" && <CardsTab cards={data.cards} onAction={() => refetch()} />}
               {tab === "tx" && <TxTab transactions={data.transactions} />}
               {tab === "profile" && <ProfileTab profile={data.profile} />}
