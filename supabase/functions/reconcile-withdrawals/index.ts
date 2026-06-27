@@ -33,6 +33,16 @@ function mapStatus(raw: string): "success" | "failed" | "pending" {
   return "pending";
 }
 
+function humanizeReason(body: any): string {
+  const raw = (body?.message || body?.error || body?.failureReason || body?.reason || body?.data?.message || "").toString().toLowerCase();
+  if (/insufficient|fund|solde|balance/i.test(raw)) return "Solde insuffisant chez l'opérateur Mobile Money";
+  if (/invalid.*(number|phone|msisdn)/i.test(raw)) return "Numéro Mobile Money invalide";
+  if (/limit|plafond/i.test(raw)) return "Plafond Mobile Money atteint";
+  if (/refus|rejected|denied/i.test(raw)) return "Paiement refusé par l'opérateur Mobile Money";
+  if (/timeout|expired/i.test(raw)) return "Délai dépassé — opérateur indisponible";
+  return raw ? `Échec : ${raw.slice(0, 140)}` : "Retrait refusé par l'opérateur Mobile Money";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   const admin = db();
@@ -51,14 +61,17 @@ Deno.serve(async (req) => {
     const st = mapStatus(body?.status || body?.paymentStatus || body?.data?.status);
     if (st === "success") {
       await admin.from("withdrawals").update({
-        status: "paid", destination: { ...(w.destination as any), reconcile: body },
+        status: "paid", paid_at: new Date().toISOString(),
+        destination: { ...(w.destination as any), reconcile: body },
       }).eq("id", w.id).eq("status", "processing");
       await admin.from("transactions").update({ status: "success", metadata: body })
         .eq("provider_ref", String(piid)).eq("type", "withdrawal");
       summary.push({ id: w.id, status: "paid" });
     } else if (st === "failed") {
+      const reason = humanizeReason(body);
       const { data: updated } = await admin.from("withdrawals").update({
-        status: "failed", destination: { ...(w.destination as any), reconcile: body },
+        status: "failed", failure_reason: reason,
+        destination: { ...(w.destination as any), reconcile: body },
       }).eq("id", w.id).eq("status", "processing").select("id").maybeSingle();
       if (updated) {
         await admin.from("transactions").update({ status: "failed", metadata: body })
@@ -69,7 +82,7 @@ Deno.serve(async (req) => {
           await admin.from("transactions").insert({
             user_id: w.user_id, type: "withdrawal_refund", status: "success",
             amount: w.amount, currency: w.currency,
-            description: "Remboursement automatique — retrait échoué (réconciliation)",
+            description: `Remboursement automatique — ${reason}`,
           });
         }
       }
