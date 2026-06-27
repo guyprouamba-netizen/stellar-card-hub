@@ -75,6 +75,27 @@ function uniqueCashoutMethods(preferred?: string | null) {
   return Array.from(new Set([preferred, ...YENGAPAY_CASHOUT_METHODS].filter(Boolean))) as string[];
 }
 
+// Traduit en français la raison d'échec retournée par YengaPay (sans citer le fournisseur).
+function humanizeYengaError(attempts: Array<{ method: string; httpStatus: number; body: unknown }> | null, errMsg?: string): string {
+  const rawText = (() => {
+    if (errMsg) return errMsg;
+    if (!attempts || !attempts.length) return "Échec de l'opération";
+    const last = attempts[attempts.length - 1];
+    const b: any = last?.body;
+    if (typeof b === "string") return b;
+    return b?.message || b?.error || b?.detail || b?.reason || JSON.stringify(b);
+  })().toString().toLowerCase();
+  if (/insufficient|fund|solde|balance/i.test(rawText)) return "Solde insuffisant chez l'opérateur Mobile Money";
+  if (/invalid.*(number|phone|msisdn)|number.*not.*valid/i.test(rawText)) return "Numéro Mobile Money invalide ou inactif";
+  if (/limit|max|plafond|ceiling/i.test(rawText)) return "Plafond Mobile Money atteint pour ce numéro";
+  if (/refus|rejected|denied/i.test(rawText)) return "Paiement refusé par l'opérateur Mobile Money";
+  if (/timeout|temps|expired/i.test(rawText)) return "Délai d'attente dépassé — opérateur Mobile Money indisponible";
+  if (/unauthorized|forbidden|401|403/i.test(rawText)) return "Service de retrait temporairement indisponible";
+  if (/network|connect|fetch/i.test(rawText)) return "Problème de connexion à la passerelle de paiement";
+  if (!rawText || rawText === "undefined") return "Aucun opérateur Mobile Money n'a accepté ce retrait";
+  return `Échec du retrait : ${rawText.slice(0, 140)}`;
+}
+
 // ============= Business helpers =============
 function slugify(input: string) {
   return String(input || "")
