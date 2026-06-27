@@ -363,6 +363,10 @@ function WithdrawalsTab({ withdrawals, onAction }: { withdrawals: any[]; onActio
                 <div className="font-semibold tabular-nums">{Number(w.amount).toLocaleString("fr-FR")} {w.currency}</div>
                 <div className="text-xs text-muted-foreground">{w.method} · {(w.destination as any)?.operator} · {(w.destination as any)?.phone ?? (w.destination as any)?.account} · {(w.destination as any)?.holder}</div>
                 <div className="mt-1 text-xs">Statut : <b>{w.status}</b></div>
+                {w.failure_reason && (
+                  <div className="mt-1 rounded-lg bg-destructive/10 px-2 py-1 text-xs text-destructive">Raison d'échec : {w.failure_reason}</div>
+                )}
+                {w.paid_at && <div className="mt-1 text-xs text-success">Payé le {new Date(w.paid_at).toLocaleString("fr-FR")}</div>}
               </div>
               {w.status === "pending" && (
                 <div className="flex gap-2">

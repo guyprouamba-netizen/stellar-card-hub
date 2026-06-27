@@ -98,15 +98,21 @@ Deno.serve(async (req) => {
       if (wd.status === "paid" || wd.status === "failed") return new Response("ok", { headers: corsHeaders });
       if (status === "success") {
         await admin.from("withdrawals").update({
-          status: "paid",
+          status: "paid", paid_at: new Date().toISOString(),
           destination: { ...(wd.destination as any), webhook: payload },
         }).eq("id", wd.id);
         // Update associated transaction
         await admin.from("transactions").update({ status: "success", metadata: payload })
           .eq("provider_ref", String(providerId)).eq("type", "withdrawal");
       } else if (status === "failed") {
+        const raw = (payload?.message || payload?.reason || payload?.data?.message || "").toString();
+        const reason = /insufficient|fund|solde/i.test(raw) ? "Solde insuffisant chez l'opérateur Mobile Money"
+          : /invalid.*(number|phone)/i.test(raw) ? "Numéro Mobile Money invalide"
+          : /limit/i.test(raw) ? "Plafond Mobile Money atteint"
+          : /timeout|expired/i.test(raw) ? "Délai dépassé — opérateur indisponible"
+          : raw ? `Échec : ${raw.slice(0, 140)}` : "Paiement refusé par l'opérateur Mobile Money";
         await admin.from("withdrawals").update({
-          status: "failed",
+          status: "failed", failure_reason: reason,
           destination: { ...(wd.destination as any), webhook: payload },
         }).eq("id", wd.id);
         await admin.from("transactions").update({ status: "failed", metadata: payload })
@@ -118,7 +124,7 @@ Deno.serve(async (req) => {
           await admin.from("transactions").insert({
             user_id: wd.user_id, type: "withdrawal_refund", status: "success",
             amount: wd.amount, currency: wd.currency,
-            description: "Remboursement automatique — retrait échoué (webhook)",
+            description: `Remboursement automatique — ${reason}`,
           });
         }
       }

@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard, ArrowDownLeft, ArrowUpRight, CreditCard, History,
   UserCircle, LogOut, Plus, Snowflake, Loader2,
-  AlertTriangle, Wallet, Building2,
+  AlertTriangle, Wallet, Building2, CheckCircle2, XCircle, Clock,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
@@ -97,7 +97,7 @@ function Dashboard() {
             <>
               {tab === "home" && <HomeTab data={data} onAction={() => refetch()} />}
               {tab === "deposit" && <DepositTab onDone={() => refetch()} />}
-              {tab === "withdraw" && <WithdrawTab balance={Number(data.wallets.find((w: any) => w.currency === "XOF")?.balance ?? 0)} profile={data.profile} onDone={() => refetch()} />}
+              {tab === "withdraw" && <WithdrawTab balance={Number(data.wallets.find((w: any) => w.currency === "XOF")?.balance ?? 0)} profile={data.profile} withdrawals={data.withdrawals ?? []} onDone={() => refetch()} />}
               {tab === "cards" && <CardsTab cards={data.cards} onAction={() => refetch()} />}
               {tab === "tx" && <TxTab transactions={data.transactions} />}
               {tab === "profile" && <ProfileTab profile={data.profile} />}
@@ -253,15 +253,51 @@ function TxList({ items }: { items: any[] }) {
 function DepositTab({ onDone }: { onDone: () => void }) {
   const [amount, setAmount] = useState(5000);
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<"idle"|"awaiting"|"success"|"failed">("idle");
+  const [statusMsg, setStatusMsg] = useState<string>("");
   const init = useServerFn(initRecharge);
+  const verify = useServerFn(verifyRecharge);
   async function pay() {
     setLoading(true);
+    setStatus("idle"); setStatusMsg("");
     try {
       const returnUrl = `${window.location.origin}/dashboard`;
       const res: any = await init({ data: { amount, currency: "XOF", returnUrl } });
-      if (res?.checkout_url) window.location.href = res.checkout_url;
-      else toast.error(res?.error ?? "Erreur Mobile Money");
-    } catch (e) { toast.error((e as Error).message); } finally { setLoading(false); onDone(); }
+      if (!res?.checkout_url) { toast.error(res?.error ?? "Erreur Mobile Money"); return; }
+      // Ouvre la page de paiement Mobile Money dans un onglet d'arrière-plan
+      const win = window.open(res.checkout_url, "_blank", "noopener");
+      if (!win) {
+        toast.error("Veuillez autoriser les pop-ups pour finaliser votre recharge Mobile Money");
+        return;
+      }
+      setStatus("awaiting");
+      setStatusMsg("Confirmez le paiement sur la page Mobile Money ouverte, puis revenez ici. Le crédit apparaît automatiquement.");
+      // Polling discret du statut
+      let attempts = 0;
+      const poll = async () => {
+        attempts++;
+        try {
+          const r: any = await verify({ data: { reference: res.reference } });
+          if (r?.status === "success") {
+            setStatus("success");
+            setStatusMsg("Recharge créditée sur votre portefeuille ✅");
+            try { win.close(); } catch { /**/ }
+            toast.success("Recharge créditée");
+            onDone();
+            return;
+          }
+          if (r?.status === "failed") {
+            setStatus("failed");
+            setStatusMsg("Paiement Mobile Money échoué ou annulé. Aucun débit effectué.");
+            try { win.close(); } catch { /**/ }
+            return;
+          }
+        } catch { /* retry */ }
+        if (attempts < 60) setTimeout(poll, 4000);
+        else setStatusMsg("Recharge en attente — elle sera créditée automatiquement dès la confirmation Mobile Money.");
+      };
+      setTimeout(poll, 4000);
+    } catch (e) { toast.error((e as Error).message); } finally { setLoading(false); }
   }
   return (
     <div className="max-w-lg space-y-6">
@@ -280,15 +316,32 @@ function DepositTab({ onDone }: { onDone: () => void }) {
           ))}
         </div>
       </div>
-      <button onClick={pay} disabled={loading || amount < 500}
+      <button onClick={pay} disabled={loading || amount < 500 || status === "awaiting"}
         className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Payer en Mobile Money"}
+        {loading || status === "awaiting" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Payer en Mobile Money"}
       </button>
+      {status !== "idle" && (
+        <div className={`flex items-start gap-3 rounded-2xl border p-4 text-sm ${
+          status === "success" ? "border-success/40 bg-success/10 text-success"
+          : status === "failed" ? "border-destructive/40 bg-destructive/10 text-destructive"
+          : "border-border bg-surface-2"
+        }`}>
+          {status === "success" ? <CheckCircle2 className="h-5 w-5 shrink-0" />
+            : status === "failed" ? <XCircle className="h-5 w-5 shrink-0" />
+            : <Loader2 className="h-5 w-5 shrink-0 animate-spin" />}
+          <div>
+            <p className="font-medium">
+              {status === "success" ? "Paiement confirmé" : status === "failed" ? "Paiement échoué" : "Paiement Mobile Money en cours…"}
+            </p>
+            <p className="mt-1 text-xs opacity-90">{statusMsg}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function WithdrawTab({ balance, profile, onDone }: { balance: number; profile?: any; onDone: () => void }) {
+function WithdrawTab({ balance, profile, withdrawals, onDone }: { balance: number; profile?: any; withdrawals: any[]; onDone: () => void }) {
   const [form, setForm] = useState({ amount: 1000, method: "mobile_money" as const, operator: "", phone: profile?.phone ?? "", account: "", holder: profile?.full_name ?? "" });
   const [loading, setLoading] = useState(false);
   const req = useServerFn(requestWithdrawal);
@@ -328,6 +381,41 @@ function WithdrawTab({ balance, profile, onDone }: { balance: number; profile?: 
         className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Retrait automatique"}
       </button>
+
+      <section className="rounded-2xl border border-border bg-card p-6">
+        <h2 className="font-semibold">Mes derniers retraits</h2>
+        <p className="text-xs text-muted-foreground">Les statuts se mettent à jour automatiquement (toutes les 2 minutes).</p>
+        <div className="mt-4 divide-y divide-border">
+          {withdrawals.length === 0 && <p className="text-sm text-muted-foreground">Aucun retrait pour le moment.</p>}
+          {withdrawals.map((w) => {
+            const st = w.status;
+            const stLabel = st === "paid" ? "Payé" : st === "failed" ? "Échoué" : st === "processing" ? "En cours" : st === "rejected" ? "Rejeté" : "En attente";
+            const stColor = st === "paid" ? "text-success bg-success/10 border-success/30"
+              : st === "failed" || st === "rejected" ? "text-destructive bg-destructive/10 border-destructive/30"
+              : "text-warning bg-warning/10 border-warning/30";
+            const Icon = st === "paid" ? CheckCircle2 : st === "failed" || st === "rejected" ? XCircle : Clock;
+            return (
+              <div key={w.id} className="py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold tabular-nums">{Number(w.amount).toLocaleString("fr-FR")} {w.currency}</div>
+                    <div className="text-xs text-muted-foreground">{(w.destination as any)?.operator || w.method} · {(w.destination as any)?.phone || (w.destination as any)?.account} · {new Date(w.created_at).toLocaleString("fr-FR")}</div>
+                  </div>
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${stColor}`}>
+                    <Icon className="h-3 w-3" /> {stLabel}
+                  </span>
+                </div>
+                {(st === "failed" || st === "rejected") && w.failure_reason && (
+                  <p className="mt-2 rounded-lg bg-destructive/5 px-3 py-2 text-xs text-destructive">Raison : {w.failure_reason} — Le montant a été remboursé sur votre portefeuille.</p>
+                )}
+                {st === "paid" && w.paid_at && (
+                  <p className="mt-1 text-[11px] text-success">Envoyé le {new Date(w.paid_at).toLocaleString("fr-FR")}</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }
