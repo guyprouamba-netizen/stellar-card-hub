@@ -15,7 +15,7 @@ import { getDashboardData } from "@/lib/dashboard.functions";
 import { cardAction } from "@/lib/strowallet.functions";
 import { cardDetails } from "@/lib/strowallet.functions";
 import { requestWithdrawal } from "@/lib/withdrawal.functions";
-import { initRecharge, verifyRecharge } from "@/lib/yengapay.functions";
+import { initRecharge, verifyRecharge, reconcileMyDeposits } from "@/lib/yengapay.functions";
 import { IssueCardSheet } from "@/components/issue-card-sheet";
 import { VirtualCard } from "@/components/virtual-card";
 import { toast } from "sonner";
@@ -84,6 +84,27 @@ function Dashboard() {
     tick();
     return () => { cancelled = true; };
   }, [session]);
+
+  // Auto-réconciliation: à chaque chargement du dashboard, balayer toutes les recharges
+  // "en attente" de l'utilisateur et créditer celles qui ont été payées chez YengaPay
+  // (filet de sécurité si le webhook n'est pas arrivé).
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const r: any = await reconcileMyDeposits();
+        if (cancelled) return;
+        if (r?.credited > 0) {
+          toast.success(`${r.credited} recharge(s) en attente créditée(s) ✅`);
+          refetch();
+        }
+      } catch { /* silent */ }
+    };
+    run();
+    const id = setInterval(run, 60_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [session?.user?.id]);
 
   if (checkingAuth) return <FullPageLoader />;
   if (!session) return null;
