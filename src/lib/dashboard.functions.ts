@@ -8,9 +8,8 @@ const DEFAULT_PRICING = {
   strowallet_pct_fee: 0.01,
 };
 
-export const getDashboardData = async (_args?: any) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  const userId = session?.user.id;
+export const getDashboardData = async (args?: { userId?: string } | any) => {
+  const userId = args?.userId;
   if (!userId) throw new Error("Session expirée. Reconnectez-vous.");
 
   const [w, t, c, p] = await Promise.all([
