@@ -723,6 +723,59 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     return { ok: true, status: "pending", credited: false, providerStatus: st };
   },
 
+  // Sweep all pending deposit transactions for the current user (or all users for admin)
+  // and verify each one against YengaPay; credits wallet for any that are confirmed paid.
+  // Designed to run on Dashboard load to make recharges self-healing without webhook.
+  async reconcileMyDeposits({ user, admin }) {
+    const apiKey = Deno.env.get("YENGAPAY_API_KEY");
+    const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
+    if (!apiKey || !groupId) return { ok: false, error: "YengaPay env missing" };
+    const userId = user.id;
+    const isAdm = await isAdmin(admin, userId);
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    let q = admin.from("transactions")
+      .select("id,user_id,amount,status,metadata,provider_ref,currency,type")
+      .eq("type", "deposit").eq("status", "pending").eq("provider", "yengapay")
+      .gte("created_at", cutoff).order("created_at", { ascending: false }).limit(50);
+    if (!isAdm) q = q.eq("user_id", userId);
+    const { data: pendings } = await q;
+    let credited = 0, failed = 0, stillPending = 0;
+    for (const tx of pendings ?? []) {
+      const piid = (tx.metadata as any)?.paymentIntentId;
+      const candidates: string[] = [];
+      if (piid) candidates.push(`https://api.yengapay.com/api/v1/groups/${groupId}/payment-intent/${piid}`);
+      candidates.push(`https://api.yengapay.com/api/v1/groups/${groupId}/payment-intent/reference/${tx.provider_ref}`);
+      let body: any = null; let ok = false;
+      for (const u of candidates) {
+        try {
+          const r = await fetch(u, { headers: { "x-api-key": apiKey } });
+          const t = await r.text(); try { body = JSON.parse(t); } catch { body = t; }
+          if (r.ok) { ok = true; break; }
+        } catch { /* try next */ }
+      }
+      if (!ok) { stillPending++; continue; }
+      const st = String(body?.status || body?.paymentStatus || body?.data?.status || "").toUpperCase();
+      const paid = ["DONE", "SUCCESS", "SUCCEEDED", "COMPLETED", "PAID"].includes(st);
+      const isFailed = ["FAILED", "CANCELLED", "CANCELED", "EXPIRED", "REJECTED"].includes(st);
+      if (paid) {
+        const { data: updated } = await admin.from("transactions")
+          .update({ status: "success", metadata: { ...(tx.metadata as any), reconcile: body } })
+          .eq("id", tx.id).eq("status", "pending").select("id").maybeSingle();
+        if (updated) {
+          const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", tx.user_id).eq("currency", "XOF").maybeSingle();
+          if (w) await admin.from("wallets").update({ balance: Number(w.balance) + Number(tx.amount) }).eq("id", w.id);
+          credited++;
+        }
+      } else if (isFailed) {
+        await admin.from("transactions").update({ status: "failed", metadata: { ...(tx.metadata as any), reconcile: body } }).eq("id", tx.id).eq("status", "pending");
+        failed++;
+      } else {
+        stillPending++;
+      }
+    }
+    return { ok: true, scanned: pendings?.length ?? 0, credited, failed, pending: stillPending };
+  },
+
   // ---------- Admin ----------
   async adminOverview({ user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
