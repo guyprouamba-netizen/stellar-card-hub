@@ -93,7 +93,7 @@ function Dashboard() {
     let cancelled = false;
     const run = async () => {
       try {
-        const r: any = await callApiReconcile();
+        const r: any = await reconcileMyDeposits();
         if (cancelled) return;
         if (r?.credited > 0) {
           toast.success(`${r.credited} recharge(s) en attente créditée(s) ✅`);
