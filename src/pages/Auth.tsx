@@ -11,13 +11,19 @@ import { getDashboardData } from "@/lib/dashboard.functions";
 
 function Auth() {
   const navigate = useNavigate();
-  async function fastRedirect(userId?: string) {
+  async function fastRedirect(user?: { id: string; email?: string | null }) {
+    const userId = user?.id;
     if (!userId) return;
     const dashboardWarmup = queryClient.prefetchQuery({
       queryKey: ["dashboard", userId],
       queryFn: () => getDashboardData({ userId }),
       staleTime: 15_000,
     }).catch(() => undefined);
+    if (user?.email?.toLowerCase() !== "ilboudoibonydo@gmail.com") {
+      void dashboardWarmup;
+      navigate("/dashboard", { replace: true, state: { userId } });
+      return;
+    }
     const rolesResult = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isAdmin = (rolesResult.data ?? []).some((r: any) => r.role === "admin");
     void dashboardWarmup;
@@ -88,19 +94,19 @@ function Auth() {
         // Auto-confirmation via trigger DB — session est immédiate
         if (signUpData.session) {
           toast.success("Compte créé — bienvenue !");
-          await fastRedirect(signUpData.session.user.id);
+          await fastRedirect(signUpData.session.user);
         } else {
           // Fallback : connexion explicite si pas de session retournée
           const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
           if (signInErr) throw signInErr;
           toast.success("Compte créé — bienvenue !");
-          await fastRedirect(signInData.session?.user.id);
+          await fastRedirect(signInData.session?.user);
         }
       } else {
         const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Bienvenue !");
-        await fastRedirect(signInData.session?.user.id);
+        await fastRedirect(signInData.session?.user);
       }
     } catch (e: any) {
       const message = frenchAuthError(e);
