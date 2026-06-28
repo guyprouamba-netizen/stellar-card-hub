@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@/lib/server-fn";
 import { useQuery } from "@tanstack/react-query";
@@ -24,27 +24,33 @@ type Tab = "home" | "deposit" | "withdraw" | "cards" | "tx" | "profile";
 
 function Dashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const initialUserId = (location.state as { userId?: string } | null)?.userId;
   const [tab, setTab] = useState<Tab>("home");
-  const [session, setSession] = useState<any>(null);
-  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [session, setSession] = useState<any>(initialUserId ? { user: { id: initialUserId } } : null);
+  const [checkingAuth, setCheckingAuth] = useState(!initialUserId);
 
   useEffect(() => {
+    let active = true;
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) navigate("/auth");
+      if (!active) return;
+      if (!data.session) navigate("/auth", { replace: true });
       else setSession(data.session);
       setCheckingAuth(false);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      if (!s) navigate("/auth");
-      setSession(s);
+      if (!active) return;
+      if (!s) navigate("/auth", { replace: true });
+      else setSession(s);
+      setCheckingAuth(false);
     });
-    return () => sub.subscription.unsubscribe();
+    return () => { active = false; sub.subscription.unsubscribe(); };
   }, [navigate]);
 
   const fetchDash = useServerFn(getDashboardData);
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["dashboard", session?.user?.id],
-    queryFn: () => fetchDash(),
+    queryFn: () => fetchDash({ userId: session?.user?.id }),
     enabled: !!session?.user?.id,
   });
 
@@ -106,7 +112,7 @@ function Dashboard() {
     return () => { cancelled = true; clearInterval(id); };
   }, [session?.user?.id]);
 
-  if (checkingAuth) return <FullPageLoader />;
+  if (!session && checkingAuth) return <FullPageLoader />;
   if (!session) return null;
 
   return (

@@ -6,14 +6,23 @@ import { BackButton } from "@/components/back-button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
+import { queryClient } from "@/lib/query-client";
+import { getDashboardData } from "@/lib/dashboard.functions";
 
 function Auth() {
   const navigate = useNavigate();
   async function fastRedirect(userId?: string) {
     if (!userId) return;
-    const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-      const isAdmin = (data ?? []).some((r: any) => r.role === "admin");
-    navigate(isAdmin ? "/admin" : "/dashboard", { replace: true });
+    const [rolesResult] = await Promise.all([
+      supabase.from("user_roles").select("role").eq("user_id", userId),
+      queryClient.prefetchQuery({
+        queryKey: ["dashboard", userId],
+        queryFn: () => getDashboardData({ userId }),
+        staleTime: 15_000,
+      }).catch(() => undefined),
+    ]);
+    const isAdmin = (rolesResult.data ?? []).some((r: any) => r.role === "admin");
+    navigate(isAdmin ? "/admin" : "/dashboard", { replace: true, state: { userId } });
   }
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
