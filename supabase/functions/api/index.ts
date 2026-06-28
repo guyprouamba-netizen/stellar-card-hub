@@ -75,27 +75,6 @@ function uniqueCashoutMethods(preferred?: string | null) {
   return Array.from(new Set([preferred, ...YENGAPAY_CASHOUT_METHODS].filter(Boolean))) as string[];
 }
 
-// Traduit en français la raison d'échec retournée par YengaPay (sans citer le fournisseur).
-function humanizeYengaError(attempts: Array<{ method: string; httpStatus: number; body: unknown }> | null, errMsg?: string): string {
-  const rawText = (() => {
-    if (errMsg) return errMsg;
-    if (!attempts || !attempts.length) return "Échec de l'opération";
-    const last = attempts[attempts.length - 1];
-    const b: any = last?.body;
-    if (typeof b === "string") return b;
-    return b?.message || b?.error || b?.detail || b?.reason || JSON.stringify(b);
-  })().toString().toLowerCase();
-  if (/insufficient|fund|solde|balance/i.test(rawText)) return "Solde insuffisant chez l'opérateur Mobile Money";
-  if (/invalid.*(number|phone|msisdn)|number.*not.*valid/i.test(rawText)) return "Numéro Mobile Money invalide ou inactif";
-  if (/limit|max|plafond|ceiling/i.test(rawText)) return "Plafond Mobile Money atteint pour ce numéro";
-  if (/refus|rejected|denied/i.test(rawText)) return "Paiement refusé par l'opérateur Mobile Money";
-  if (/timeout|temps|expired/i.test(rawText)) return "Délai d'attente dépassé — opérateur Mobile Money indisponible";
-  if (/unauthorized|forbidden|401|403/i.test(rawText)) return "Service de retrait temporairement indisponible";
-  if (/network|connect|fetch/i.test(rawText)) return "Problème de connexion à la passerelle de paiement";
-  if (!rawText || rawText === "undefined") return "Aucun opérateur Mobile Money n'a accepté ce retrait";
-  return `Échec du retrait : ${rawText.slice(0, 140)}`;
-}
-
 // ============= Business helpers =============
 function slugify(input: string) {
   return String(input || "")
@@ -136,12 +115,11 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   // ---------- Dashboard ----------
   async getDashboardData({ user, admin, userClient }) {
     const userId = user.id;
-    const [w, t, c, p, wd] = await Promise.all([
+    const [w, t, c, p] = await Promise.all([
       userClient.from("wallets").select("id,currency,balance").eq("user_id", userId),
       userClient.from("transactions").select("id,type,status,amount,currency,description,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
       userClient.from("cards").select("id,brand,last4,currency,balance,status,failed_attempts,auto_frozen_at,created_at").eq("user_id", userId).order("created_at", { ascending: false }),
       userClient.from("profiles").select("full_name,email,phone,is_active,country").eq("id", userId).maybeSingle(),
-      userClient.from("withdrawals").select("id,amount,currency,method,destination,status,failure_reason,paid_at,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(15),
     ]);
     const pricing = await loadPricingConfig(admin);
     // KYC supprimé : l'API NFC ne nécessite plus de profil client. Les infos perso sont saisies à l'émission.
@@ -150,7 +128,6 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       transactions: t.data ?? [],
       cards: c.data ?? [],
       profile: p.data,
-      withdrawals: wd.data ?? [],
       kyc: null,
       pricing,
       kycSubmitted: true,
@@ -546,7 +523,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       const baseDestination = { operator: data.operator, phone: destNumber, account: data.account, holder };
       if (!destNumber) {
         await admin.from("wallets").update({ balance: Number(w.balance) }).eq("id", w.id);
-        await admin.from("withdrawals").update({ status: "failed", admin_note: "Numéro Mobile Money invalide", failure_reason: "Numéro Mobile Money invalide ou inactif" }).eq("id", row.id);
+        await admin.from("withdrawals").update({ status: "failed", admin_note: "Numéro Mobile Money invalide" }).eq("id", row.id);
         return { ok: false, error: "Numéro Mobile Money invalide" };
       }
       if (!apiKey || !groupId || !projectId) {
@@ -585,28 +562,26 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
         if (!acceptedBody || !acceptedMethod) {
           const note = JSON.stringify(attempts).slice(0, 500);
-          const reason = humanizeYengaError(attempts);
           // Aucun opérateur n'a accepté → refund immédiat et marquage failed
           await admin.from("wallets").update({ balance: Number(w.balance) }).eq("id", w.id);
           await admin.from("withdrawals").update({
             status: "failed",
             destination: { ...baseDestination, yengapay_attempts: attempts },
             admin_note: note,
-            failure_reason: reason,
           }).eq("id", row.id);
           await admin.from("transactions").insert({
             user_id: userId, type: "withdrawal", status: "failed",
             amount, currency: "XOF", provider: "yengapay",
             provider_ref: row.id,
-            description: `Retrait échoué — ${reason}`,
+            description: "Retrait refusé — aucun opérateur n'a accepté",
             metadata: { attempts, destNumber },
           });
           await admin.from("transactions").insert({
             user_id: userId, type: "withdrawal_refund", status: "success",
             amount, currency: "XOF",
-            description: "Remboursement automatique — retrait échoué",
+            description: "Remboursement automatique — retrait refusé",
           });
-          return { ok: false, id: row.id, status: "failed", error: `${reason}. Montant remboursé sur votre portefeuille.` };
+          return { ok: false, id: row.id, status: "failed", error: "Aucun opérateur n'a accepté ce retrait. Montant remboursé." };
         }
 
         const provStatus = String(acceptedBody?.status || "PENDING").toUpperCase();
@@ -616,10 +591,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
             ? "processing"
             : "processing";
         const newDest = { ...baseDestination, operator: acceptedMethod, yengapay: acceptedBody, yengapay_attempts: attempts };
-        await admin.from("withdrawals").update({
-          status: mapped, destination: newDest,
-          ...(mapped === "paid" ? { paid_at: new Date().toISOString() } : {}),
-        }).eq("id", row.id);
+        await admin.from("withdrawals").update({ status: mapped, destination: newDest }).eq("id", row.id);
         await admin.from("transactions").insert({
           user_id: userId, type: "withdrawal",
           status: mapped === "paid" ? "success" : "pending",
@@ -630,26 +602,24 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         });
         return { ok: true, id: row.id, status: mapped, provider: acceptedBody };
       } catch (e) {
-        const reason = humanizeYengaError(null, (e as Error).message);
         // Erreur réseau / exception → refund et marquage failed
         await admin.from("wallets").update({ balance: Number(w.balance) }).eq("id", w.id);
         await admin.from("withdrawals").update({
           status: "failed",
           admin_note: (e as Error).message.slice(0, 500),
-          failure_reason: reason,
         }).eq("id", row.id);
         await admin.from("transactions").insert({
           user_id: userId, type: "withdrawal", status: "failed",
           amount, currency: "XOF", provider: "yengapay", provider_ref: row.id,
-          description: `Retrait échoué — ${reason}`,
+          description: `Retrait échoué — ${(e as Error).message.slice(0, 100)}`,
           metadata: { error: (e as Error).message },
         });
         await admin.from("transactions").insert({
           user_id: userId, type: "withdrawal_refund", status: "success",
           amount, currency: "XOF",
-          description: "Remboursement automatique — retrait échoué",
+          description: "Remboursement automatique — erreur passerelle",
         });
-        return { ok: false, id: row.id, status: "failed", error: `${reason}. Montant remboursé.` };
+        return { ok: false, id: row.id, status: "failed", error: (e as Error).message };
       }
     }
 

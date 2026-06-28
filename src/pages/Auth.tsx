@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Mail, Lock, ArrowRight, User, Phone, Loader2, AlertCircle, Gift } from "lucide-react";
+import { Mail, Lock, ArrowRight, User, Phone, Loader2, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { VirtualCard } from "@/components/virtual-card";
 import { BackButton } from "@/components/back-button";
@@ -20,7 +20,6 @@ function Auth() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const [referrer, setReferrer] = useState("");
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -69,7 +68,7 @@ function Auth() {
           email, password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { full_name: fullName, phone, referrer_code: referrer.trim() || null },
+            data: { full_name: fullName, phone },
           },
         });
         if (error) throw error;
@@ -152,11 +151,6 @@ function Auth() {
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <input required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+226 70 00 00 00"
-                    className="w-full rounded-full border border-border bg-surface-2 py-3 pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/30" />
-                </div>
-                <div className="relative">
-                  <Gift className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input value={referrer} onChange={(e) => setReferrer(e.target.value)} placeholder="Code parrain / marraine (facultatif)"
                     className="w-full rounded-full border border-border bg-surface-2 py-3 pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/30" />
                 </div>
               </>

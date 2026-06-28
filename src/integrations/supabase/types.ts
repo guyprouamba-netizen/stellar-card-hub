@@ -824,8 +824,6 @@ export type Database = {
           id: string
           is_active: boolean
           phone: string | null
-          referral_code: string | null
-          referrer_code: string | null
           strowallet_customer_id: string | null
           updated_at: string
         }
@@ -837,8 +835,6 @@ export type Database = {
           id: string
           is_active?: boolean
           phone?: string | null
-          referral_code?: string | null
-          referrer_code?: string | null
           strowallet_customer_id?: string | null
           updated_at?: string
         }
@@ -850,8 +846,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           phone?: string | null
-          referral_code?: string | null
-          referrer_code?: string | null
           strowallet_customer_id?: string | null
           updated_at?: string
         }
@@ -1043,10 +1037,8 @@ export type Database = {
           created_at: string
           currency: string
           destination: Json
-          failure_reason: string | null
           id: string
           method: string
-          paid_at: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           status: string
@@ -1059,10 +1051,8 @@ export type Database = {
           created_at?: string
           currency?: string
           destination?: Json
-          failure_reason?: string | null
           id?: string
           method: string
-          paid_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
@@ -1075,10 +1065,8 @@ export type Database = {
           created_at?: string
           currency?: string
           destination?: Json
-          failure_reason?: string | null
           id?: string
           method?: string
-          paid_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
@@ -1092,7 +1080,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      generate_referral_code: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
