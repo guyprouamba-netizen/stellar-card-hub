@@ -13,15 +13,14 @@ function Auth() {
   const navigate = useNavigate();
   async function fastRedirect(userId?: string) {
     if (!userId) return;
-    const [rolesResult] = await Promise.all([
-      supabase.from("user_roles").select("role").eq("user_id", userId),
-      queryClient.prefetchQuery({
-        queryKey: ["dashboard", userId],
-        queryFn: () => getDashboardData({ userId }),
-        staleTime: 15_000,
-      }).catch(() => undefined),
-    ]);
+    const dashboardWarmup = queryClient.prefetchQuery({
+      queryKey: ["dashboard", userId],
+      queryFn: () => getDashboardData({ userId }),
+      staleTime: 15_000,
+    }).catch(() => undefined);
+    const rolesResult = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isAdmin = (rolesResult.data ?? []).some((r: any) => r.role === "admin");
+    void dashboardWarmup;
     navigate(isAdmin ? "/admin" : "/dashboard", { replace: true, state: { userId } });
   }
   const [mode, setMode] = useState<"login" | "signup">("login");
