@@ -83,7 +83,13 @@ function CardsPage() {
   useEffect(() => {
     cards.forEach((c) => {
       if (!c.provider_card_id) return;
-      const cached = (c.metadata as any)?.response?.card_detail ?? (c.metadata as any)?.card_detail;
+      const meta: any = c.metadata as any;
+      const cached =
+        meta?.response?.card_detail ??
+        meta?.card_detail ??
+        meta?.details?.response?.card_detail ??
+        meta?.details?.card_detail ??
+        meta?.details?.data?.card_detail;
       if (cached) {
         const number = cached.card_number || cached.pan;
         const cvv = cached.cvv || cached.cvv2;
@@ -91,6 +97,9 @@ function CardsPage() {
         const holder = cached.card_holder_name || cached.name_on_card || cached.card_name;
         setDetails((d) => ({ ...d, [c.provider_card_id!]: { number: number ?? undefined, cvv: cvv ?? undefined, expiry: exp ?? undefined, holder: holder ?? undefined } }));
       }
+      // Auto-load complete details from issuer so balance / CVV / holder / expiry
+      // show up immediately without needing to flip the card.
+      void loadDetails(c.provider_card_id);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cards.length]);
@@ -125,7 +134,13 @@ function CardsPage() {
           {cards.map((c, i) => {
             const variant = variantByIndex[i % variantByIndex.length];
             const det = c.provider_card_id ? details[c.provider_card_id] : undefined;
-            const apiDetail = (c.metadata as any)?.response?.card_detail ?? (c.metadata as any)?.card_detail;
+            const m: any = c.metadata as any;
+            const apiDetail =
+              m?.response?.card_detail ??
+              m?.card_detail ??
+              m?.details?.response?.card_detail ??
+              m?.details?.card_detail ??
+              m?.details?.data?.card_detail;
             const apiStatus = String(apiDetail?.card_status || "").toLowerCase();
             const apiBalance = apiDetail?.balance != null ? Number(apiDetail.balance) : Number(c.balance);
             const isDummyPan = !det?.number || /^0+$/.test(String(det?.number || ""));
