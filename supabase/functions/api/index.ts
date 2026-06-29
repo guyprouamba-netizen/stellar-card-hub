@@ -235,7 +235,11 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     }
     let res = await SW.getNfcCardDetails(data.card_id);
     let details = SW.extractCardDetails(res);
-    if (String(details.status || "").toLowerCase() === "frozen") {
+    const status = String(details.status || "").toLowerCase();
+    const missingPan = !details.number || /^0+$/.test(String(details.number || ""));
+    // Si la carte n'est pas active OU si l'émetteur n'a pas encore renvoyé le PAN/CVV,
+    // on force un dégel + re-fetch pour récupérer les infos complètes.
+    if (status === "frozen" || (status && status !== "active") || missingPan) {
       const { data: local } = await admin.from("cards").select("status,auto_frozen_at").eq("provider_card_id", data.card_id).maybeSingle();
       const frozenBySecurity = !!local?.auto_frozen_at || String(local?.status || "") === "frozen_auto";
       if (!frozenBySecurity) {
@@ -247,6 +251,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
             status: "active",
             failed_attempts: 0,
             auto_frozen_at: null,
+            ...(details.last4 ? { last4: String(details.last4) } : {}),
+            ...(details.brand ? { brand: String(details.brand).toLowerCase() } : {}),
+            ...(details.balance !== null && Number.isFinite(Number(details.balance)) ? { balance: Number(details.balance) } : {}),
             metadata: { provider_sync: ensured.attempts, details: res },
           }).eq("provider_card_id", data.card_id);
         } catch (e) {
