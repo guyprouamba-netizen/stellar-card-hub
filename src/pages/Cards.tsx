@@ -154,7 +154,8 @@ function CardsPage() {
               m?.details?.card_detail ??
               m?.details?.data?.card_detail;
             const apiStatus = String(apiDetail?.card_status || "").toLowerCase();
-            const apiBalance = apiDetail?.balance != null ? Number(apiDetail.balance) : Number(c.balance);
+            const liveBalance = det?.balance;
+            const apiBalance = liveBalance != null ? Number(liveBalance) : (apiDetail?.balance != null ? Number(apiDetail.balance) : Number(c.balance));
             const isDummyPan = !det?.number || /^0+$/.test(String(det?.number || ""));
             const number = !isDummyPan ? det!.number! : (c.last4 && c.last4 !== "0000" ? `•••• •••• •••• ${c.last4}` : "•••• •••• •••• ••••");
             const cvvDisplay = det?.cvv && det.cvv !== "000" ? det.cvv : undefined;
