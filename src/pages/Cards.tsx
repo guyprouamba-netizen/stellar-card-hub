@@ -64,17 +64,29 @@ function CardsPage() {
   }>;
 
   const fetchDetails = useServerFn(cardDetails);
-  const [details, setDetails] = useState<Record<string, { number?: string; cvv?: string; expiry?: string; holder?: string }>>({});
+  const [details, setDetails] = useState<Record<string, { number?: string; cvv?: string; expiry?: string; holder?: string; balance?: number }>>({});
   async function loadDetails(provider_card_id: string) {
-    if (details[provider_card_id]?.number && details[provider_card_id]?.number !== "0000000000000000") return;
+    const cur = details[provider_card_id];
+    if (cur?.number && cur.number !== "0000000000000000" && cur?.cvv && cur?.expiry) return;
     try {
       const r: any = await fetchDetails({ data: { card_id: provider_card_id } });
-      const raw = r?.response?.card_detail ?? r?.data?.card_detail ?? r?.card_detail ?? r?.response ?? r?.data ?? r ?? {};
+      // Lorsque la carte était gelée et le dégel a échoué, l'API renvoie {ok:false, data:...}.
+      // On essaye quand même d'extraire ce qu'on peut.
+      const root = r?.data ?? r;
+      const raw = root?.response?.card_detail ?? root?.data?.card_detail ?? root?.card_detail ?? root?.response ?? root?.data ?? root ?? {};
       const number = raw.card_number || raw.cardNumber || raw.pan || null;
       const cvv = raw.cvv || raw.cvv2 || raw.card_cvv || null;
       const exp = raw.expiry || raw.expiry_date || raw.expiration || (raw.expiry_month && raw.expiry_year ? `${String(raw.expiry_month).padStart(2, "0")}/${String(raw.expiry_year).slice(-2)}` : null);
       const holder = raw.name_on_card || raw.card_holder_name || raw.holder || raw.card_holder || raw.card_name || raw.name || null;
-      setDetails((d) => ({ ...d, [provider_card_id]: { number: number ?? undefined, cvv: cvv ?? undefined, expiry: exp ?? undefined, holder: holder ?? undefined } }));
+      const bal = raw.balance ?? raw.card_balance;
+      setDetails((d) => ({ ...d, [provider_card_id]: { number: number ?? undefined, cvv: cvv ?? undefined, expiry: exp ?? undefined, holder: holder ?? undefined, balance: bal != null && Number.isFinite(Number(bal)) ? Number(bal) : undefined } }));
+      // Si toujours rien après l'appel, on déclenche un refresh complet côté serveur (qui réessaie l'activation et met à jour la BDD).
+      if (!number || !cvv) {
+        try {
+          await doRefresh({ data: { card_id: provider_card_id } });
+          qc.invalidateQueries({ queryKey: ["my-cards"] });
+        } catch { /* silencieux */ }
+      }
     } catch { /* silencieux */ }
   }
 
@@ -142,7 +154,8 @@ function CardsPage() {
               m?.details?.card_detail ??
               m?.details?.data?.card_detail;
             const apiStatus = String(apiDetail?.card_status || "").toLowerCase();
-            const apiBalance = apiDetail?.balance != null ? Number(apiDetail.balance) : Number(c.balance);
+            const liveBalance = det?.balance;
+            const apiBalance = liveBalance != null ? Number(liveBalance) : (apiDetail?.balance != null ? Number(apiDetail.balance) : Number(c.balance));
             const isDummyPan = !det?.number || /^0+$/.test(String(det?.number || ""));
             const number = !isDummyPan ? det!.number! : (c.last4 && c.last4 !== "0000" ? `•••• •••• •••• ${c.last4}` : "•••• •••• •••• ••••");
             const cvvDisplay = det?.cvv && det.cvv !== "000" ? det.cvv : undefined;
