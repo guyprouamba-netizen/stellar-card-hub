@@ -134,7 +134,13 @@ function CardsPage() {
           {cards.map((c, i) => {
             const variant = variantByIndex[i % variantByIndex.length];
             const det = c.provider_card_id ? details[c.provider_card_id] : undefined;
-            const apiDetail = (c.metadata as any)?.response?.card_detail ?? (c.metadata as any)?.card_detail;
+            const m: any = c.metadata as any;
+            const apiDetail =
+              m?.response?.card_detail ??
+              m?.card_detail ??
+              m?.details?.response?.card_detail ??
+              m?.details?.card_detail ??
+              m?.details?.data?.card_detail;
             const apiStatus = String(apiDetail?.card_status || "").toLowerCase();
             const apiBalance = apiDetail?.balance != null ? Number(apiDetail.balance) : Number(c.balance);
             const isDummyPan = !det?.number || /^0+$/.test(String(det?.number || ""));
