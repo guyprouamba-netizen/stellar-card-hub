@@ -45,7 +45,7 @@ async function refundCardBalanceToWallet(admin: any, userId: string, providerCar
   const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", userId).eq("currency", "XOF").maybeSingle();
   if (w) await admin.from("wallets").update({ balance: Number(w.balance) + xof }).eq("id", w.id);
   await admin.from("transactions").insert({
-    user_id: userId, type: "card_refund", status: "success",
+    user_id: userId, type: "refund", status: "success",
     amount: xof, currency: "XOF", provider: "internal", provider_ref: ref,
     description: `Remboursement carte résiliée : ${balanceUsd.toFixed(2)} USD → ${xof} XOF`,
     metadata: { card_id: providerCardId, balance_usd: balanceUsd, rate: cfg.usd_rate_xof },
@@ -72,7 +72,7 @@ async function refundFailedCardIssuance(admin: any, userId: string, providerCard
   const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", uid).eq("currency", "XOF").maybeSingle();
   if (w) await admin.from("wallets").update({ balance: Number(w.balance) + xof }).eq("id", w.id);
   await admin.from("transactions").insert({
-    user_id: uid, type: "card_refund", status: "success",
+    user_id: uid, type: "refund", status: "success",
     amount: xof, currency: "XOF", provider: "internal", provider_ref: ref,
     description: `Remboursement émission carte échouée chez l'émetteur (${xof} XOF)`,
     metadata: { card_id: providerCardId, reason: "issuer_failed_provisioning", original_tx: issueTx.id },
