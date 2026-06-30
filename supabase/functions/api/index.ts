@@ -52,6 +52,42 @@ async function refundCardBalanceToWallet(admin: any, userId: string, providerCar
   });
 }
 
+// Rembourse intégralement le coût d'émission d'une carte quand l'émetteur n'a pas pu
+// la provisionner (status "failed" sans PAN). Idempotent.
+async function refundFailedCardIssuance(admin: any, userId: string, providerCardId: string) {
+  const ref = `cardissuerefund:${providerCardId}`;
+  const { data: existing } = await admin.from("transactions").select("id").eq("provider_ref", ref).maybeSingle();
+  if (existing) return { refunded: 0, alreadyRefunded: true };
+  // Retrouve la transaction d'émission originale.
+  const { data: issueTx } = await admin
+    .from("transactions")
+    .select("id,amount,currency,user_id")
+    .eq("provider_ref", providerCardId)
+    .eq("type", "card_issue")
+    .eq("status", "success")
+    .maybeSingle();
+  if (!issueTx || !issueTx.amount || Number(issueTx.amount) <= 0) return { refunded: 0, alreadyRefunded: false };
+  const xof = Number(issueTx.amount);
+  const uid = userId || (issueTx.user_id as string);
+  const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", uid).eq("currency", "XOF").maybeSingle();
+  if (w) await admin.from("wallets").update({ balance: Number(w.balance) + xof }).eq("id", w.id);
+  await admin.from("transactions").insert({
+    user_id: uid, type: "card_refund", status: "success",
+    amount: xof, currency: "XOF", provider: "internal", provider_ref: ref,
+    description: `Remboursement émission carte échouée chez l'émetteur (${xof} XOF)`,
+    metadata: { card_id: providerCardId, reason: "issuer_failed_provisioning", original_tx: issueTx.id },
+  });
+  return { refunded: xof, alreadyRefunded: false };
+}
+
+// Détecte si la réponse Strowallet indique un échec définitif de provisionnement
+// (status "failed" et aucun PAN). On ne traite PAS "pending"/"processing" comme un échec.
+function isIssuerFailed(details: { status: string | null; number: string | null }) {
+  const st = String(details.status || "").toLowerCase();
+  const noPan = !details.number || /^0+$/.test(String(details.number || ""));
+  return st === "failed" && noPan;
+}
+
 const YENGAPAY_CASHOUT_METHODS = ["ORANGE_MONEY", "MOOV_MONEY", "TELECEL_MONEY", "SANK_MONEY", "WAVE_MONEY"] as const;
 
 function mapCashoutMethod(operator?: string | null) {
