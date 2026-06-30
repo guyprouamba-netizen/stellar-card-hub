@@ -282,6 +282,19 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     let details = SW.extractCardDetails(res);
     const status = String(details.status || "").toLowerCase();
     const missingPan = !details.number || /^0+$/.test(String(details.number || ""));
+    // Échec définitif côté émetteur : on rembourse l'émission et on marque la carte
+    // comme résiliée pour que l'utilisateur puisse en créer une nouvelle.
+    if (isIssuerFailed(details)) {
+      const ownerId = (card?.user_id as string) || user.id;
+      const refund = await refundFailedCardIssuance(admin, ownerId, data.card_id);
+      await admin.from("cards").update({
+        status: "terminated",
+        last4: null,
+        balance: 0,
+        metadata: { provider_status: "failed", terminated_reason: "issuer_failed_provisioning", refunded_xof: refund.refunded, details: res },
+      }).eq("provider_card_id", data.card_id);
+      return { ok: false, error: "L'émetteur n'a pas pu provisionner cette carte. Vos fonds ont été remboursés sur votre portefeuille XOF. Vous pouvez créer une nouvelle carte.", provider_status: "failed", data: res };
+    }
     // Si la carte n'est pas active OU si l'émetteur n'a pas encore renvoyé le PAN/CVV,
     // on force un dégel + re-fetch pour récupérer les infos complètes.
     if (status === "frozen" || (status && status !== "active") || missingPan) {
