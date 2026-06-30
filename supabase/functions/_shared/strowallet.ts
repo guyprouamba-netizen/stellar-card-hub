@@ -134,8 +134,11 @@ export async function ensureNfcCardActive(card_id: string) {
   const details = await getNfcCardDetails(card_id);
   const parsed = extractCardDetails(details);
   const status = String(parsed.status || "").toLowerCase();
-  if (status && status !== "active") {
-    const err: any = new Error(`La carte est toujours ${status} chez l'émetteur`);
+  // On ne lève une erreur QUE si la carte est explicitement gelée par l'émetteur.
+  // Les statuts "pending" / "processing" / "failed" / "review" sont des états transitoires
+  // de provisionnement : on retourne les détails partiels et on laisse l'UI/refresh re-essayer.
+  if (status === "frozen") {
+    const err: any = new Error(`La carte est toujours gelée chez l'émetteur`);
     err.details = { attempts, details };
     throw err;
   }

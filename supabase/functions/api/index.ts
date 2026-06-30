@@ -190,19 +190,28 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       const { card_id, last4, brand } = SW.extractNfcCard(res);
       // La nouvelle API NFC ne demande aucune validation : la carte doit être livrée active.
       // Certaines cartes reviennent en "frozen" / "pending" par défaut : on force l'activation.
-      let finalLast4 = last4; let finalBrand = brand; let finalBalance = amountUsd; let finalMeta: any = res;
+      let finalLast4 = last4; let finalBrand = brand; let finalBalance = amountUsd; let finalMeta: any = { create: res };
+      let providerStatus = "";
       if (card_id) {
-        try { await SW.unfreezeNfcCard(card_id); } catch { /* tolérant */ }
+        // Force-activation : on tente status=active ET action=unfreeze, sans planter si l'émetteur
+        // n'a pas encore fini le provisionnement (status pending/processing/failed transitoire).
+        try { await SW.nfcCardStatus(card_id, "active"); } catch { /* tolérant */ }
+        try { await SW.nfcCardAction(card_id, "unfreeze"); } catch { /* tolérant */ }
         try {
           const det = await SW.getNfcCardDetails(card_id);
           const d = SW.extractCardDetails(det);
           if (d.last4) finalLast4 = d.last4;
           if (d.brand) finalBrand = d.brand;
           if (d.balance !== null) finalBalance = d.balance;
+          providerStatus = String(d.status || "").toLowerCase();
           finalMeta = { create: res, details: det };
         } catch { /* tolérant */ }
       }
-      const finalStatus: "active" = "active";
+      // On marque "active" par défaut. Si l'émetteur n'a pas encore livré le PAN
+      // (statut transitoire pending/processing/failed), on garde "pending" et le polling
+      // côté cardDetails/refreshCard finira la synchro sans jamais geler la carte.
+      const finalStatus: "active" | "pending" =
+        providerStatus === "active" || providerStatus === "" ? "active" : "pending";
       await admin.from("cards").insert({
         user_id: userId, provider: "strowallet",
         provider_card_id: card_id,
@@ -247,8 +256,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
           const ensured = await SW.ensureNfcCardActive(data.card_id);
           res = ensured.details;
           details = SW.extractCardDetails(res);
+          const finalStatus = String(details.status || "").toLowerCase() === "active" || (details.number && details.cvv) ? "active" : "pending";
           await admin.from("cards").update({
-            status: "active",
+            status: finalStatus,
             failed_attempts: 0,
             auto_frozen_at: null,
             ...(details.last4 ? { last4: String(details.last4) } : {}),
@@ -257,9 +267,11 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
             metadata: { provider_sync: ensured.attempts, details: res },
           }).eq("provider_card_id", data.card_id);
         } catch (e) {
+          // On NE marque PAS la carte comme gelée côté plateforme : on garde "pending"
+          // pour que le prochain polling/refresh tente à nouveau l'activation.
           await admin.from("cards").update({
-            status: "frozen",
-            metadata: { provider_unfreeze_error: (e as Error).message, checked_at: new Date().toISOString() },
+            status: "pending",
+            metadata: { provider_unfreeze_error: (e as Error).message, checked_at: new Date().toISOString(), details: res },
           }).eq("provider_card_id", data.card_id);
           return { ok: false, error: (e as Error).message, provider_status: details.status, data: res };
         }
@@ -311,7 +323,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
             if (parsed.brand) upd.brand = String(parsed.brand).toLowerCase();
             if (parsed.balance !== null && Number.isFinite(Number(parsed.balance))) upd.balance = Number(parsed.balance);
           } catch (e) {
-            upd.status = "frozen";
+            upd.status = "pending";
             upd.metadata = { provider_unfreeze_error: (e as Error).message, details: res };
           }
         }
