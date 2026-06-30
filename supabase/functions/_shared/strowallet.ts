@@ -162,9 +162,10 @@ function cardNode(resp: any) {
 export function extractNfcCard(resp: any): { card_id: string | null; last4: string | null; brand: string | null } {
   const r = cardNode(resp);
   const card_id = r.card_id || r.cardId || r.id || resp?.card_id || null;
-  const last4 = r.last4 || r.lastFour || r.last_four || (r.card_number ? String(r.card_number).slice(-4) : null);
+  const rawLast4 = r.last4 || r.lastFour || r.last_four || (r.card_number ? String(r.card_number).slice(-4) : null);
+  const last4 = rawLast4 && /^\d{4}$/.test(String(rawLast4)) ? String(rawLast4) : null;
   const brand = r.cardBrand || r.brand || r.card_brand || null;
-  return { card_id: card_id ? String(card_id) : null, last4: last4 ? String(last4) : null, brand: brand ? String(brand) : null };
+  return { card_id: card_id ? String(card_id) : null, last4, brand: brand ? String(brand) : null };
 }
 
 export function extractCardDetails(resp: any): { number: string | null; cvv: string | null; expiry: string | null; holder: string | null; status: string | null; balance: number | null; last4: string | null; brand: string | null } {
@@ -175,7 +176,8 @@ export function extractCardDetails(resp: any): { number: string | null; cvv: str
   const holder = r.name_on_card || r.card_holder_name || r.holder || r.card_holder || r.card_name || r.name || null;
   const status = (r.card_status || r.status || null) as string | null;
   const bal = r.balance ?? r.card_balance ?? null;
-  const last4 = r.last4 || r.lastFour || r.last_four || (number ? String(number).slice(-4) : null);
+  const rawLast4 = r.last4 || r.lastFour || r.last_four || (number ? String(number).slice(-4) : null);
+  const last4 = rawLast4 && /^\d{4}$/.test(String(rawLast4)) ? String(rawLast4) : null;
   const brand = r.cardBrand || r.brand || r.card_brand || null;
   return {
     number: number ? String(number) : null,
@@ -184,7 +186,7 @@ export function extractCardDetails(resp: any): { number: string | null; cvv: str
     holder: holder ? String(holder) : null,
     status: status ? String(status) : null,
     balance: bal !== null && Number.isFinite(Number(bal)) ? Number(bal) : null,
-    last4: last4 ? String(last4) : null,
+    last4,
     brand: brand ? String(brand) : null,
   };
 }

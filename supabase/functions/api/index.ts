@@ -45,11 +45,47 @@ async function refundCardBalanceToWallet(admin: any, userId: string, providerCar
   const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", userId).eq("currency", "XOF").maybeSingle();
   if (w) await admin.from("wallets").update({ balance: Number(w.balance) + xof }).eq("id", w.id);
   await admin.from("transactions").insert({
-    user_id: userId, type: "card_refund", status: "success",
+    user_id: userId, type: "refund", status: "success",
     amount: xof, currency: "XOF", provider: "internal", provider_ref: ref,
     description: `Remboursement carte résiliée : ${balanceUsd.toFixed(2)} USD → ${xof} XOF`,
     metadata: { card_id: providerCardId, balance_usd: balanceUsd, rate: cfg.usd_rate_xof },
   });
+}
+
+// Rembourse intégralement le coût d'émission d'une carte quand l'émetteur n'a pas pu
+// la provisionner (status "failed" sans PAN). Idempotent.
+async function refundFailedCardIssuance(admin: any, userId: string, providerCardId: string) {
+  const ref = `cardissuerefund:${providerCardId}`;
+  const { data: existing } = await admin.from("transactions").select("id").eq("provider_ref", ref).maybeSingle();
+  if (existing) return { refunded: 0, alreadyRefunded: true };
+  // Retrouve la transaction d'émission originale.
+  const { data: issueTx } = await admin
+    .from("transactions")
+    .select("id,amount,currency,user_id")
+    .eq("provider_ref", providerCardId)
+    .eq("type", "card_issue")
+    .eq("status", "success")
+    .maybeSingle();
+  if (!issueTx || !issueTx.amount || Number(issueTx.amount) <= 0) return { refunded: 0, alreadyRefunded: false };
+  const xof = Number(issueTx.amount);
+  const uid = userId || (issueTx.user_id as string);
+  const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", uid).eq("currency", "XOF").maybeSingle();
+  if (w) await admin.from("wallets").update({ balance: Number(w.balance) + xof }).eq("id", w.id);
+  await admin.from("transactions").insert({
+    user_id: uid, type: "refund", status: "success",
+    amount: xof, currency: "XOF", provider: "internal", provider_ref: ref,
+    description: `Remboursement émission carte échouée chez l'émetteur (${xof} XOF)`,
+    metadata: { card_id: providerCardId, reason: "issuer_failed_provisioning", original_tx: issueTx.id },
+  });
+  return { refunded: xof, alreadyRefunded: false };
+}
+
+// Détecte si la réponse Strowallet indique un échec définitif de provisionnement
+// (status "failed" et aucun PAN). On ne traite PAS "pending"/"processing" comme un échec.
+function isIssuerFailed(details: { status: string | null; number: string | null }) {
+  const st = String(details.status || "").toLowerCase();
+  const noPan = !details.number || /^0+$/.test(String(details.number || ""));
+  return st === "failed" && noPan;
 }
 
 const YENGAPAY_CASHOUT_METHODS = ["ORANGE_MONEY", "MOOV_MONEY", "TELECEL_MONEY", "SANK_MONEY", "WAVE_MONEY"] as const;
@@ -246,6 +282,19 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     let details = SW.extractCardDetails(res);
     const status = String(details.status || "").toLowerCase();
     const missingPan = !details.number || /^0+$/.test(String(details.number || ""));
+    // Échec définitif côté émetteur : on rembourse l'émission et on marque la carte
+    // comme résiliée pour que l'utilisateur puisse en créer une nouvelle.
+    if (isIssuerFailed(details)) {
+      const ownerId = (card?.user_id as string) || user.id;
+      const refund = await refundFailedCardIssuance(admin, ownerId, data.card_id);
+      await admin.from("cards").update({
+        status: "terminated",
+        last4: null,
+        balance: 0,
+        metadata: { provider_status: "failed", terminated_reason: "issuer_failed_provisioning", refunded_xof: refund.refunded, details: res },
+      }).eq("provider_card_id", data.card_id);
+      return { ok: false, error: "L'émetteur n'a pas pu provisionner cette carte. Vos fonds ont été remboursés sur votre portefeuille XOF. Vous pouvez créer une nouvelle carte.", provider_status: "failed", data: res };
+    }
     // Si la carte n'est pas active OU si l'émetteur n'a pas encore renvoyé le PAN/CVV,
     // on force un dégel + re-fetch pour récupérer les infos complètes.
     if (status === "frozen" || (status && status !== "active") || missingPan) {
@@ -289,6 +338,16 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     try {
       const res = await SW.getNfcCardDetails(data.card_id);
       const d = SW.extractCardDetails(res);
+      // Échec définitif d'émission côté Strowallet → remboursement + résiliation locale.
+      if (isIssuerFailed(d)) {
+        const ownerId = (card?.user_id as string) || user.id;
+        const refund = await refundFailedCardIssuance(admin, ownerId, data.card_id);
+        await admin.from("cards").update({
+          status: "terminated", last4: null, balance: 0,
+          metadata: { provider_status: "failed", terminated_reason: "issuer_failed_provisioning", refunded_xof: refund.refunded, details: res },
+        }).eq("provider_card_id", data.card_id);
+        return { ok: false, error: "L'émetteur n'a pas pu provisionner cette carte. Vos fonds ont été remboursés sur votre portefeuille XOF.", data: res };
+      }
       const upd: any = { metadata: res };
       if (d.last4) upd.last4 = String(d.last4);
       if (d.brand) upd.brand = String(d.brand).toLowerCase();
