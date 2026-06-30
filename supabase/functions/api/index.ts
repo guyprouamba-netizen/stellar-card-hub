@@ -338,6 +338,16 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     try {
       const res = await SW.getNfcCardDetails(data.card_id);
       const d = SW.extractCardDetails(res);
+      // Échec définitif d'émission côté Strowallet → remboursement + résiliation locale.
+      if (isIssuerFailed(d)) {
+        const ownerId = (card?.user_id as string) || user.id;
+        const refund = await refundFailedCardIssuance(admin, ownerId, data.card_id);
+        await admin.from("cards").update({
+          status: "terminated", last4: null, balance: 0,
+          metadata: { provider_status: "failed", terminated_reason: "issuer_failed_provisioning", refunded_xof: refund.refunded, details: res },
+        }).eq("provider_card_id", data.card_id);
+        return { ok: false, error: "L'émetteur n'a pas pu provisionner cette carte. Vos fonds ont été remboursés sur votre portefeuille XOF.", data: res };
+      }
       const upd: any = { metadata: res };
       if (d.last4) upd.last4 = String(d.last4);
       if (d.brand) upd.brand = String(d.brand).toLowerCase();
