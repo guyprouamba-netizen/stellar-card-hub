@@ -256,8 +256,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
           const ensured = await SW.ensureNfcCardActive(data.card_id);
           res = ensured.details;
           details = SW.extractCardDetails(res);
+          const finalStatus = String(details.status || "").toLowerCase() === "active" || (details.number && details.cvv) ? "active" : "pending";
           await admin.from("cards").update({
-            status: "active",
+            status: finalStatus,
             failed_attempts: 0,
             auto_frozen_at: null,
             ...(details.last4 ? { last4: String(details.last4) } : {}),
@@ -266,9 +267,11 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
             metadata: { provider_sync: ensured.attempts, details: res },
           }).eq("provider_card_id", data.card_id);
         } catch (e) {
+          // On NE marque PAS la carte comme gelée côté plateforme : on garde "pending"
+          // pour que le prochain polling/refresh tente à nouveau l'activation.
           await admin.from("cards").update({
-            status: "frozen",
-            metadata: { provider_unfreeze_error: (e as Error).message, checked_at: new Date().toISOString() },
+            status: "pending",
+            metadata: { provider_unfreeze_error: (e as Error).message, checked_at: new Date().toISOString(), details: res },
           }).eq("provider_card_id", data.card_id);
           return { ok: false, error: (e as Error).message, provider_status: details.status, data: res };
         }
@@ -320,7 +323,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
             if (parsed.brand) upd.brand = String(parsed.brand).toLowerCase();
             if (parsed.balance !== null && Number.isFinite(Number(parsed.balance))) upd.balance = Number(parsed.balance);
           } catch (e) {
-            upd.status = "frozen";
+            upd.status = "pending";
             upd.metadata = { provider_unfreeze_error: (e as Error).message, details: res };
           }
         }
