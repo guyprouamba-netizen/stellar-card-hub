@@ -190,19 +190,28 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       const { card_id, last4, brand } = SW.extractNfcCard(res);
       // La nouvelle API NFC ne demande aucune validation : la carte doit être livrée active.
       // Certaines cartes reviennent en "frozen" / "pending" par défaut : on force l'activation.
-      let finalLast4 = last4; let finalBrand = brand; let finalBalance = amountUsd; let finalMeta: any = res;
+      let finalLast4 = last4; let finalBrand = brand; let finalBalance = amountUsd; let finalMeta: any = { create: res };
+      let providerStatus = "";
       if (card_id) {
-        try { await SW.unfreezeNfcCard(card_id); } catch { /* tolérant */ }
+        // Force-activation : on tente status=active ET action=unfreeze, sans planter si l'émetteur
+        // n'a pas encore fini le provisionnement (status pending/processing/failed transitoire).
+        try { await SW.nfcCardStatus(card_id, "active"); } catch { /* tolérant */ }
+        try { await SW.nfcCardAction(card_id, "unfreeze"); } catch { /* tolérant */ }
         try {
           const det = await SW.getNfcCardDetails(card_id);
           const d = SW.extractCardDetails(det);
           if (d.last4) finalLast4 = d.last4;
           if (d.brand) finalBrand = d.brand;
           if (d.balance !== null) finalBalance = d.balance;
+          providerStatus = String(d.status || "").toLowerCase();
           finalMeta = { create: res, details: det };
         } catch { /* tolérant */ }
       }
-      const finalStatus: "active" = "active";
+      // On marque "active" par défaut. Si l'émetteur n'a pas encore livré le PAN
+      // (statut transitoire pending/processing/failed), on garde "pending" et le polling
+      // côté cardDetails/refreshCard finira la synchro sans jamais geler la carte.
+      const finalStatus: "active" | "pending" =
+        providerStatus === "active" || providerStatus === "" ? "active" : "pending";
       await admin.from("cards").insert({
         user_id: userId, provider: "strowallet",
         provider_card_id: card_id,
