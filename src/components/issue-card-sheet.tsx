@@ -245,7 +245,7 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
 
             <button
               onClick={submit}
-              disabled={submitting || checking || !afford?.can_afford || amount <= 0}
+              disabled={submitting || checking || !afford?.can_afford || amount < 0}
               className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? (
