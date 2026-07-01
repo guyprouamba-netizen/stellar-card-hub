@@ -933,6 +933,72 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     return { ok: true };
   },
 
+  // Admin modifie nom, email et/ou mot de passe d'un utilisateur.
+  async adminUpdateUser({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const uid = String(data.user_id || "");
+    if (!uid) throw new Error("user_id manquant");
+    const authPatch: Record<string, any> = {};
+    if (typeof data.email === "string" && data.email.trim()) authPatch.email = data.email.trim();
+    if (typeof data.password === "string" && data.password.length >= 6) authPatch.password = data.password;
+    if (Object.keys(authPatch).length > 0) {
+      const { error } = await admin.auth.admin.updateUserById(uid, authPatch);
+      if (error) throw new Error(error.message);
+    }
+    const profPatch: Record<string, any> = {};
+    if (typeof data.full_name === "string") profPatch.full_name = data.full_name.trim();
+    if (typeof data.email === "string" && data.email.trim()) profPatch.email = data.email.trim();
+    if (Object.keys(profPatch).length > 0) {
+      const { error } = await admin.from("profiles").update(profPatch).eq("id", uid);
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true };
+  },
+
+  // L'utilisateur met à jour son propre profil (nom + téléphone + avatar).
+  async updateMyProfile({ data, user, admin }) {
+    const patch: Record<string, any> = {};
+    if (typeof data.full_name === "string") patch.full_name = data.full_name.trim().slice(0, 120);
+    if (typeof data.avatar_url === "string") patch.avatar_url = data.avatar_url.slice(0, 1024);
+    if (typeof data.phone === "string") patch.phone = data.phone.trim().slice(0, 40);
+    if (Object.keys(patch).length === 0) return { ok: true };
+    const { error } = await admin.from("profiles").update(patch).eq("id", user.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  },
+
+  // L'utilisateur change son mot de passe (vérifie l'ancien).
+  async updateMyPassword({ data, user, admin }) {
+    const current = String(data.current_password || "");
+    const next = String(data.new_password || "");
+    if (next.length < 6) return { ok: false, error: "Le nouveau mot de passe doit contenir au moins 6 caractères" };
+    if (!current) return { ok: false, error: "Mot de passe actuel requis" };
+    const check = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+    const { error: signErr } = await check.auth.signInWithPassword({ email: user.email!, password: current });
+    if (signErr) return { ok: false, error: "Mot de passe actuel incorrect" };
+    const { error } = await admin.auth.admin.updateUserById(user.id, { password: next });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  },
+
+  // Génère une URL signée pour uploader une photo de profil dans le bucket `avatars`.
+  async createAvatarUploadUrl({ data, user, admin }) {
+    const ext = String(data?.ext || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "jpg";
+    const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+    const { data: signed, error } = await admin.storage.from("avatars").createSignedUploadUrl(path);
+    if (error || !signed) throw new Error(error?.message ?? "Upload URL error");
+    return { path, token: signed.token, signedUrl: signed.signedUrl };
+  },
+
+  // Renvoie une URL signée de lecture pour un avatar (bucket privé).
+  async getAvatarSignedUrl({ data, admin }) {
+    const path = String(data?.path || "");
+    if (!path) return { ok: false, error: "path requis" };
+    const { data: signed, error } = await admin.storage.from("avatars").createSignedUrl(path, 60 * 60);
+    if (error || !signed) return { ok: false, error: error?.message || "URL signée impossible" };
+    return { ok: true, url: signed.signedUrl };
+  },
+
   // Supprime complètement un utilisateur (profil, wallets, cartes, transactions, kyc, retraits, rôles, auth.users)
   async adminDeleteUser({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
