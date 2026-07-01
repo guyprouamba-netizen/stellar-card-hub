@@ -274,12 +274,15 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         provider_card_id: card_id,
         brand: (finalBrand || "visa").toLowerCase(), last4: finalLast4, currency: "USD",
         balance: finalBalance, status: finalStatus, metadata: finalMeta,
+        total_funded_usd: amountUsd,
       });
       await admin.from("transactions").insert({
         user_id: userId, type: "card_issue", status: "success",
         amount: requiredXof, currency: "XOF", provider: "strowallet",
         provider_ref: card_id,
-        description: `Émission carte NFC ${amountUsd} USD (frais ${cfg.card_issue_fee_xof} XOF)`,
+        description: amountUsd > 0
+          ? `Émission carte NFC ${amountUsd} USD (frais ${cfg.card_issue_fee_xof} XOF)`
+          : `Émission carte NFC (frais ${cfg.card_issue_fee_xof} XOF, solde 0 USD)`,
         metadata: { pricing: cost },
       });
       return { ok: true, data: res };
