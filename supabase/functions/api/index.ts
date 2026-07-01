@@ -894,11 +894,19 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const [users, cards, txs, kyc, withdrawals] = await Promise.all([
       admin.from("profiles").select("id,full_name,email,phone,country,is_active,strowallet_customer_id,created_at").order("created_at", { ascending: false }).limit(100),
-      admin.from("cards").select("id,user_id,brand,last4,status,balance,currency,failed_attempts,auto_frozen_at,created_at").order("created_at", { ascending: false }).limit(50),
+      admin.from("cards").select("id,user_id,brand,last4,status,balance,currency,failed_attempts,auto_frozen_at,created_at,total_funded_usd,provider_card_id").order("created_at", { ascending: false }).limit(100),
       admin.from("transactions").select("id,user_id,type,status,amount,currency,description,created_at").order("created_at", { ascending: false }).limit(50),
       admin.from("kyc_submissions").select("*").order("submitted_at", { ascending: false, nullsFirst: false }).limit(50),
       admin.from("withdrawals").select("*").order("created_at", { ascending: false }).limit(50),
     ]);
+    // Enrichit chaque carte avec le propriétaire (nom + email) pour le tableau admin.
+    const cardOwnerIds = Array.from(new Set((cards.data ?? []).map((c: any) => c.user_id).filter(Boolean)));
+    let ownerMap: Record<string, any> = {};
+    if (cardOwnerIds.length > 0) {
+      const { data: owners } = await admin.from("profiles").select("id,full_name,email,phone").in("id", cardOwnerIds);
+      ownerMap = Object.fromEntries((owners ?? []).map((o: any) => [o.id, o]));
+    }
+    const enrichedCards = (cards.data ?? []).map((c: any) => ({ ...c, owner: ownerMap[c.user_id] || null }));
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
     const { data: monthTx } = await admin.from("transactions").select("type,amount,currency,status").gte("created_at", monthStart.toISOString()).eq("status","success");
     const flows = { recharges_xof: 0, withdrawals_xof: 0, card_issue_xof: 0 };
@@ -909,7 +917,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (t.type === "withdrawal") flows.withdrawals_xof += a;
       if (t.type === "card_issue") flows.card_issue_xof += a;
     }
-    return { users: users.data ?? [], cards: cards.data ?? [], transactions: txs.data ?? [], kyc: kyc.data ?? [], withdrawals: withdrawals.data ?? [], flows };
+    return { users: users.data ?? [], cards: enrichedCards, transactions: txs.data ?? [], kyc: kyc.data ?? [], withdrawals: withdrawals.data ?? [], flows };
   },
 
   async adminStrowalletBalance({ user, admin }) {
