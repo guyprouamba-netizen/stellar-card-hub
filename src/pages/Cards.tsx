@@ -60,7 +60,7 @@ function CardsPage() {
   const cards = (cardsQ.data ?? []) as Array<{
     id: string; brand: string | null; last4: string | null; currency: string;
     balance: number; status: string; provider_card_id: string | null;
-    metadata?: any;
+    metadata?: any; total_funded_usd?: number | null;
   }>;
 
   const fetchDetails = useServerFn(cardDetails);
@@ -95,6 +95,10 @@ function CardsPage() {
   useEffect(() => {
     cards.forEach((c) => {
       if (!c.provider_card_id) return;
+      // Verrou : tant que < 5 USD cumulés déposés, on n'appelle pas l'émetteur
+      // pour récupérer PAN/CVV (le serveur les renverrait masqués de toute façon).
+      const funded = Number((c as any).total_funded_usd ?? 0);
+      if (funded < 5) return;
       const meta: any = c.metadata as any;
       const cached =
         meta?.response?.card_detail ??
