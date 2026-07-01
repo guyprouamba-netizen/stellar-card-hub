@@ -4,7 +4,8 @@ import { X, Loader2, ArrowRight, Check, AlertTriangle, CreditCard, Wallet } from
 import { cardApi, walletApi } from "@/lib/api";
 
 type Brand = "visa" | "mastercard";
-const FUND_PRESETS = [5, 10, 25, 50, 100];
+// 0 = aucun financement initial (carte créée à 0 $).
+const FUND_PRESETS = [0, 5, 10, 25, 50, 100];
 
 type Form = {
   firstName: string; lastName: string; dob: string;
@@ -27,7 +28,7 @@ const DEFAULT_FORM: Form = {
 
 export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onClose: () => void; onIssued?: () => void }) {
   const [brand, setBrand] = useState<Brand>("visa");
-  const [amount, setAmount] = useState<number>(10);
+  const [amount, setAmount] = useState<number>(0);
   const [form, setForm] = useState<Form>(DEFAULT_FORM);
   const [checking, setChecking] = useState(false);
   const [afford, setAfford] = useState<{ can_afford: boolean; required: number; available: number } | null>(null);
@@ -129,14 +130,21 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
 
             {/* Initial funding */}
             <div className="mt-6">
-              <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Approvisionnement initial
-              </label>
+              <div className="flex items-baseline justify-between">
+                <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Approvisionnement initial <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">Optionnel</span>
+                </label>
+                {amount > 0 && (
+                  <button onClick={() => setAmount(0)} className="text-[11px] font-semibold text-primary hover:underline">
+                    Créer sans financer
+                  </button>
+                )}
+              </div>
               <div className="mt-2 flex items-baseline gap-2 rounded-2xl border border-border bg-surface-2 px-4 py-3">
                 <input
                   type="number"
                   inputMode="decimal"
-                  min={1}
+                  min={0}
                   value={amount}
                   onChange={(e) => setAmount(Number(e.target.value) || 0)}
                   className="w-full bg-transparent font-[Space_Grotesk] text-3xl font-bold tabular-nums outline-none"
@@ -152,10 +160,13 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
                       amount === q ? "border-primary bg-primary/10 text-foreground" : "border-border bg-surface-2 hover:bg-muted"
                     }`}
                   >
-                    ${q}
+                    {q === 0 ? "0 $ (aucun)" : `$${q}`}
                   </button>
                 ))}
               </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Vous pouvez créer la carte sans dépôt initial. Pour révéler le numéro complet et le CVV, il vous faudra recharger au moins <b>5 USD</b> plus tard.
+              </p>
             </div>
 
             {/* Personal info (required by NFC API) */}
@@ -248,7 +259,7 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
               )}
             </button>
             <p className="mt-3 text-center text-[11px] text-muted-foreground">
-              Le montant est débité de votre portefeuille puis votre carte est créée instantanément.
+              Frais d'émission : <b>4 500 XOF</b> — la carte est créée instantanément, même sans dépôt initial.
             </p>
           </motion.div>
         </>
