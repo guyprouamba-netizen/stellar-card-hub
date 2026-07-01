@@ -350,6 +350,12 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         }
       }
     }
+    // Verrou : PAN + CVV masqués tant que le dépôt cumulé sur la carte < 5 USD.
+    const funded = Number(card?.total_funded_usd ?? 0);
+    const isOwnerAdmin = await isAdmin(admin, user.id);
+    if (!isOwnerAdmin && funded < CARD_DETAILS_UNLOCK_USD) {
+      return { ...maskCardDetailsResponse(res, (card?.last4 ?? null) as string | null), _locked: true, funded_usd: funded, unlock_usd: CARD_DETAILS_UNLOCK_USD };
+    }
     return res;
   },
 
