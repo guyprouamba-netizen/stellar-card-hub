@@ -151,6 +151,8 @@ function CardsPage() {
             const variant = variantByIndex[i % variantByIndex.length];
             const det = c.provider_card_id ? details[c.provider_card_id] : undefined;
             const m: any = c.metadata as any;
+            const funded = Number((c as any).total_funded_usd ?? 0);
+            const locked = funded < 5;
             const apiDetail =
               m?.response?.card_detail ??
               m?.card_detail ??
@@ -161,9 +163,11 @@ function CardsPage() {
             const liveBalance = det?.balance;
             const apiBalance = liveBalance != null ? Number(liveBalance) : (apiDetail?.balance != null ? Number(apiDetail.balance) : Number(c.balance));
             const isDummyPan = !det?.number || /^0+$/.test(String(det?.number || ""));
-            const number = !isDummyPan ? det!.number! : (c.last4 && c.last4 !== "0000" ? `•••• •••• •••• ${c.last4}` : "•••• •••• •••• ••••");
-            const cvvDisplay = det?.cvv && det.cvv !== "000" ? det.cvv : undefined;
-            const expiryDisplay = det?.expiry && det.expiry !== "00/00" ? det.expiry : "••/••";
+            const number = locked
+              ? (c.last4 && c.last4 !== "0000" ? `•••• •••• •••• ${c.last4}` : "•••• •••• •••• ••••")
+              : (!isDummyPan ? det!.number! : (c.last4 && c.last4 !== "0000" ? `•••• •••• •••• ${c.last4}` : "•••• •••• •••• ••••"));
+            const cvvDisplay = locked ? undefined : (det?.cvv && det.cvv !== "000" ? det.cvv : undefined);
+            const expiryDisplay = locked ? "••/••" : (det?.expiry && det.expiry !== "00/00" ? det.expiry : "••/••");
             const isActive = c.status === "active";
             const isTerminated = c.status === "terminated";
             const providerTerminated = apiStatus === "terminated" || apiStatus === "deleted" || apiStatus === "cancelled";
@@ -178,16 +182,33 @@ function CardsPage() {
                   holder={(det?.holder || "TITULAIRE").toUpperCase()}
                   expiry={expiryDisplay}
                   cvv={cvvDisplay}
-                  onFlip={(flipped) => { if (flipped && c.provider_card_id) loadDetails(c.provider_card_id); }}
+                  onFlip={(flipped) => { if (flipped && !locked && c.provider_card_id) loadDetails(c.provider_card_id); }}
                 />
                 </div>
+                {locked && (
+                  <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/5 p-3 text-xs">
+                    <p className="font-semibold text-primary">Infos verrouillées</p>
+                    <p className="mt-1 text-muted-foreground">
+                      Déposez au moins <b className="text-foreground">5&nbsp;USD</b> sur cette carte pour révéler le numéro complet, le CVV et la date d'expiration.
+                      Déjà cumulé : <b className="text-foreground">${funded.toFixed(2)}</b>.
+                    </p>
+                    <button
+                      onClick={() => c.provider_card_id && setFundOpen(c.provider_card_id)}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+                    >
+                      <Wallet className="h-3.5 w-3.5" /> Recharger maintenant
+                    </button>
+                  </div>
+                )}
                 {(providerTerminated || isTerminated) && (
                   <div className="mt-4 rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
                     <p className="font-semibold">Carte résiliée — plusieurs tentatives de paiement échouées.</p>
                     <p className="mt-1 opacity-90">Pour votre sécurité, le numéro complet, le CVV et la date d'expiration ne sont plus accessibles. Le solde restant a été automatiquement reversé sur votre portefeuille XOF. Vous pouvez toujours consulter l'historique de cette carte ci-dessous. Émettez une nouvelle carte pour continuer.</p>
                   </div>
                 )}
-                <CardDetailsCopy det={{ number: !isDummyPan ? det?.number : undefined, cvv: cvvDisplay, expiry: det?.expiry && det.expiry !== "00/00" ? det.expiry : undefined, holder: det?.holder }} />
+                {!locked && (
+                  <CardDetailsCopy det={{ number: !isDummyPan ? det?.number : undefined, cvv: cvvDisplay, expiry: det?.expiry && det.expiry !== "00/00" ? det.expiry : undefined, holder: det?.holder }} />
+                )}
                 <BillingAddress />
                 <div className="mt-5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
