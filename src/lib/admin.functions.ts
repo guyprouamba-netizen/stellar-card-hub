@@ -9,3 +9,4 @@ export const adminDeleteUser = (args: { data: { user_id: string } }) => callApi(
 export const adminAdjustWallet = (args: { data: { user_id: string; currency: string; amount: number; note?: string } }) => callApi("adminAdjustWallet", args.data);
 export const adminGetConfig = (_args?: any) => callApi("adminGetConfig");
 export const adminUpdateConfig = (args: { data: Record<string, number> }) => callApi("adminUpdateConfig", args.data);
+export const adminUpdateUser = (args: { data: { user_id: string; full_name?: string; email?: string; password?: string } }) => callApi("adminUpdateUser", args.data);

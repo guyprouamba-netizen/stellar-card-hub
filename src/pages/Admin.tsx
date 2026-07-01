@@ -9,7 +9,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
-import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig } from "@/lib/admin.functions";
+import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser } from "@/lib/admin.functions";
 import { toast } from "sonner";
 
 type Tab = "users" | "flow" | "strowallet" | "payments" | "kyc" | "withdrawals" | "settings";
@@ -173,7 +173,9 @@ function UsersTab({ users, onAction }: { users: any[]; onAction: () => void }) {
   const toggle = useServerFn(adminToggleUser);
   const del = useServerFn(adminDeleteUser);
   const adjust = useServerFn(adminAdjustWallet);
+  const edit = useServerFn(adminUpdateUser);
   const [adjustFor, setAdjustFor] = useState<any | null>(null);
+  const [editFor, setEditFor] = useState<any | null>(null);
   async function flip(u: any) {
     try { await toggle({ data: { user_id: u.id, is_active: !u.is_active } }); toast.success("Utilisateur mis à jour"); onAction(); }
     catch (e) { toast.error((e as Error).message); }
@@ -200,6 +202,9 @@ function UsersTab({ users, onAction }: { users: any[]; onAction: () => void }) {
                 <td className="px-4 py-3">{u.is_active ? <span className="text-success">●</span> : <span className="text-destructive">●</span>}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap justify-end gap-2">
+                    <button onClick={() => setEditFor(u)} className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/20">
+                      Modifier
+                    </button>
                     <button onClick={() => setAdjustFor(u)} className="rounded-full border border-success/40 bg-success/10 px-3 py-1 text-xs font-semibold text-success hover:bg-success/20">
                       Ajuster solde
                     </button>
@@ -224,6 +229,55 @@ function UsersTab({ users, onAction }: { users: any[]; onAction: () => void }) {
           adjust={adjust}
         />
       )}
+      {editFor && (
+        <EditUserModal
+          user={editFor}
+          onClose={() => setEditFor(null)}
+          onDone={() => { setEditFor(null); onAction(); }}
+          edit={edit}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditUserModal({ user, onClose, onDone, edit }: { user: any; onClose: () => void; onDone: () => void; edit: any }) {
+  const [fullName, setFullName] = useState<string>(user.full_name || "");
+  const [email, setEmail] = useState<string>(user.email || "");
+  const [password, setPassword] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+  async function submit() {
+    setBusy(true);
+    try {
+      const patch: any = { user_id: user.id, full_name: fullName, email };
+      if (password && password.length >= 6) patch.password = password;
+      await edit({ data: patch });
+      toast.success("Utilisateur mis à jour");
+      onDone();
+    } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+  }
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6">
+        <h3 className="text-lg font-semibold">Modifier — {user.full_name || user.email}</h3>
+        <div className="mt-4 space-y-3">
+          <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">Nom complet
+            <input value={fullName} onChange={(e) => setFullName(e.target.value)} className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm outline-none" />
+          </label>
+          <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">Email
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm outline-none" />
+          </label>
+          <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">Nouveau mot de passe (optionnel, 6 min)
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Laisser vide pour ne pas changer" className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm outline-none" />
+          </label>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-full border border-border px-4 py-2 text-sm">Annuler</button>
+          <button onClick={submit} disabled={busy} className="rounded-full bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -283,17 +337,18 @@ function StrowalletTab({ cards }: { cards: any[] }) {
       <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Cartes émises — Historique</h1>
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-left text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">User</th><th className="px-4 py-3">Marque</th><th className="px-4 py-3">PAN</th><th className="px-4 py-3">Solde</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3">Échecs</th></tr></thead>
+          <thead className="bg-surface-2 text-left text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Titulaire</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Marque</th><th className="px-4 py-3">PAN</th><th className="px-4 py-3">Solde carte</th><th className="px-4 py-3">Dépôts cumulés</th><th className="px-4 py-3">Statut</th></tr></thead>
           <tbody className="divide-y divide-border">
             {cards.map((c) => (
               <tr key={c.id}>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(c.created_at).toLocaleString("fr-FR")}</td>
-                <td className="px-4 py-3 text-xs">{c.user_id.slice(0, 8)}…</td>
+                <td className="px-4 py-3 text-xs font-medium">{c.owner?.full_name || <span className="text-muted-foreground">—</span>}</td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">{c.owner?.email || <span className="text-muted-foreground">—</span>}</td>
                 <td className="px-4 py-3">{c.brand}</td>
                 <td className="px-4 py-3 tabular-nums">•••• {c.last4 ?? "????"}</td>
                 <td className="px-4 py-3 tabular-nums">{Number(c.balance).toFixed(2)} {c.currency}</td>
+                <td className="px-4 py-3 tabular-nums">${Number(c.total_funded_usd || 0).toFixed(2)}</td>
                 <td className="px-4 py-3">{c.status}</td>
-                <td className="px-4 py-3 tabular-nums">{c.failed_attempts}</td>
               </tr>
             ))}
           </tbody>

@@ -88,6 +88,23 @@ function isIssuerFailed(details: { status: string | null; number: string | null 
   return st === "failed" && noPan;
 }
 
+// Seuil (USD) de dépôt cumulé requis pour révéler PAN complet + CVV.
+const CARD_DETAILS_UNLOCK_USD = 5;
+
+// Masque les infos sensibles d'une carte tant que le dépôt cumulé < 5 USD.
+function maskCardDetailsResponse(res: any, last4: string | null) {
+  const clone = JSON.parse(JSON.stringify(res ?? {}));
+  const nodes: any[] = [clone?.response?.card_detail, clone?.data?.card_detail, clone?.card_detail].filter(Boolean);
+  for (const n of nodes) {
+    const l4 = last4 || (n.card_number ? String(n.card_number).slice(-4) : "••••");
+    n.card_number = `•••• •••• •••• ${l4}`;
+    n.pan = n.card_number;
+    n.cardNumber = n.card_number;
+    n.cvv = null; n.cvv2 = null; n.card_cvv = null;
+  }
+  return clone;
+}
+
 const YENGAPAY_CASHOUT_METHODS = ["ORANGE_MONEY", "MOOV_MONEY", "TELECEL_MONEY", "SANK_MONEY", "WAVE_MONEY"] as const;
 
 function mapCashoutMethod(operator?: string | null) {
@@ -154,8 +171,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const [w, t, c, p] = await Promise.all([
       userClient.from("wallets").select("id,currency,balance").eq("user_id", userId),
       userClient.from("transactions").select("id,type,status,amount,currency,description,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
-      userClient.from("cards").select("id,brand,last4,currency,balance,status,failed_attempts,auto_frozen_at,created_at").eq("user_id", userId).order("created_at", { ascending: false }),
-      userClient.from("profiles").select("full_name,email,phone,is_active,country").eq("id", userId).maybeSingle(),
+      userClient.from("cards").select("id,brand,last4,currency,balance,status,failed_attempts,auto_frozen_at,created_at,total_funded_usd").eq("user_id", userId).order("created_at", { ascending: false }),
+      userClient.from("profiles").select("full_name,email,phone,is_active,country,avatar_url").eq("id", userId).maybeSingle(),
     ]);
     const pricing = await loadPricingConfig(admin);
     // KYC supprimé : l'API NFC ne nécessite plus de profil client. Les infos perso sont saisies à l'émission.
@@ -174,7 +191,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   async computePricingPreview({ data, user, admin, userClient }) {
     const cfg = await loadPricingConfig(admin);
-    const cost = computeCardCost(Number(data.amountUsd), cfg);
+    const amt = Number(data?.amountUsd ?? 0);
+    const cost = amt > 0
+      ? computeCardCost(amt, cfg)
+      : { amountUsd: 0, feeXof: cfg.card_issue_fee_xof, strowalletFixedUsd: 0, strowalletPctUsd: 0, rateXof: cfg.usd_rate_xof, loadedToStrowalletUsd: 0, loadedToStrowalletXof: 0, totalXof: cfg.card_issue_fee_xof };
     const { data: w } = await userClient.from("wallets").select("balance").eq("user_id", user.id).eq("currency", "XOF").maybeSingle();
     const available = Number(w?.balance ?? 0);
     return { ...cost, available, canAfford: available >= cost.totalXof };
@@ -200,9 +220,13 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async issueCard({ data, user, admin, userClient }) {
     const userId = user.id; const email = user.email;
     const cfg = await loadPricingConfig(admin);
-    const amountUsd = Number(data.amountUsd);
-    if (!Number.isFinite(amountUsd) || amountUsd <= 0) return { ok: false, error: "Montant USD invalide" };
-    const cost = computeCardCost(amountUsd, cfg);
+    // Financement initial 100 % optionnel : 0 par défaut. La carte est créée à 0 $.
+    const amountUsdRaw = Number(data?.amountUsd ?? 0);
+    const amountUsd = Number.isFinite(amountUsdRaw) && amountUsdRaw > 0 ? amountUsdRaw : 0;
+    // Prix = frais d'émission fixe (4500 XOF par défaut) + éventuel financement.
+    const cost = amountUsd > 0
+      ? computeCardCost(amountUsd, cfg)
+      : { amountUsd: 0, feeXof: cfg.card_issue_fee_xof, strowalletFixedUsd: 0, strowalletPctUsd: 0, rateXof: cfg.usd_rate_xof, loadedToStrowalletUsd: 0, loadedToStrowalletXof: 0, totalXof: cfg.card_issue_fee_xof };
     const requiredXof = cost.totalXof;
     // Validation des infos perso requises par l'API NFC
     const required = ["firstName","lastName","dob","idType","idNumber","line1","city","state","postalCode","country","phone"] as const;
@@ -253,12 +277,15 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         provider_card_id: card_id,
         brand: (finalBrand || "visa").toLowerCase(), last4: finalLast4, currency: "USD",
         balance: finalBalance, status: finalStatus, metadata: finalMeta,
+        total_funded_usd: amountUsd,
       });
       await admin.from("transactions").insert({
         user_id: userId, type: "card_issue", status: "success",
         amount: requiredXof, currency: "XOF", provider: "strowallet",
         provider_ref: card_id,
-        description: `Émission carte NFC ${amountUsd} USD (frais ${cfg.card_issue_fee_xof} XOF)`,
+        description: amountUsd > 0
+          ? `Émission carte NFC ${amountUsd} USD (frais ${cfg.card_issue_fee_xof} XOF)`
+          : `Émission carte NFC (frais ${cfg.card_issue_fee_xof} XOF, solde 0 USD)`,
         metadata: { pricing: cost },
       });
       return { ok: true, data: res };
@@ -274,7 +301,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   },
 
   async cardDetails({ data, user, admin, userClient }) {
-    const { data: card } = await userClient.from("cards").select("user_id").eq("provider_card_id", data.card_id).maybeSingle();
+    const { data: card } = await userClient.from("cards").select("user_id,total_funded_usd,last4").eq("provider_card_id", data.card_id).maybeSingle();
     if (!card || card.user_id !== user.id) {
       if (!(await isAdmin(admin, user.id))) throw new Error("Carte introuvable");
     }
@@ -325,6 +352,12 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
           return { ok: false, error: (e as Error).message, provider_status: details.status, data: res };
         }
       }
+    }
+    // Verrou : PAN + CVV masqués tant que le dépôt cumulé sur la carte < 5 USD.
+    const funded = Number(card?.total_funded_usd ?? 0);
+    const isOwnerAdmin = await isAdmin(admin, user.id);
+    if (!isOwnerAdmin && funded < CARD_DETAILS_UNLOCK_USD) {
+      return { ...maskCardDetailsResponse(res, (card?.last4 ?? null) as string | null), _locked: true, funded_usd: funded, unlock_usd: CARD_DETAILS_UNLOCK_USD };
     }
     return res;
   },
@@ -498,7 +531,12 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (debErr) throw new Error(debErr.message);
     try {
       const res = await SW.fundWithdrawNfcCard({ card_id: data.card_id, amount: Number(data.amountUsd), type: "fund" });
-      await admin.from("cards").update({ balance: Number(card.balance) + Number(data.amountUsd) }).eq("id", card.id);
+      // Incrémente le solde ET le cumul historique (pour déblocage des infos > 5 USD).
+      const { data: fresh } = await admin.from("cards").select("total_funded_usd").eq("id", card.id).maybeSingle();
+      await admin.from("cards").update({
+        balance: Number(card.balance) + Number(data.amountUsd),
+        total_funded_usd: Number(fresh?.total_funded_usd ?? 0) + Number(data.amountUsd),
+      }).eq("id", card.id);
       await admin.from("transactions").insert({
         user_id: userId, type: "card_fund", status: "success",
         amount: requiredXof, currency: "XOF", provider: "strowallet",
@@ -557,7 +595,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   async listMyCards({ user, userClient }) {
     const { data, error } = await userClient.from("cards")
-      .select("id,brand,last4,currency,balance,status,provider_card_id,failed_attempts,auto_frozen_at,created_at,metadata")
+      .select("id,brand,last4,currency,balance,status,provider_card_id,failed_attempts,auto_frozen_at,created_at,metadata,total_funded_usd")
       .eq("user_id", user.id).order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -859,11 +897,19 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const [users, cards, txs, kyc, withdrawals] = await Promise.all([
       admin.from("profiles").select("id,full_name,email,phone,country,is_active,strowallet_customer_id,created_at").order("created_at", { ascending: false }).limit(100),
-      admin.from("cards").select("id,user_id,brand,last4,status,balance,currency,failed_attempts,auto_frozen_at,created_at").order("created_at", { ascending: false }).limit(50),
+      admin.from("cards").select("id,user_id,brand,last4,status,balance,currency,failed_attempts,auto_frozen_at,created_at,total_funded_usd,provider_card_id").order("created_at", { ascending: false }).limit(100),
       admin.from("transactions").select("id,user_id,type,status,amount,currency,description,created_at").order("created_at", { ascending: false }).limit(50),
       admin.from("kyc_submissions").select("*").order("submitted_at", { ascending: false, nullsFirst: false }).limit(50),
       admin.from("withdrawals").select("*").order("created_at", { ascending: false }).limit(50),
     ]);
+    // Enrichit chaque carte avec le propriétaire (nom + email) pour le tableau admin.
+    const cardOwnerIds = Array.from(new Set((cards.data ?? []).map((c: any) => c.user_id).filter(Boolean)));
+    let ownerMap: Record<string, any> = {};
+    if (cardOwnerIds.length > 0) {
+      const { data: owners } = await admin.from("profiles").select("id,full_name,email,phone").in("id", cardOwnerIds);
+      ownerMap = Object.fromEntries((owners ?? []).map((o: any) => [o.id, o]));
+    }
+    const enrichedCards = (cards.data ?? []).map((c: any) => ({ ...c, owner: ownerMap[c.user_id] || null }));
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
     const { data: monthTx } = await admin.from("transactions").select("type,amount,currency,status").gte("created_at", monthStart.toISOString()).eq("status","success");
     const flows = { recharges_xof: 0, withdrawals_xof: 0, card_issue_xof: 0 };
@@ -874,7 +920,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (t.type === "withdrawal") flows.withdrawals_xof += a;
       if (t.type === "card_issue") flows.card_issue_xof += a;
     }
-    return { users: users.data ?? [], cards: cards.data ?? [], transactions: txs.data ?? [], kyc: kyc.data ?? [], withdrawals: withdrawals.data ?? [], flows };
+    return { users: users.data ?? [], cards: enrichedCards, transactions: txs.data ?? [], kyc: kyc.data ?? [], withdrawals: withdrawals.data ?? [], flows };
   },
 
   async adminStrowalletBalance({ user, admin }) {
@@ -888,6 +934,72 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const { error } = await admin.from("profiles").update({ is_active: !!data.is_active }).eq("id", data.user_id);
     if (error) throw new Error(error.message);
     return { ok: true };
+  },
+
+  // Admin modifie nom, email et/ou mot de passe d'un utilisateur.
+  async adminUpdateUser({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const uid = String(data.user_id || "");
+    if (!uid) throw new Error("user_id manquant");
+    const authPatch: Record<string, any> = {};
+    if (typeof data.email === "string" && data.email.trim()) authPatch.email = data.email.trim();
+    if (typeof data.password === "string" && data.password.length >= 6) authPatch.password = data.password;
+    if (Object.keys(authPatch).length > 0) {
+      const { error } = await admin.auth.admin.updateUserById(uid, authPatch);
+      if (error) throw new Error(error.message);
+    }
+    const profPatch: Record<string, any> = {};
+    if (typeof data.full_name === "string") profPatch.full_name = data.full_name.trim();
+    if (typeof data.email === "string" && data.email.trim()) profPatch.email = data.email.trim();
+    if (Object.keys(profPatch).length > 0) {
+      const { error } = await admin.from("profiles").update(profPatch).eq("id", uid);
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true };
+  },
+
+  // L'utilisateur met à jour son propre profil (nom + téléphone + avatar).
+  async updateMyProfile({ data, user, admin }) {
+    const patch: Record<string, any> = {};
+    if (typeof data.full_name === "string") patch.full_name = data.full_name.trim().slice(0, 120);
+    if (typeof data.avatar_url === "string") patch.avatar_url = data.avatar_url.slice(0, 1024);
+    if (typeof data.phone === "string") patch.phone = data.phone.trim().slice(0, 40);
+    if (Object.keys(patch).length === 0) return { ok: true };
+    const { error } = await admin.from("profiles").update(patch).eq("id", user.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  },
+
+  // L'utilisateur change son mot de passe (vérifie l'ancien).
+  async updateMyPassword({ data, user, admin }) {
+    const current = String(data.current_password || "");
+    const next = String(data.new_password || "");
+    if (next.length < 6) return { ok: false, error: "Le nouveau mot de passe doit contenir au moins 6 caractères" };
+    if (!current) return { ok: false, error: "Mot de passe actuel requis" };
+    const check = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+    const { error: signErr } = await check.auth.signInWithPassword({ email: user.email!, password: current });
+    if (signErr) return { ok: false, error: "Mot de passe actuel incorrect" };
+    const { error } = await admin.auth.admin.updateUserById(user.id, { password: next });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  },
+
+  // Génère une URL signée pour uploader une photo de profil dans le bucket `avatars`.
+  async createAvatarUploadUrl({ data, user, admin }) {
+    const ext = String(data?.ext || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "jpg";
+    const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+    const { data: signed, error } = await admin.storage.from("avatars").createSignedUploadUrl(path);
+    if (error || !signed) throw new Error(error?.message ?? "Upload URL error");
+    return { path, token: signed.token, signedUrl: signed.signedUrl };
+  },
+
+  // Renvoie une URL signée de lecture pour un avatar (bucket privé).
+  async getAvatarSignedUrl({ data, admin }) {
+    const path = String(data?.path || "");
+    if (!path) return { ok: false, error: "path requis" };
+    const { data: signed, error } = await admin.storage.from("avatars").createSignedUrl(path, 60 * 60);
+    if (error || !signed) return { ok: false, error: error?.message || "URL signée impossible" };
+    return { ok: true, url: signed.signedUrl };
   },
 
   // Supprime complètement un utilisateur (profil, wallets, cartes, transactions, kyc, retraits, rôles, auth.users)

@@ -16,6 +16,7 @@ import { cardAction } from "@/lib/strowallet.functions";
 import { cardDetails } from "@/lib/strowallet.functions";
 import { requestWithdrawal } from "@/lib/withdrawal.functions";
 import { initRecharge, verifyRecharge, reconcileMyDeposits } from "@/lib/yengapay.functions";
+import { updateMyProfile, updateMyPassword, createAvatarUploadUrl, getAvatarSignedUrl } from "@/lib/profile.functions";
 import { IssueCardSheet } from "@/components/issue-card-sheet";
 import { VirtualCard } from "@/components/virtual-card";
 import { toast } from "sonner";
@@ -127,7 +128,7 @@ function Dashboard() {
               {tab === "withdraw" && <WithdrawTab balance={Number(data.wallets.find((w: any) => w.currency === "XOF")?.balance ?? 0)} profile={data.profile} onDone={() => refetch()} />}
               {tab === "cards" && <CardsTab cards={data.cards} onAction={() => refetch()} />}
               {tab === "tx" && <TxTab transactions={data.transactions} />}
-              {tab === "profile" && <ProfileTab profile={data.profile} />}
+              {tab === "profile" && <ProfileTab profile={data.profile} onDone={() => refetch()} />}
             </>
           )}
         </main>
@@ -471,19 +472,122 @@ function TxTab({ transactions }: { transactions: any[] }) {
   );
 }
 
-function ProfileTab({ profile }: { profile: any }) {
+function ProfileTab({ profile, onDone }: { profile: any; onDone: () => void }) {
+  const [fullName, setFullName] = useState<string>(profile?.full_name || "");
+  const [phone, setPhone] = useState<string>(profile?.phone || "");
+  const [avatarUrl, setAvatarUrl] = useState<string>(profile?.avatar_url || "");
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [currentPwd, setCurrentPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [savingPwd, setSavingPwd] = useState(false);
+
+  const upd = useServerFn(updateMyProfile);
+  const updPwd = useServerFn(updateMyPassword);
+  const createUrl = useServerFn(createAvatarUploadUrl);
+  const getUrl = useServerFn(getAvatarSignedUrl);
+
+  useEffect(() => {
+    if (!profile?.avatar_url) return;
+    getUrl({ data: { path: profile.avatar_url } })
+      .then((r: any) => { if (r?.ok) setAvatarPreview(r.url); })
+      .catch(() => { /* silent */ });
+  }, [profile?.avatar_url]);
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) { toast.error("Photo trop lourde (max 3 Mo)"); return; }
+    setUploading(true);
+    try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const sig: any = await createUrl({ data: { ext } });
+      const up = await fetch(sig.signedUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type || "image/jpeg" } });
+      if (!up.ok) throw new Error("Échec upload");
+      setAvatarUrl(sig.path);
+      const preview: any = await getUrl({ data: { path: sig.path } });
+      if (preview?.ok) setAvatarPreview(preview.url);
+      toast.success("Photo prête — cliquez sur Enregistrer");
+    } catch (err) { toast.error((err as Error).message); } finally { setUploading(false); }
+  }
+
+  async function saveProfile() {
+    setSavingProfile(true);
+    try {
+      await upd({ data: { full_name: fullName, phone, avatar_url: avatarUrl } });
+      toast.success("Profil mis à jour");
+      onDone();
+    } catch (e) { toast.error((e as Error).message); } finally { setSavingProfile(false); }
+  }
+
+  async function savePwd() {
+    if (newPwd.length < 6) { toast.error("Mot de passe trop court"); return; }
+    setSavingPwd(true);
+    try {
+      const r: any = await updPwd({ data: { current_password: currentPwd, new_password: newPwd } });
+      if (r?.ok === false) throw new Error(r.error || "Échec");
+      toast.success("Mot de passe mis à jour");
+      setCurrentPwd(""); setNewPwd("");
+    } catch (e) { toast.error((e as Error).message); } finally { setSavingPwd(false); }
+  }
+
+  const initial = (fullName || profile?.email || "?").trim().charAt(0).toUpperCase();
+
   return (
     <div className="max-w-2xl space-y-6">
       <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Mon profil</h1>
-      <div className="space-y-3 rounded-2xl border border-border bg-card p-6">
-        <Info k="Nom complet" v={profile?.full_name} />
-        <Info k="Email" v={profile?.email} />
-        <Info k="Téléphone" v={profile?.phone} />
-        <Info k="Pays" v={profile?.country} />
-        <Info k="Compte actif" v={profile?.is_active ? "Oui" : "Non (désactivé)"} />
+
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex items-center gap-4">
+          <div className="grid h-20 w-20 place-items-center overflow-hidden rounded-full border border-border bg-surface-2 text-2xl font-bold text-muted-foreground">
+            {avatarPreview ? <img src={avatarPreview} alt="Avatar" className="h-full w-full object-cover" /> : initial}
+          </div>
+          <div className="space-y-2">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2 text-xs font-semibold hover:bg-muted">
+              {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserCircle className="h-3.5 w-3.5" />}
+              Changer la photo
+              <input type="file" accept="image/*" className="hidden" onChange={onFile} />
+            </label>
+            <p className="text-[11px] text-muted-foreground">JPG/PNG · 3 Mo max</p>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4">
+          <Field label="Nom complet">
+            <input value={fullName} onChange={(e) => setFullName(e.target.value)}
+              className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 outline-none" />
+          </Field>
+          <Field label="Téléphone">
+            <input value={phone} onChange={(e) => setPhone(e.target.value)}
+              className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 outline-none" />
+          </Field>
+          <Info k="Email" v={profile?.email} />
+          <Info k="Pays" v={profile?.country} />
+        </div>
+
+        <button onClick={saveProfile} disabled={savingProfile}
+          className="mt-6 inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
+          {savingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
+        </button>
       </div>
-      <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
-        Les informations d'identité sont saisies directement lors de l'émission d'une carte NFC, et transmises à l'émetteur uniquement à ce moment-là.
+
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <h2 className="font-semibold">Changer mon mot de passe</h2>
+        <div className="mt-4 grid gap-3">
+          <Field label="Mot de passe actuel">
+            <input type="password" value={currentPwd} onChange={(e) => setCurrentPwd(e.target.value)}
+              className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 outline-none" />
+          </Field>
+          <Field label="Nouveau mot de passe (6 caractères min)">
+            <input type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)}
+              className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 outline-none" />
+          </Field>
+        </div>
+        <button onClick={savePwd} disabled={savingPwd || !currentPwd || newPwd.length < 6}
+          className="mt-4 inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-5 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-50">
+          {savingPwd ? <Loader2 className="h-4 w-4 animate-spin" /> : "Mettre à jour"}
+        </button>
       </div>
     </div>
   );
