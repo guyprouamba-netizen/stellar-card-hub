@@ -191,7 +191,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   async computePricingPreview({ data, user, admin, userClient }) {
     const cfg = await loadPricingConfig(admin);
-    const cost = computeCardCost(Number(data.amountUsd), cfg);
+    const amt = Number(data?.amountUsd ?? 0);
+    const cost = amt > 0
+      ? computeCardCost(amt, cfg)
+      : { amountUsd: 0, feeXof: cfg.card_issue_fee_xof, strowalletFixedUsd: 0, strowalletPctUsd: 0, rateXof: cfg.usd_rate_xof, loadedToStrowalletUsd: 0, loadedToStrowalletXof: 0, totalXof: cfg.card_issue_fee_xof };
     const { data: w } = await userClient.from("wallets").select("balance").eq("user_id", user.id).eq("currency", "XOF").maybeSingle();
     const available = Number(w?.balance ?? 0);
     return { ...cost, available, canAfford: available >= cost.totalXof };
