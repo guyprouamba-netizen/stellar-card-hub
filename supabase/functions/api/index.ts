@@ -171,8 +171,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const [w, t, c, p] = await Promise.all([
       userClient.from("wallets").select("id,currency,balance").eq("user_id", userId),
       userClient.from("transactions").select("id,type,status,amount,currency,description,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
-      userClient.from("cards").select("id,brand,last4,currency,balance,status,failed_attempts,auto_frozen_at,created_at").eq("user_id", userId).order("created_at", { ascending: false }),
-      userClient.from("profiles").select("full_name,email,phone,is_active,country").eq("id", userId).maybeSingle(),
+      userClient.from("cards").select("id,brand,last4,currency,balance,status,failed_attempts,auto_frozen_at,created_at,total_funded_usd").eq("user_id", userId).order("created_at", { ascending: false }),
+      userClient.from("profiles").select("full_name,email,phone,is_active,country,avatar_url").eq("id", userId).maybeSingle(),
     ]);
     const pricing = await loadPricingConfig(admin);
     // KYC supprimé : l'API NFC ne nécessite plus de profil client. Les infos perso sont saisies à l'émission.
