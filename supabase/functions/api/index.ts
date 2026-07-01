@@ -88,6 +88,23 @@ function isIssuerFailed(details: { status: string | null; number: string | null 
   return st === "failed" && noPan;
 }
 
+// Seuil (USD) de dépôt cumulé requis pour révéler PAN complet + CVV.
+const CARD_DETAILS_UNLOCK_USD = 5;
+
+// Masque les infos sensibles d'une carte tant que le dépôt cumulé < 5 USD.
+function maskCardDetailsResponse(res: any, last4: string | null) {
+  const clone = JSON.parse(JSON.stringify(res ?? {}));
+  const nodes: any[] = [clone?.response?.card_detail, clone?.data?.card_detail, clone?.card_detail].filter(Boolean);
+  for (const n of nodes) {
+    const l4 = last4 || (n.card_number ? String(n.card_number).slice(-4) : "••••");
+    n.card_number = `•••• •••• •••• ${l4}`;
+    n.pan = n.card_number;
+    n.cardNumber = n.card_number;
+    n.cvv = null; n.cvv2 = null; n.card_cvv = null;
+  }
+  return clone;
+}
+
 const YENGAPAY_CASHOUT_METHODS = ["ORANGE_MONEY", "MOOV_MONEY", "TELECEL_MONEY", "SANK_MONEY", "WAVE_MONEY"] as const;
 
 function mapCashoutMethod(operator?: string | null) {
