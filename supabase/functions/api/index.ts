@@ -528,7 +528,12 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (debErr) throw new Error(debErr.message);
     try {
       const res = await SW.fundWithdrawNfcCard({ card_id: data.card_id, amount: Number(data.amountUsd), type: "fund" });
-      await admin.from("cards").update({ balance: Number(card.balance) + Number(data.amountUsd) }).eq("id", card.id);
+      // Incrémente le solde ET le cumul historique (pour déblocage des infos > 5 USD).
+      const { data: fresh } = await admin.from("cards").select("total_funded_usd").eq("id", card.id).maybeSingle();
+      await admin.from("cards").update({
+        balance: Number(card.balance) + Number(data.amountUsd),
+        total_funded_usd: Number(fresh?.total_funded_usd ?? 0) + Number(data.amountUsd),
+      }).eq("id", card.id);
       await admin.from("transactions").insert({
         user_id: userId, type: "card_fund", status: "success",
         amount: requiredXof, currency: "XOF", provider: "strowallet",
