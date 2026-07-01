@@ -217,9 +217,13 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async issueCard({ data, user, admin, userClient }) {
     const userId = user.id; const email = user.email;
     const cfg = await loadPricingConfig(admin);
-    const amountUsd = Number(data.amountUsd);
-    if (!Number.isFinite(amountUsd) || amountUsd <= 0) return { ok: false, error: "Montant USD invalide" };
-    const cost = computeCardCost(amountUsd, cfg);
+    // Financement initial 100 % optionnel : 0 par défaut. La carte est créée à 0 $.
+    const amountUsdRaw = Number(data?.amountUsd ?? 0);
+    const amountUsd = Number.isFinite(amountUsdRaw) && amountUsdRaw > 0 ? amountUsdRaw : 0;
+    // Prix = frais d'émission fixe (4500 XOF par défaut) + éventuel financement.
+    const cost = amountUsd > 0
+      ? computeCardCost(amountUsd, cfg)
+      : { amountUsd: 0, feeXof: cfg.card_issue_fee_xof, strowalletFixedUsd: 0, strowalletPctUsd: 0, rateXof: cfg.usd_rate_xof, loadedToStrowalletUsd: 0, loadedToStrowalletXof: 0, totalXof: cfg.card_issue_fee_xof };
     const requiredXof = cost.totalXof;
     // Validation des infos perso requises par l'API NFC
     const required = ["firstName","lastName","dob","idType","idNumber","line1","city","state","postalCode","country","phone"] as const;
