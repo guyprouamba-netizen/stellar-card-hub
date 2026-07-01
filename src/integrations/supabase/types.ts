@@ -268,6 +268,7 @@ export type Database = {
           provider: string
           provider_card_id: string | null
           status: string
+          total_funded_usd: number
           updated_at: string
           user_id: string
         }
@@ -284,6 +285,7 @@ export type Database = {
           provider?: string
           provider_card_id?: string | null
           status?: string
+          total_funded_usd?: number
           updated_at?: string
           user_id: string
         }
@@ -300,6 +302,7 @@ export type Database = {
           provider?: string
           provider_card_id?: string | null
           status?: string
+          total_funded_usd?: number
           updated_at?: string
           user_id?: string
         }
@@ -817,6 +820,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           country: string | null
           created_at: string
           email: string | null
@@ -830,6 +834,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           country?: string | null
           created_at?: string
           email?: string | null
@@ -843,6 +848,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           country?: string | null
           created_at?: string
           email?: string | null
