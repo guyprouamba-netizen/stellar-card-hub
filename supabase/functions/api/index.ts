@@ -298,7 +298,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   },
 
   async cardDetails({ data, user, admin, userClient }) {
-    const { data: card } = await userClient.from("cards").select("user_id").eq("provider_card_id", data.card_id).maybeSingle();
+    const { data: card } = await userClient.from("cards").select("user_id,total_funded_usd,last4").eq("provider_card_id", data.card_id).maybeSingle();
     if (!card || card.user_id !== user.id) {
       if (!(await isAdmin(admin, user.id))) throw new Error("Carte introuvable");
     }
