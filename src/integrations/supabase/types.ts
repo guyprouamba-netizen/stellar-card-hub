@@ -63,6 +63,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "action_plans_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "action_plans_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -157,6 +164,13 @@ export type Database = {
             referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "business_api_keys_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       business_audit_log: {
@@ -199,6 +213,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_audit_log_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
             referencedColumns: ["id"]
           },
         ]
@@ -351,6 +372,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "coach_messages_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "coach_messages_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -426,6 +454,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
             referencedColumns: ["id"]
           },
           {
@@ -598,6 +633,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payment_link_payments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payment_link_payments_link_id_fkey"
             columns: ["link_id"]
             isOneToOne: false
@@ -684,6 +726,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_links_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
             referencedColumns: ["id"]
           },
           {
@@ -810,6 +859,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "products_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "products_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -920,6 +976,13 @@ export type Database = {
             referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "projects_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       push_subscriptions: {
@@ -946,6 +1009,54 @@ export type Database = {
           keys?: Json
           user_agent?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      rate_limit_hits: {
+        Row: {
+          bucket: string
+          hit_at: string
+          id: number
+          ip: string
+        }
+        Insert: {
+          bucket: string
+          hit_at?: string
+          id?: number
+          ip: string
+        }
+        Update: {
+          bucket?: string
+          hit_at?: string
+          id?: number
+          ip?: string
+        }
+        Relationships: []
+      }
+      security_events: {
+        Row: {
+          created_at: string
+          details: Json | null
+          id: number
+          ip: string | null
+          kind: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          id?: number
+          ip?: string | null
+          kind: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          id?: number
+          ip?: string | null
+          kind?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1095,7 +1206,36 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_business_view: {
+        Row: {
+          country: string | null
+          description: string | null
+          id: string | null
+          logo_url: string | null
+          name: string | null
+          slug: string | null
+          status: Database["public"]["Enums"]["business_status"] | null
+        }
+        Insert: {
+          country?: string | null
+          description?: string | null
+          id?: string | null
+          logo_url?: string | null
+          name?: string | null
+          slug?: string | null
+          status?: Database["public"]["Enums"]["business_status"] | null
+        }
+        Update: {
+          country?: string | null
+          description?: string | null
+          id?: string | null
+          logo_url?: string | null
+          name?: string | null
+          slug?: string | null
+          status?: Database["public"]["Enums"]["business_status"] | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       generate_referral_code: { Args: never; Returns: string }
@@ -1106,6 +1246,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      purge_rate_limit_hits: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "user"
