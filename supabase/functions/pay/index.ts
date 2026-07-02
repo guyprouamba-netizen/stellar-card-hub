@@ -29,10 +29,50 @@ async function authenticateApiKey(req: Request): Promise<{ business_id: string; 
   const db = admin();
   const key_hash = await sha256Hex(token);
   const { data } = await db.from("business_api_keys")
-    .select("id,business_id,mode,revoked_at").eq("key_hash", key_hash).maybeSingle();
+    .select("id,business_id,mode,revoked_at,allowed_ips,rate_limit_per_min,scopes").eq("key_hash", key_hash).maybeSingle();
   if (!data || data.revoked_at) return null;
+  // IP allowlist
+  const ip = getClientIp(req);
+  if (Array.isArray((data as any).allowed_ips) && (data as any).allowed_ips.length > 0) {
+    if (!(data as any).allowed_ips.includes(ip)) {
+      await db.from("security_events").insert({ kind: "ip_blocked", ip, details: { key_id: data.id } });
+      return null;
+    }
+  }
+  // Per-key rate limit (per minute)
+  const limit = Number((data as any).rate_limit_per_min || 60);
+  const sinceIso = new Date(Date.now() - 60_000).toISOString();
+  const { count } = await db.from("rate_limit_hits")
+    .select("id", { count: "exact", head: true })
+    .eq("bucket", `api_key:${data.id}`)
+    .gte("hit_at", sinceIso);
+  if ((count || 0) >= limit) {
+    await db.from("security_events").insert({ kind: "rate_limited", ip, details: { key_id: data.id, limit } });
+    return null;
+  }
+  await db.from("rate_limit_hits").insert({ bucket: `api_key:${data.id}`, ip });
   await db.from("business_api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", data.id);
-  return { business_id: data.business_id, mode: data.mode, key_id: data.id };
+  return { business_id: data.business_id, mode: data.mode, key_id: data.id, scopes: (data as any).scopes || [] } as any;
+}
+
+function getClientIp(req: Request): string {
+  const fwd = req.headers.get("x-forwarded-for") || "";
+  return (fwd.split(",")[0] || req.headers.get("cf-connecting-ip") || req.headers.get("x-real-ip") || "0.0.0.0").trim();
+}
+
+async function checkPublicRateLimit(bucket: string, req: Request, perMin: number): Promise<boolean> {
+  const db = admin();
+  const ip = getClientIp(req);
+  const sinceIso = new Date(Date.now() - 60_000).toISOString();
+  const { count } = await db.from("rate_limit_hits")
+    .select("id", { count: "exact", head: true })
+    .eq("bucket", bucket).eq("ip", ip).gte("hit_at", sinceIso);
+  if ((count || 0) >= perMin) {
+    await db.from("security_events").insert({ kind: "rate_limited", ip, details: { bucket, limit: perMin } });
+    return false;
+  }
+  await db.from("rate_limit_hits").insert({ bucket, ip });
+  return true;
 }
 
 function ref(prefix = "LP") {
@@ -289,17 +329,28 @@ Deno.serve(async (req) => {
     if (req.method === "POST") {
       const payload = await req.json().catch(() => ({}));
       const action = String(payload?.action || "");
+      // Anti-abuse: rate-limit by IP for public actions
+      const limits: Record<string, number> = { getLink: 60, initCheckout: 10, verifyPayment: 30 };
+      if (limits[action]) {
+        const ok = await checkPublicRateLimit(`pay:${action}`, req, limits[action]);
+        if (!ok) return jsonResponse({ error: "Trop de requêtes, réessayez dans une minute." }, 429);
+      }
       if (action === "getLink") {
         const ctx = await getPublicLink(String(payload?.slug || ""));
         if (!ctx) return jsonResponse({ error: "Not found" }, 404);
         return jsonResponse({ ok: true, ...ctx });
       }
       if (action === "initCheckout") {
+        // Sanitize inputs (defense in depth)
+        payload.customer_name = String(payload?.customer_name || "").slice(0, 80);
+        payload.customer_phone = String(payload?.customer_phone || "").slice(0, 24);
         const r = await initCheckout(payload);
         return jsonResponse(r);
       }
       if (action === "verifyPayment") {
-        const r = await verifyPayment(String(payload?.reference || ""));
+        const refStr = String(payload?.reference || "");
+        if (!/^[A-Z0-9\-]{6,40}$/.test(refStr)) return jsonResponse({ error: "Invalid reference" }, 400);
+        const r = await verifyPayment(refStr);
         return jsonResponse(r);
       }
       return jsonResponse({ error: "Unknown action" }, 400);
