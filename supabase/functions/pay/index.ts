@@ -29,10 +29,50 @@ async function authenticateApiKey(req: Request): Promise<{ business_id: string; 
   const db = admin();
   const key_hash = await sha256Hex(token);
   const { data } = await db.from("business_api_keys")
-    .select("id,business_id,mode,revoked_at").eq("key_hash", key_hash).maybeSingle();
+    .select("id,business_id,mode,revoked_at,allowed_ips,rate_limit_per_min,scopes").eq("key_hash", key_hash).maybeSingle();
   if (!data || data.revoked_at) return null;
+  // IP allowlist
+  const ip = getClientIp(req);
+  if (Array.isArray((data as any).allowed_ips) && (data as any).allowed_ips.length > 0) {
+    if (!(data as any).allowed_ips.includes(ip)) {
+      await db.from("security_events").insert({ kind: "ip_blocked", ip, details: { key_id: data.id } });
+      return null;
+    }
+  }
+  // Per-key rate limit (per minute)
+  const limit = Number((data as any).rate_limit_per_min || 60);
+  const sinceIso = new Date(Date.now() - 60_000).toISOString();
+  const { count } = await db.from("rate_limit_hits")
+    .select("id", { count: "exact", head: true })
+    .eq("bucket", `api_key:${data.id}`)
+    .gte("hit_at", sinceIso);
+  if ((count || 0) >= limit) {
+    await db.from("security_events").insert({ kind: "rate_limited", ip, details: { key_id: data.id, limit } });
+    return null;
+  }
+  await db.from("rate_limit_hits").insert({ bucket: `api_key:${data.id}`, ip });
   await db.from("business_api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", data.id);
-  return { business_id: data.business_id, mode: data.mode, key_id: data.id };
+  return { business_id: data.business_id, mode: data.mode, key_id: data.id, scopes: (data as any).scopes || [] } as any;
+}
+
+function getClientIp(req: Request): string {
+  const fwd = req.headers.get("x-forwarded-for") || "";
+  return (fwd.split(",")[0] || req.headers.get("cf-connecting-ip") || req.headers.get("x-real-ip") || "0.0.0.0").trim();
+}
+
+async function checkPublicRateLimit(bucket: string, req: Request, perMin: number): Promise<boolean> {
+  const db = admin();
+  const ip = getClientIp(req);
+  const sinceIso = new Date(Date.now() - 60_000).toISOString();
+  const { count } = await db.from("rate_limit_hits")
+    .select("id", { count: "exact", head: true })
+    .eq("bucket", bucket).eq("ip", ip).gte("hit_at", sinceIso);
+  if ((count || 0) >= perMin) {
+    await db.from("security_events").insert({ kind: "rate_limited", ip, details: { bucket, limit: perMin } });
+    return false;
+  }
+  await db.from("rate_limit_hits").insert({ bucket, ip });
+  return true;
 }
 
 function ref(prefix = "LP") {
