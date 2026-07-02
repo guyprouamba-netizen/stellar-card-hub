@@ -329,17 +329,28 @@ Deno.serve(async (req) => {
     if (req.method === "POST") {
       const payload = await req.json().catch(() => ({}));
       const action = String(payload?.action || "");
+      // Anti-abuse: rate-limit by IP for public actions
+      const limits: Record<string, number> = { getLink: 60, initCheckout: 10, verifyPayment: 30 };
+      if (limits[action]) {
+        const ok = await checkPublicRateLimit(`pay:${action}`, req, limits[action]);
+        if (!ok) return jsonResponse({ error: "Trop de requêtes, réessayez dans une minute." }, 429);
+      }
       if (action === "getLink") {
         const ctx = await getPublicLink(String(payload?.slug || ""));
         if (!ctx) return jsonResponse({ error: "Not found" }, 404);
         return jsonResponse({ ok: true, ...ctx });
       }
       if (action === "initCheckout") {
+        // Sanitize inputs (defense in depth)
+        payload.customer_name = String(payload?.customer_name || "").slice(0, 80);
+        payload.customer_phone = String(payload?.customer_phone || "").slice(0, 24);
         const r = await initCheckout(payload);
         return jsonResponse(r);
       }
       if (action === "verifyPayment") {
-        const r = await verifyPayment(String(payload?.reference || ""));
+        const refStr = String(payload?.reference || "");
+        if (!/^[A-Z0-9\-]{6,40}$/.test(refStr)) return jsonResponse({ error: "Invalid reference" }, 400);
+        const r = await verifyPayment(refStr);
         return jsonResponse(r);
       }
       return jsonResponse({ error: "Unknown action" }, 400);
