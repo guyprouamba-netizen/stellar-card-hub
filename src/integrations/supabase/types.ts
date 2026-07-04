@@ -1033,6 +1033,39 @@ export type Database = {
         }
         Relationships: []
       }
+      referrals: {
+        Row: {
+          cards_rewarded: number
+          created_at: string
+          id: string
+          referral_code: string
+          referred_id: string
+          referrer_id: string
+          status: string
+          total_reward_xof: number
+        }
+        Insert: {
+          cards_rewarded?: number
+          created_at?: string
+          id?: string
+          referral_code: string
+          referred_id: string
+          referrer_id: string
+          status?: string
+          total_reward_xof?: number
+        }
+        Update: {
+          cards_rewarded?: number
+          created_at?: string
+          id?: string
+          referral_code?: string
+          referred_id?: string
+          referrer_id?: string
+          status?: string
+          total_reward_xof?: number
+        }
+        Relationships: []
+      }
       security_events: {
         Row: {
           created_at: string
@@ -1268,6 +1301,7 @@ export type Database = {
         | "card_tx"
         | "card_withdraw"
         | "card_terminated"
+        | "referral_reward"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1414,6 +1448,7 @@ export const Constants = {
         "card_tx",
         "card_withdraw",
         "card_terminated",
+        "referral_reward",
       ],
     },
   },
