@@ -151,6 +151,7 @@ function MobileNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "deposit", label: "Dépôt", Icon: ArrowDownLeft },
     { id: "withdraw", label: "Retrait", Icon: ArrowUpRight },
     { id: "cards", label: "Cartes", Icon: CreditCard },
+    { id: "referrals", label: "Parrains", Icon: Users },
     { id: "profile", label: "Profil", Icon: UserCircle },
   ];
   async function logout() {
