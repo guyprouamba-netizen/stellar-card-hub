@@ -4,15 +4,15 @@ import { useServerFn } from "@/lib/server-fn";
 import { useQuery } from "@tanstack/react-query";
 import {
   Users, TrendingUp, CreditCard, ShieldCheck, ArrowDownUp, LogOut, RefreshCw,
-  Loader2, CheckCircle2, XCircle, Wallet, Server, Eye, SlidersHorizontal,
+  Loader2, CheckCircle2, XCircle, Wallet, Server, Eye, SlidersHorizontal, Share2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
-import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser } from "@/lib/admin.functions";
+import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview } from "@/lib/admin.functions";
 import { toast } from "sonner";
 
-type Tab = "users" | "flow" | "strowallet" | "payments" | "kyc" | "withdrawals" | "settings";
+type Tab = "users" | "flow" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "settings";
 
 function AdminPage() {
   const navigate = useNavigate();
