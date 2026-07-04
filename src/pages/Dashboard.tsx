@@ -193,6 +193,7 @@ function Sidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "withdraw", label: "Retrait d'argent", Icon: ArrowUpRight },
     { id: "cards", label: "Mes cartes", Icon: CreditCard },
     { id: "tx", label: "Mes transactions", Icon: History },
+    { id: "referrals", label: "Parrainage", Icon: Users },
     { id: "profile", label: "Mon profil", Icon: UserCircle },
   ];
   async function logout() {
