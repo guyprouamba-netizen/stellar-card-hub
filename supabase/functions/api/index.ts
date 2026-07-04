@@ -91,18 +91,47 @@ function isIssuerFailed(details: { status: string | null; number: string | null 
 // Seuil (USD) de dépôt cumulé requis pour révéler PAN complet + CVV.
 const CARD_DETAILS_UNLOCK_USD = 5;
 
-// Masque les infos sensibles d'une carte tant que le dépôt cumulé < 5 USD.
-function maskCardDetailsResponse(res: any, last4: string | null) {
+// Masque UNIQUEMENT le CVV tant que le dépôt cumulé < 5 USD.
+// Le PAN complet, la date d'expiration et le titulaire restent visibles pour
+// que le client voit qu'il possède bien une vraie carte — seul le code de
+// sécurité est verrouillé, l'incitant à recharger 5 USD.
+function maskCardDetailsResponse(res: any, _last4: string | null) {
   const clone = JSON.parse(JSON.stringify(res ?? {}));
   const nodes: any[] = [clone?.response?.card_detail, clone?.data?.card_detail, clone?.card_detail].filter(Boolean);
   for (const n of nodes) {
-    const l4 = last4 || (n.card_number ? String(n.card_number).slice(-4) : "••••");
-    n.card_number = `•••• •••• •••• ${l4}`;
-    n.pan = n.card_number;
-    n.cardNumber = n.card_number;
     n.cvv = null; n.cvv2 = null; n.card_cvv = null;
   }
   return clone;
+}
+
+// Crédite le parrain du nouvel utilisateur d'une récompense fixe (par défaut
+// 1000 XOF) à chaque carte achetée. Idempotent par (referred_id, card_id).
+async function payReferralCardReward(admin: any, referredUserId: string, providerCardId: string) {
+  const ref = `refreward:${referredUserId}:${providerCardId}`;
+  const { data: existing } = await admin.from("transactions").select("id").eq("provider_ref", ref).maybeSingle();
+  if (existing) return { paid: 0, alreadyPaid: true };
+  const { data: link } = await admin.from("referrals")
+    .select("id,referrer_id,cards_rewarded,total_reward_xof")
+    .eq("referred_id", referredUserId).maybeSingle();
+  if (!link) return { paid: 0, alreadyPaid: false };
+  // Montant configurable via platform_config.referral_reward_xof (JSONB number)
+  const { data: cfgRow } = await admin.from("platform_config").select("value").eq("key", "referral_reward_xof").maybeSingle();
+  const rewardXof = Math.max(0, Math.floor(Number((cfgRow as any)?.value ?? 1000)));
+  if (rewardXof <= 0) return { paid: 0, alreadyPaid: false };
+  const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", link.referrer_id).eq("currency", "XOF").maybeSingle();
+  if (!w) return { paid: 0, alreadyPaid: false };
+  await admin.from("wallets").update({ balance: Number(w.balance) + rewardXof }).eq("id", w.id);
+  await admin.from("transactions").insert({
+    user_id: link.referrer_id, type: "referral_reward", status: "success",
+    amount: rewardXof, currency: "XOF", provider: "internal", provider_ref: ref,
+    description: `Récompense parrainage — carte achetée par un filleul (+${rewardXof} XOF)`,
+    metadata: { referred_id: referredUserId, card_id: providerCardId },
+  });
+  await admin.from("referrals").update({
+    cards_rewarded: Number(link.cards_rewarded || 0) + 1,
+    total_reward_xof: Number(link.total_reward_xof || 0) + rewardXof,
+  }).eq("id", link.id);
+  return { paid: rewardXof, alreadyPaid: false };
 }
 
 const YENGAPAY_CASHOUT_METHODS = ["ORANGE_MONEY", "MOOV_MONEY", "TELECEL_MONEY", "SANK_MONEY", "WAVE_MONEY"] as const;
