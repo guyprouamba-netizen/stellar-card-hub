@@ -439,6 +439,73 @@ function WithdrawalsTab({ withdrawals, onAction }: { withdrawals: any[]; onActio
 
 export default AdminPage;
 
+function ReferralsAdminTab(_props: { adjust?: any; refetchOverview: () => void }) {
+  const fetchList = useServerFn(adminReferralsOverview);
+  const adjust = useServerFn(adminAdjustWallet);
+  const toggle = useServerFn(adminToggleUser);
+  const { data, isLoading, refetch } = useQuery({ queryKey: ["admin-referrals"], queryFn: () => fetchList() });
+  const [bonusFor, setBonusFor] = useState<any | null>(null);
+  const groups = (data as any)?.groups ?? [];
+  async function suspend(userId: string) {
+    if (!confirm("Suspendre ce parrain ? Il ne pourra plus se connecter.")) return;
+    try { await toggle({ data: { user_id: userId, is_active: false } }); toast.success("Utilisateur suspendu"); refetch(); }
+    catch (e) { toast.error((e as Error).message); }
+  }
+  if (isLoading) return <Loader2 className="h-5 w-5 animate-spin" />;
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Parrainages ({groups.length})</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Suivi des parrains, filleuls, cartes récompensées et gains cumulés.</p>
+      </div>
+      {groups.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Aucun parrainage pour l'instant.</p>
+      ) : (
+        <div className="space-y-4">
+          {groups.map((g: any) => (
+            <div key={g.referrer_id} className="rounded-2xl border border-border bg-card p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="font-semibold">{g.referrer?.full_name || g.referrer?.email || g.referrer_id}</div>
+                  <div className="text-xs text-muted-foreground">{g.referrer?.email}</div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 text-xs">
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-primary">{g.total_referred} filleul{g.total_referred > 1 ? "s" : ""}</span>
+                  <span className="rounded-full bg-success/10 px-3 py-1 text-success">{g.total_cards_rewarded} carte{g.total_cards_rewarded > 1 ? "s" : ""}</span>
+                  <span className="rounded-full bg-success/15 px-3 py-1 font-semibold text-success tabular-nums">+{Number(g.total_earned_xof).toLocaleString("fr-FR")} XOF</span>
+                  <button onClick={() => setBonusFor(g.referrer)} className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-primary hover:bg-primary/20">Bonus</button>
+                  <button onClick={() => suspend(g.referrer_id)} className="rounded-full border border-destructive/40 bg-destructive/10 px-3 py-1 text-destructive hover:bg-destructive/20">Suspendre</button>
+                </div>
+              </div>
+              <div className="mt-4 overflow-hidden rounded-xl border border-border">
+                <table className="w-full text-xs">
+                  <thead className="bg-surface-2 text-left uppercase tracking-wider text-muted-foreground">
+                    <tr><th className="px-3 py-2">Filleul</th><th className="px-3 py-2">Email</th><th className="px-3 py-2">Inscrit le</th><th className="px-3 py-2 text-right">Cartes</th><th className="px-3 py-2 text-right">Récompense</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {g.filleuls.map((f: any) => (
+                      <tr key={f.referral_id}>
+                        <td className="px-3 py-2">{f.referred?.full_name || "—"}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{f.referred?.email || "—"}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{new Date(f.created_at).toLocaleDateString("fr-FR")}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{f.cards_rewarded}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-success tabular-nums">+{Number(f.total_reward_xof).toLocaleString("fr-FR")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {bonusFor && (
+        <AdjustWalletModal user={bonusFor} onClose={() => setBonusFor(null)} onDone={() => { setBonusFor(null); refetch(); }} adjust={adjust} />
+      )}
+    </div>
+  );
+}
+
 function SettingsTab() {
   const getCfg = useServerFn(adminGetConfig);
   const updCfg = useServerFn(adminUpdateConfig);
