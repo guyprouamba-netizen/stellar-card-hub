@@ -58,6 +58,7 @@ function AdminPage() {
               {tab === "payments" && <PaymentsTab tx={data.transactions} />}
               {tab === "kyc" && <KycTab kyc={data.kyc} onAction={refetch} />}
               {tab === "withdrawals" && <WithdrawalsTab withdrawals={data.withdrawals} onAction={refetch} />}
+              {tab === "referrals" && <ReferralsAdminTab adjust={undefined} refetchOverview={refetch} />}
               {tab === "settings" && <SettingsTab />}
             </>
           )}
