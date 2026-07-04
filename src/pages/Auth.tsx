@@ -175,6 +175,11 @@ function Auth() {
             )}
             {mode === "signup" && (
               <>
+                {refCode && (
+                  <div className="rounded-2xl border border-primary/30 bg-primary/5 p-3 text-xs text-primary">
+                    🎁 Vous êtes parrainé — code : <b>{refCode}</b>. Votre parrain sera récompensé quand vous achèterez votre première carte.
+                  </div>
+                )}
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <input required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nom complet"
