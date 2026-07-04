@@ -77,6 +77,7 @@ function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "payments", label: "Paiements entrants", Icon: Wallet },
     { id: "kyc", label: "KYC à valider", Icon: ShieldCheck },
     { id: "withdrawals", label: "Retraits à valider", Icon: ArrowDownUp },
+    { id: "referrals", label: "Parrainages", Icon: Share2 },
     { id: "settings", label: "Paramètres", Icon: SlidersHorizontal },
   ];
   async function logout() { await supabase.auth.signOut(); navigate("/"); }
