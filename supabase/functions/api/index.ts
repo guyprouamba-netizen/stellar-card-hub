@@ -91,47 +91,18 @@ function isIssuerFailed(details: { status: string | null; number: string | null 
 // Seuil (USD) de dépôt cumulé requis pour révéler PAN complet + CVV.
 const CARD_DETAILS_UNLOCK_USD = 5;
 
-// Masque UNIQUEMENT le CVV tant que le dépôt cumulé < 5 USD.
-// Le PAN complet, la date d'expiration et le titulaire restent visibles pour
-// que le client voit qu'il possède bien une vraie carte — seul le code de
-// sécurité est verrouillé, l'incitant à recharger 5 USD.
-function maskCardDetailsResponse(res: any, _last4: string | null) {
+// Masque les infos sensibles d'une carte tant que le dépôt cumulé < 5 USD.
+function maskCardDetailsResponse(res: any, last4: string | null) {
   const clone = JSON.parse(JSON.stringify(res ?? {}));
   const nodes: any[] = [clone?.response?.card_detail, clone?.data?.card_detail, clone?.card_detail].filter(Boolean);
   for (const n of nodes) {
+    const l4 = last4 || (n.card_number ? String(n.card_number).slice(-4) : "••••");
+    n.card_number = `•••• •••• •••• ${l4}`;
+    n.pan = n.card_number;
+    n.cardNumber = n.card_number;
     n.cvv = null; n.cvv2 = null; n.card_cvv = null;
   }
   return clone;
-}
-
-// Crédite le parrain du nouvel utilisateur d'une récompense fixe (par défaut
-// 1000 XOF) à chaque carte achetée. Idempotent par (referred_id, card_id).
-async function payReferralCardReward(admin: any, referredUserId: string, providerCardId: string) {
-  const ref = `refreward:${referredUserId}:${providerCardId}`;
-  const { data: existing } = await admin.from("transactions").select("id").eq("provider_ref", ref).maybeSingle();
-  if (existing) return { paid: 0, alreadyPaid: true };
-  const { data: link } = await admin.from("referrals")
-    .select("id,referrer_id,cards_rewarded,total_reward_xof")
-    .eq("referred_id", referredUserId).maybeSingle();
-  if (!link) return { paid: 0, alreadyPaid: false };
-  // Montant configurable via platform_config.referral_reward_xof (JSONB number)
-  const { data: cfgRow } = await admin.from("platform_config").select("value").eq("key", "referral_reward_xof").maybeSingle();
-  const rewardXof = Math.max(0, Math.floor(Number((cfgRow as any)?.value ?? 1000)));
-  if (rewardXof <= 0) return { paid: 0, alreadyPaid: false };
-  const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", link.referrer_id).eq("currency", "XOF").maybeSingle();
-  if (!w) return { paid: 0, alreadyPaid: false };
-  await admin.from("wallets").update({ balance: Number(w.balance) + rewardXof }).eq("id", w.id);
-  await admin.from("transactions").insert({
-    user_id: link.referrer_id, type: "referral_reward", status: "success",
-    amount: rewardXof, currency: "XOF", provider: "internal", provider_ref: ref,
-    description: `Récompense parrainage — carte achetée par un filleul (+${rewardXof} XOF)`,
-    metadata: { referred_id: referredUserId, card_id: providerCardId },
-  });
-  await admin.from("referrals").update({
-    cards_rewarded: Number(link.cards_rewarded || 0) + 1,
-    total_reward_xof: Number(link.total_reward_xof || 0) + rewardXof,
-  }).eq("id", link.id);
-  return { paid: rewardXof, alreadyPaid: false };
 }
 
 const YENGAPAY_CASHOUT_METHODS = ["ORANGE_MONEY", "MOOV_MONEY", "TELECEL_MONEY", "SANK_MONEY", "WAVE_MONEY"] as const;
@@ -317,8 +288,6 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
           : `Émission carte NFC (frais ${cfg.card_issue_fee_xof} XOF, solde 0 USD)`,
         metadata: { pricing: cost },
       });
-      // Récompense parrainage (best-effort, silencieuse en cas d'erreur)
-      try { if (card_id) await payReferralCardReward(admin, userId, card_id); } catch { /* silencieux */ }
       return { ok: true, data: res };
     } catch (e) {
       await admin.from("wallets").update({ balance: Number(wallet.balance) }).eq("id", wallet.id);
@@ -552,7 +521,6 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const userId = user.id;
     const { data: card } = await userClient.from("cards").select("id,user_id,balance,provider_card_id,status").eq("provider_card_id", data.card_id).maybeSingle();
     if (!card || card.user_id !== userId) return { ok: false, error: "Carte introuvable" };
-    if (card.status === "terminated") return { ok: false, error: "Carte résiliée — impossible de la recharger. Émettez une nouvelle carte." };
     const cfg = await loadPricingConfig(admin);
     const cost = computeFundCost(Number(data.amountUsd), cfg);
     const requiredXof = cost.totalXof;
@@ -1114,110 +1082,25 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async adminGetConfig({ user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const cfg = await loadPricingConfig(admin);
-    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof"]);
-    const extrasMap: Record<string, any> = {};
-    for (const r of extras ?? []) extrasMap[r.key] = r.value;
-    return { ok: true, config: { ...cfg, ...extrasMap } };
+    return { ok: true, config: cfg };
   },
 
   async adminUpdateConfig({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
-    const allowedNumbers = ["card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee", "referral_reward_xof"];
-    const allowedStrings = ["whatsapp_group_url"];
+    const allowed = ["card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee"];
     const updates: Array<{ key: string; value: string }> = [];
-    for (const k of allowedNumbers) {
+    for (const k of allowed) {
       if (data?.[k] !== undefined && data[k] !== null && data[k] !== "") {
         const n = Number(data[k]);
         if (!Number.isFinite(n) || n < 0) return { ok: false, error: `Valeur invalide pour ${k}` };
         updates.push({ key: k, value: String(n) });
       }
     }
-    for (const k of allowedStrings) {
-      if (typeof data?.[k] === "string" && data[k].trim() !== "") {
-        // JSONB string : stocker en JSON valide entre guillemets
-        updates.push({ key: k, value: JSON.stringify(data[k].trim().slice(0, 500)) });
-      }
-    }
     for (const u of updates) {
       await admin.from("platform_config").upsert({ key: u.key, value: u.value }, { onConflict: "key" });
     }
     const cfg = await loadPricingConfig(admin);
-    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof"]);
-    const extrasMap: Record<string, any> = {};
-    for (const r of extras ?? []) extrasMap[r.key] = r.value;
-    return { ok: true, config: { ...cfg, ...extrasMap } };
-  },
-
-  // Récupère la config publique (URL WhatsApp) — accessible à tout utilisateur connecté.
-  async getPublicConfig({ admin }) {
-    const { data } = await admin.from("platform_config").select("key,value")
-      .in("key", ["whatsapp_group_url", "referral_reward_xof"]);
-    const out: Record<string, any> = {};
-    for (const r of data ?? []) out[r.key] = r.value;
-    return { ok: true, ...out };
-  },
-
-  // Retourne les infos de parrainage du user courant : code, lien, filleuls, gains.
-  async getMyReferralStats({ user, admin }) {
-    const { data: profile } = await admin.from("profiles").select("referral_code").eq("id", user.id).maybeSingle();
-    const code = (profile as any)?.referral_code || null;
-    const { data: rows } = await admin.from("referrals")
-      .select("id,referred_id,cards_rewarded,total_reward_xof,created_at,status")
-      .eq("referrer_id", user.id).order("created_at", { ascending: false });
-    const list = rows ?? [];
-    let referredMap: Record<string, any> = {};
-    if (list.length > 0) {
-      const ids = list.map((r: any) => r.referred_id);
-      const { data: profs } = await admin.from("profiles").select("id,full_name,email,created_at").in("id", ids);
-      referredMap = Object.fromEntries((profs ?? []).map((p: any) => [p.id, p]));
-    }
-    const totalXof = list.reduce((s: number, r: any) => s + Number(r.total_reward_xof || 0), 0);
-    const totalCards = list.reduce((s: number, r: any) => s + Number(r.cards_rewarded || 0), 0);
-    return {
-      ok: true,
-      code,
-      total_referred: list.length,
-      total_cards_rewarded: totalCards,
-      total_earned_xof: totalXof,
-      referrals: list.map((r: any) => ({
-        id: r.id,
-        created_at: r.created_at,
-        status: r.status,
-        cards_rewarded: r.cards_rewarded,
-        total_reward_xof: r.total_reward_xof,
-        referred: referredMap[r.referred_id] || null,
-      })),
-    };
-  },
-
-  // Vue admin : tous les parrains + leurs filleuls et gains cumulés.
-  async adminReferralsOverview({ user, admin }) {
-    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
-    const { data: rows } = await admin.from("referrals")
-      .select("id,referrer_id,referred_id,cards_rewarded,total_reward_xof,status,created_at")
-      .order("created_at", { ascending: false }).limit(500);
-    const list = rows ?? [];
-    const ids = Array.from(new Set(list.flatMap((r: any) => [r.referrer_id, r.referred_id])));
-    let map: Record<string, any> = {};
-    if (ids.length) {
-      const { data: profs } = await admin.from("profiles").select("id,full_name,email").in("id", ids);
-      map = Object.fromEntries((profs ?? []).map((p: any) => [p.id, p]));
-    }
-    // Regroupe par parrain
-    const byRef: Record<string, any> = {};
-    for (const r of list) {
-      const k = r.referrer_id;
-      if (!byRef[k]) byRef[k] = { referrer: map[k] || { id: k }, referrer_id: k, total_referred: 0, total_earned_xof: 0, total_cards_rewarded: 0, filleuls: [] };
-      byRef[k].total_referred++;
-      byRef[k].total_earned_xof += Number(r.total_reward_xof || 0);
-      byRef[k].total_cards_rewarded += Number(r.cards_rewarded || 0);
-      byRef[k].filleuls.push({
-        referral_id: r.id, referred_id: r.referred_id, created_at: r.created_at,
-        cards_rewarded: r.cards_rewarded, total_reward_xof: r.total_reward_xof,
-        status: r.status, referred: map[r.referred_id] || null,
-      });
-    }
-    return { ok: true, groups: Object.values(byRef) };
+    return { ok: true, config: cfg };
   },
 
   // ============================================================

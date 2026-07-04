@@ -10,4 +10,3 @@ export const adminAdjustWallet = (args: { data: { user_id: string; currency: str
 export const adminGetConfig = (_args?: any) => callApi("adminGetConfig");
 export const adminUpdateConfig = (args: { data: Record<string, number> }) => callApi("adminUpdateConfig", args.data);
 export const adminUpdateUser = (args: { data: { user_id: string; full_name?: string; email?: string; password?: string } }) => callApi("adminUpdateUser", args.data);
-export const adminReferralsOverview = (_args?: any) => callApi("adminReferralsOverview");

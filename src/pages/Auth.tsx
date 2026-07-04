@@ -1,6 +1,6 @@
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, ArrowRight, User, Phone, Loader2, AlertCircle } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { VirtualCard } from "@/components/virtual-card";
 import { BackButton } from "@/components/back-button";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,23 +11,6 @@ import { getDashboardData } from "@/lib/dashboard.functions";
 
 function Auth() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const [refCode, setRefCode] = useState<string>("");
-  useEffect(() => {
-    const r = (searchParams.get("ref") || "").trim().toUpperCase();
-    if (r) {
-      setRefCode(r);
-      setMode("signup");
-      // Mémorise pour survivre au refresh / OAuth
-      try { localStorage.setItem("fip_ref", r); } catch { /**/ }
-    } else {
-      try {
-        const saved = localStorage.getItem("fip_ref");
-        if (saved) setRefCode(saved);
-      } catch { /**/ }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   async function fastRedirect(user?: { id: string; email?: string | null }) {
     const userId = user?.id;
     if (!userId) return;
@@ -99,11 +82,10 @@ function Auth() {
           email, password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { full_name: fullName, phone, ...(refCode ? { referrer_code: refCode } : {}) },
+            data: { full_name: fullName, phone },
           },
         });
         if (error) throw error;
-        try { localStorage.removeItem("fip_ref"); } catch { /**/ }
         // Supabase renvoie 200 avec identities=[] quand l'email existe déjà
         const identities = (signUpData as any)?.user?.identities;
         if (Array.isArray(identities) && identities.length === 0) {
@@ -175,11 +157,6 @@ function Auth() {
             )}
             {mode === "signup" && (
               <>
-                {refCode && (
-                  <div className="rounded-2xl border border-primary/30 bg-primary/5 p-3 text-xs text-primary">
-                    🎁 Vous êtes parrainé — code : <b>{refCode}</b>. Votre parrain sera récompensé quand vous achèterez votre première carte.
-                  </div>
-                )}
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <input required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nom complet"

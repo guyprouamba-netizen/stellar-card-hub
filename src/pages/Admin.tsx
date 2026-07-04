@@ -4,15 +4,15 @@ import { useServerFn } from "@/lib/server-fn";
 import { useQuery } from "@tanstack/react-query";
 import {
   Users, TrendingUp, CreditCard, ShieldCheck, ArrowDownUp, LogOut, RefreshCw,
-  Loader2, CheckCircle2, XCircle, Wallet, Server, Eye, SlidersHorizontal, Share2,
+  Loader2, CheckCircle2, XCircle, Wallet, Server, Eye, SlidersHorizontal,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
-import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview } from "@/lib/admin.functions";
+import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser } from "@/lib/admin.functions";
 import { toast } from "sonner";
 
-type Tab = "users" | "flow" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "settings";
+type Tab = "users" | "flow" | "strowallet" | "payments" | "kyc" | "withdrawals" | "settings";
 
 function AdminPage() {
   const navigate = useNavigate();
@@ -58,7 +58,6 @@ function AdminPage() {
               {tab === "payments" && <PaymentsTab tx={data.transactions} />}
               {tab === "kyc" && <KycTab kyc={data.kyc} onAction={refetch} />}
               {tab === "withdrawals" && <WithdrawalsTab withdrawals={data.withdrawals} onAction={refetch} />}
-              {tab === "referrals" && <ReferralsAdminTab adjust={undefined} refetchOverview={refetch} />}
               {tab === "settings" && <SettingsTab />}
             </>
           )}
@@ -77,7 +76,6 @@ function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "payments", label: "Paiements entrants", Icon: Wallet },
     { id: "kyc", label: "KYC à valider", Icon: ShieldCheck },
     { id: "withdrawals", label: "Retraits à valider", Icon: ArrowDownUp },
-    { id: "referrals", label: "Parrainages", Icon: Share2 },
     { id: "settings", label: "Paramètres", Icon: SlidersHorizontal },
   ];
   async function logout() { await supabase.auth.signOut(); navigate("/"); }
@@ -439,73 +437,6 @@ function WithdrawalsTab({ withdrawals, onAction }: { withdrawals: any[]; onActio
 
 export default AdminPage;
 
-function ReferralsAdminTab(_props: { adjust?: any; refetchOverview: () => void }) {
-  const fetchList = useServerFn(adminReferralsOverview);
-  const adjust = useServerFn(adminAdjustWallet);
-  const toggle = useServerFn(adminToggleUser);
-  const { data, isLoading, refetch } = useQuery({ queryKey: ["admin-referrals"], queryFn: () => fetchList() });
-  const [bonusFor, setBonusFor] = useState<any | null>(null);
-  const groups = (data as any)?.groups ?? [];
-  async function suspend(userId: string) {
-    if (!confirm("Suspendre ce parrain ? Il ne pourra plus se connecter.")) return;
-    try { await toggle({ data: { user_id: userId, is_active: false } }); toast.success("Utilisateur suspendu"); refetch(); }
-    catch (e) { toast.error((e as Error).message); }
-  }
-  if (isLoading) return <Loader2 className="h-5 w-5 animate-spin" />;
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Parrainages ({groups.length})</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Suivi des parrains, filleuls, cartes récompensées et gains cumulés.</p>
-      </div>
-      {groups.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Aucun parrainage pour l'instant.</p>
-      ) : (
-        <div className="space-y-4">
-          {groups.map((g: any) => (
-            <div key={g.referrer_id} className="rounded-2xl border border-border bg-card p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="font-semibold">{g.referrer?.full_name || g.referrer?.email || g.referrer_id}</div>
-                  <div className="text-xs text-muted-foreground">{g.referrer?.email}</div>
-                </div>
-                <div className="flex flex-wrap items-center gap-3 text-xs">
-                  <span className="rounded-full bg-primary/10 px-3 py-1 text-primary">{g.total_referred} filleul{g.total_referred > 1 ? "s" : ""}</span>
-                  <span className="rounded-full bg-success/10 px-3 py-1 text-success">{g.total_cards_rewarded} carte{g.total_cards_rewarded > 1 ? "s" : ""}</span>
-                  <span className="rounded-full bg-success/15 px-3 py-1 font-semibold text-success tabular-nums">+{Number(g.total_earned_xof).toLocaleString("fr-FR")} XOF</span>
-                  <button onClick={() => setBonusFor(g.referrer)} className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-primary hover:bg-primary/20">Bonus</button>
-                  <button onClick={() => suspend(g.referrer_id)} className="rounded-full border border-destructive/40 bg-destructive/10 px-3 py-1 text-destructive hover:bg-destructive/20">Suspendre</button>
-                </div>
-              </div>
-              <div className="mt-4 overflow-hidden rounded-xl border border-border">
-                <table className="w-full text-xs">
-                  <thead className="bg-surface-2 text-left uppercase tracking-wider text-muted-foreground">
-                    <tr><th className="px-3 py-2">Filleul</th><th className="px-3 py-2">Email</th><th className="px-3 py-2">Inscrit le</th><th className="px-3 py-2 text-right">Cartes</th><th className="px-3 py-2 text-right">Récompense</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {g.filleuls.map((f: any) => (
-                      <tr key={f.referral_id}>
-                        <td className="px-3 py-2">{f.referred?.full_name || "—"}</td>
-                        <td className="px-3 py-2 text-muted-foreground">{f.referred?.email || "—"}</td>
-                        <td className="px-3 py-2 text-muted-foreground">{new Date(f.created_at).toLocaleDateString("fr-FR")}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{f.cards_rewarded}</td>
-                        <td className="px-3 py-2 text-right font-semibold text-success tabular-nums">+{Number(f.total_reward_xof).toLocaleString("fr-FR")}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      {bonusFor && (
-        <AdjustWalletModal user={bonusFor} onClose={() => setBonusFor(null)} onDone={() => { setBonusFor(null); refetch(); }} adjust={adjust} />
-      )}
-    </div>
-  );
-}
-
 function SettingsTab() {
   const getCfg = useServerFn(adminGetConfig);
   const updCfg = useServerFn(adminUpdateConfig);
@@ -556,18 +487,6 @@ function SettingsTab() {
         {field("card_issue_fee_xof", "Frais d'émission (XOF)", "Marge plateforme par carte émise (ex: 4500)", "1")}
         {field("strowallet_fixed_fee_usd", "Frais fixe émetteur (USD)", "Frais émetteur par opération (ex: 1.90)", "0.01")}
         {field("strowallet_pct_fee", "Frais % émetteur", "Pourcentage émetteur en décimal (ex: 0.01 = 1%)", "0.001")}
-        {field("referral_reward_xof", "Récompense parrainage (XOF)", "Montant crédité au parrain par carte achetée par un filleul (ex: 1000)", "1")}
-        <label className="block md:col-span-2">
-          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Lien groupe WhatsApp</span>
-          <input
-            type="url"
-            value={draft.whatsapp_group_url ?? ""}
-            onChange={(e) => setDraft((d: any) => ({ ...d, whatsapp_group_url: e.target.value }))}
-            placeholder="https://chat.whatsapp.com/..."
-            className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none"
-          />
-          <span className="mt-1 block text-[11px] text-muted-foreground">Affiché sur le tableau de bord de tous les utilisateurs et sur la page parrainage.</span>
-        </label>
       </div>
       <div className="flex justify-end gap-2">
         <button onClick={() => setDraft(cfg)} className="rounded-full border border-border bg-surface-2 px-4 py-2 text-sm">Réinitialiser</button>

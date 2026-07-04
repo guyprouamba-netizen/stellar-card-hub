@@ -11,6 +11,3 @@ export const createAvatarUploadUrl = (args: { data: { ext: string } }) =>
 
 export const getAvatarSignedUrl = (args: { data: { path: string } }) =>
   callApi("getAvatarSignedUrl", args.data);
-
-export const getMyReferralStats = (_args?: any) => callApi("getMyReferralStats");
-export const getPublicConfig = (_args?: any) => callApi("getPublicConfig");
