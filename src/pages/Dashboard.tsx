@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard, ArrowDownLeft, ArrowUpRight, CreditCard, History,
   UserCircle, LogOut, Plus, Snowflake, Loader2,
-  AlertTriangle, Wallet, Building2,
+  AlertTriangle, Wallet, Building2, Users, Share2, MessageCircle, Copy, Check,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
@@ -17,11 +17,12 @@ import { cardDetails } from "@/lib/strowallet.functions";
 import { requestWithdrawal } from "@/lib/withdrawal.functions";
 import { initRecharge, verifyRecharge, reconcileMyDeposits } from "@/lib/yengapay.functions";
 import { updateMyProfile, updateMyPassword, createAvatarUploadUrl, getAvatarSignedUrl } from "@/lib/profile.functions";
+import { getMyReferralStats, getPublicConfig } from "@/lib/profile.functions";
 import { IssueCardSheet } from "@/components/issue-card-sheet";
 import { VirtualCard } from "@/components/virtual-card";
 import { toast } from "sonner";
 
-type Tab = "home" | "deposit" | "withdraw" | "cards" | "tx" | "profile";
+type Tab = "home" | "deposit" | "withdraw" | "cards" | "tx" | "referrals" | "profile";
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -128,6 +129,7 @@ function Dashboard() {
               {tab === "withdraw" && <WithdrawTab balance={Number(data.wallets.find((w: any) => w.currency === "XOF")?.balance ?? 0)} profile={data.profile} onDone={() => refetch()} />}
               {tab === "cards" && <CardsTab cards={data.cards} onAction={() => refetch()} />}
               {tab === "tx" && <TxTab transactions={data.transactions} />}
+              {tab === "referrals" && <ReferralsTab />}
               {tab === "profile" && <ProfileTab profile={data.profile} onDone={() => refetch()} />}
             </>
           )}
