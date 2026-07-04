@@ -1119,20 +1119,102 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   async adminUpdateConfig({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
-    const allowed = ["card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee"];
+    const allowedNumbers = ["card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee", "referral_reward_xof"];
+    const allowedStrings = ["whatsapp_group_url"];
     const updates: Array<{ key: string; value: string }> = [];
-    for (const k of allowed) {
+    for (const k of allowedNumbers) {
       if (data?.[k] !== undefined && data[k] !== null && data[k] !== "") {
         const n = Number(data[k]);
         if (!Number.isFinite(n) || n < 0) return { ok: false, error: `Valeur invalide pour ${k}` };
         updates.push({ key: k, value: String(n) });
       }
     }
+    for (const k of allowedStrings) {
+      if (typeof data?.[k] === "string" && data[k].trim() !== "") {
+        // JSONB string : stocker en JSON valide entre guillemets
+        updates.push({ key: k, value: JSON.stringify(data[k].trim().slice(0, 500)) });
+      }
+    }
     for (const u of updates) {
       await admin.from("platform_config").upsert({ key: u.key, value: u.value }, { onConflict: "key" });
     }
     const cfg = await loadPricingConfig(admin);
-    return { ok: true, config: cfg };
+    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof"]);
+    const extrasMap: Record<string, any> = {};
+    for (const r of extras ?? []) extrasMap[r.key] = r.value;
+    return { ok: true, config: { ...cfg, ...extrasMap } };
+  },
+
+  // Récupère la config publique (URL WhatsApp) — accessible à tout utilisateur connecté.
+  async getPublicConfig({ admin }) {
+    const { data } = await admin.from("platform_config").select("key,value")
+      .in("key", ["whatsapp_group_url", "referral_reward_xof"]);
+    const out: Record<string, any> = {};
+    for (const r of data ?? []) out[r.key] = r.value;
+    return { ok: true, ...out };
+  },
+
+  // Retourne les infos de parrainage du user courant : code, lien, filleuls, gains.
+  async getMyReferralStats({ user, admin }) {
+    const { data: profile } = await admin.from("profiles").select("referral_code").eq("id", user.id).maybeSingle();
+    const code = (profile as any)?.referral_code || null;
+    const { data: rows } = await admin.from("referrals")
+      .select("id,referred_id,cards_rewarded,total_reward_xof,created_at,status")
+      .eq("referrer_id", user.id).order("created_at", { ascending: false });
+    const list = rows ?? [];
+    let referredMap: Record<string, any> = {};
+    if (list.length > 0) {
+      const ids = list.map((r: any) => r.referred_id);
+      const { data: profs } = await admin.from("profiles").select("id,full_name,email,created_at").in("id", ids);
+      referredMap = Object.fromEntries((profs ?? []).map((p: any) => [p.id, p]));
+    }
+    const totalXof = list.reduce((s: number, r: any) => s + Number(r.total_reward_xof || 0), 0);
+    const totalCards = list.reduce((s: number, r: any) => s + Number(r.cards_rewarded || 0), 0);
+    return {
+      ok: true,
+      code,
+      total_referred: list.length,
+      total_cards_rewarded: totalCards,
+      total_earned_xof: totalXof,
+      referrals: list.map((r: any) => ({
+        id: r.id,
+        created_at: r.created_at,
+        status: r.status,
+        cards_rewarded: r.cards_rewarded,
+        total_reward_xof: r.total_reward_xof,
+        referred: referredMap[r.referred_id] || null,
+      })),
+    };
+  },
+
+  // Vue admin : tous les parrains + leurs filleuls et gains cumulés.
+  async adminReferralsOverview({ user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const { data: rows } = await admin.from("referrals")
+      .select("id,referrer_id,referred_id,cards_rewarded,total_reward_xof,status,created_at")
+      .order("created_at", { ascending: false }).limit(500);
+    const list = rows ?? [];
+    const ids = Array.from(new Set(list.flatMap((r: any) => [r.referrer_id, r.referred_id])));
+    let map: Record<string, any> = {};
+    if (ids.length) {
+      const { data: profs } = await admin.from("profiles").select("id,full_name,email").in("id", ids);
+      map = Object.fromEntries((profs ?? []).map((p: any) => [p.id, p]));
+    }
+    // Regroupe par parrain
+    const byRef: Record<string, any> = {};
+    for (const r of list) {
+      const k = r.referrer_id;
+      if (!byRef[k]) byRef[k] = { referrer: map[k] || { id: k }, referrer_id: k, total_referred: 0, total_earned_xof: 0, total_cards_rewarded: 0, filleuls: [] };
+      byRef[k].total_referred++;
+      byRef[k].total_earned_xof += Number(r.total_reward_xof || 0);
+      byRef[k].total_cards_rewarded += Number(r.cards_rewarded || 0);
+      byRef[k].filleuls.push({
+        referral_id: r.id, referred_id: r.referred_id, created_at: r.created_at,
+        cards_rewarded: r.cards_rewarded, total_reward_xof: r.total_reward_xof,
+        status: r.status, referred: map[r.referred_id] || null,
+      });
+    }
+    return { ok: true, groups: Object.values(byRef) };
   },
 
   // ============================================================
