@@ -228,12 +228,25 @@ function Sidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
 function HomeTab({ data }: { data: any; onAction: () => void }) {
   const xof = data.wallets.find((w: any) => w.currency === "XOF");
   const usd = data.wallets.find((w: any) => w.currency === "USD");
+  const fetchCfg = useServerFn(getPublicConfig);
+  const cfg = useQuery({ queryKey: ["public-config"], queryFn: () => fetchCfg() });
+  const whatsappUrl = (cfg.data as any)?.whatsapp_group_url as string | undefined;
   return (
     <div className="space-y-8">
       <header>
         <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Bonjour {data.profile?.full_name?.split(" ")[0] ?? ""} 👋</h1>
         <p className="mt-1 text-sm text-muted-foreground">Voici un aperçu de votre compte FASO-INVEST PAY.</p>
       </header>
+
+      {whatsappUrl && (
+        <a href={whatsappUrl} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-3 rounded-2xl border border-success/30 bg-success/10 p-4 text-sm hover:bg-success/15">
+          <span className="flex items-center gap-3">
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-success/20 text-success"><MessageCircle className="h-4 w-4" /></span>
+            <span><b className="text-success">Rejoignez le groupe WhatsApp</b><br /><span className="text-xs text-muted-foreground">Actualités, tutos et support communautaire</span></span>
+          </span>
+          <span className="text-success">→</span>
+        </a>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <WalletCard label="Solde XOF" amount={xof?.balance ?? 0} currency="XOF" highlight />
