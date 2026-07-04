@@ -1114,7 +1114,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async adminGetConfig({ user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const cfg = await loadPricingConfig(admin);
-    return { ok: true, config: cfg };
+    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof"]);
+    const extrasMap: Record<string, any> = {};
+    for (const r of extras ?? []) extrasMap[r.key] = r.value;
+    return { ok: true, config: { ...cfg, ...extrasMap } };
   },
 
   async adminUpdateConfig({ data, user, admin }) {
