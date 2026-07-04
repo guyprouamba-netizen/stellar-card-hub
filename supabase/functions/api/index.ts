@@ -552,6 +552,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const userId = user.id;
     const { data: card } = await userClient.from("cards").select("id,user_id,balance,provider_card_id,status").eq("provider_card_id", data.card_id).maybeSingle();
     if (!card || card.user_id !== userId) return { ok: false, error: "Carte introuvable" };
+    if (card.status === "terminated") return { ok: false, error: "Carte résiliée — impossible de la recharger. Émettez une nouvelle carte." };
     const cfg = await loadPricingConfig(admin);
     const cost = computeFundCost(Number(data.amountUsd), cfg);
     const requiredXof = cost.totalXof;
