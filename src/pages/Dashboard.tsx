@@ -601,5 +601,99 @@ function Info({ k, v }: { k: string; v: any }) {
   return <div className="flex items-baseline justify-between gap-2"><span className="text-xs uppercase tracking-wider text-muted-foreground">{k}</span><span className="text-sm font-medium">{v ?? "—"}</span></div>;
 }
 
+function ReferralsTab() {
+  const fetchStats = useServerFn(getMyReferralStats);
+  const fetchCfg = useServerFn(getPublicConfig);
+  const { data, isLoading, refetch } = useQuery({ queryKey: ["referrals-me"], queryFn: () => fetchStats() });
+  const cfg = useQuery({ queryKey: ["public-config"], queryFn: () => fetchCfg() });
+  const [copied, setCopied] = useState(false);
+  const stats: any = data || {};
+  const code = stats.code || "";
+  const rewardXof = Number((cfg.data as any)?.referral_reward_xof ?? 1000);
+  const link = code ? `${window.location.origin}/auth?ref=${encodeURIComponent(code)}` : "";
+  const whatsappUrl = (cfg.data as any)?.whatsapp_group_url as string | undefined;
+  async function copyLink() {
+    try { await navigator.clipboard.writeText(link); setCopied(true); toast.success("Lien copié"); setTimeout(() => setCopied(false), 1500); }
+    catch { toast.error("Impossible de copier"); }
+  }
+  function share() {
+    const text = `Rejoins-moi sur FASO-INVEST PAY et obtiens ta carte virtuelle Visa/Mastercard en USD ! Inscris-toi avec mon lien : ${link}`;
+    if ((navigator as any).share) (navigator as any).share({ title: "FASO-INVEST PAY", text, url: link }).catch(() => {});
+    else window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  }
+  if (isLoading || !data) return <Loader2 className="h-5 w-5 animate-spin" />;
+  return (
+    <div className="max-w-3xl space-y-6">
+      <div>
+        <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Programme de parrainage</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Gagnez <b className="text-foreground">{rewardXof.toLocaleString("fr-FR")} XOF</b> chaque fois qu'une personne parrainée achète sa carte.</p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Kpi label="Filleuls inscrits" value={String(stats.total_referred ?? 0)} />
+        <Kpi label="Cartes récompensées" value={String(stats.total_cards_rewarded ?? 0)} />
+        <Kpi label="Total gagné" value={`${Number(stats.total_earned_xof ?? 0).toLocaleString("fr-FR")} XOF`} highlight />
+      </div>
+
+      <div className="rounded-2xl border border-primary/30 bg-primary/5 p-6">
+        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-primary">
+          <Share2 className="h-3.5 w-3.5" /> Votre lien personnel
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <input readOnly value={link || "Génération…"} className="flex-1 truncate rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none" />
+          <button onClick={copyLink} className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-2 px-3 py-2 text-xs font-semibold hover:bg-muted">
+            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} Copier
+          </button>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button onClick={share} className="inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow">
+            <Share2 className="h-3.5 w-3.5" /> Partager
+          </button>
+          {whatsappUrl && (
+            <a href={whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-4 py-2 text-xs font-semibold text-success hover:bg-success/20">
+              <MessageCircle className="h-3.5 w-3.5" /> Rejoindre le groupe WhatsApp
+            </a>
+          )}
+          <button onClick={() => refetch()} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-4 py-2 text-xs">
+            <Loader2 className="h-3.5 w-3.5" /> Rafraîchir
+          </button>
+        </div>
+        <p className="mt-3 text-[11px] text-muted-foreground">Code : <b>{code || "—"}</b></p>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <table className="w-full text-sm">
+          <thead className="bg-surface-2 text-left text-xs uppercase tracking-wider text-muted-foreground">
+            <tr><th className="px-4 py-3">Filleul</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Inscrit le</th><th className="px-4 py-3 text-right">Cartes</th><th className="px-4 py-3 text-right">Gains</th></tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {(stats.referrals || []).length === 0 && (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">Aucun filleul pour l'instant. Partagez votre lien !</td></tr>
+            )}
+            {(stats.referrals || []).map((r: any) => (
+              <tr key={r.id}>
+                <td className="px-4 py-3 font-medium">{r.referred?.full_name || "—"}</td>
+                <td className="px-4 py-3 text-muted-foreground">{r.referred?.email || "—"}</td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString("fr-FR")}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{r.cards_rewarded}</td>
+                <td className="px-4 py-3 text-right font-semibold text-success tabular-nums">+{Number(r.total_reward_xof).toLocaleString("fr-FR")} XOF</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Kpi({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className={`rounded-2xl border p-5 ${highlight ? "border-primary/40 bg-gradient-to-br from-primary/10 to-card" : "border-border bg-card"}`}>
+      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-2 font-[Space_Grotesk] text-2xl font-bold tabular-nums">{value}</div>
+    </div>
+  );
+}
+
 
 export default Dashboard;
