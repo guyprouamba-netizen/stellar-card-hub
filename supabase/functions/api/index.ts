@@ -317,6 +317,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
           : `Émission carte NFC (frais ${cfg.card_issue_fee_xof} XOF, solde 0 USD)`,
         metadata: { pricing: cost },
       });
+      // Récompense parrainage (best-effort, silencieuse en cas d'erreur)
+      try { if (card_id) await payReferralCardReward(admin, userId, card_id); } catch { /* silencieux */ }
       return { ok: true, data: res };
     } catch (e) {
       await admin.from("wallets").update({ balance: Number(wallet.balance) }).eq("id", wallet.id);
