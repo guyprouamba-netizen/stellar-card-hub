@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Users, TrendingUp, CreditCard, ShieldCheck, ArrowDownUp, LogOut, RefreshCw,
   Loader2, CheckCircle2, XCircle, Wallet, Server, Eye, SlidersHorizontal, Share2,
+  AlertTriangle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
@@ -21,16 +22,22 @@ function AdminPage() {
 
   useEffect(() => {
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { navigate("/auth"); return; }
-      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", session.user.id);
-      const isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
-      setAuthState(isAdmin ? "ok" : "denied");
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { navigate("/auth"); return; }
+        const { data: roles, error } = await supabase.from("user_roles").select("role").eq("user_id", session.user.id);
+        if (error) throw error;
+        const isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
+        setAuthState(isAdmin ? "ok" : "denied");
+      } catch (e) {
+        toast.error((e as Error).message || "Vérification admin impossible");
+        setAuthState("denied");
+      }
     })();
   }, [navigate]);
 
   const fetchOverview = useServerFn(adminOverview);
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["adminOverview"], queryFn: () => fetchOverview(), enabled: authState === "ok",
   });
 
@@ -50,7 +57,7 @@ function AdminPage() {
       <div className="flex">
         <AdminSidebar tab={tab} setTab={setTab} />
         <main className="flex-1 px-4 py-8 sm:px-8">
-          {isLoading || !data ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+          {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : isError || !data ? <AdminLoadError error={error} onRetry={() => refetch()} busy={isFetching} /> : (
             <>
               {tab === "flow" && <FlowTab data={data} />}
               {tab === "users" && <UsersTab users={data.users} onAction={refetch} />}
@@ -63,6 +70,23 @@ function AdminPage() {
             </>
           )}
         </main>
+      </div>
+    </div>
+  );
+}
+
+function AdminLoadError({ error, onRetry, busy }: { error: unknown; onRetry: () => void; busy?: boolean }) {
+  const message = error instanceof Error ? error.message : "Chargement admin impossible pour le moment.";
+  return (
+    <div className="grid min-h-[60vh] place-items-center px-4">
+      <div className="max-w-md rounded-2xl border border-destructive/30 bg-destructive/10 p-6 text-center">
+        <AlertTriangle className="mx-auto h-7 w-7 text-destructive" />
+        <h1 className="mt-3 text-lg font-semibold">Données admin indisponibles</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+        <button onClick={onRetry} disabled={busy} className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+          Réessayer
+        </button>
       </div>
     </div>
   );

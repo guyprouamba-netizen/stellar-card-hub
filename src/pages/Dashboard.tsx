@@ -50,7 +50,7 @@ function Dashboard() {
   }, [navigate]);
 
   const fetchDash = useServerFn(getDashboardData);
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["dashboard", session?.user?.id],
     queryFn: () => fetchDash({ userId: session?.user?.id }),
     enabled: !!session?.user?.id,
@@ -122,7 +122,7 @@ function Dashboard() {
       <div className="flex">
         <Sidebar tab={tab} setTab={setTab} />
         <main className="flex-1 px-4 pb-24 pt-20 sm:px-8 md:py-8 md:pt-8">
-          {isLoading || !data ? <FullPageLoader /> : (
+          {isLoading ? <FullPageLoader /> : isError || !data ? <LoadError error={error} onRetry={() => refetch()} busy={isFetching} /> : (
             <>
               {tab === "home" && <HomeTab data={data} onAction={() => refetch()} />}
               {tab === "deposit" && <DepositTab onDone={() => refetch()} />}
@@ -142,6 +142,23 @@ function Dashboard() {
 
 function FullPageLoader() {
   return <div className="grid min-h-screen place-items-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+}
+
+function LoadError({ error, onRetry, busy }: { error: unknown; onRetry: () => void; busy?: boolean }) {
+  const message = error instanceof Error ? error.message : "Chargement impossible pour le moment.";
+  return (
+    <div className="grid min-h-[60vh] place-items-center px-4">
+      <div className="max-w-md rounded-2xl border border-destructive/30 bg-destructive/10 p-6 text-center">
+        <AlertTriangle className="mx-auto h-7 w-7 text-destructive" />
+        <h1 className="mt-3 text-lg font-semibold">Données momentanément indisponibles</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+        <button onClick={onRetry} disabled={busy} className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+          Réessayer
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function MobileNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
