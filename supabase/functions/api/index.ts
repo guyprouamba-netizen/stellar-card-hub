@@ -636,6 +636,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   async withdrawCard({ data, user, admin, userClient }) {
     const userId = user.id;
+    await assertUserRateLimit(admin, userId, "withdrawCard", 6);
     const { data: card } = await userClient.from("cards").select("id,user_id,balance,provider_card_id,status").eq("provider_card_id", data.card_id).maybeSingle();
     if (!card || card.user_id !== userId) return { ok: false, error: "Carte introuvable" };
     if (card.status === "terminated") return { ok: false, error: "Carte résiliée" };
@@ -690,6 +691,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   // ---------- Withdrawals & YengaPay ----------
   async requestWithdrawal({ data, user, admin, userClient }) {
     const userId = user.id;
+    await assertUserRateLimit(admin, userId, "requestWithdrawal", 6);
     const amount = Number(data.amount);
     if (!Number.isFinite(amount) || amount < 500) return { ok: false, error: "Montant minimum 500 XOF" };
     const { data: w } = await userClient.from("wallets").select("id,balance").eq("user_id", userId).eq("currency", "XOF").maybeSingle();
@@ -828,6 +830,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   async initRecharge({ data, user, admin }) {
     const userId = user.id;
+    await assertUserRateLimit(admin, userId, "initRecharge", 10);
     const reference = `FIP-${Date.now()}-${userId.slice(0, 8)}`;
     const baseReturn = String(data.returnUrl || "");
     const returnUrl = baseReturn
@@ -1416,6 +1419,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   // Permet au marchand de retirer son solde vers son wallet utilisateur (XOF)
   async cashoutBusinessBalance({ data, user, admin }) {
+    await assertUserRateLimit(admin, user.id, "cashoutBusinessBalance", 6);
     const biz = await assertBusinessOwner(admin, user.id, data.business_id);
     const { data: b } = await admin.from("businesses").select("balance,owner_id").eq("id", biz.id).single();
     const amount = Number(b?.balance || 0);
