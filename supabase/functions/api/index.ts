@@ -905,6 +905,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (updated) {
         const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", tx.user_id).eq("currency", "XOF").maybeSingle();
         if (w) await admin.from("wallets").update({ balance: Number(w.balance) + Number(tx.amount) }).eq("id", w.id);
+        await notifyUser(admin, tx.user_id,
+          "✅ Recharge créditée",
+          txEmailHtml({ title: "Recharge créditée sur votre portefeuille", intro: "Votre paiement a été confirmé et votre solde a été mis à jour immédiatement.", amount: Number(tx.amount), currency: "XOF", reference: tx.provider_ref }),
+          `Recharge de ${tx.amount} XOF créditée. Référence ${tx.provider_ref}.`);
         return { ok: true, status: "success", credited: true };
       }
       return { ok: true, status: "success", credited: false };
@@ -957,6 +961,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         if (updated) {
           const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", tx.user_id).eq("currency", "XOF").maybeSingle();
           if (w) await admin.from("wallets").update({ balance: Number(w.balance) + Number(tx.amount) }).eq("id", w.id);
+          await notifyUser(admin, tx.user_id,
+            "✅ Recharge créditée",
+            txEmailHtml({ title: "Recharge créditée sur votre portefeuille", intro: "Votre paiement a été confirmé et votre solde a été mis à jour automatiquement.", amount: Number(tx.amount), currency: "XOF", reference: tx.provider_ref }),
+            `Recharge de ${tx.amount} XOF créditée. Référence ${tx.provider_ref}.`);
           credited++;
         }
       } else if (isFailed) {
