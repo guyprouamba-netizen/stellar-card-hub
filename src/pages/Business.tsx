@@ -42,7 +42,7 @@ export default function BusinessPage() {
     setBusinesses(list);
     if (list.length) {
       const keepId = current?.id;
-      const next = (keepId && list.find((b) => b.id === keepId)) || list[0];
+      const next = (keepId && list.find((b: Biz) => b.id === keepId)) || list[0];
       setCurrent(next);
     }
     setLoading(false);
