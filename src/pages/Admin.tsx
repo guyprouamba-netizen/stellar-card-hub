@@ -387,11 +387,65 @@ function StrowalletTab({ cards }: { cards: any[] }) {
 }
 
 function PaymentsTab({ tx }: { tx: any[] }) {
-  const ypTx = tx.filter((t) => t.type === "deposit");
+  const [filter, setFilter] = useState<string>("all");
+  const types = Array.from(new Set(tx.map((t) => t.type))).sort();
+  const items = filter === "all" ? tx : tx.filter((t) => t.type === filter);
   return (
     <div className="space-y-6">
-      <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Derniers paiements entrants</h1>
-      <SimpleTxTable items={ypTx} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Historique des transactions ({items.length})</h1>
+        <select value={filter} onChange={(e) => setFilter(e.target.value)} className="rounded-full border border-border bg-surface-2 px-3 py-1.5 text-xs">
+          <option value="all">Tous les types</option>
+          {types.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <table className="w-full text-sm">
+          <thead className="bg-surface-2 text-left text-xs uppercase text-muted-foreground">
+            <tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">Utilisateur</th><th className="px-3 py-2">Type</th><th className="px-3 py-2">Description</th><th className="px-3 py-2">Statut</th><th className="px-3 py-2 text-right">Montant</th></tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {items.map((t) => (
+              <tr key={t.id}>
+                <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(t.created_at).toLocaleString("fr-FR")}</td>
+                <td className="px-3 py-2 text-xs">{t.owner?.full_name || t.owner?.email || t.user_id?.slice(0, 8)}</td>
+                <td className="px-3 py-2 text-xs">{t.type}</td>
+                <td className="px-3 py-2 text-xs">{t.description}</td>
+                <td className="px-3 py-2 text-xs">{t.status}</td>
+                <td className="px-3 py-2 text-right font-semibold tabular-nums">{Number(t.amount).toLocaleString("fr-FR")} {t.currency}</td>
+              </tr>
+            ))}
+            {items.length === 0 && <tr><td colSpan={6} className="px-3 py-6 text-center text-sm text-muted-foreground">Aucune transaction</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function BusinessesTab({ businesses }: { businesses: any[] }) {
+  return (
+    <div className="space-y-6">
+      <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Entreprises ({businesses.length})</h1>
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <table className="w-full text-sm">
+          <thead className="bg-surface-2 text-left text-xs uppercase text-muted-foreground">
+            <tr><th className="px-4 py-3">Nom</th><th className="px-4 py-3">Slug</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Actif</th><th className="px-4 py-3">Créée le</th></tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {businesses.map((b) => (
+              <tr key={b.id}>
+                <td className="px-4 py-3 font-medium">{b.name}</td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">{b.slug || "—"}</td>
+                <td className="px-4 py-3 text-xs">{b.contact_email || b.contact_phone || "—"}</td>
+                <td className="px-4 py-3">{b.is_active ? <span className="text-success">●</span> : <span className="text-muted-foreground">●</span>}</td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(b.created_at).toLocaleDateString("fr-FR")}</td>
+              </tr>
+            ))}
+            {businesses.length === 0 && <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-muted-foreground">Aucune entreprise</td></tr>}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
