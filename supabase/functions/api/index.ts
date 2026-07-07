@@ -944,14 +944,22 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     }
     const enrichedCards = (cards.data ?? []).map((c: any) => ({ ...c, owner: ownerMap[c.user_id] || null }));
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
-    const { data: monthTx } = await admin.from("transactions").select("type,amount,currency,status").gte("created_at", monthStart.toISOString()).eq("status","success");
-    const flows = { recharges_xof: 0, withdrawals_xof: 0, card_issue_xof: 0 };
+    const { data: monthTx } = await admin.from("transactions")
+      .select("type,amount,currency,status")
+      .gte("created_at", monthStart.toISOString())
+      .in("status", ["success", "pending"]);
+    const flows = {
+      recharges_xof: 0, recharges_pending_xof: 0,
+      withdrawals_xof: 0, withdrawals_pending_xof: 0,
+      card_issue_xof: 0, card_issue_pending_xof: 0,
+    };
     for (const t of monthTx ?? []) {
       if (t.currency !== "XOF") continue;
       const a = Number(t.amount);
-      if (t.type === "deposit") flows.recharges_xof += a;
-      if (t.type === "withdrawal") flows.withdrawals_xof += a;
-      if (t.type === "card_issue") flows.card_issue_xof += a;
+      const pending = t.status === "pending";
+      if (t.type === "deposit") pending ? flows.recharges_pending_xof += a : flows.recharges_xof += a;
+      if (t.type === "withdrawal") pending ? flows.withdrawals_pending_xof += a : flows.withdrawals_xof += a;
+      if (t.type === "card_issue") pending ? flows.card_issue_pending_xof += a : flows.card_issue_xof += a;
     }
     // Enrichit chaque transaction avec un aperçu du propriétaire pour l'admin
     const txOwnerIds = Array.from(new Set((txs.data ?? []).map((t: any) => t.user_id).filter(Boolean)));
