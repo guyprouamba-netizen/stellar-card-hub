@@ -43,8 +43,8 @@ const testimonials = [
 ];
 
 const faqs = [
-  { q: "Combien coûte la création d'une carte ?", a: "4 500 F CFA de frais d'émission unique, plus le montant chargé (taux 1 USD = 869 F + 1,9 $ + 1 % de frais de traitement)." },
-  { q: "Quels moyens de recharge sont acceptés ?", a: "Orange Money, Moov Money, et Wave en Mobile Money — crédit instantané sur votre portefeuille XOF." },
+  { q: "Combien coûte la création d'une carte ?", a: "Tous les frais applicables (émission + traitement) sont affichés à l'écran avant la confirmation, depuis votre tableau de bord." },
+  { q: "Quels moyens de recharge sont acceptés ?", a: "Orange Money, Moov Money, et Wave en Mobile Money — crédit instantané sur votre portefeuille." },
   { q: "Que se passe-t-il si un paiement échoue ?", a: "Pour protéger votre carte, nous la gelons automatiquement dès la 1ʳᵉ tentative refusée. Vous pouvez la débloquer en un clic depuis votre tableau de bord." },
   { q: "Où puis-je utiliser la carte ?", a: "Partout où Visa/Mastercard sont acceptées : Netflix, Amazon, AliExpress, Google Ads, Meta Ads, AdSense, SaaS, formations en ligne…" },
   { q: "Mes données sont-elles sécurisées ?", a: "Oui. Vos pièces KYC sont stockées dans un espace privé chiffré, accessible uniquement par notre équipe de validation." },
@@ -308,15 +308,5 @@ function Stat({ value, label }: { value: string; label: string }) {
     </div>
   );
 }
-
-function Row({ k, v, strong }: { k: string; v: string; strong?: boolean }) {
-  return (
-    <div className={`flex items-center justify-between ${strong ? "text-base font-bold" : ""}`}>
-      <dt className="text-muted-foreground">{k}</dt>
-      <dd className="tabular-nums">{v}</dd>
-    </div>
-  );
-}
-
 
 export default Index;
