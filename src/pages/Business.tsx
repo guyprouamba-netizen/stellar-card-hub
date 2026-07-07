@@ -40,7 +40,11 @@ export default function BusinessPage() {
   async function refreshAll() {
     const list = await listMyBusinesses();
     setBusinesses(list);
-    if (list.length && !current) setCurrent(list[0]);
+    if (list.length) {
+      const keepId = current?.id;
+      const next = (keepId && list.find((b: Biz) => b.id === keepId)) || list[0];
+      setCurrent(next);
+    }
     setLoading(false);
   }
   async function refreshCurrent(bizId: string) {
@@ -82,6 +86,25 @@ export default function BusinessPage() {
     try {
       const u = await updatePaymentLink({ id: l.id, status: next });
       setLinks((prev) => prev.map((x) => (x.id === l.id ? u : x)));
+    } catch (e: any) { toast.error(e.message); }
+  }
+
+  async function onEditLink(l: PLink) {
+    const title = prompt("Titre du lien", l.title);
+    if (title === null) return;
+    const amountStr = prompt(
+      "Montant fixe en " + l.currency + " (vide = montant libre)",
+      l.amount ? String(l.amount) : "",
+    );
+    if (amountStr === null) return;
+    const amount = amountStr.trim() === "" ? null : Number(amountStr);
+    if (amount !== null && (!Number.isFinite(amount) || amount < 0)) {
+      toast.error("Montant invalide"); return;
+    }
+    try {
+      const u = await updatePaymentLink({ id: l.id, title, amount });
+      setLinks((prev) => prev.map((x) => (x.id === l.id ? u : x)));
+      toast.success("Lien mis à jour ✅");
     } catch (e: any) { toast.error(e.message); }
   }
 
@@ -280,6 +303,7 @@ export default function BusinessPage() {
                           <div className="flex items-center gap-2">
                             <button onClick={() => copy(url)} className="grid h-8 w-8 place-items-center rounded-full border border-border hover:bg-muted"><Copy className="h-3.5 w-3.5" /></button>
                             <a href={url} target="_blank" rel="noreferrer" className="grid h-8 w-8 place-items-center rounded-full border border-border hover:bg-muted"><Link2 className="h-3.5 w-3.5" /></a>
+                            <button onClick={() => onEditLink(l)} className="rounded-full border border-border px-3 py-1.5 text-xs hover:bg-muted">Modifier prix</button>
                             <button onClick={() => onToggleLink(l)} className="rounded-full border border-border px-3 py-1.5 text-xs hover:bg-muted">{l.status === "active" ? "Pauser" : "Activer"}</button>
                           </div>
                         </div>
