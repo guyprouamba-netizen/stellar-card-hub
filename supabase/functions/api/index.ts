@@ -927,12 +927,13 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   // ---------- Admin ----------
   async adminOverview({ user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
-    const [users, cards, txs, kyc, withdrawals] = await Promise.all([
+    const [users, cards, txs, kyc, withdrawals, businesses] = await Promise.all([
       admin.from("profiles").select("id,full_name,email,phone,country,is_active,strowallet_customer_id,created_at").order("created_at", { ascending: false }).limit(100),
       admin.from("cards").select("id,user_id,brand,last4,status,balance,currency,failed_attempts,auto_frozen_at,created_at,total_funded_usd,provider_card_id").order("created_at", { ascending: false }).limit(100),
-      admin.from("transactions").select("id,user_id,type,status,amount,currency,description,created_at").order("created_at", { ascending: false }).limit(50),
+      admin.from("transactions").select("id,user_id,type,status,amount,currency,description,provider,provider_ref,metadata,created_at").order("created_at", { ascending: false }).limit(500),
       admin.from("kyc_submissions").select("*").order("submitted_at", { ascending: false, nullsFirst: false }).limit(50),
       admin.from("withdrawals").select("*").order("created_at", { ascending: false }).limit(50),
+      admin.from("businesses").select("id,user_id,name,slug,contact_email,contact_phone,is_active,created_at").order("created_at", { ascending: false }).limit(200),
     ]);
     // Enrichit chaque carte avec le propriétaire (nom + email) pour le tableau admin.
     const cardOwnerIds = Array.from(new Set((cards.data ?? []).map((c: any) => c.user_id).filter(Boolean)));
@@ -952,7 +953,15 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (t.type === "withdrawal") flows.withdrawals_xof += a;
       if (t.type === "card_issue") flows.card_issue_xof += a;
     }
-    return { users: users.data ?? [], cards: enrichedCards, transactions: txs.data ?? [], kyc: kyc.data ?? [], withdrawals: withdrawals.data ?? [], flows };
+    // Enrichit chaque transaction avec un aperçu du propriétaire pour l'admin
+    const txOwnerIds = Array.from(new Set((txs.data ?? []).map((t: any) => t.user_id).filter(Boolean)));
+    let txOwnerMap: Record<string, any> = {};
+    if (txOwnerIds.length > 0) {
+      const { data: owners } = await admin.from("profiles").select("id,full_name,email").in("id", txOwnerIds);
+      txOwnerMap = Object.fromEntries((owners ?? []).map((o: any) => [o.id, o]));
+    }
+    const enrichedTxs = (txs.data ?? []).map((t: any) => ({ ...t, owner: txOwnerMap[t.user_id] || null }));
+    return { users: users.data ?? [], cards: enrichedCards, transactions: enrichedTxs, kyc: kyc.data ?? [], withdrawals: withdrawals.data ?? [], businesses: businesses.data ?? [], flows };
   },
 
   async adminStrowalletBalance({ user, admin }) {
