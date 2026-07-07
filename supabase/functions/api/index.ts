@@ -880,7 +880,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!apiKey || !groupId) return { ok: false, error: "YengaPay env missing" };
     const userId = user.id;
     const isAdm = await isAdmin(admin, userId);
-    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     let q = admin.from("transactions")
       .select("id,user_id,amount,status,metadata,provider_ref,currency,type")
       .eq("type", "deposit").eq("status", "pending").eq("provider", "yengapay")

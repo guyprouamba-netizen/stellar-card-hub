@@ -18,7 +18,8 @@ Deno.serve(async (req) => {
     { auth: { persistSession: false } },
   );
 
-  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  // Fenêtre élargie à 30 jours pour rattraper les dépôts anciens restés en attente.
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const { data: pendings } = await admin
     .from("transactions")
     .select("id,user_id,amount,status,metadata,provider_ref,currency,type")
