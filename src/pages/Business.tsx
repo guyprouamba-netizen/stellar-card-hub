@@ -40,7 +40,11 @@ export default function BusinessPage() {
   async function refreshAll() {
     const list = await listMyBusinesses();
     setBusinesses(list);
-    if (list.length && !current) setCurrent(list[0]);
+    if (list.length) {
+      const keepId = current?.id;
+      const next = (keepId && list.find((b) => b.id === keepId)) || list[0];
+      setCurrent(next);
+    }
     setLoading(false);
   }
   async function refreshCurrent(bizId: string) {
