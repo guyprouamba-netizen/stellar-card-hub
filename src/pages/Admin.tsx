@@ -143,9 +143,24 @@ function FlowTab({ data }: { data: any }) {
       <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Flux financier</h1>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Kpi label="Dépôts (mois)" value={`${data.flows.recharges_xof.toLocaleString("fr-FR")} XOF`} tone="success" />
-        <Kpi label="Retraits (mois)" value={`${data.flows.withdrawals_xof.toLocaleString("fr-FR")} XOF`} tone="warning" />
-        <Kpi label="Émissions cartes (mois)" value={`${data.flows.card_issue_xof.toLocaleString("fr-FR")} XOF`} tone="primary" />
+        <Kpi
+          label="Dépôts (mois)"
+          value={`${Number(data.flows.recharges_xof || 0).toLocaleString("fr-FR")} XOF`}
+          tone="success"
+          hint={data.flows.recharges_pending_xof ? `${Number(data.flows.recharges_pending_xof).toLocaleString("fr-FR")} XOF en attente` : undefined}
+        />
+        <Kpi
+          label="Retraits (mois)"
+          value={`${Number(data.flows.withdrawals_xof || 0).toLocaleString("fr-FR")} XOF`}
+          tone="warning"
+          hint={data.flows.withdrawals_pending_xof ? `${Number(data.flows.withdrawals_pending_xof).toLocaleString("fr-FR")} XOF en attente` : undefined}
+        />
+        <Kpi
+          label="Émissions cartes (mois)"
+          value={`${Number(data.flows.card_issue_xof || 0).toLocaleString("fr-FR")} XOF`}
+          tone="primary"
+          hint={data.flows.card_issue_pending_xof ? `${Number(data.flows.card_issue_pending_xof).toLocaleString("fr-FR")} XOF en attente` : undefined}
+        />
       </div>
 
       <div className="rounded-2xl border border-primary/30 bg-primary/5 p-6">
@@ -175,11 +190,12 @@ function FlowTab({ data }: { data: any }) {
   );
 }
 
-function Kpi({ label, value, tone }: { label: string; value: string; tone: "success" | "warning" | "primary" }) {
+function Kpi({ label, value, tone, hint }: { label: string; value: string; tone: "success" | "warning" | "primary"; hint?: string }) {
   return (
     <div className={`rounded-2xl border p-5 ${tone === "success" ? "border-success/30 bg-success/5" : tone === "warning" ? "border-warning/30 bg-warning/5" : "border-primary/30 bg-primary/5"}`}>
       <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="mt-2 font-[Space_Grotesk] text-2xl font-bold tabular-nums">{value}</div>
+      {hint ? <div className="mt-1 text-xs text-muted-foreground">{hint}</div> : null}
     </div>
   );
 }
