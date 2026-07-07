@@ -13,7 +13,7 @@ import logo from "@/assets/logo.png";
 import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview } from "@/lib/admin.functions";
 import { toast } from "sonner";
 
-type Tab = "users" | "flow" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "settings";
+type Tab = "users" | "flow" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "businesses" | "settings";
 
 function AdminPage() {
   const navigate = useNavigate();
@@ -66,6 +66,7 @@ function AdminPage() {
               {tab === "kyc" && <KycTab kyc={data.kyc} onAction={refetch} />}
               {tab === "withdrawals" && <WithdrawalsTab withdrawals={data.withdrawals} onAction={refetch} />}
               {tab === "referrals" && <ReferralsAdminTab adjust={undefined} refetchOverview={refetch} />}
+              {tab === "businesses" && <BusinessesTab businesses={data.businesses ?? []} />}
               {tab === "settings" && <SettingsTab />}
             </>
           )}
@@ -102,6 +103,7 @@ function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "kyc", label: "KYC à valider", Icon: ShieldCheck },
     { id: "withdrawals", label: "Retraits à valider", Icon: ArrowDownUp },
     { id: "referrals", label: "Parrainages", Icon: Share2 },
+    { id: "businesses", label: "Entreprises", Icon: Server },
     { id: "settings", label: "Paramètres", Icon: SlidersHorizontal },
   ];
   async function logout() { await supabase.auth.signOut(); navigate("/"); }
