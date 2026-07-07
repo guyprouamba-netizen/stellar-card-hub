@@ -197,6 +197,13 @@ function MobileNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
             {it.label}
           </button>
         ))}
+        <Link
+          to="/business"
+          className="flex flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 text-[10px] font-medium text-muted-foreground"
+        >
+          <Building2 className="h-5 w-5" />
+          Business
+        </Link>
       </nav>
     </>
   );
