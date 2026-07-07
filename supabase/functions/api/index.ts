@@ -5,10 +5,50 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import * as SW from "../_shared/strowallet.ts";
 import { computeCardCost, computeFundCost, loadPricingConfig } from "../_shared/pricing.ts";
+import { sendEmail } from "../_shared/email.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
+
+// ---- Notifications e-mail (best-effort, non bloquant) ----
+function txEmailHtml(opts: { title: string; intro: string; amount: number; currency: string; reference?: string }) {
+  const fmt = new Intl.NumberFormat("fr-FR").format(opts.amount);
+  return `<!doctype html><html lang="fr"><body style="margin:0;background:#f4f6fb;font-family:Arial,sans-serif;color:#0f172a">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px"><tr><td align="center">
+    <table role="presentation" width="560" style="background:#fff;border-radius:16px;padding:32px;max-width:560px"><tr><td>
+      <h1 style="margin:0 0 8px;font-size:20px">${opts.title}</h1>
+      <p style="margin:0 0 24px;color:#64748b;font-size:14px">${opts.intro}</p>
+      <table width="100%" style="font-size:14px;border-collapse:collapse">
+        <tr><td style="padding:8px 0;color:#64748b">Montant</td><td style="padding:8px 0;text-align:right"><b>${fmt} ${opts.currency}</b></td></tr>
+        ${opts.reference ? `<tr><td style="padding:8px 0;color:#64748b">Référence</td><td style="padding:8px 0;text-align:right;font-family:monospace;font-size:12px">${opts.reference}</td></tr>` : ""}
+        <tr><td style="padding:8px 0;color:#64748b">Date</td><td style="padding:8px 0;text-align:right">${new Date().toLocaleString("fr-FR")}</td></tr>
+      </table>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
+      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">FASO-INVEST PAY — Notification automatique</p>
+    </td></tr></table>
+  </td></tr></table></body></html>`;
+}
+async function notifyUser(admin: any, userId: string, subject: string, html: string, text: string) {
+  try {
+    const { data: p } = await admin.from("profiles").select("email,full_name").eq("id", userId).maybeSingle();
+    if (!p?.email) return;
+    await sendEmail({ to: p.email, subject, html, text });
+  } catch (e) { console.error("notifyUser failed", e); }
+}
+
+// ---- Rate limit par utilisateur (best-effort, non bloquant si table absente) ----
+async function assertUserRateLimit(admin: any, userId: string, bucket: string, perMin: number) {
+  const sinceIso = new Date(Date.now() - 60_000).toISOString();
+  const b = `user:${userId}:${bucket}`;
+  const { count } = await admin.from("rate_limit_hits")
+    .select("id", { count: "exact", head: true })
+    .eq("bucket", b).gte("hit_at", sinceIso);
+  if ((count || 0) >= perMin) {
+    throw new Error("Trop de requêtes, patientez une minute.");
+  }
+  await admin.from("rate_limit_hits").insert({ bucket: b, ip: "0.0.0.0" });
+}
 
 function adminClient() {
   return createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
@@ -131,6 +171,11 @@ async function payReferralCardReward(admin: any, referredUserId: string, provide
     cards_rewarded: Number(link.cards_rewarded || 0) + 1,
     total_reward_xof: Number(link.total_reward_xof || 0) + rewardXof,
   }).eq("id", link.id);
+  // Notification e-mail parrain
+  await notifyUser(admin, link.referrer_id,
+    "🎉 Nouvelle récompense parrainage",
+    txEmailHtml({ title: "Récompense parrainage créditée", intro: "Un de vos filleuls vient d'acheter une carte. Votre bonus est disponible immédiatement.", amount: rewardXof, currency: "XOF" }),
+    `Récompense parrainage: +${rewardXof} XOF crédités.`);
   return { paid: rewardXof, alreadyPaid: false };
 }
 
@@ -591,6 +636,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   async withdrawCard({ data, user, admin, userClient }) {
     const userId = user.id;
+    await assertUserRateLimit(admin, userId, "withdrawCard", 6);
     const { data: card } = await userClient.from("cards").select("id,user_id,balance,provider_card_id,status").eq("provider_card_id", data.card_id).maybeSingle();
     if (!card || card.user_id !== userId) return { ok: false, error: "Carte introuvable" };
     if (card.status === "terminated") return { ok: false, error: "Carte résiliée" };
@@ -645,6 +691,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   // ---------- Withdrawals & YengaPay ----------
   async requestWithdrawal({ data, user, admin, userClient }) {
     const userId = user.id;
+    await assertUserRateLimit(admin, userId, "requestWithdrawal", 6);
     const amount = Number(data.amount);
     if (!Number.isFinite(amount) || amount < 500) return { ok: false, error: "Montant minimum 500 XOF" };
     const { data: w } = await userClient.from("wallets").select("id,balance").eq("user_id", userId).eq("currency", "XOF").maybeSingle();
@@ -783,6 +830,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   async initRecharge({ data, user, admin }) {
     const userId = user.id;
+    await assertUserRateLimit(admin, userId, "initRecharge", 10);
     const reference = `FIP-${Date.now()}-${userId.slice(0, 8)}`;
     const baseReturn = String(data.returnUrl || "");
     const returnUrl = baseReturn
@@ -860,6 +908,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (updated) {
         const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", tx.user_id).eq("currency", "XOF").maybeSingle();
         if (w) await admin.from("wallets").update({ balance: Number(w.balance) + Number(tx.amount) }).eq("id", w.id);
+        await notifyUser(admin, tx.user_id,
+          "✅ Recharge créditée",
+          txEmailHtml({ title: "Recharge créditée sur votre portefeuille", intro: "Votre paiement a été confirmé et votre solde a été mis à jour immédiatement.", amount: Number(tx.amount), currency: "XOF", reference: tx.provider_ref }),
+          `Recharge de ${tx.amount} XOF créditée. Référence ${tx.provider_ref}.`);
         return { ok: true, status: "success", credited: true };
       }
       return { ok: true, status: "success", credited: false };
@@ -912,6 +964,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         if (updated) {
           const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", tx.user_id).eq("currency", "XOF").maybeSingle();
           if (w) await admin.from("wallets").update({ balance: Number(w.balance) + Number(tx.amount) }).eq("id", w.id);
+          await notifyUser(admin, tx.user_id,
+            "✅ Recharge créditée",
+            txEmailHtml({ title: "Recharge créditée sur votre portefeuille", intro: "Votre paiement a été confirmé et votre solde a été mis à jour automatiquement.", amount: Number(tx.amount), currency: "XOF", reference: tx.provider_ref }),
+            `Recharge de ${tx.amount} XOF créditée. Référence ${tx.provider_ref}.`);
           credited++;
         }
       } else if (isFailed) {
@@ -1363,6 +1419,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   // Permet au marchand de retirer son solde vers son wallet utilisateur (XOF)
   async cashoutBusinessBalance({ data, user, admin }) {
+    await assertUserRateLimit(admin, user.id, "cashoutBusinessBalance", 6);
     const biz = await assertBusinessOwner(admin, user.id, data.business_id);
     const { data: b } = await admin.from("businesses").select("balance,owner_id").eq("id", biz.id).single();
     const amount = Number(b?.balance || 0);

@@ -43,8 +43,8 @@ const testimonials = [
 ];
 
 const faqs = [
-  { q: "Combien coûte la création d'une carte ?", a: "4 500 F CFA de frais d'émission unique, plus le montant chargé (taux 1 USD = 869 F + 1,9 $ + 1 % de frais de traitement)." },
-  { q: "Quels moyens de recharge sont acceptés ?", a: "Orange Money, Moov Money, et Wave en Mobile Money — crédit instantané sur votre portefeuille XOF." },
+  { q: "Combien coûte la création d'une carte ?", a: "Tous les frais applicables (émission + traitement) sont affichés à l'écran avant la confirmation, depuis votre tableau de bord." },
+  { q: "Quels moyens de recharge sont acceptés ?", a: "Orange Money, Moov Money, et Wave en Mobile Money — crédit instantané sur votre portefeuille." },
   { q: "Que se passe-t-il si un paiement échoue ?", a: "Pour protéger votre carte, nous la gelons automatiquement dès la 1ʳᵉ tentative refusée. Vous pouvez la débloquer en un clic depuis votre tableau de bord." },
   { q: "Où puis-je utiliser la carte ?", a: "Partout où Visa/Mastercard sont acceptées : Netflix, Amazon, AliExpress, Google Ads, Meta Ads, AdSense, SaaS, formations en ligne…" },
   { q: "Mes données sont-elles sécurisées ?", a: "Oui. Vos pièces KYC sont stockées dans un espace privé chiffré, accessible uniquement par notre équipe de validation." },
@@ -62,7 +62,7 @@ function Index() {
               <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Burkina Faso
             </span>
             <h1 className="mt-6 font-[Space_Grotesk] text-5xl font-bold leading-tight tracking-tight md:text-6xl">
-              Cartes virtuelles <span className="bg-gradient-primary bg-clip-text text-transparent">USD</span>,<br />paiements mondiaux.
+              Cartes virtuelles <span className="bg-gradient-primary bg-clip-text text-transparent">Visa & Mastercard</span>,<br />paiements mondiaux.
             </h1>
             <p className="mt-6 max-w-lg text-lg text-muted-foreground">
               Rechargez en Mobile Money, validez votre KYC, émettez votre carte Visa/Mastercard et payez partout dans le monde — Netflix, Amazon, AliExpress, AdSense, formations, SaaS.
@@ -76,9 +76,9 @@ function Index() {
               </Link>
             </div>
             <div className="mt-8 grid grid-cols-3 gap-4">
-              <Stat value="4 500 F" label="Frais d'émission" />
-              <Stat value="1 $ = 869 F" label="Taux plateforme" />
+              <Stat value="Mobile Money" label="Recharge instantanée" />
               <Stat value="Visa & MC" label="Réseaux acceptés" />
+              <Stat value="24/7" label="Support Ouaga" />
             </div>
           </motion.div>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, delay: 0.1 }} className="relative">
@@ -157,35 +157,26 @@ function Index() {
           </div>
         </section>
 
-        {/* PRICING */}
+        {/* PRICING — value props seulement (aucun calcul affiché) */}
         <section className="border-y border-border bg-muted/20">
-          <div className="container mx-auto grid gap-10 px-4 py-20 sm:px-6 md:grid-cols-2">
-            <div>
+          <div className="container mx-auto px-4 py-20 sm:px-6">
+            <div className="mx-auto max-w-2xl text-center">
               <span className="text-xs font-semibold uppercase tracking-widest text-primary">Tarification transparente</span>
               <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Pas de surprise. Pas de frais cachés.</h2>
-              <p className="mt-4 text-muted-foreground">Tous nos frais sont affichés à l'écran avant la confirmation. Le taux USD est fixe sur notre plateforme.</p>
-              <ul className="mt-6 space-y-3 text-sm">
-                {[
-                  "Création de carte : 4 500 F CFA (unique, validité 3 ans)",
-                  "Taux de change : 1 USD = 869 F CFA",
-                  "Frais de traitement : 1,9 $ + 1 % du chargement",
-                  "Recharge Mobile Money : frais opérateur uniquement",
-                  "Aucun frais mensuel, aucun abonnement",
-                ].map((t) => (<li key={t} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" /> {t}</li>))}
-              </ul>
+              <p className="mt-4 text-muted-foreground">Les frais s'affichent à l'écran avant chaque confirmation. Aucun abonnement, aucun frais mensuel.</p>
             </div>
-            <div className="rounded-3xl border border-border bg-card p-8 shadow-card-premium">
-              <h3 className="font-[Space_Grotesk] text-xl font-bold">Simulation rapide</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Carte chargée à 20 $</p>
-              <dl className="mt-6 space-y-3 text-sm">
-                <Row k="Montant souhaité" v="20,00 $" />
-                <Row k="Frais de traitement (1,9 $ + 1 %)" v="2,10 $" />
-                <Row k="Total USD" v="22,10 $" />
-                <Row k="Conversion (× 869 F)" v="19 205 F" />
-                <Row k="Frais d'émission" v="4 500 F" />
-                <div className="my-2 h-px bg-border" />
-                <Row k="Total à payer" v="23 705 F" strong />
-              </dl>
+            <div className="mt-10 grid gap-4 md:grid-cols-3">
+              {[
+                { t: "Recharge Mobile Money", d: "Crédit instantané sur votre portefeuille — Orange, Moov, Wave." },
+                { t: "Carte virtuelle mondiale", d: "Payez Netflix, Amazon, AliExpress, Google Ads, AdSense et plus." },
+                { t: "Aucun abonnement", d: "Vous payez uniquement à l'usage. Frais visibles avant chaque opération." },
+              ].map((b) => (
+                <div key={b.t} className="rounded-2xl border border-border bg-card p-6">
+                  <CheckCircle2 className="h-5 w-5 text-success" />
+                  <h4 className="mt-3 font-semibold">{b.t}</h4>
+                  <p className="mt-1 text-sm text-muted-foreground">{b.d}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -317,15 +308,5 @@ function Stat({ value, label }: { value: string; label: string }) {
     </div>
   );
 }
-
-function Row({ k, v, strong }: { k: string; v: string; strong?: boolean }) {
-  return (
-    <div className={`flex items-center justify-between ${strong ? "text-base font-bold" : ""}`}>
-      <dt className="text-muted-foreground">{k}</dt>
-      <dd className="tabular-nums">{v}</dd>
-    </div>
-  );
-}
-
 
 export default Index;
