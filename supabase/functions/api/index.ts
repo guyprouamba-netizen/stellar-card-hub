@@ -1157,7 +1157,6 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (error) throw new Error(error.message);
     return { ok: true };
   },
-  async adminReviewWithdrawal({ data, user, admin }) {
   async adminYengapayInspect({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const id = String(data?.id || "").trim();
