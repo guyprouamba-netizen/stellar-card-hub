@@ -10,7 +10,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
-import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminCreditPendingDeposit } from "@/lib/admin.functions";
+import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminYengapayVerifyBatch, adminCreditPendingDeposit } from "@/lib/admin.functions";
 import { toast } from "sonner";
 
 type Tab = "users" | "flow" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "businesses" | "settings";
@@ -408,10 +408,14 @@ function PaymentsTab({ tx }: { tx: any[] }) {
   const items = filter === "all" ? tx : tx.filter((t) => t.type === filter);
   const creditFn = useServerFn(adminCreditPendingDeposit);
   const inspectFn = useServerFn(adminYengapayInspect);
+  const verifyBatchFn = useServerFn(adminYengapayVerifyBatch);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [inspectId, setInspectId] = useState<string>("");
   const [inspectResult, setInspectResult] = useState<any>(null);
   const [inspecting, setInspecting] = useState(false);
+  const [verifyList, setVerifyList] = useState<string>("");
+  const [verifyResults, setVerifyResults] = useState<any[] | null>(null);
+  const [verifying, setVerifying] = useState(false);
 
   async function credit(txId: string) {
     if (!confirm("Confirmer le crédit manuel de cette recharge ?")) return;
@@ -430,6 +434,26 @@ function PaymentsTab({ tx }: { tx: any[] }) {
     try { setInspectResult(await inspectFn({ data: { id: inspectId.trim() } })); }
     catch (e) { toast.error((e as Error).message); }
     finally { setInspecting(false); }
+  }
+  async function verifyBatch() {
+    const ids = verifyList.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 0) { toast.error("Collez au moins un ID YengaPay"); return; }
+    setVerifying(true); setVerifyResults(null);
+    try {
+      const r: any = await verifyBatchFn({ data: { ids } });
+      setVerifyResults(r?.results || []);
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setVerifying(false); }
+  }
+  async function creditFromVerify(txId: string) {
+    if (!confirm("Créditer cette recharge maintenant ?")) return;
+    try {
+      const r: any = await creditFn({ data: { txId } });
+      if (r?.alreadyCredited) toast.info("Déjà crédité");
+      else toast.success(`Crédité (${r?.amount} XOF)`);
+      // refresh verify view: mark this tx as credited locally
+      setVerifyResults((prev) => prev?.map((it) => it.transaction?.id === txId ? { ...it, transaction: { ...it.transaction, status: "success", credited: true } } : it) || null);
+    } catch (e) { toast.error((e as Error).message); }
   }
 
   return (
@@ -452,6 +476,78 @@ function PaymentsTab({ tx }: { tx: any[] }) {
         {inspectResult && (
           <pre className="mt-3 max-h-80 overflow-auto rounded-xl bg-card p-3 text-[11px]">{JSON.stringify(inspectResult, null, 2)}</pre>
         )}
+
+        <div className="mt-5 border-t border-primary/20 pt-4">
+          <h3 className="mb-1 text-sm font-semibold">Vérification en lot</h3>
+          <p className="mb-2 text-xs text-muted-foreground">Collez plusieurs IDs YengaPay (un par ligne ou séparés par des virgules). L'outil interroge chaque ID et indique s'il a déjà été crédité dans un portefeuille.</p>
+          <textarea
+            value={verifyList}
+            onChange={(e) => setVerifyList(e.target.value)}
+            rows={4}
+            placeholder={"YP2026078.1056.79314766\nYP2026077.021.10794473"}
+            className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-xs font-mono"
+          />
+          <div className="mt-2 flex justify-end">
+            <button onClick={verifyBatch} disabled={verifying} className="rounded-full bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+              {verifying ? "Vérification…" : "Vérifier"}
+            </button>
+          </div>
+          {verifyResults && verifyResults.length > 0 && (
+            <div className="mt-3 overflow-hidden rounded-xl border border-border bg-card">
+              <table className="w-full text-xs">
+                <thead className="bg-surface-2 text-left uppercase text-muted-foreground">
+                  <tr>
+                    <th className="px-2 py-2">ID YengaPay</th>
+                    <th className="px-2 py-2">Statut opérateur</th>
+                    <th className="px-2 py-2">Montant</th>
+                    <th className="px-2 py-2">Utilisateur</th>
+                    <th className="px-2 py-2">Portefeuille</th>
+                    <th className="px-2 py-2 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {verifyResults.map((r) => {
+                    const credited = r.transaction?.credited;
+                    return (
+                      <tr key={r.id}>
+                        <td className="px-2 py-2 font-mono">{r.id}</td>
+                        <td className="px-2 py-2">
+                          {!r.found ? <span className="text-muted-foreground">Introuvable</span> :
+                            r.yengaState === "success" ? <span className="rounded-full bg-success/15 px-2 py-0.5 text-success">Payé</span> :
+                            r.yengaState === "failed" ? <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-destructive">Échoué</span> :
+                            <span className="rounded-full bg-warning/15 px-2 py-0.5 text-warning">{r.rawStatus || "En attente"}</span>}
+                        </td>
+                        <td className="px-2 py-2 tabular-nums">{r.amount ? `${Number(r.amount).toLocaleString("fr-FR")} XOF` : "—"}</td>
+                        <td className="px-2 py-2">
+                          {r.owner ? (
+                            <div>
+                              <div className="font-semibold">{r.owner.full_name || r.owner.email}</div>
+                              <div className="text-[10px] text-muted-foreground">{r.owner.phone || r.owner.email}</div>
+                            </div>
+                          ) : r.transaction ? <span className="text-muted-foreground">User {String(r.transaction.user_id).slice(0, 8)}</span>
+                            : <span className="text-muted-foreground">Aucune recharge locale</span>}
+                        </td>
+                        <td className="px-2 py-2">
+                          {credited ? <span className="rounded-full bg-success/15 px-2 py-0.5 text-success">✅ Crédité</span> :
+                            r.transaction ? <span className="rounded-full bg-warning/15 px-2 py-0.5 text-warning">Non crédité</span> :
+                            <span className="text-muted-foreground">—</span>}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          {r.transaction && !credited && r.yengaState !== "failed" ? (
+                            <button onClick={() => creditFromVerify(r.transaction.id)} className="rounded-full bg-success/15 px-3 py-1 font-semibold text-success hover:bg-success/25">Créditer</button>
+                          ) : null}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {verifyResults && verifyResults.length === 0 && (
+            <p className="mt-3 text-xs text-muted-foreground">Aucun résultat.</p>
+          )}
+        </div>
       </section>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
