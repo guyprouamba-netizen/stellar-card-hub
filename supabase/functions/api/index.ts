@@ -1073,7 +1073,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       admin.from("transactions").select("id,user_id,type,status,amount,currency,description,provider,provider_ref,metadata,created_at").order("created_at", { ascending: false }).limit(500),
       admin.from("kyc_submissions").select("*").order("submitted_at", { ascending: false, nullsFirst: false }).limit(50),
       admin.from("withdrawals").select("*").order("created_at", { ascending: false }).limit(50),
-      admin.from("businesses").select("id,user_id,name,slug,contact_email,contact_phone,is_active,created_at").order("created_at", { ascending: false }).limit(200),
+      admin.from("businesses").select("id,owner_id,name,slug,contact_email,contact_phone,status,created_at").order("created_at", { ascending: false }).limit(200),
       admin.from("cards").select("id,balance,total_funded_usd,status,currency").limit(10000),
     ]);
     const firstErr = users.error || cards.error || txs.error || kyc.error || withdrawals.error || businesses.error || allCards.error;
