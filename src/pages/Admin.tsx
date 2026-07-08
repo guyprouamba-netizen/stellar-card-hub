@@ -10,7 +10,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
-import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminYengapayVerifyBatch, adminCreditPendingDeposit } from "@/lib/admin.functions";
+import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminYengapayVerifyBatch, adminCreditYengapayExternal, adminCreditPendingDeposit } from "@/lib/admin.functions";
 import { toast } from "sonner";
 
 type Tab = "users" | "flow" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "businesses" | "settings";
@@ -39,6 +39,8 @@ function AdminPage() {
   const fetchOverview = useServerFn(adminOverview);
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["adminOverview"], queryFn: () => fetchOverview(), enabled: authState === "ok",
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: true,
   });
 
   if (authState === "loading") return <div className="grid min-h-screen place-items-center"><Loader2 className="h-6 w-6 animate-spin" /></div>;
@@ -142,24 +144,30 @@ function FlowTab({ data }: { data: any }) {
     <div className="space-y-6">
       <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Flux financier</h1>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Kpi
-          label="Dépôts (mois)"
-          value={`${Number(data.flows.recharges_xof || 0).toLocaleString("fr-FR")} XOF`}
+          label="Dépôts enregistrés (mois)"
+          value={`${Number(data.flows.recharges_all_xof ?? data.flows.recharges_xof ?? 0).toLocaleString("fr-FR")} XOF`}
           tone="success"
-          hint={data.flows.recharges_pending_xof ? `${Number(data.flows.recharges_pending_xof).toLocaleString("fr-FR")} XOF en attente` : undefined}
+          hint={`${Number(data.flows.recharges_xof || 0).toLocaleString("fr-FR")} XOF crédités · ${Number(data.flows.recharges_pending_xof || 0).toLocaleString("fr-FR")} XOF en attente`}
         />
         <Kpi
-          label="Retraits (mois)"
-          value={`${Number(data.flows.withdrawals_xof || 0).toLocaleString("fr-FR")} XOF`}
+          label="Retraits enregistrés (mois)"
+          value={`${Number(data.flows.withdrawals_all_xof ?? data.flows.withdrawals_xof ?? 0).toLocaleString("fr-FR")} XOF`}
           tone="warning"
-          hint={data.flows.withdrawals_pending_xof ? `${Number(data.flows.withdrawals_pending_xof).toLocaleString("fr-FR")} XOF en attente` : undefined}
+          hint={`${Number(data.flows.withdrawals_xof || 0).toLocaleString("fr-FR")} XOF payés · ${Number(data.flows.withdrawals_pending_xof || 0).toLocaleString("fr-FR")} XOF en attente`}
         />
         <Kpi
           label="Émissions cartes (mois)"
-          value={`${Number(data.flows.card_issue_xof || 0).toLocaleString("fr-FR")} XOF`}
+          value={`${Number(data.flows.card_issue_all_xof ?? data.flows.card_issue_xof ?? 0).toLocaleString("fr-FR")} XOF`}
           tone="primary"
-          hint={data.flows.card_issue_pending_xof ? `${Number(data.flows.card_issue_pending_xof).toLocaleString("fr-FR")} XOF en attente` : undefined}
+          hint={`${Number(data.flows.card_issue_xof || 0).toLocaleString("fr-FR")} XOF réussis · ${Number(data.flows.card_issue_pending_xof || 0).toLocaleString("fr-FR")} XOF en attente`}
+        />
+        <Kpi
+          label="Solde total cartes"
+          value={`${Number(data.flows.card_balance_usd || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} USD`}
+          tone="primary"
+          hint={`${Number(data.flows.cards_count || 0).toLocaleString("fr-FR")} cartes créées · ${Number(data.flows.cards_active_count || 0).toLocaleString("fr-FR")} actives`}
         />
       </div>
 
@@ -203,10 +211,10 @@ function Kpi({ label, value, tone, hint }: { label: string; value: string; tone:
 function SimpleTxTable({ items }: { items: any[] }) {
   return (
     <table className="w-full text-sm">
-      <thead className="text-left text-xs uppercase text-muted-foreground"><tr><th className="py-2">Date</th><th>Type</th><th>Description</th><th>Statut</th><th className="text-right">Montant</th></tr></thead>
+      <thead className="text-left text-xs uppercase text-muted-foreground"><tr><th className="py-2">Date</th><th>Utilisateur</th><th>Type</th><th>Description</th><th>Référence</th><th>Statut</th><th className="text-right">Montant</th></tr></thead>
       <tbody className="divide-y divide-border">
         {items.map((t) => (
-          <tr key={t.id}><td className="py-2 text-xs text-muted-foreground">{new Date(t.created_at).toLocaleString("fr-FR")}</td><td>{t.type}</td><td className="truncate">{t.description}</td><td>{t.status}</td><td className="text-right font-semibold tabular-nums">{Number(t.amount).toLocaleString("fr-FR")} {t.currency}</td></tr>
+          <tr key={t.id}><td className="py-2 text-xs text-muted-foreground">{new Date(t.created_at).toLocaleString("fr-FR")}</td><td className="text-xs">{t.owner?.full_name || t.owner?.email || t.user_id?.slice(0, 8) || "—"}</td><td>{t.type}</td><td className="truncate">{t.description}</td><td className="font-mono text-xs text-muted-foreground">{t.provider_ref || "—"}</td><td>{t.status}</td><td className="text-right font-semibold tabular-nums">{Number(t.amount).toLocaleString("fr-FR")} {t.currency}</td></tr>
         ))}
       </tbody>
     </table>
