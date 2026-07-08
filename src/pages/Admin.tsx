@@ -10,7 +10,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
-import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview } from "@/lib/admin.functions";
+import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminCreditPendingDeposit } from "@/lib/admin.functions";
 import { toast } from "sonner";
 
 type Tab = "users" | "flow" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "businesses" | "settings";
@@ -406,6 +406,32 @@ function PaymentsTab({ tx }: { tx: any[] }) {
   const [filter, setFilter] = useState<string>("all");
   const types = Array.from(new Set(tx.map((t) => t.type))).sort();
   const items = filter === "all" ? tx : tx.filter((t) => t.type === filter);
+  const creditFn = useServerFn(adminCreditPendingDeposit);
+  const inspectFn = useServerFn(adminYengapayInspect);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [inspectId, setInspectId] = useState<string>("");
+  const [inspectResult, setInspectResult] = useState<any>(null);
+  const [inspecting, setInspecting] = useState(false);
+
+  async function credit(txId: string) {
+    if (!confirm("Confirmer le crédit manuel de cette recharge ?")) return;
+    setBusyId(txId);
+    try {
+      const r: any = await creditFn({ data: { txId } });
+      if (r?.alreadyCredited) toast.info("Déjà crédité");
+      else toast.success(`Crédité (${r?.amount} XOF)`);
+      setTimeout(() => window.location.reload(), 600);
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusyId(null); }
+  }
+  async function inspect() {
+    if (!inspectId.trim()) return;
+    setInspecting(true); setInspectResult(null);
+    try { setInspectResult(await inspectFn({ data: { id: inspectId.trim() } })); }
+    catch (e) { toast.error((e as Error).message); }
+    finally { setInspecting(false); }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -415,10 +441,23 @@ function PaymentsTab({ tx }: { tx: any[] }) {
           {types.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
       </div>
+
+      <section className="rounded-2xl border border-primary/30 bg-primary/5 p-5">
+        <h2 className="mb-2 font-semibold">Rapprochement YengaPay</h2>
+        <p className="mb-3 text-xs text-muted-foreground">Collez un ID de dépôt reçu côté YengaPay (ex. YP2026078.1056.79314766) pour voir ce que renvoie leur API et retrouver la recharge en attente correspondante.</p>
+        <div className="flex flex-wrap gap-2">
+          <input value={inspectId} onChange={(e) => setInspectId(e.target.value)} placeholder="YP2026…" className="flex-1 min-w-[240px] rounded-full border border-border bg-surface-2 px-4 py-2 text-sm" />
+          <button onClick={inspect} disabled={inspecting} className="rounded-full bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60">{inspecting ? "Recherche…" : "Rechercher"}</button>
+        </div>
+        {inspectResult && (
+          <pre className="mt-3 max-h-80 overflow-auto rounded-xl bg-card p-3 text-[11px]">{JSON.stringify(inspectResult, null, 2)}</pre>
+        )}
+      </section>
+
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <table className="w-full text-sm">
           <thead className="bg-surface-2 text-left text-xs uppercase text-muted-foreground">
-            <tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">Utilisateur</th><th className="px-3 py-2">Type</th><th className="px-3 py-2">Description</th><th className="px-3 py-2">Statut</th><th className="px-3 py-2 text-right">Montant</th></tr>
+            <tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">Utilisateur</th><th className="px-3 py-2">Type</th><th className="px-3 py-2">Description</th><th className="px-3 py-2">Statut</th><th className="px-3 py-2 text-right">Montant</th><th className="px-3 py-2 text-right">Action</th></tr>
           </thead>
           <tbody className="divide-y divide-border">
             {items.map((t) => (
@@ -429,9 +468,14 @@ function PaymentsTab({ tx }: { tx: any[] }) {
                 <td className="px-3 py-2 text-xs">{t.description}</td>
                 <td className="px-3 py-2 text-xs">{t.status}</td>
                 <td className="px-3 py-2 text-right font-semibold tabular-nums">{Number(t.amount).toLocaleString("fr-FR")} {t.currency}</td>
+                <td className="px-3 py-2 text-right">
+                  {t.type === "deposit" && t.status === "pending" ? (
+                    <button onClick={() => credit(t.id)} disabled={busyId === t.id} className="rounded-full bg-success/15 px-3 py-1 text-[11px] font-semibold text-success hover:bg-success/25 disabled:opacity-60">{busyId === t.id ? "…" : "Créditer"}</button>
+                  ) : null}
+                </td>
               </tr>
             ))}
-            {items.length === 0 && <tr><td colSpan={6} className="px-3 py-6 text-center text-sm text-muted-foreground">Aucune transaction</td></tr>}
+            {items.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-center text-sm text-muted-foreground">Aucune transaction</td></tr>}
           </tbody>
         </table>
       </div>

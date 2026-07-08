@@ -1157,7 +1157,64 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (error) throw new Error(error.message);
     return { ok: true };
   },
-
+  async adminYengapayInspect({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const id = String(data?.id || "").trim();
+    if (!id) throw new Error("id manquant");
+    const apiKey = Deno.env.get("YENGAPAY_API_KEY");
+    const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
+    const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
+    if (!apiKey || !groupId || !projectId) throw new Error("YengaPay env missing");
+    const base = "https://api.yengapay.com/api/v1";
+    const paths = [
+      `${base}/groups/${groupId}/projects/${projectId}/direct-payment/status/${id}`,
+      `${base}/groups/${groupId}/projects/${projectId}/transactions/${id}`,
+      `${base}/groups/${groupId}/projects/${projectId}/deposits/${id}`,
+      `${base}/groups/${groupId}/transactions/${id}`,
+      `${base}/groups/${groupId}/deposits/${id}`,
+      `${base}/groups/${groupId}/projects/${projectId}/direct-payment/${id}`,
+      `${base}/groups/${groupId}/projects/${projectId}/payments/${id}`,
+      `${base}/transactions/${id}`,
+    ];
+    const results: any[] = [];
+    for (const url of paths) {
+      try {
+        const r = await fetch(url, { headers: { "x-api-key": apiKey, "Accept": "application/json" } });
+        const t = await r.text();
+        let body: any = t; try { body = JSON.parse(t); } catch { /* keep text */ }
+        results.push({ url, status: r.status, body });
+      } catch (e) {
+        results.push({ url, error: String(e) });
+      }
+    }
+    return { ok: true, id, results };
+  },
+  async adminCreditPendingDeposit({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const txId = String(data?.txId || "").trim();
+    const note = String(data?.note || "Crédit manuel — dépôt confirmé côté opérateur").slice(0, 500);
+    if (!txId) throw new Error("txId manquant");
+    const { data: tx } = await admin.from("transactions")
+      .select("id,user_id,amount,currency,status,type,provider_ref,metadata").eq("id", txId).maybeSingle();
+    if (!tx) throw new Error("Transaction introuvable");
+    if (tx.type !== "deposit") throw new Error("La transaction n'est pas un dépôt");
+    if (tx.status === "success") return { ok: true, alreadyCredited: true };
+    if (tx.status === "failed") throw new Error("Transaction marquée échouée — impossible à créditer");
+    const currency = String(tx.currency || "XOF");
+    const { data: updated } = await admin.from("transactions")
+      .update({ status: "success", metadata: { ...((tx.metadata as any) || {}), admin_credit: { by: user.id, at: new Date().toISOString(), note } } })
+      .eq("id", tx.id).eq("status", "pending").select("id").maybeSingle();
+    if (!updated) return { ok: true, alreadyCredited: true };
+    const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", tx.user_id).eq("currency", currency).maybeSingle();
+    if (!w) throw new Error(`Portefeuille ${currency} introuvable`);
+    const newBalance = Number(w.balance) + Number(tx.amount);
+    await admin.from("wallets").update({ balance: newBalance }).eq("id", w.id);
+    await notifyUser(admin, tx.user_id,
+      "✅ Recharge créditée",
+      txEmailHtml({ title: "Recharge créditée sur votre portefeuille", intro: "Votre paiement a été confirmé et votre solde a été crédité.", amount: Number(tx.amount), currency, reference: tx.provider_ref }),
+      `Recharge de ${tx.amount} ${currency} créditée. Référence ${tx.provider_ref}.`);
+    return { ok: true, credited: true, new_balance: newBalance, user_id: tx.user_id, amount: tx.amount };
+  },
   async adminReviewWithdrawal({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const { data: w } = await admin.from("withdrawals").select("*").eq("id", data.id).maybeSingle();
