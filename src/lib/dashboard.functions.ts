@@ -14,7 +14,7 @@ export const getDashboardData = async (args?: { userId?: string } | any) => {
 
   const [w, t, c, p] = await Promise.all([
     supabase.from("wallets").select("id,currency,balance").eq("user_id", userId),
-    supabase.from("transactions").select("id,type,status,amount,currency,description,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
+    supabase.from("transactions").select("id,type,status,amount,currency,description,provider,provider_ref,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(100),
     supabase.from("cards").select("id,brand,last4,currency,balance,status,failed_attempts,auto_frozen_at,created_at,total_funded_usd").eq("user_id", userId).order("created_at", { ascending: false }),
     supabase.from("profiles").select("full_name,email,phone,is_active,country,avatar_url").eq("id", userId).maybeSingle(),
   ]);

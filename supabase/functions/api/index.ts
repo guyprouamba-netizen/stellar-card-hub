@@ -198,6 +198,94 @@ function normalizeBfPhone(phone?: string | null) {
   return `+226${digits}`;
 }
 
+function phoneKey(phone?: string | null) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) return "";
+  return digits.slice(-8);
+}
+
+function deepFind(obj: any, keys: string[]): any {
+  const wanted = new Set(keys.map((k) => k.toLowerCase()));
+  const seen = new Set<any>();
+  const walk = (v: any): any => {
+    if (!v || typeof v !== "object" || seen.has(v)) return null;
+    seen.add(v);
+    if (Array.isArray(v)) {
+      for (const item of v) {
+        const r = walk(item);
+        if (r !== null && r !== undefined && r !== "") return r;
+      }
+      return null;
+    }
+    for (const [k, val] of Object.entries(v)) {
+      if (wanted.has(k.toLowerCase()) && val !== null && val !== undefined && String(val) !== "") return val;
+    }
+    for (const val of Object.values(v)) {
+      const r = walk(val);
+      if (r !== null && r !== undefined && r !== "") return r;
+    }
+    return null;
+  };
+  return walk(obj);
+}
+
+function yengaStatus(body: any) {
+  return String(body?.status || body?.paymentStatus || body?.data?.status || deepFind(body, ["status", "paymentStatus"]) || "").toUpperCase();
+}
+
+function yengaStateFromStatus(rawStatus: string): "success" | "failed" | "pending" | "unknown" {
+  if (["DONE", "SUCCESS", "SUCCEEDED", "COMPLETED", "PAID", "SUCCESSFUL"].includes(rawStatus)) return "success";
+  if (["FAILED", "CANCELLED", "CANCELED", "EXPIRED", "REJECTED"].includes(rawStatus)) return "failed";
+  return rawStatus ? "pending" : "unknown";
+}
+
+function yengaAmount(body: any) {
+  const v = body?.paymentAmount ?? body?.amount ?? body?.data?.paymentAmount ?? body?.data?.amount ?? deepFind(body, ["paymentAmount", "amount", "netAmount"]);
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function yengaReference(body: any) {
+  return body?.reference || body?.data?.reference || deepFind(body, ["reference", "externalId"]) || null;
+}
+
+function yengaPayerPhone(body: any) {
+  return body?.phoneNumber || body?.customerNumber || body?.customer?.phoneNumber || body?.data?.phoneNumber || body?.data?.customerNumber || deepFind(body, ["phoneNumber", "customerNumber", "sourceNumber", "senderNumber", "payerPhone", "msisdn"]) || null;
+}
+
+async function lookupYengaPayment(id: string) {
+  const apiKey = Deno.env.get("YENGAPAY_API_KEY");
+  const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
+  const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
+  if (!apiKey || !groupId || !projectId) throw new Error("YengaPay env missing");
+  const base = "https://api.yengapay.com/api/v1";
+  const paths = [
+    `${base}/groups/${groupId}/projects/${projectId}/direct-payment/status/${id}`,
+    `${base}/groups/${groupId}/projects/${projectId}/transactions/${id}`,
+    `${base}/groups/${groupId}/projects/${projectId}/deposits/${id}`,
+    `${base}/groups/${groupId}/transactions/${id}`,
+    `${base}/groups/${groupId}/deposits/${id}`,
+    `${base}/transactions/${id}`,
+  ];
+  let firstBody: any = null;
+  for (const url of paths) {
+    try {
+      const r = await fetch(url, { headers: { "x-api-key": apiKey, "Accept": "application/json" } });
+      const t = await r.text(); let body: any = t; try { body = JSON.parse(t); } catch { /**/ }
+      if (!firstBody && body && typeof body === "object") firstBody = body;
+      if (r.ok && body && typeof body === "object") return body;
+    } catch { /**/ }
+  }
+  return firstBody;
+}
+
+async function findProfileByPhone(admin: any, payer?: string | null) {
+  const key = phoneKey(payer);
+  if (!key) return null;
+  const { data: profiles } = await admin.from("profiles").select("id,full_name,email,phone").limit(1000);
+  return (profiles ?? []).find((p: any) => phoneKey(p.phone) === key) || null;
+}
+
 function uniqueCashoutMethods(preferred?: string | null) {
   return Array.from(new Set([preferred, ...YENGAPAY_CASHOUT_METHODS].filter(Boolean))) as string[];
 }
@@ -244,7 +332,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const userId = user.id;
     const [w, t, c, p] = await Promise.all([
       userClient.from("wallets").select("id,currency,balance").eq("user_id", userId),
-      userClient.from("transactions").select("id,type,status,amount,currency,description,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
+      admin.from("transactions").select("id,type,status,amount,currency,description,provider,provider_ref,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(100),
       userClient.from("cards").select("id,brand,last4,currency,balance,status,failed_attempts,auto_frozen_at,created_at,total_funded_usd").eq("user_id", userId).order("created_at", { ascending: false }),
       userClient.from("profiles").select("full_name,email,phone,is_active,country,avatar_url").eq("id", userId).maybeSingle(),
     ]);
@@ -979,14 +1067,17 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   // ---------- Admin ----------
   async adminOverview({ user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
-    const [users, cards, txs, kyc, withdrawals, businesses] = await Promise.all([
+    const [users, cards, txs, kyc, withdrawals, businesses, allCards] = await Promise.all([
       admin.from("profiles").select("id,full_name,email,phone,country,is_active,strowallet_customer_id,created_at").order("created_at", { ascending: false }).limit(100),
       admin.from("cards").select("id,user_id,brand,last4,status,balance,currency,failed_attempts,auto_frozen_at,created_at,total_funded_usd,provider_card_id").order("created_at", { ascending: false }).limit(100),
       admin.from("transactions").select("id,user_id,type,status,amount,currency,description,provider,provider_ref,metadata,created_at").order("created_at", { ascending: false }).limit(500),
       admin.from("kyc_submissions").select("*").order("submitted_at", { ascending: false, nullsFirst: false }).limit(50),
       admin.from("withdrawals").select("*").order("created_at", { ascending: false }).limit(50),
       admin.from("businesses").select("id,user_id,name,slug,contact_email,contact_phone,is_active,created_at").order("created_at", { ascending: false }).limit(200),
+      admin.from("cards").select("id,balance,total_funded_usd,status,currency").limit(10000),
     ]);
+    const firstErr = users.error || cards.error || txs.error || kyc.error || withdrawals.error || businesses.error || allCards.error;
+    if (firstErr) throw new Error(firstErr.message);
     // Enrichit chaque carte avec le propriétaire (nom + email) pour le tableau admin.
     const cardOwnerIds = Array.from(new Set((cards.data ?? []).map((c: any) => c.user_id).filter(Boolean)));
     let ownerMap: Record<string, any> = {};
@@ -996,14 +1087,17 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     }
     const enrichedCards = (cards.data ?? []).map((c: any) => ({ ...c, owner: ownerMap[c.user_id] || null }));
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
-    const { data: monthTx } = await admin.from("transactions")
+    const { data: monthTx, error: monthErr } = await admin.from("transactions")
       .select("type,amount,currency,status")
       .gte("created_at", monthStart.toISOString())
       .in("status", ["success", "pending"]);
+    if (monthErr) throw new Error(monthErr.message);
     const flows = {
       recharges_xof: 0, recharges_pending_xof: 0,
       withdrawals_xof: 0, withdrawals_pending_xof: 0,
       card_issue_xof: 0, card_issue_pending_xof: 0,
+      recharges_all_xof: 0, withdrawals_all_xof: 0, card_issue_all_xof: 0,
+      card_balance_usd: 0, card_total_funded_usd: 0, cards_count: 0, cards_active_count: 0,
     };
     for (const t of monthTx ?? []) {
       if (t.currency !== "XOF") continue;
@@ -1012,6 +1106,15 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (t.type === "deposit") pending ? flows.recharges_pending_xof += a : flows.recharges_xof += a;
       if (t.type === "withdrawal") pending ? flows.withdrawals_pending_xof += a : flows.withdrawals_xof += a;
       if (t.type === "card_issue") pending ? flows.card_issue_pending_xof += a : flows.card_issue_xof += a;
+    }
+    flows.recharges_all_xof = flows.recharges_xof + flows.recharges_pending_xof;
+    flows.withdrawals_all_xof = flows.withdrawals_xof + flows.withdrawals_pending_xof;
+    flows.card_issue_all_xof = flows.card_issue_xof + flows.card_issue_pending_xof;
+    for (const c of allCards.data ?? []) {
+      flows.cards_count += 1;
+      if (!["terminated", "deleted", "failed"].includes(String(c.status || "").toLowerCase())) flows.cards_active_count += 1;
+      flows.card_balance_usd += Number(c.balance || 0);
+      flows.card_total_funded_usd += Number(c.total_funded_usd || 0);
     }
     // Enrichit chaque transaction avec un aperçu du propriétaire pour l'admin
     const txOwnerIds = Array.from(new Set((txs.data ?? []).map((t: any) => t.user_id).filter(Boolean)));
@@ -1216,15 +1319,12 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     }
 
     const results = await Promise.all(ids.map(async (id) => {
-      const body = await lookup(id);
-      const rawStatus = String(body?.status || body?.paymentStatus || body?.data?.status || "").toUpperCase();
-      const paid = ["DONE", "SUCCESS", "SUCCEEDED", "COMPLETED", "PAID"].includes(rawStatus);
-      const failed = ["FAILED", "CANCELLED", "CANCELED", "EXPIRED", "REJECTED"].includes(rawStatus);
-      const yengaState: "success" | "failed" | "pending" | "unknown" =
-        paid ? "success" : failed ? "failed" : (rawStatus ? "pending" : "unknown");
-      const amount = Number(body?.paymentAmount ?? body?.amount ?? body?.data?.amount ?? 0) || null;
-      const reference = body?.reference || body?.data?.reference || null;
-      const payer = body?.phoneNumber || body?.customerNumber || body?.customer?.phoneNumber || body?.data?.phoneNumber || null;
+      const body = await lookupYengaPayment(id) || await lookup(id);
+      const rawStatus = yengaStatus(body);
+      const yengaState = yengaStateFromStatus(rawStatus);
+      const amount = yengaAmount(body);
+      const reference = yengaReference(body);
+      const payer = yengaPayerPhone(body);
 
       // Try to match a local transaction: by metadata.paymentIntentId, by provider_ref (reference), or id embedded in metadata
       let tx: any = null;
@@ -1239,11 +1339,18 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
           .eq("provider_ref", String(reference)).maybeSingle();
         if (byRef) tx = byRef;
       }
+      if (!tx) {
+        const { data: byProviderId } = await admin.from("transactions")
+          .select("id,user_id,amount,status,provider_ref,created_at")
+          .eq("provider_ref", id).maybeSingle();
+        if (byProviderId) tx = byProviderId;
+      }
       let owner: any = null;
       if (tx?.user_id) {
         const { data: p } = await admin.from("profiles").select("id,full_name,email,phone").eq("id", tx.user_id).maybeSingle();
         owner = p || null;
       }
+      const matchedOwner = owner || await findProfileByPhone(admin, payer);
       return {
         id,
         found: !!body,
@@ -1251,9 +1358,81 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         amount, reference, payer,
         transaction: tx ? { ...tx, credited: tx.status === "success" } : null,
         owner,
+        matchedOwner,
+        canCreateCredit: !tx && yengaState === "success" && !!amount && !!matchedOwner,
       };
     }));
     return { ok: true, results };
+  },
+  async adminCreditYengapayExternal({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const yengaId = String(data?.yengaId || "").trim();
+    if (!yengaId) throw new Error("ID YengaPay manquant");
+    const body = await lookupYengaPayment(yengaId);
+    if (!body) throw new Error("Paiement introuvable chez YengaPay");
+    const rawStatus = yengaStatus(body);
+    const state = yengaStateFromStatus(rawStatus);
+    if (state !== "success") throw new Error(`Paiement non confirmé par YengaPay (${rawStatus || "statut inconnu"})`);
+    const amount = yengaAmount(body);
+    if (!amount) throw new Error("Montant YengaPay introuvable");
+    const reference = yengaReference(body);
+    const payer = yengaPayerPhone(body);
+    const refs = Array.from(new Set([yengaId, reference].filter(Boolean).map(String)));
+    for (const ref of refs) {
+      const { data: existing } = await admin.from("transactions")
+        .select("id,user_id,amount,status,type,currency,provider_ref,metadata")
+        .eq("provider_ref", ref).maybeSingle();
+      if (existing) {
+        if (existing.status === "success") return { ok: true, alreadyCredited: true, tx_id: existing.id, amount: existing.amount, user_id: existing.user_id };
+        if (existing.type === "deposit") {
+          const { data: updated } = await admin.from("transactions")
+            .update({ status: "success", metadata: { ...((existing.metadata as any) || {}), yengapay_external_credit: { id: yengaId, by: user.id, at: new Date().toISOString(), body } } })
+            .eq("id", existing.id).eq("status", "pending").select("id").maybeSingle();
+          if (updated) {
+            const currency = existing.currency || "XOF";
+            const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", existing.user_id).eq("currency", currency).maybeSingle();
+            if (!w) throw new Error(`Portefeuille ${currency} introuvable`);
+            const newBalance = Number(w.balance) + Number(existing.amount);
+            await admin.from("wallets").update({ balance: newBalance }).eq("id", w.id);
+            await notifyUser(admin, existing.user_id,
+              "✅ Recharge créditée",
+              txEmailHtml({ title: "Recharge créditée sur votre portefeuille", intro: "Votre paiement a été confirmé et votre solde a été crédité.", amount: Number(existing.amount), currency, reference: existing.provider_ref }),
+              `Recharge de ${existing.amount} ${currency} créditée. Référence ${existing.provider_ref}.`);
+          }
+          return { ok: true, credited: true, tx_id: existing.id, amount: existing.amount, user_id: existing.user_id };
+        }
+      }
+    }
+    const requestedUserId = String(data?.userId || "").trim();
+    let owner: any = null;
+    if (requestedUserId) {
+      const { data: p } = await admin.from("profiles").select("id,full_name,email,phone").eq("id", requestedUserId).maybeSingle();
+      owner = p;
+    }
+    if (!owner) owner = await findProfileByPhone(admin, payer);
+    if (!owner?.id) throw new Error("Utilisateur introuvable pour ce paiement : renseignez/corrigez le numéro du client puis relancez la vérification.");
+    const { data: wallet } = await admin.from("wallets").select("id,balance").eq("user_id", owner.id).eq("currency", "XOF").maybeSingle();
+    if (!wallet) throw new Error("Portefeuille XOF introuvable pour cet utilisateur");
+    const providerRef = reference || yengaId;
+    const { data: inserted, error: insErr } = await admin.from("transactions").insert({
+      user_id: owner.id,
+      type: "deposit",
+      status: "success",
+      amount,
+      currency: "XOF",
+      provider: "yengapay",
+      provider_ref: providerRef,
+      description: `Dépôt YengaPay rapproché (${yengaId})`,
+      metadata: { yengapayExternalId: yengaId, payer, rawStatus, body, admin_credit: { by: user.id, at: new Date().toISOString(), note: String(data?.note || "") } },
+    }).select("id").single();
+    if (insErr) throw new Error(insErr.message);
+    const newBalance = Number(wallet.balance) + Number(amount);
+    await admin.from("wallets").update({ balance: newBalance }).eq("id", wallet.id);
+    await notifyUser(admin, owner.id,
+      "✅ Recharge créditée",
+      txEmailHtml({ title: "Recharge créditée sur votre portefeuille", intro: "Votre paiement a été rapproché et votre solde a été crédité.", amount: Number(amount), currency: "XOF", reference: providerRef }),
+      `Recharge de ${amount} XOF créditée. Référence ${providerRef}.`);
+    return { ok: true, credited: true, tx_id: inserted.id, amount, user_id: owner.id, new_balance: newBalance };
   },
   async adminCreditPendingDeposit({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");

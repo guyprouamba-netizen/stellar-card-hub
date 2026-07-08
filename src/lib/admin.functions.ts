@@ -13,4 +13,5 @@ export const adminUpdateUser = (args: { data: { user_id: string; full_name?: str
 export const adminReferralsOverview = (_args?: any) => callApi("adminReferralsOverview");
 export const adminYengapayInspect = (args: { data: { id: string } }) => callApi("adminYengapayInspect", args.data);
 export const adminYengapayVerifyBatch = (args: { data: { ids: string[] } }) => callApi("adminYengapayVerifyBatch", args.data);
+export const adminCreditYengapayExternal = (args: { data: { yengaId: string; userId?: string; note?: string } }) => callApi("adminCreditYengapayExternal", args.data);
 export const adminCreditPendingDeposit = (args: { data: { txId: string; note?: string } }) => callApi("adminCreditPendingDeposit", args.data);

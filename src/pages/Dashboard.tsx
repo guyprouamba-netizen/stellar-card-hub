@@ -54,6 +54,8 @@ function Dashboard() {
     queryKey: ["dashboard", session?.user?.id],
     queryFn: () => fetchDash({ userId: session?.user?.id }),
     enabled: !!session?.user?.id,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: true,
   });
 
   // Vérification automatique du retour passerelle de paiement (?recharge=REF)
@@ -124,7 +126,7 @@ function Dashboard() {
         <main className="flex-1 px-4 pb-24 pt-20 sm:px-8 md:py-8 md:pt-8">
           {isLoading ? <FullPageLoader /> : isError || !data ? <LoadError error={error} onRetry={() => refetch()} busy={isFetching} /> : (
             <>
-              {tab === "home" && <HomeTab data={data} onAction={() => refetch()} />}
+              {tab === "home" && <HomeTab data={data} onAction={() => refetch()} onOpenTx={() => setTab("tx")} />}
               {tab === "deposit" && <DepositTab onDone={() => refetch()} />}
               {tab === "withdraw" && <WithdrawTab balance={Number(data.wallets.find((w: any) => w.currency === "XOF")?.balance ?? 0)} profile={data.profile} onDone={() => refetch()} />}
               {tab === "cards" && <CardsTab cards={data.cards} onAction={() => refetch()} />}
@@ -168,6 +170,7 @@ function MobileNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "deposit", label: "Dépôt", Icon: ArrowDownLeft },
     { id: "withdraw", label: "Retrait", Icon: ArrowUpRight },
     { id: "cards", label: "Cartes", Icon: CreditCard },
+    { id: "tx", label: "Historique", Icon: History },
     { id: "referrals", label: "Parrains", Icon: Users },
     { id: "profile", label: "Profil", Icon: UserCircle },
   ];
@@ -249,7 +252,7 @@ function Sidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   );
 }
 
-function HomeTab({ data }: { data: any; onAction: () => void }) {
+function HomeTab({ data, onOpenTx }: { data: any; onAction: () => void; onOpenTx: () => void }) {
   const xof = data.wallets.find((w: any) => w.currency === "XOF");
   const usd = data.wallets.find((w: any) => w.currency === "USD");
   const fetchCfg = useServerFn(getPublicConfig);
@@ -280,6 +283,7 @@ function HomeTab({ data }: { data: any; onAction: () => void }) {
       <section className="rounded-2xl border border-border bg-card p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-semibold">Dernières transactions</h2>
+          <button onClick={onOpenTx} className="text-xs font-semibold text-primary hover:underline">Tout voir</button>
         </div>
         <TxList items={data.transactions.slice(0, 6)} />
       </section>
@@ -308,7 +312,7 @@ function TxList({ items }: { items: any[] }) {
         <div key={t.id} className="flex items-center justify-between py-3">
           <div>
             <div className="text-sm font-medium">{t.description || t.type}</div>
-            <div className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleString("fr-FR")} · {t.status}</div>
+            <div className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleString("fr-FR")} · {t.status}{t.provider_ref ? ` · Réf. ${t.provider_ref}` : ""}</div>
           </div>
           <div className={`text-sm font-semibold tabular-nums ${["deposit","withdrawal_refund"].includes(t.type) ? "text-success" : "text-foreground"}`}>
             {["deposit","withdrawal_refund"].includes(t.type) ? "+" : "-"}{Number(t.amount).toLocaleString("fr-FR")} {t.currency}
@@ -493,15 +497,16 @@ function TxTab({ transactions }: { transactions: any[] }) {
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <table className="w-full text-sm">
           <thead className="bg-surface-2 text-left text-xs uppercase tracking-wider text-muted-foreground">
-            <tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Description</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3 text-right">Montant</th></tr>
+            <tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Description</th><th className="px-4 py-3">Référence</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3 text-right">Montant</th></tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {transactions.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">Aucune transaction</td></tr>}
+            {transactions.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Aucune transaction</td></tr>}
             {transactions.map((t) => (
               <tr key={t.id}>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(t.created_at).toLocaleString("fr-FR")}</td>
                 <td className="px-4 py-3">{t.type}</td>
                 <td className="px-4 py-3">{t.description}</td>
+                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{t.provider_ref || "—"}</td>
                 <td className="px-4 py-3"><span className="rounded-full bg-muted px-2 py-0.5 text-xs">{t.status}</span></td>
                 <td className="px-4 py-3 text-right font-semibold tabular-nums">{Number(t.amount).toLocaleString("fr-FR")} {t.currency}</td>
               </tr>
