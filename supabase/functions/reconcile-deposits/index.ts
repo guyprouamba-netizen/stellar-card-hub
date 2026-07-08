@@ -8,7 +8,8 @@ Deno.serve(async (req) => {
 
   const apiKey = Deno.env.get("YENGAPAY_API_KEY");
   const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
-  if (!apiKey || !groupId) {
+  const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
+  if (!apiKey || !groupId || !projectId) {
     return new Response(JSON.stringify({ ok: false, error: "YengaPay env missing" }), { status: 500, headers: { ...corsHeaders, "content-type": "application/json" } });
   }
 
@@ -32,19 +33,16 @@ Deno.serve(async (req) => {
 
   for (const tx of pendings ?? []) {
     const piid = (tx.metadata as any)?.paymentIntentId;
-    const candidates: string[] = [];
-    if (piid) candidates.push(`https://api.yengapay.com/api/v1/groups/${groupId}/payment-intent/${piid}`);
-    candidates.push(`https://api.yengapay.com/api/v1/groups/${groupId}/payment-intent/reference/${tx.provider_ref}`);
-
+    if (!piid) { stillPending++; continue; }
     let body: any = null, ok = false;
-    for (const u of candidates) {
-      try {
-        const r = await fetch(u, { headers: { "x-api-key": apiKey } });
-        const t = await r.text();
-        try { body = JSON.parse(t); } catch { body = t; }
-        if (r.ok) { ok = true; break; }
-      } catch { /* try next */ }
-    }
+    try {
+      const r = await fetch(
+        `https://api.yengapay.com/api/v1/groups/${groupId}/projects/${projectId}/direct-payment/status/${piid}`,
+        { headers: { "x-api-key": apiKey, "Accept": "application/json" } });
+      const t = await r.text();
+      try { body = JSON.parse(t); } catch { body = t; }
+      ok = r.ok;
+    } catch { /* network */ }
     if (!ok) { stillPending++; continue; }
 
     const st = String(body?.status || body?.paymentStatus || body?.data?.status || "").toUpperCase();
