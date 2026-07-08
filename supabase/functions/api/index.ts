@@ -198,6 +198,94 @@ function normalizeBfPhone(phone?: string | null) {
   return `+226${digits}`;
 }
 
+function phoneKey(phone?: string | null) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) return "";
+  return digits.slice(-8);
+}
+
+function deepFind(obj: any, keys: string[]): any {
+  const wanted = new Set(keys.map((k) => k.toLowerCase()));
+  const seen = new Set<any>();
+  const walk = (v: any): any => {
+    if (!v || typeof v !== "object" || seen.has(v)) return null;
+    seen.add(v);
+    if (Array.isArray(v)) {
+      for (const item of v) {
+        const r = walk(item);
+        if (r !== null && r !== undefined && r !== "") return r;
+      }
+      return null;
+    }
+    for (const [k, val] of Object.entries(v)) {
+      if (wanted.has(k.toLowerCase()) && val !== null && val !== undefined && String(val) !== "") return val;
+    }
+    for (const val of Object.values(v)) {
+      const r = walk(val);
+      if (r !== null && r !== undefined && r !== "") return r;
+    }
+    return null;
+  };
+  return walk(obj);
+}
+
+function yengaStatus(body: any) {
+  return String(body?.status || body?.paymentStatus || body?.data?.status || deepFind(body, ["status", "paymentStatus"]) || "").toUpperCase();
+}
+
+function yengaStateFromStatus(rawStatus: string): "success" | "failed" | "pending" | "unknown" {
+  if (["DONE", "SUCCESS", "SUCCEEDED", "COMPLETED", "PAID", "SUCCESSFUL"].includes(rawStatus)) return "success";
+  if (["FAILED", "CANCELLED", "CANCELED", "EXPIRED", "REJECTED"].includes(rawStatus)) return "failed";
+  return rawStatus ? "pending" : "unknown";
+}
+
+function yengaAmount(body: any) {
+  const v = body?.paymentAmount ?? body?.amount ?? body?.data?.paymentAmount ?? body?.data?.amount ?? deepFind(body, ["paymentAmount", "amount", "netAmount"]);
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function yengaReference(body: any) {
+  return body?.reference || body?.data?.reference || deepFind(body, ["reference", "externalId"]) || null;
+}
+
+function yengaPayerPhone(body: any) {
+  return body?.phoneNumber || body?.customerNumber || body?.customer?.phoneNumber || body?.data?.phoneNumber || body?.data?.customerNumber || deepFind(body, ["phoneNumber", "customerNumber", "sourceNumber", "senderNumber", "payerPhone", "msisdn"]) || null;
+}
+
+async function lookupYengaPayment(id: string) {
+  const apiKey = Deno.env.get("YENGAPAY_API_KEY");
+  const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
+  const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
+  if (!apiKey || !groupId || !projectId) throw new Error("YengaPay env missing");
+  const base = "https://api.yengapay.com/api/v1";
+  const paths = [
+    `${base}/groups/${groupId}/projects/${projectId}/direct-payment/status/${id}`,
+    `${base}/groups/${groupId}/projects/${projectId}/transactions/${id}`,
+    `${base}/groups/${groupId}/projects/${projectId}/deposits/${id}`,
+    `${base}/groups/${groupId}/transactions/${id}`,
+    `${base}/groups/${groupId}/deposits/${id}`,
+    `${base}/transactions/${id}`,
+  ];
+  let firstBody: any = null;
+  for (const url of paths) {
+    try {
+      const r = await fetch(url, { headers: { "x-api-key": apiKey, "Accept": "application/json" } });
+      const t = await r.text(); let body: any = t; try { body = JSON.parse(t); } catch { /**/ }
+      if (!firstBody && body && typeof body === "object") firstBody = body;
+      if (r.ok && body && typeof body === "object") return body;
+    } catch { /**/ }
+  }
+  return firstBody;
+}
+
+async function findProfileByPhone(admin: any, payer?: string | null) {
+  const key = phoneKey(payer);
+  if (!key) return null;
+  const { data: profiles } = await admin.from("profiles").select("id,full_name,email,phone").limit(1000);
+  return (profiles ?? []).find((p: any) => phoneKey(p.phone) === key) || null;
+}
+
 function uniqueCashoutMethods(preferred?: string | null) {
   return Array.from(new Set([preferred, ...YENGAPAY_CASHOUT_METHODS].filter(Boolean))) as string[];
 }
