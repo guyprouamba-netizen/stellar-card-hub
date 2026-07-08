@@ -415,6 +415,7 @@ function PaymentsTab({ tx }: { tx: any[] }) {
   const types = Array.from(new Set(tx.map((t) => t.type))).sort();
   const items = filter === "all" ? tx : tx.filter((t) => t.type === filter);
   const creditFn = useServerFn(adminCreditPendingDeposit);
+  const creditExternalFn = useServerFn(adminCreditYengapayExternal);
   const inspectFn = useServerFn(adminYengapayInspect);
   const verifyBatchFn = useServerFn(adminYengapayVerifyBatch);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -461,6 +462,16 @@ function PaymentsTab({ tx }: { tx: any[] }) {
       else toast.success(`Crédité (${r?.amount} XOF)`);
       // refresh verify view: mark this tx as credited locally
       setVerifyResults((prev) => prev?.map((it) => it.transaction?.id === txId ? { ...it, transaction: { ...it.transaction, status: "success", credited: true } } : it) || null);
+    } catch (e) { toast.error((e as Error).message); }
+  }
+  async function creditExternal(r: any) {
+    if (!r?.id) return;
+    if (!confirm(`Créditer automatiquement le paiement ${r.id} au portefeuille identifié ?`)) return;
+    try {
+      const res: any = await creditExternalFn({ data: { yengaId: r.id, userId: r.matchedOwner?.id, note: "Crédit depuis vérification YengaPay" } });
+      if (res?.alreadyCredited) toast.info("Déjà crédité");
+      else toast.success(`Crédité (${Number(res?.amount || 0).toLocaleString("fr-FR")} XOF)`);
+      setVerifyResults((prev) => prev?.map((it) => it.id === r.id ? { ...it, transaction: { ...(it.transaction || {}), id: res?.tx_id, status: "success", credited: true }, owner: it.owner || it.matchedOwner } : it) || null);
     } catch (e) { toast.error((e as Error).message); }
   }
 
@@ -527,22 +538,24 @@ function PaymentsTab({ tx }: { tx: any[] }) {
                         </td>
                         <td className="px-2 py-2 tabular-nums">{r.amount ? `${Number(r.amount).toLocaleString("fr-FR")} XOF` : "—"}</td>
                         <td className="px-2 py-2">
-                          {r.owner ? (
+                          {r.owner || r.matchedOwner ? (
                             <div>
-                              <div className="font-semibold">{r.owner.full_name || r.owner.email}</div>
-                              <div className="text-[10px] text-muted-foreground">{r.owner.phone || r.owner.email}</div>
+                              <div className="font-semibold">{(r.owner || r.matchedOwner).full_name || (r.owner || r.matchedOwner).email}</div>
+                              <div className="text-[10px] text-muted-foreground">{(r.owner || r.matchedOwner).phone || (r.owner || r.matchedOwner).email}{!r.owner && r.matchedOwner ? " · détecté par numéro" : ""}</div>
                             </div>
                           ) : r.transaction ? <span className="text-muted-foreground">User {String(r.transaction.user_id).slice(0, 8)}</span>
                             : <span className="text-muted-foreground">Aucune recharge locale</span>}
                         </td>
                         <td className="px-2 py-2">
                           {credited ? <span className="rounded-full bg-success/15 px-2 py-0.5 text-success">✅ Crédité</span> :
-                            r.transaction ? <span className="rounded-full bg-warning/15 px-2 py-0.5 text-warning">Non crédité</span> :
+                            r.transaction || r.canCreateCredit ? <span className="rounded-full bg-warning/15 px-2 py-0.5 text-warning">Non crédité</span> :
                             <span className="text-muted-foreground">—</span>}
                         </td>
                         <td className="px-2 py-2 text-right">
                           {r.transaction && !credited && r.yengaState !== "failed" ? (
                             <button onClick={() => creditFromVerify(r.transaction.id)} className="rounded-full bg-success/15 px-3 py-1 font-semibold text-success hover:bg-success/25">Créditer</button>
+                          ) : r.canCreateCredit ? (
+                            <button onClick={() => creditExternal(r)} className="rounded-full bg-success/15 px-3 py-1 font-semibold text-success hover:bg-success/25">Créer + créditer</button>
                           ) : null}
                         </td>
                       </tr>
@@ -561,7 +574,7 @@ function PaymentsTab({ tx }: { tx: any[] }) {
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <table className="w-full text-sm">
           <thead className="bg-surface-2 text-left text-xs uppercase text-muted-foreground">
-            <tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">Utilisateur</th><th className="px-3 py-2">Type</th><th className="px-3 py-2">Description</th><th className="px-3 py-2">Statut</th><th className="px-3 py-2 text-right">Montant</th><th className="px-3 py-2 text-right">Action</th></tr>
+            <tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">Utilisateur</th><th className="px-3 py-2">Type</th><th className="px-3 py-2">Description</th><th className="px-3 py-2">Référence</th><th className="px-3 py-2">Statut</th><th className="px-3 py-2 text-right">Montant</th><th className="px-3 py-2 text-right">Action</th></tr>
           </thead>
           <tbody className="divide-y divide-border">
             {items.map((t) => (
@@ -570,6 +583,7 @@ function PaymentsTab({ tx }: { tx: any[] }) {
                 <td className="px-3 py-2 text-xs">{t.owner?.full_name || t.owner?.email || t.user_id?.slice(0, 8)}</td>
                 <td className="px-3 py-2 text-xs">{t.type}</td>
                 <td className="px-3 py-2 text-xs">{t.description}</td>
+                <td className="px-3 py-2 font-mono text-[11px] text-muted-foreground">{t.provider_ref || "—"}</td>
                 <td className="px-3 py-2 text-xs">{t.status}</td>
                 <td className="px-3 py-2 text-right font-semibold tabular-nums">{Number(t.amount).toLocaleString("fr-FR")} {t.currency}</td>
                 <td className="px-3 py-2 text-right">
@@ -579,7 +593,7 @@ function PaymentsTab({ tx }: { tx: any[] }) {
                 </td>
               </tr>
             ))}
-            {items.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-center text-sm text-muted-foreground">Aucune transaction</td></tr>}
+            {items.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-center text-sm text-muted-foreground">Aucune transaction</td></tr>}
           </tbody>
         </table>
       </div>
