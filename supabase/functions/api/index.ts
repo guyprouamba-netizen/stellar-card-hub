@@ -1067,14 +1067,17 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   // ---------- Admin ----------
   async adminOverview({ user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
-    const [users, cards, txs, kyc, withdrawals, businesses] = await Promise.all([
+    const [users, cards, txs, kyc, withdrawals, businesses, allCards] = await Promise.all([
       admin.from("profiles").select("id,full_name,email,phone,country,is_active,strowallet_customer_id,created_at").order("created_at", { ascending: false }).limit(100),
       admin.from("cards").select("id,user_id,brand,last4,status,balance,currency,failed_attempts,auto_frozen_at,created_at,total_funded_usd,provider_card_id").order("created_at", { ascending: false }).limit(100),
       admin.from("transactions").select("id,user_id,type,status,amount,currency,description,provider,provider_ref,metadata,created_at").order("created_at", { ascending: false }).limit(500),
       admin.from("kyc_submissions").select("*").order("submitted_at", { ascending: false, nullsFirst: false }).limit(50),
       admin.from("withdrawals").select("*").order("created_at", { ascending: false }).limit(50),
       admin.from("businesses").select("id,user_id,name,slug,contact_email,contact_phone,is_active,created_at").order("created_at", { ascending: false }).limit(200),
+      admin.from("cards").select("id,balance,total_funded_usd,status,currency").limit(10000),
     ]);
+    const firstErr = users.error || cards.error || txs.error || kyc.error || withdrawals.error || businesses.error || allCards.error;
+    if (firstErr) throw new Error(firstErr.message);
     // Enrichit chaque carte avec le propriétaire (nom + email) pour le tableau admin.
     const cardOwnerIds = Array.from(new Set((cards.data ?? []).map((c: any) => c.user_id).filter(Boolean)));
     let ownerMap: Record<string, any> = {};
@@ -1084,14 +1087,17 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     }
     const enrichedCards = (cards.data ?? []).map((c: any) => ({ ...c, owner: ownerMap[c.user_id] || null }));
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
-    const { data: monthTx } = await admin.from("transactions")
+    const { data: monthTx, error: monthErr } = await admin.from("transactions")
       .select("type,amount,currency,status")
       .gte("created_at", monthStart.toISOString())
       .in("status", ["success", "pending"]);
+    if (monthErr) throw new Error(monthErr.message);
     const flows = {
       recharges_xof: 0, recharges_pending_xof: 0,
       withdrawals_xof: 0, withdrawals_pending_xof: 0,
       card_issue_xof: 0, card_issue_pending_xof: 0,
+      recharges_all_xof: 0, withdrawals_all_xof: 0, card_issue_all_xof: 0,
+      card_balance_usd: 0, card_total_funded_usd: 0, cards_count: 0, cards_active_count: 0,
     };
     for (const t of monthTx ?? []) {
       if (t.currency !== "XOF") continue;
@@ -1100,6 +1106,15 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (t.type === "deposit") pending ? flows.recharges_pending_xof += a : flows.recharges_xof += a;
       if (t.type === "withdrawal") pending ? flows.withdrawals_pending_xof += a : flows.withdrawals_xof += a;
       if (t.type === "card_issue") pending ? flows.card_issue_pending_xof += a : flows.card_issue_xof += a;
+    }
+    flows.recharges_all_xof = flows.recharges_xof + flows.recharges_pending_xof;
+    flows.withdrawals_all_xof = flows.withdrawals_xof + flows.withdrawals_pending_xof;
+    flows.card_issue_all_xof = flows.card_issue_xof + flows.card_issue_pending_xof;
+    for (const c of allCards.data ?? []) {
+      flows.cards_count += 1;
+      if (!["terminated", "deleted", "failed"].includes(String(c.status || "").toLowerCase())) flows.cards_active_count += 1;
+      flows.card_balance_usd += Number(c.balance || 0);
+      flows.card_total_funded_usd += Number(c.total_funded_usd || 0);
     }
     // Enrichit chaque transaction avec un aperçu du propriétaire pour l'admin
     const txOwnerIds = Array.from(new Set((txs.data ?? []).map((t: any) => t.user_id).filter(Boolean)));
