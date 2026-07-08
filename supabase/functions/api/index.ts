@@ -883,19 +883,17 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
     const apiKey = Deno.env.get("YENGAPAY_API_KEY");
     const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
-    if (!apiKey || !groupId) return { ok: false, error: "YengaPay env missing" };
+    const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
+    if (!apiKey || !groupId || !projectId) return { ok: false, error: "YengaPay env missing" };
     const piid = (tx.metadata as any)?.paymentIntentId;
-    const candidates: string[] = [];
-    if (piid) candidates.push(`https://api.yengapay.com/api/v1/groups/${groupId}/payment-intent/${piid}`);
-    candidates.push(`https://api.yengapay.com/api/v1/groups/${groupId}/payment-intent/reference/${reference}`);
+    if (!piid) return { ok: true, status: "pending", credited: false, providerStatus: "NO_INTENT" };
     let body: any = null; let ok = false;
-    for (const u of candidates) {
-      try {
-        const r = await fetch(u, { headers: { "x-api-key": apiKey } });
-        const t = await r.text(); try { body = JSON.parse(t); } catch { body = t; }
-        if (r.ok) { ok = true; break; }
-      } catch { /* try next */ }
-    }
+    try {
+      const r = await fetch(`https://api.yengapay.com/api/v1/groups/${groupId}/projects/${projectId}/direct-payment/status/${piid}`,
+        { headers: { "x-api-key": apiKey, "Accept": "application/json" } });
+      const t = await r.text(); try { body = JSON.parse(t); } catch { body = t; }
+      ok = r.ok;
+    } catch { /* network */ }
     if (!ok) return { ok: false, error: "YengaPay lookup failed", raw: body };
     const st = String(body?.status || body?.paymentStatus || body?.data?.status || "").toUpperCase();
     const paid = ["DONE", "SUCCESS", "SUCCEEDED", "COMPLETED", "PAID"].includes(st);
@@ -929,7 +927,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async reconcileMyDeposits({ user, admin }) {
     const apiKey = Deno.env.get("YENGAPAY_API_KEY");
     const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
-    if (!apiKey || !groupId) return { ok: false, error: "YengaPay env missing" };
+    const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
+    if (!apiKey || !groupId || !projectId) return { ok: false, error: "YengaPay env missing" };
     const userId = user.id;
     const isAdm = await isAdmin(admin, userId);
     const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -942,17 +941,14 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     let credited = 0, failed = 0, stillPending = 0;
     for (const tx of pendings ?? []) {
       const piid = (tx.metadata as any)?.paymentIntentId;
-      const candidates: string[] = [];
-      if (piid) candidates.push(`https://api.yengapay.com/api/v1/groups/${groupId}/payment-intent/${piid}`);
-      candidates.push(`https://api.yengapay.com/api/v1/groups/${groupId}/payment-intent/reference/${tx.provider_ref}`);
+      if (!piid) { stillPending++; continue; }
       let body: any = null; let ok = false;
-      for (const u of candidates) {
-        try {
-          const r = await fetch(u, { headers: { "x-api-key": apiKey } });
-          const t = await r.text(); try { body = JSON.parse(t); } catch { body = t; }
-          if (r.ok) { ok = true; break; }
-        } catch { /* try next */ }
-      }
+      try {
+        const r = await fetch(`https://api.yengapay.com/api/v1/groups/${groupId}/projects/${projectId}/direct-payment/status/${piid}`,
+          { headers: { "x-api-key": apiKey, "Accept": "application/json" } });
+        const t = await r.text(); try { body = JSON.parse(t); } catch { body = t; }
+        ok = r.ok;
+      } catch { /* network */ }
       if (!ok) { stillPending++; continue; }
       const st = String(body?.status || body?.paymentStatus || body?.data?.status || "").toUpperCase();
       const paid = ["DONE", "SUCCESS", "SUCCEEDED", "COMPLETED", "PAID"].includes(st);
