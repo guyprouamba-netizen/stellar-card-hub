@@ -1189,6 +1189,72 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     }
     return { ok: true, id, results };
   },
+  async adminYengapayVerifyBatch({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const rawIds: string[] = Array.isArray(data?.ids) ? data.ids : [];
+    const ids = Array.from(new Set(rawIds.map((s) => String(s || "").trim()).filter(Boolean))).slice(0, 50);
+    if (ids.length === 0) throw new Error("Aucun ID fourni");
+    const apiKey = Deno.env.get("YENGAPAY_API_KEY");
+    const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
+    const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
+    if (!apiKey || !groupId || !projectId) throw new Error("YengaPay env missing");
+
+    async function lookup(id: string): Promise<any> {
+      const urls = [
+        `https://api.yengapay.com/api/v1/groups/${groupId}/projects/${projectId}/direct-payment/status/${id}`,
+        `https://api.yengapay.com/api/v1/groups/${groupId}/projects/${projectId}/transactions/${id}`,
+        `https://api.yengapay.com/api/v1/groups/${groupId}/transactions/${id}`,
+      ];
+      for (const u of urls) {
+        try {
+          const r = await fetch(u, { headers: { "x-api-key": apiKey, "Accept": "application/json" } });
+          const t = await r.text(); let b: any = t; try { b = JSON.parse(t); } catch { /**/ }
+          if (r.ok && b && typeof b === "object") return b;
+        } catch { /**/ }
+      }
+      return null;
+    }
+
+    const results = await Promise.all(ids.map(async (id) => {
+      const body = await lookup(id);
+      const rawStatus = String(body?.status || body?.paymentStatus || body?.data?.status || "").toUpperCase();
+      const paid = ["DONE", "SUCCESS", "SUCCEEDED", "COMPLETED", "PAID"].includes(rawStatus);
+      const failed = ["FAILED", "CANCELLED", "CANCELED", "EXPIRED", "REJECTED"].includes(rawStatus);
+      const yengaState: "success" | "failed" | "pending" | "unknown" =
+        paid ? "success" : failed ? "failed" : (rawStatus ? "pending" : "unknown");
+      const amount = Number(body?.paymentAmount ?? body?.amount ?? body?.data?.amount ?? 0) || null;
+      const reference = body?.reference || body?.data?.reference || null;
+      const payer = body?.phoneNumber || body?.customerNumber || body?.customer?.phoneNumber || body?.data?.phoneNumber || null;
+
+      // Try to match a local transaction: by metadata.paymentIntentId, by provider_ref (reference), or id embedded in metadata
+      let tx: any = null;
+      const { data: byIntent } = await admin.from("transactions")
+        .select("id,user_id,amount,status,provider_ref,created_at")
+        .eq("type", "deposit")
+        .contains("metadata", { paymentIntentId: id } as any).limit(1).maybeSingle();
+      if (byIntent) tx = byIntent;
+      if (!tx && reference) {
+        const { data: byRef } = await admin.from("transactions")
+          .select("id,user_id,amount,status,provider_ref,created_at")
+          .eq("provider_ref", String(reference)).maybeSingle();
+        if (byRef) tx = byRef;
+      }
+      let owner: any = null;
+      if (tx?.user_id) {
+        const { data: p } = await admin.from("profiles").select("id,full_name,email,phone").eq("id", tx.user_id).maybeSingle();
+        owner = p || null;
+      }
+      return {
+        id,
+        found: !!body,
+        yengaState, rawStatus,
+        amount, reference, payer,
+        transaction: tx ? { ...tx, credited: tx.status === "success" } : null,
+        owner,
+      };
+    }));
+    return { ok: true, results };
+  },
   async adminCreditPendingDeposit({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const txId = String(data?.txId || "").trim();
