@@ -7,8 +7,12 @@ import {
   updatePaymentLink, listLinkPayments, listApiKeys, createApiKey, revokeApiKey,
   cashoutBusinessBalance, listProjects, createProject, getBusinessDashboard,
 } from "@/lib/business.functions";
+import {
+  listOrders, updateOrderStatus,
+  listBusinessPosts, createBusinessPost, updateBusinessPost, deleteBusinessPost,
+} from "@/lib/orders.functions";
 import { uploadBusinessMedia } from "@/lib/upload";
-import { ArrowLeft, Building2, Copy, Key, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles } from "lucide-react";
+import { ArrowLeft, Building2, Copy, Key, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff } from "lucide-react";
 
 type Biz = { id: string; name: string; slug: string; status: string; balance: number; fee_bps: number };
 type PLink = { id: string; slug: string; title: string; amount: number | null; currency: string; status: string };
@@ -16,6 +20,8 @@ type Payment = { id: string; reference: string; amount: number; status: string; 
 type ApiKey = { id: string; label: string; key_prefix: string; mode: string; revoked_at: string | null; last_used_at: string | null };
 type Project = { id: string; name: string; slug: string; logo_url: string | null; cover_url: string | null; balance: number; financial_goal: number; currency: string; status: string };
 type Dashboard = { business: any; projects: Project[]; kpis: { total30: number; totalPrev: number; trend: number; count30: number; light: "red" | "yellow" | "green" }; series: Array<{ date: string; value: number }> };
+type Order = { id: string; order_number: string; public_token: string; status: string; customer_name: string | null; customer_email: string | null; total_amount: number; currency: string; created_at: string; items: Array<{ name: string; quantity: number; unit_price: number }> };
+type Post = { id: string; title: string; body: string | null; image_url: string | null; product_id: string | null; published: boolean; published_at: string | null; created_at: string };
 
 export default function BusinessPage() {
   const navigate = useNavigate();
@@ -28,6 +34,10 @@ export default function BusinessPage() {
   const [newKey, setNewKey] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [dash, setDash] = useState<Dashboard | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [postDraft, setPostDraft] = useState<{ title: string; body: string; image_url: string }>({ title: "", body: "", image_url: "" });
+  const [uploadingImg, setUploadingImg] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,11 +58,12 @@ export default function BusinessPage() {
     setLoading(false);
   }
   async function refreshCurrent(bizId: string) {
-    const [l, p, k, pr, d] = await Promise.all([
+    const [l, p, k, pr, d, o, po] = await Promise.all([
       listPaymentLinks(bizId), listLinkPayments(bizId), listApiKeys(bizId),
       listProjects(bizId), getBusinessDashboard(bizId),
+      listOrders(bizId), listBusinessPosts(bizId),
     ]);
-    setLinks(l); setPayments(p); setKeys(k); setProjects(pr); setDash(d);
+    setLinks(l); setPayments(p); setKeys(k); setProjects(pr); setDash(d); setOrders(o); setPosts(po);
   }
   useEffect(() => { if (session) refreshAll(); /* eslint-disable-next-line */ }, [session]);
   useEffect(() => { if (current) refreshCurrent(current.id); }, [current?.id]);
@@ -145,6 +156,57 @@ export default function BusinessPage() {
   }
 
   function copy(text: string) { navigator.clipboard.writeText(text); toast.success("Copié"); }
+
+  async function onOrderStatus(o: Order, next: string) {
+    try { const u: any = await updateOrderStatus({ id: o.id, status: next }); setOrders((prev) => prev.map((x) => x.id === o.id ? { ...x, ...u } : x)); toast.success("Statut mis à jour"); }
+    catch (e: any) { toast.error(e.message); }
+  }
+
+  async function onUploadPostImage(file: File) {
+    setUploadingImg(true);
+    try { const url = await uploadBusinessMedia(file, "posts"); setPostDraft((d) => ({ ...d, image_url: url })); }
+    catch (e: any) { toast.error(e.message); }
+    finally { setUploadingImg(false); }
+  }
+
+  async function onCreatePost(publish: boolean) {
+    if (!current || !postDraft.title.trim()) { toast.error("Titre requis"); return; }
+    try {
+      const p: any = await createBusinessPost({
+        business_id: current.id, title: postDraft.title,
+        body: postDraft.body || undefined, image_url: postDraft.image_url || undefined,
+        published: publish,
+      });
+      setPosts((prev) => [p, ...prev]);
+      setPostDraft({ title: "", body: "", image_url: "" });
+      toast.success(publish ? "Publication publiée ✅" : "Brouillon sauvegardé");
+    } catch (e: any) { toast.error(e.message); }
+  }
+
+  async function onTogglePost(p: Post) {
+    try { const u: any = await updateBusinessPost({ id: p.id, published: !p.published }); setPosts((prev) => prev.map((x) => x.id === p.id ? { ...x, ...u } : x)); }
+    catch (e: any) { toast.error(e.message); }
+  }
+
+  async function onDeletePost(id: string) {
+    if (!confirm("Supprimer cette publication ?")) return;
+    try { await deleteBusinessPost(id); setPosts((prev) => prev.filter((x) => x.id !== id)); }
+    catch (e: any) { toast.error(e.message); }
+  }
+
+  const ORDER_STATUS_LABEL: Record<string, string> = {
+    pending_payment: "En attente paiement", paid: "Payée", preparing: "En préparation",
+    shipped: "Expédiée", delivered: "Livrée", cancelled: "Annulée", refunded: "Remboursée",
+  };
+  const ORDER_STATUS_COLOR: Record<string, string> = {
+    pending_payment: "bg-amber-500/15 text-amber-500",
+    paid: "bg-emerald-500/15 text-emerald-500",
+    preparing: "bg-blue-500/15 text-blue-500",
+    shipped: "bg-indigo-500/15 text-indigo-500",
+    delivered: "bg-emerald-600/20 text-emerald-600",
+    cancelled: "bg-destructive/15 text-destructive",
+    refunded: "bg-muted text-muted-foreground",
+  };
 
   const lightColors: Record<string, string> = {
     green: "from-emerald-500/30 to-emerald-500/5 border-emerald-500/40 text-emerald-400",
