@@ -313,6 +313,13 @@ export default function BusinessPage() {
 
             {current && (
               <>
+                {/* Quick access to power tools */}
+                <div className="mb-4 flex flex-wrap gap-2">
+                  <a href={`/business/${current.id}/bot`} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-muted">🤖 Bot WhatsApp</a>
+                  <a href={`/business/${current.id}/accounting`} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-muted">📊 Comptabilité</a>
+                  <a href={`/business/${current.id}/contracts`} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-muted">📄 Contrats & Factures</a>
+                  <a href={`/business/${current.id}/marketing`} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-muted">📣 Publicité Facebook</a>
+                </div>
                 {/* Header card */}
                 <div className="rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
                   <div className="flex flex-wrap items-start justify-between gap-4">

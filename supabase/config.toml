@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.bot-ai]
 verify_jwt = false
+
+[functions.facebook-oauth]
+verify_jwt = false

@@ -13,6 +13,9 @@ import Pay from "@/pages/Pay";
 import Shop from "@/pages/Shop";
 import OrderTracking from "@/pages/OrderTracking";
 import BotPanel from "@/pages/BotPanel";
+import Accounting from "@/pages/Accounting";
+import Contracts from "@/pages/Contracts";
+import Marketing from "@/pages/Marketing";
 import NotFound from "@/pages/NotFound";
 
 export default function App() {
@@ -29,6 +32,9 @@ export default function App() {
       <Route path="/business" element={<Business />} />
       <Route path="/business/:businessId/projects/:projectId" element={<ProjectDetail />} />
       <Route path="/business/:businessId/bot" element={<BotPanel />} />
+      <Route path="/business/:businessId/accounting" element={<Accounting />} />
+      <Route path="/business/:businessId/contracts" element={<Contracts />} />
+      <Route path="/business/:businessId/marketing" element={<Marketing />} />
       <Route path="/pay/:slug" element={<Pay />} />
       <Route path="/shop/:slug" element={<Shop />} />
       <Route path="/order/:token" element={<OrderTracking />} />
