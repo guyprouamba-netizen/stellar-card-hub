@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Facebook, Plus, Zap, Unplug } from "lucide-react";
+import { ArrowLeft, Megaphone, Plus, Unplug } from "lucide-react";
 import {
   getFacebookIntegration, disconnectFacebook,
   listFacebookCampaigns, createFacebookCampaign,
@@ -47,7 +47,7 @@ export default function Marketing() {
           <ArrowLeft className="h-4 w-4" /> Business
         </Link>
         <div className="mt-4 flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-600 text-white shadow-glow"><Facebook className="h-5 w-5" /></div>
+          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-600 text-white shadow-glow"><Megaphone className="h-5 w-5" /></div>
           <div>
             <h1 className="font-[Space_Grotesk] text-2xl font-bold">Publicité Facebook</h1>
             <p className="text-xs text-muted-foreground">Connecte ton compte Meta et lance des campagnes directement depuis la plateforme.</p>
@@ -58,11 +58,11 @@ export default function Marketing() {
 
         {!loading && !integ && (
           <div className="mt-6 rounded-2xl border border-border bg-card p-6 text-center">
-            <Facebook className="mx-auto h-10 w-10 text-blue-600" />
+            <Megaphone className="mx-auto h-10 w-10 text-blue-600" />
             <p className="mt-3 text-sm">Connecte ton compte Meta pour créer et suivre tes campagnes sans quitter la plateforme.</p>
             <button onClick={() => startFacebookOAuth(businessId).catch((e) => toast.error(e.message))}
               className="mt-4 inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-glow">
-              <Facebook className="h-4 w-4" /> Se connecter avec Facebook
+              <Megaphone className="h-4 w-4" /> Se connecter avec Facebook
             </button>
             <p className="mt-4 text-[11px] text-muted-foreground">
               Prérequis : <b>META_APP_ID</b> et <b>META_APP_SECRET</b> configurés dans les secrets ·
