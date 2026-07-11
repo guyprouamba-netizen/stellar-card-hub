@@ -2083,6 +2083,62 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     await admin.from("business_posts").delete().eq("id", data.id);
     return { ok: true };
   },
+
+  // ============================================================
+  // CHAT PAY (WhatsApp via worker externe Baileys)
+  // ============================================================
+
+  async getWhatsappSession({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: s } = await admin.from("whatsapp_sessions")
+      .select("id,status,qr_data_url,phone_number,worker_version,last_seen_at,created_at,connection_secret")
+      .eq("business_id", data.business_id).maybeSingle();
+    if (!s) return null;
+    const online = s.last_seen_at && (Date.now() - new Date(s.last_seen_at).getTime()) < 90_000;
+    return { ...s, worker_online: !!online };
+  },
+
+  async createWhatsappSession({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const secret = "wa_" + crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+    const { data: existing } = await admin.from("whatsapp_sessions").select("id").eq("business_id", data.business_id).maybeSingle();
+    if (existing) {
+      await admin.from("whatsapp_sessions").update({ connection_secret: secret, status: "disconnected", qr_data_url: null, phone_number: null, last_seen_at: null }).eq("id", existing.id);
+    } else {
+      await admin.from("whatsapp_sessions").insert({ business_id: data.business_id, connection_secret: secret, status: "disconnected" });
+    }
+    const { data: s } = await admin.from("whatsapp_sessions").select("*").eq("business_id", data.business_id).single();
+    return s;
+  },
+
+  async resetWhatsappSession({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    await admin.from("whatsapp_sessions").update({ status: "disconnected", qr_data_url: null, phone_number: null }).eq("business_id", data.business_id);
+    return { ok: true };
+  },
+
+  async sendWhatsappMessage({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const to = String(data?.to || "").trim();
+    const body = String(data?.body || "").trim();
+    if (!to || !body) throw new Error("Destinataire et message requis");
+    const { data: s } = await admin.from("whatsapp_sessions").select("id,status").eq("business_id", data.business_id).maybeSingle();
+    if (!s) throw new Error("Aucune session WhatsApp — génère un worker d'abord.");
+    if (s.status !== "connected") throw new Error("Worker non connecté. Scanne le QR d'abord.");
+    const { data: row, error } = await admin.from("whatsapp_outbound").insert({ session_id: s.id, to_jid: to, body }).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+
+  async listWhatsappEvents({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: s } = await admin.from("whatsapp_sessions").select("id").eq("business_id", data.business_id).maybeSingle();
+    if (!s) return [];
+    const { data: rows } = await admin.from("whatsapp_events")
+      .select("id,kind,payload,created_at").eq("session_id", s.id)
+      .order("created_at", { ascending: false }).limit(50);
+    return rows ?? [];
+  },
 };
 
 Deno.serve(async (req) => {

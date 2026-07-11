@@ -57,3 +57,15 @@ export const deleteActionPlan = (id: string) => callApi("deleteActionPlan", { id
 // --- Dashboard ---
 export const getBusinessDashboard = (business_id: string) =>
   callApi("getBusinessDashboard", { business_id });
+
+// --- Chat PAY (WhatsApp worker) ---
+export const getWhatsappSession = (business_id: string) =>
+  callApi("getWhatsappSession", { business_id });
+export const createWhatsappSession = (business_id: string) =>
+  callApi("createWhatsappSession", { business_id });
+export const resetWhatsappSession = (business_id: string) =>
+  callApi("resetWhatsappSession", { business_id });
+export const sendWhatsappMessage = (data: { business_id: string; to: string; body: string }) =>
+  callApi("sendWhatsappMessage", data);
+export const listWhatsappEvents = (business_id: string) =>
+  callApi("listWhatsappEvents", { business_id });
