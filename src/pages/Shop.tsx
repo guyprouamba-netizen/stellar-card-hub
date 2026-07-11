@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { getShop, initShopCheckout } from "@/lib/pay.functions";
 import { Loader2, ShoppingCart, Plus, Minus, X, ShieldCheck, Store, Mail, Phone } from "lucide-react";
 
@@ -9,6 +9,7 @@ type Biz = { id: string; name: string; slug: string; description: string | null;
 
 export default function Shop() {
   const { slug = "" } = useParams();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [biz, setBiz] = useState<Biz | null>(null);
@@ -20,10 +21,18 @@ export default function Shop() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    // Retour depuis paiement : rediriger vers le suivi de commande
+    const params = new URLSearchParams(window.location.search);
+    const orderToken = params.get("order");
+    if (orderToken && /^[a-f0-9]{16,64}$/i.test(orderToken)) {
+      const payRef = params.get("pay_ref");
+      navigate(`/order/${orderToken}${payRef ? `?pay_ref=${encodeURIComponent(payRef)}` : ""}`, { replace: true });
+      return;
+    }
     getShop(slug).then((r: any) => {
       setBiz(r.business); setProducts(r.products); setPosts(r.posts); setLoading(false);
     }).catch((e) => { setError(e.message); setLoading(false); });
-  }, [slug]);
+  }, [slug, navigate]);
 
   const currency = products[0]?.currency || "XOF";
   const total = useMemo(() => Object.entries(cart).reduce((s, [pid, qty]) => {
@@ -52,11 +61,10 @@ export default function Shop() {
         customer_phone: customer.phone || undefined,
         shipping_address: customer.address || undefined,
         customer_note: customer.note || undefined,
-        returnUrl: `${window.location.origin}/order/${""}`, // remplacé côté serveur via order token
+        // Le serveur append pay_ref & order au retour → on retombe sur /shop/:slug qui redirige vers /order/:token
+        returnUrl: `${window.location.origin}/shop/${biz.slug}`,
       });
       if (r.checkout_url) {
-        // Sauvegarder token localement pour le retour
-        try { localStorage.setItem(`order:${r.order_token}`, JSON.stringify({ order_number: r.order_number, at: Date.now() })); } catch { /**/ }
         window.location.href = r.checkout_url;
       } else throw new Error("Redirection paiement introuvable");
     } catch (e: any) { setError(e.message); setSubmitting(false); }
