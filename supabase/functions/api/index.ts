@@ -2264,6 +2264,229 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     await admin.from("bot_ai_conversations").update({ last_message_at: new Date().toISOString() }).eq("id", data.id);
     return { ok: true };
   },
+
+  // ============================================================
+  // COMPTABILITÉ
+  // ============================================================
+  async listAccountingCategories({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: rows } = await admin.from("accounting_categories")
+      .select("*").eq("business_id", data.business_id).order("name");
+    return rows ?? [];
+  },
+  async upsertAccountingCategory({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    if (data.id) {
+      const { data: row, error } = await admin.from("accounting_categories")
+        .update({ name: data.name, color: data.color, kind: data.kind })
+        .eq("id", data.id).select("*").single();
+      if (error) throw new Error(error.message);
+      return row;
+    }
+    const { data: row, error } = await admin.from("accounting_categories")
+      .insert({ business_id: data.business_id, name: data.name, color: data.color || null, kind: data.kind })
+      .select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+  async deleteAccountingCategory({ data, user, admin }) {
+    const { data: c } = await admin.from("accounting_categories").select("business_id").eq("id", data.id).maybeSingle();
+    if (!c) return { ok: true };
+    await assertBusinessOwner(admin, user.id, c.business_id);
+    await admin.from("accounting_categories").delete().eq("id", data.id);
+    return { ok: true };
+  },
+
+  async listAccountingEntries({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    let q = admin.from("accounting_entries")
+      .select("*, category:accounting_categories(name,color)")
+      .eq("business_id", data.business_id)
+      .order("entry_date", { ascending: false }).limit(500);
+    if (data.from) q = q.gte("entry_date", data.from);
+    if (data.to) q = q.lte("entry_date", data.to);
+    if (data.kind) q = q.eq("kind", data.kind);
+    const { data: rows } = await q;
+    return rows ?? [];
+  },
+  async upsertAccountingEntry({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const patch: any = {
+      business_id: data.business_id,
+      kind: data.kind, category_id: data.category_id || null,
+      label: data.label, amount: Number(data.amount || 0),
+      currency: data.currency || "XOF",
+      entry_date: data.entry_date || new Date().toISOString().slice(0, 10),
+      notes: data.notes || null, attachment_url: data.attachment_url || null,
+      related_order_id: data.related_order_id || null,
+      related_invoice_id: data.related_invoice_id || null,
+    };
+    if (data.id) {
+      const { data: row, error } = await admin.from("accounting_entries")
+        .update(patch).eq("id", data.id).select("*").single();
+      if (error) throw new Error(error.message);
+      return row;
+    }
+    const { data: row, error } = await admin.from("accounting_entries")
+      .insert(patch).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+  async deleteAccountingEntry({ data, user, admin }) {
+    const { data: e } = await admin.from("accounting_entries").select("business_id").eq("id", data.id).maybeSingle();
+    if (!e) return { ok: true };
+    await assertBusinessOwner(admin, user.id, e.business_id);
+    await admin.from("accounting_entries").delete().eq("id", data.id);
+    return { ok: true };
+  },
+  async getAccountingSummary({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const from = data.from || new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1).toISOString().slice(0, 10);
+    const to = data.to || new Date().toISOString().slice(0, 10);
+    const { data: rows } = await admin.from("accounting_entries")
+      .select("kind,amount,currency,entry_date,category_id")
+      .eq("business_id", data.business_id).gte("entry_date", from).lte("entry_date", to);
+    const monthly: Record<string, { income: number; expense: number }> = {};
+    let income = 0, expense = 0;
+    for (const r of rows || []) {
+      const m = String(r.entry_date).slice(0, 7);
+      if (!monthly[m]) monthly[m] = { income: 0, expense: 0 };
+      const amt = Number(r.amount || 0);
+      monthly[m][r.kind as "income" | "expense"] += amt;
+      if (r.kind === "income") income += amt; else expense += amt;
+    }
+    return {
+      totals: { income, expense, net: income - expense },
+      monthly: Object.entries(monthly).sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, v]) => ({ month, ...v, net: v.income - v.expense })),
+    };
+  },
+
+  // ============================================================
+  // CONTRATS & FACTURES (documents)
+  // ============================================================
+  async listContractTemplates({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: rows } = await admin.from("contract_templates")
+      .select("*").eq("business_id", data.business_id).order("created_at", { ascending: false });
+    return rows ?? [];
+  },
+  async upsertContractTemplate({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const vars = Array.from(new Set(String(data.content || "").match(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g)?.map((m) => m.replace(/[{}\s]/g, "")) || []));
+    const patch = { name: data.name, kind: data.kind || "contract", content: data.content, variables: vars };
+    if (data.id) {
+      const { data: row, error } = await admin.from("contract_templates").update(patch).eq("id", data.id).select("*").single();
+      if (error) throw new Error(error.message);
+      return row;
+    }
+    const { data: row, error } = await admin.from("contract_templates")
+      .insert({ business_id: data.business_id, ...patch }).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+  async deleteContractTemplate({ data, user, admin }) {
+    const { data: t } = await admin.from("contract_templates").select("business_id").eq("id", data.id).maybeSingle();
+    if (!t) return { ok: true };
+    await assertBusinessOwner(admin, user.id, t.business_id);
+    await admin.from("contract_templates").delete().eq("id", data.id);
+    return { ok: true };
+  },
+
+  async listContracts({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: rows } = await admin.from("contracts")
+      .select("*, template:contract_templates(name,kind)")
+      .eq("business_id", data.business_id).order("created_at", { ascending: false }).limit(200);
+    return rows ?? [];
+  },
+  async generateContract({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const tpl = data.template_id ? (await admin.from("contract_templates").select("*").eq("id", data.template_id).maybeSingle()).data : null;
+    if (data.template_id && !tpl) throw new Error("Modèle introuvable");
+    const rawContent = tpl?.content || data.content || "";
+    const vars = data.variables || {};
+    const content = String(rawContent).replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, k) => String(vars[k] ?? `[${k}]`));
+    const { data: numRow } = await admin.rpc("generate_contract_number");
+    const number = numRow || `DOC-${Date.now()}`;
+    const { data: row, error } = await admin.from("contracts").insert({
+      business_id: data.business_id,
+      template_id: data.template_id || null,
+      number, title: data.title, kind: tpl?.kind || data.kind || "contract",
+      client_name: data.client_name || null,
+      client_email: data.client_email || null,
+      client_phone: data.client_phone || null,
+      variables: vars, content,
+      amount: data.amount ?? null, currency: data.currency || "XOF",
+      status: "draft",
+    }).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+  async updateContractStatus({ data, user, admin }) {
+    const { data: c } = await admin.from("contracts").select("business_id").eq("id", data.id).maybeSingle();
+    if (!c) throw new Error("Contrat introuvable");
+    await assertBusinessOwner(admin, user.id, c.business_id);
+    const patch: any = { status: data.status };
+    if (data.status === "sent") patch.sent_at = new Date().toISOString();
+    if (data.status === "signed") patch.signed_at = new Date().toISOString();
+    const { data: row, error } = await admin.from("contracts").update(patch).eq("id", data.id).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+  async deleteContract({ data, user, admin }) {
+    const { data: c } = await admin.from("contracts").select("business_id").eq("id", data.id).maybeSingle();
+    if (!c) return { ok: true };
+    await assertBusinessOwner(admin, user.id, c.business_id);
+    await admin.from("contracts").delete().eq("id", data.id);
+    return { ok: true };
+  },
+
+  // ============================================================
+  // FACEBOOK / META
+  // ============================================================
+  async getFacebookIntegration({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: row } = await admin.from("facebook_integrations")
+      .select("id,meta_user_id,ad_account_id,page_id,page_name,scopes,expires_at,created_at")
+      .eq("business_id", data.business_id).maybeSingle();
+    return row;
+  },
+  async disconnectFacebook({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    await admin.from("facebook_integrations").delete().eq("business_id", data.business_id);
+    return { ok: true };
+  },
+  async listFacebookCampaigns({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: rows } = await admin.from("facebook_campaigns")
+      .select("*").eq("business_id", data.business_id).order("created_at", { ascending: false });
+    return rows ?? [];
+  },
+  async createFacebookCampaign({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: integ } = await admin.from("facebook_integrations").select("*").eq("business_id", data.business_id).maybeSingle();
+    if (!integ) throw new Error("Connecte d'abord Facebook Ads");
+    if (!integ.ad_account_id) throw new Error("Aucun compte publicitaire lié");
+    // Appel Meta Marketing API — création campagne (statut PAUSED par défaut)
+    const url = `https://graph.facebook.com/v20.0/${integ.ad_account_id}/campaigns`;
+    const body = new URLSearchParams({
+      name: data.name,
+      objective: data.objective || "OUTCOME_TRAFFIC",
+      status: "PAUSED",
+      special_ad_categories: JSON.stringify([]),
+      access_token: integ.access_token,
+    });
+    const resp = await fetch(url, { method: "POST", body });
+    const j = await resp.json();
+    if (!resp.ok) throw new Error(j?.error?.message || "Erreur Meta API");
+    const { data: row } = await admin.from("facebook_campaigns").insert({
+      business_id: data.business_id, integration_id: integ.id,
+      meta_campaign_id: j.id, name: data.name, objective: data.objective,
+      status: "PAUSED", daily_budget: data.daily_budget ?? null,
+    }).select("*").single();
+    return row;
+  },
 };
 
 Deno.serve(async (req) => {
