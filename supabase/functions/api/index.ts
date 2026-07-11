@@ -1984,6 +1984,105 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       series: Object.entries(byDay).map(([date, value]) => ({ date, value })),
     };
   },
+
+  // ===========================================================
+  // ORDERS (merchant order management)
+  // ===========================================================
+  async listOrders({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    let q: any = admin.from("orders")
+      .select("id,order_number,public_token,status,customer_name,customer_email,customer_phone,total_amount,currency,paid_at,created_at,updated_at,shipping_address,merchant_note")
+      .eq("business_id", data.business_id).order("created_at", { ascending: false }).limit(200);
+    if (data?.status) q = q.eq("status", data.status);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    const ids = (rows || []).map((r: any) => r.id);
+    let items: any[] = [];
+    if (ids.length) {
+      const { data: it } = await admin.from("order_items").select("order_id,name,unit_price,quantity").in("order_id", ids);
+      items = it || [];
+    }
+    return (rows || []).map((r: any) => ({ ...r, items: items.filter((i) => i.order_id === r.id) }));
+  },
+
+  async updateOrderStatus({ data, user, admin }) {
+    const { data: o } = await admin.from("orders").select("id,business_id,customer_email,order_number,status").eq("id", data.id).maybeSingle();
+    if (!o) throw new Error("Commande introuvable");
+    await assertBusinessOwner(admin, user.id, o.business_id);
+    const allowed = ["pending_payment","paid","preparing","shipped","delivered","cancelled","refunded"];
+    const next = String(data?.status || "");
+    if (!allowed.includes(next)) throw new Error("Statut invalide");
+    const patch: any = { status: next };
+    if (data?.merchant_note !== undefined) patch.merchant_note = data.merchant_note;
+    const { data: row, error } = await admin.from("orders").update(patch).eq("id", data.id).select("*").single();
+    if (error) throw new Error(error.message);
+    // Notification client
+    if (o.customer_email && next !== o.status) {
+      const labels: Record<string,string> = {
+        paid: "Paiement confirmé", preparing: "En préparation",
+        shipped: "Expédiée", delivered: "Livrée",
+        cancelled: "Annulée", refunded: "Remboursée",
+      };
+      const label = labels[next] || next;
+      try {
+        await sendEmail({
+          to: o.customer_email,
+          subject: `Commande ${o.order_number} — ${label}`,
+          html: `<div style="font-family:Arial,sans-serif;padding:24px;color:#0f172a"><h2>Commande ${o.order_number}</h2><p>Statut : <b>${label}</b></p><p style="color:#64748b;font-size:12px">FASO-INVEST PAY</p></div>`,
+          text: `Votre commande ${o.order_number} : ${label}`,
+        });
+      } catch (e) { console.error("order status email", e); }
+    }
+    return row;
+  },
+
+  // ===========================================================
+  // BUSINESS POSTS (feed / publications)
+  // ===========================================================
+  async listBusinessPosts({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: rows, error } = await admin.from("business_posts")
+      .select("*").eq("business_id", data.business_id).order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  },
+
+  async createBusinessPost({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const title = String(data?.title || "").trim();
+    if (title.length < 2) throw new Error("Titre requis");
+    const published = !!data?.published;
+    const { data: row, error } = await admin.from("business_posts").insert({
+      business_id: data.business_id, title,
+      body: data?.body || null, image_url: data?.image_url || null,
+      product_id: data?.product_id || null,
+      published, published_at: published ? new Date().toISOString() : null,
+    }).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+
+  async updateBusinessPost({ data, user, admin }) {
+    const { data: p } = await admin.from("business_posts").select("business_id,published").eq("id", data.id).maybeSingle();
+    if (!p) throw new Error("Publication introuvable");
+    await assertBusinessOwner(admin, user.id, p.business_id);
+    const patch: Record<string, any> = {};
+    for (const k of ["title","body","image_url","product_id","published"]) {
+      if (data?.[k] !== undefined) patch[k] = data[k];
+    }
+    if (data?.published === true && !p.published) patch.published_at = new Date().toISOString();
+    const { data: row, error } = await admin.from("business_posts").update(patch).eq("id", data.id).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+
+  async deleteBusinessPost({ data, user, admin }) {
+    const { data: p } = await admin.from("business_posts").select("business_id").eq("id", data.id).maybeSingle();
+    if (!p) throw new Error("Publication introuvable");
+    await assertBusinessOwner(admin, user.id, p.business_id);
+    await admin.from("business_posts").delete().eq("id", data.id);
+    return { ok: true };
+  },
 };
 
 Deno.serve(async (req) => {
