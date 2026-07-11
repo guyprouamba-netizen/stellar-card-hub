@@ -620,6 +620,9 @@ export default function BusinessPage() {
                         <div className="mt-3 flex flex-wrap gap-2">
                           <button onClick={onWaCreate} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold hover:bg-muted"><RefreshCw className="h-3 w-3" /> Régénérer secret</button>
                           <button onClick={onWaReset} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold hover:bg-muted"><QrCode className="h-3 w-3" /> Redemander un QR</button>
+                          <a href={`/business/${current?.id}/bot`} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-glow">
+                            <MessageCircle className="h-3 w-3" /> Ouvrir le panel du bot
+                          </a>
                         </div>
                       </div>
 

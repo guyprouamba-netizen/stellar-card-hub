@@ -2139,6 +2139,131 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       .order("created_at", { ascending: false }).limit(50);
     return rows ?? [];
   },
+
+  // ============================================================
+  // BOT — modération, config, IA, conversations, logs
+  // ============================================================
+  async _botSessionFor(admin: any, userId: string, business_id: string) {
+    await assertBusinessOwner(admin, userId, business_id);
+    const { data: s } = await admin.from("whatsapp_sessions").select("id").eq("business_id", business_id).maybeSingle();
+    if (!s) throw new Error("Aucune session WhatsApp — génère un worker d'abord.");
+    return s.id as string;
+  },
+
+  async getBotConfig({ data, user, admin }) {
+    const sid = await (HANDLERS as any)._botSessionFor(admin, user.id, data.business_id);
+    let { data: cfg } = await admin.from("bot_config").select("*").eq("session_id", sid).maybeSingle();
+    if (!cfg) {
+      const { data: created } = await admin.from("bot_config").insert({ session_id: sid, business_id: data.business_id }).select("*").single();
+      cfg = created;
+    }
+    return cfg;
+  },
+
+  async updateBotConfig({ data, user, admin }) {
+    const sid = await (HANDLERS as any)._botSessionFor(admin, user.id, data.business_id);
+    const patch: any = { ...data };
+    delete patch.business_id;
+    if (typeof patch.link_whitelist === "string") {
+      patch.link_whitelist = String(patch.link_whitelist).split(/[,\s]+/).map((s: string) => s.trim()).filter(Boolean);
+    }
+    const { data: row, error } = await admin.from("bot_config").update(patch).eq("session_id", sid).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+
+  async listBotGroups({ data, user, admin }) {
+    const sid = await (HANDLERS as any)._botSessionFor(admin, user.id, data.business_id);
+    const { data: rows } = await admin.from("bot_groups").select("*").eq("session_id", sid).order("created_at", { ascending: false });
+    return rows ?? [];
+  },
+
+  async updateBotGroup({ data, user, admin }) {
+    await (HANDLERS as any)._botSessionFor(admin, user.id, data.business_id);
+    const { data: row, error } = await admin.from("bot_groups").update(data.patch || {}).eq("id", data.id).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+
+  async listBotWarnings({ data, user, admin }) {
+    const sid = await (HANDLERS as any)._botSessionFor(admin, user.id, data.business_id);
+    const { data: rows } = await admin.from("bot_warnings").select("*").eq("session_id", sid).order("last_at", { ascending: false }).limit(100);
+    return rows ?? [];
+  },
+
+  async listBotLogs({ data, user, admin }) {
+    const sid = await (HANDLERS as any)._botSessionFor(admin, user.id, data.business_id);
+    const { data: rows } = await admin.from("bot_logs").select("*").eq("session_id", sid).order("created_at", { ascending: false }).limit(100);
+    return rows ?? [];
+  },
+
+  async listBotFaq({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: rows } = await admin.from("bot_ai_faq").select("*").eq("business_id", data.business_id).order("created_at", { ascending: false });
+    return rows ?? [];
+  },
+
+  async upsertBotFaq({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    if (data.id) {
+      const { data: row, error } = await admin.from("bot_ai_faq").update({
+        question: data.question, answer: data.answer, active: data.active ?? true,
+      }).eq("id", data.id).select("*").single();
+      if (error) throw new Error(error.message);
+      return row;
+    }
+    const { data: row, error } = await admin.from("bot_ai_faq").insert({
+      business_id: data.business_id, question: data.question, answer: data.answer, active: data.active ?? true,
+    }).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+
+  async deleteBotFaq({ data, user, admin }) {
+    const { data: f } = await admin.from("bot_ai_faq").select("business_id").eq("id", data.id).maybeSingle();
+    if (!f) return { ok: true };
+    await assertBusinessOwner(admin, user.id, f.business_id);
+    await admin.from("bot_ai_faq").delete().eq("id", data.id);
+    return { ok: true };
+  },
+
+  async listBotConversations({ data, user, admin }) {
+    const sid = await (HANDLERS as any)._botSessionFor(admin, user.id, data.business_id);
+    const { data: rows } = await admin.from("bot_ai_conversations").select("*").eq("session_id", sid).order("last_message_at", { ascending: false }).limit(50);
+    return rows ?? [];
+  },
+
+  async getBotConversation({ data, user, admin }) {
+    const { data: c } = await admin.from("bot_ai_conversations").select("*").eq("id", data.id).maybeSingle();
+    if (!c) throw new Error("Conversation introuvable");
+    const sid = await (HANDLERS as any)._botSessionFor(admin, user.id, data.business_id);
+    if (c.session_id !== sid) throw new Error("Forbidden");
+    const { data: msgs } = await admin.from("bot_ai_messages").select("*").eq("conversation_id", data.id).order("created_at", { ascending: true }).limit(200);
+    return { conversation: c, messages: msgs ?? [] };
+  },
+
+  async toggleBotHandoff({ data, user, admin }) {
+    const { data: c } = await admin.from("bot_ai_conversations").select("session_id,handoff").eq("id", data.id).maybeSingle();
+    if (!c) throw new Error("Conversation introuvable");
+    const sid = await (HANDLERS as any)._botSessionFor(admin, user.id, data.business_id);
+    if (c.session_id !== sid) throw new Error("Forbidden");
+    const { data: row, error } = await admin.from("bot_ai_conversations").update({ handoff: !c.handoff }).eq("id", data.id).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+
+  async sendBotHumanReply({ data, user, admin }) {
+    const { data: c } = await admin.from("bot_ai_conversations").select("session_id,contact_jid").eq("id", data.id).maybeSingle();
+    if (!c) throw new Error("Conversation introuvable");
+    const sid = await (HANDLERS as any)._botSessionFor(admin, user.id, data.business_id);
+    if (c.session_id !== sid) throw new Error("Forbidden");
+    const body = String(data.body || "").trim();
+    if (!body) throw new Error("Message vide");
+    await admin.from("whatsapp_outbound").insert({ session_id: sid, to_jid: c.contact_jid, body });
+    await admin.from("bot_ai_messages").insert({ conversation_id: data.id, role: "human", content: body });
+    await admin.from("bot_ai_conversations").update({ last_message_at: new Date().toISOString() }).eq("id", data.id);
+    return { ok: true };
+  },
 };
 
 Deno.serve(async (req) => {

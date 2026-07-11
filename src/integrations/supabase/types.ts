@@ -107,6 +107,485 @@ export type Database = {
           },
         ]
       }
+      bot_ai_conversations: {
+        Row: {
+          business_id: string | null
+          contact_jid: string
+          contact_name: string | null
+          created_at: string
+          handoff: boolean
+          id: string
+          last_message_at: string
+          session_id: string
+          unread_count: number
+          updated_at: string
+        }
+        Insert: {
+          business_id?: string | null
+          contact_jid: string
+          contact_name?: string | null
+          created_at?: string
+          handoff?: boolean
+          id?: string
+          last_message_at?: string
+          session_id: string
+          unread_count?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string | null
+          contact_jid?: string
+          contact_name?: string | null
+          created_at?: string
+          handoff?: boolean
+          id?: string
+          last_message_at?: string
+          session_id?: string
+          unread_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_ai_conversations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bot_ai_conversations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bot_ai_conversations_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_ai_faq: {
+        Row: {
+          active: boolean
+          answer: string
+          business_id: string
+          created_at: string
+          id: string
+          question: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          answer: string
+          business_id: string
+          created_at?: string
+          id?: string
+          question: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          answer?: string
+          business_id?: string
+          created_at?: string
+          id?: string
+          question?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_ai_faq_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bot_ai_faq_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_ai_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          meta: Json | null
+          role: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_ai_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "bot_ai_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_call_events: {
+        Row: {
+          blocked_until: string | null
+          created_at: string
+          event: string
+          from_jid: string
+          id: string
+          session_id: string
+        }
+        Insert: {
+          blocked_until?: string | null
+          created_at?: string
+          event: string
+          from_jid: string
+          id?: string
+          session_id: string
+        }
+        Update: {
+          blocked_until?: string | null
+          created_at?: string
+          event?: string
+          from_jid?: string
+          id?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_call_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_config: {
+        Row: {
+          ai_dm_only: boolean
+          ai_enabled: boolean
+          ai_language: string
+          ai_persona: string
+          business_id: string | null
+          call_block_hours: number
+          call_spam_threshold: number
+          call_spam_window_min: number
+          created_at: string
+          human_max_ms: number
+          human_min_ms: number
+          human_mode: boolean
+          id: string
+          link_removal: boolean
+          link_whitelist: string[]
+          night_end_hour: number
+          night_mode: boolean
+          night_start_hour: number
+          rate_per_hour: number
+          rate_per_minute: number
+          reject_calls: boolean
+          session_id: string
+          updated_at: string
+          warning_expire_days: number
+          warnings_enabled: boolean
+          warnings_threshold: number
+          welcome_enabled: boolean
+          welcome_message: string
+        }
+        Insert: {
+          ai_dm_only?: boolean
+          ai_enabled?: boolean
+          ai_language?: string
+          ai_persona?: string
+          business_id?: string | null
+          call_block_hours?: number
+          call_spam_threshold?: number
+          call_spam_window_min?: number
+          created_at?: string
+          human_max_ms?: number
+          human_min_ms?: number
+          human_mode?: boolean
+          id?: string
+          link_removal?: boolean
+          link_whitelist?: string[]
+          night_end_hour?: number
+          night_mode?: boolean
+          night_start_hour?: number
+          rate_per_hour?: number
+          rate_per_minute?: number
+          reject_calls?: boolean
+          session_id: string
+          updated_at?: string
+          warning_expire_days?: number
+          warnings_enabled?: boolean
+          warnings_threshold?: number
+          welcome_enabled?: boolean
+          welcome_message?: string
+        }
+        Update: {
+          ai_dm_only?: boolean
+          ai_enabled?: boolean
+          ai_language?: string
+          ai_persona?: string
+          business_id?: string | null
+          call_block_hours?: number
+          call_spam_threshold?: number
+          call_spam_window_min?: number
+          created_at?: string
+          human_max_ms?: number
+          human_min_ms?: number
+          human_mode?: boolean
+          id?: string
+          link_removal?: boolean
+          link_whitelist?: string[]
+          night_end_hour?: number
+          night_mode?: boolean
+          night_start_hour?: number
+          rate_per_hour?: number
+          rate_per_minute?: number
+          reject_calls?: boolean
+          session_id?: string
+          updated_at?: string
+          warning_expire_days?: number
+          warnings_enabled?: boolean
+          warnings_threshold?: number
+          welcome_enabled?: boolean
+          welcome_message?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_config_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bot_config_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bot_config_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "whatsapp_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_groups: {
+        Row: {
+          active: boolean
+          created_at: string
+          group_jid: string
+          id: string
+          link_removal_override: boolean | null
+          member_count: number | null
+          name: string | null
+          rules: string | null
+          session_id: string
+          updated_at: string
+          warnings_enabled_override: boolean | null
+          welcome_enabled_override: boolean | null
+          welcome_message: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          group_jid: string
+          id?: string
+          link_removal_override?: boolean | null
+          member_count?: number | null
+          name?: string | null
+          rules?: string | null
+          session_id: string
+          updated_at?: string
+          warnings_enabled_override?: boolean | null
+          welcome_enabled_override?: boolean | null
+          welcome_message?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          group_jid?: string
+          id?: string
+          link_removal_override?: boolean | null
+          member_count?: number | null
+          name?: string | null
+          rules?: string | null
+          session_id?: string
+          updated_at?: string
+          warnings_enabled_override?: boolean | null
+          welcome_enabled_override?: boolean | null
+          welcome_message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_groups_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_logs: {
+        Row: {
+          created_at: string
+          group_jid: string | null
+          id: string
+          kind: string
+          payload: Json | null
+          session_id: string
+          user_jid: string | null
+        }
+        Insert: {
+          created_at?: string
+          group_jid?: string | null
+          id?: string
+          kind: string
+          payload?: Json | null
+          session_id: string
+          user_jid?: string | null
+        }
+        Update: {
+          created_at?: string
+          group_jid?: string | null
+          id?: string
+          kind?: string
+          payload?: Json | null
+          session_id?: string
+          user_jid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_logs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_menus: {
+        Row: {
+          active: boolean
+          created_at: string
+          group_jid: string | null
+          id: string
+          items: Json
+          kind: string
+          name: string
+          session_id: string
+          trigger: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          group_jid?: string | null
+          id?: string
+          items?: Json
+          kind?: string
+          name: string
+          session_id: string
+          trigger: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          group_jid?: string | null
+          id?: string
+          items?: Json
+          kind?: string
+          name?: string
+          session_id?: string
+          trigger?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_menus_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_warnings: {
+        Row: {
+          banned_at: string | null
+          count: number
+          created_at: string
+          expires_at: string | null
+          group_jid: string
+          id: string
+          last_at: string
+          reason: string | null
+          session_id: string
+          user_jid: string
+        }
+        Insert: {
+          banned_at?: string | null
+          count?: number
+          created_at?: string
+          expires_at?: string | null
+          group_jid: string
+          id?: string
+          last_at?: string
+          reason?: string | null
+          session_id: string
+          user_jid: string
+        }
+        Update: {
+          banned_at?: string | null
+          count?: number
+          created_at?: string
+          expires_at?: string | null
+          group_jid?: string
+          id?: string
+          last_at?: string
+          reason?: string | null
+          session_id?: string
+          user_jid?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_warnings_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_api_keys: {
         Row: {
           allowed_ips: string[]
