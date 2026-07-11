@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.whatsapp-bridge]
 verify_jwt = false
+
+[functions.bot-ai]
+verify_jwt = false
