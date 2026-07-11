@@ -291,6 +291,22 @@ export default function BusinessPage() {
                       </div>
                     </div>
                   )}
+                  {/* Boutique publique URL */}
+                  <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/40 bg-primary/5 p-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Store className="h-5 w-5 shrink-0 text-primary" />
+                      <div className="min-w-0">
+                        <p className="text-xs uppercase tracking-wider text-muted-foreground">Votre boutique publique</p>
+                        <p className="truncate text-sm font-mono text-primary">{`${window.location.origin}/shop/${current.slug}`}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => copy(`${window.location.origin}/shop/${current.slug}`)} className="grid h-9 w-9 place-items-center rounded-full border border-border hover:bg-muted"><Copy className="h-4 w-4" /></button>
+                      <a href={`/shop/${current.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow">
+                        <ExternalLink className="h-3.5 w-3.5" /> Ouvrir
+                      </a>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Projects */}
