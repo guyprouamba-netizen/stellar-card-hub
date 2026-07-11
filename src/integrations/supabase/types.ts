@@ -1377,6 +1377,133 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_events: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          payload: Json
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          payload?: Json
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          payload?: Json
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_outbound: {
+        Row: {
+          body: string
+          created_at: string
+          error: string | null
+          id: string
+          sent_at: string | null
+          session_id: string
+          status: string
+          to_jid: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          sent_at?: string | null
+          session_id: string
+          status?: string
+          to_jid: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          sent_at?: string | null
+          session_id?: string
+          status?: string
+          to_jid?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_outbound_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_sessions: {
+        Row: {
+          business_id: string
+          connection_secret: string
+          created_at: string
+          id: string
+          last_seen_at: string | null
+          phone_number: string | null
+          qr_data_url: string | null
+          status: string
+          updated_at: string
+          worker_version: string | null
+        }
+        Insert: {
+          business_id: string
+          connection_secret: string
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          phone_number?: string | null
+          qr_data_url?: string | null
+          status?: string
+          updated_at?: string
+          worker_version?: string | null
+        }
+        Update: {
+          business_id?: string
+          connection_secret?: string
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          phone_number?: string | null
+          qr_data_url?: string | null
+          status?: string
+          updated_at?: string
+          worker_version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_sessions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_sessions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       withdrawals: {
         Row: {
           admin_note: string | null
