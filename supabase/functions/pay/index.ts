@@ -467,6 +467,23 @@ Deno.serve(async (req) => {
         const r = await verifyPayment(refStr);
         return jsonResponse(r);
       }
+      if (action === "getShop") {
+        const s = String(payload?.slug || "");
+        const ctx = await getPublicShop(s);
+        if (!ctx) return jsonResponse({ error: "Boutique introuvable" }, 404);
+        return jsonResponse({ ok: true, ...ctx });
+      }
+      if (action === "initShopCheckout") {
+        const r = await initShopCheckout(payload);
+        return jsonResponse(r);
+      }
+      if (action === "getOrder") {
+        const tok = String(payload?.token || "");
+        if (!/^[a-f0-9]{16,64}$/i.test(tok)) return jsonResponse({ error: "Token invalide" }, 400);
+        const o = await getPublicOrder(tok);
+        if (!o) return jsonResponse({ error: "Commande introuvable" }, 404);
+        return jsonResponse({ ok: true, ...o });
+      }
       return jsonResponse({ error: "Unknown action" }, 400);
     }
     return jsonResponse({ error: "Method not allowed" }, 405);
