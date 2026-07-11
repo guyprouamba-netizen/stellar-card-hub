@@ -562,6 +562,102 @@ export default function BusinessPage() {
                   </div>
                 </section>
 
+                {/* CHAT PAY (WhatsApp) */}
+                <section className="mt-8">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="font-[Space_Grotesk] text-xl font-bold inline-flex items-center gap-2">
+                      <MessageCircle className="h-5 w-5" /> Chat PAY <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-500">WhatsApp</span>
+                    </h3>
+                    {wa && (
+                      <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${WA_STATUS[wa.status]?.color || "bg-muted"}`}>
+                        {WA_STATUS[wa.status]?.label || wa.status}
+                        {wa.worker_online ? " · worker en ligne" : wa.status !== "disconnected" ? " · worker hors ligne" : ""}
+                      </span>
+                    )}
+                  </div>
+
+                  {!wa ? (
+                    <div className="rounded-2xl border border-border bg-card p-6 text-center">
+                      <Smartphone className="mx-auto h-10 w-10 text-muted-foreground" />
+                      <p className="mt-3 text-sm text-muted-foreground">Connecte ton WhatsApp perso pour envoyer des liens de paiement, recevoir des notifications d'encaissement et modérer tes groupes.</p>
+                      <button onClick={onWaCreate} className="mt-4 inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2 text-xs font-semibold text-primary-foreground shadow-glow">
+                        <Plus className="h-3.5 w-3.5" /> Générer un worker Chat PAY
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      {/* Panel connexion / QR */}
+                      <div className="rounded-2xl border border-border bg-card p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Étape 1 · Déploiement du worker</p>
+                        <p className="mt-2 text-xs text-muted-foreground">Colle ce secret dans la variable <code className="rounded bg-muted px-1">SESSION_SECRET</code> lors du déploiement (Railway, Fly.io, VPS — voir <code className="rounded bg-muted px-1">worker/README.md</code>).</p>
+                        <div className="mt-2 flex items-center gap-2 rounded-xl bg-background p-2">
+                          <code className="flex-1 truncate font-mono text-[11px]">{wa.connection_secret}</code>
+                          <button onClick={() => copy(wa.connection_secret)} className="rounded-full bg-foreground px-3 py-1 text-[11px] font-semibold text-background"><Copy className="h-3 w-3" /></button>
+                        </div>
+                        <div className="mt-2 flex items-center gap-2 rounded-xl bg-background p-2">
+                          <code className="flex-1 truncate font-mono text-[11px]">BRIDGE_URL={import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-bridge</code>
+                          <button onClick={() => copy(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-bridge`)} className="rounded-full bg-foreground px-3 py-1 text-[11px] font-semibold text-background"><Copy className="h-3 w-3" /></button>
+                        </div>
+
+                        <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Étape 2 · Scanne le QR</p>
+                        <div className="mt-2 grid min-h-[220px] place-items-center rounded-2xl border border-dashed border-border bg-surface-2 p-4">
+                          {wa.status === "connected" ? (
+                            <div className="text-center">
+                              <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-500/15 text-emerald-500"><MessageCircle className="h-7 w-7" /></div>
+                              <p className="mt-3 text-sm font-semibold">Connecté</p>
+                              {wa.phone_number && <p className="text-xs text-muted-foreground">+{wa.phone_number}</p>}
+                            </div>
+                          ) : wa.qr_data_url ? (
+                            <img src={wa.qr_data_url} alt="QR WhatsApp" className="h-52 w-52 rounded-xl bg-white p-2" />
+                          ) : (
+                            <div className="text-center text-xs text-muted-foreground">
+                              <QrCode className="mx-auto h-10 w-10 opacity-50" />
+                              <p className="mt-2">{wa.worker_online ? "En attente du QR…" : "Démarre le worker pour recevoir le QR"}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button onClick={onWaCreate} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold hover:bg-muted"><RefreshCw className="h-3 w-3" /> Régénérer secret</button>
+                          <button onClick={onWaReset} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold hover:bg-muted"><QrCode className="h-3 w-3" /> Redemander un QR</button>
+                        </div>
+                      </div>
+
+                      {/* Envoi + activité */}
+                      <div className="space-y-4">
+                        <div className="rounded-2xl border border-border bg-card p-4">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Envoyer un message</p>
+                          <input value={waDraft.to} onChange={(e) => setWaDraft((d) => ({ ...d, to: e.target.value }))} placeholder="Numéro (ex: 22670000000)"
+                            className="mt-2 w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
+                          <textarea value={waDraft.body} onChange={(e) => setWaDraft((d) => ({ ...d, body: e.target.value }))} rows={4} placeholder="Ton message… (tu peux coller un lien /pay/xxx)"
+                            className="mt-2 w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
+                          <button onClick={onWaSend} disabled={waSending || wa.status !== "connected" || !waDraft.to || !waDraft.body}
+                            className="mt-2 inline-flex items-center gap-2 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
+                            <Send className="h-3.5 w-3.5" /> {waSending ? "Envoi…" : "Envoyer"}
+                          </button>
+                        </div>
+
+                        <div className="rounded-2xl border border-border bg-card p-4">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Activité récente</p>
+                          <div className="mt-2 max-h-64 space-y-2 overflow-y-auto">
+                            {waEvents.length === 0 && <p className="text-xs text-muted-foreground">Aucun événement pour le moment.</p>}
+                            {waEvents.map((ev) => (
+                              <div key={ev.id} className="rounded-xl bg-surface-2 p-2 text-[11px]">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-semibold">{ev.kind}</span>
+                                  <span className="text-muted-foreground">{new Date(ev.created_at).toLocaleString("fr-FR")}</span>
+                                </div>
+                                {ev.payload?.text && <p className="mt-1 text-muted-foreground line-clamp-2">{ev.payload.text}</p>}
+                                {ev.payload?.from && <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">{ev.payload.from}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </section>
+
                 {/* API keys */}
                 <section className="mt-8">
                   <div className="mb-3 flex items-center justify-between">
