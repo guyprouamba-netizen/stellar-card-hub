@@ -263,8 +263,7 @@ async function startSock() {
       } else {
         // ----- DM privé : IA -----
         await report("incoming_message", { from, isGroup: false, text, push_name: m.pushName || null });
-        if (!botConfig?.ai_enabled || !botConfig?.ai_dm_only && false) continue;
-        if (!text) continue;
+        if (!botConfig?.ai_enabled || !text) continue;
         try {
           try { await sock.sendPresenceUpdate("composing", from); } catch {}
           await humanDelay(botConfig);
