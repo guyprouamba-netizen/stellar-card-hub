@@ -416,6 +416,94 @@ export default function BusinessPage() {
                   </div>
                 </section>
 
+                {/* ORDERS */}
+                <section className="mt-8">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="font-[Space_Grotesk] text-xl font-bold inline-flex items-center gap-2"><Package className="h-5 w-5" /> Commandes ({orders.length})</h3>
+                  </div>
+                  {orders.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-border bg-surface-2 p-8 text-center">
+                      <Package className="mx-auto h-8 w-8 text-muted-foreground" />
+                      <p className="mt-3 text-sm text-muted-foreground">Aucune commande. Partagez votre boutique publique pour recevoir vos premières commandes.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {orders.map((o) => (
+                        <div key={o.id} className="rounded-2xl border border-border bg-surface-2 p-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="font-mono text-sm font-bold">{o.order_number}</p>
+                              <p className="text-xs text-muted-foreground">{o.customer_name || "—"} · {o.customer_email || "—"}</p>
+                              <p className="mt-1 text-xs text-muted-foreground">{new Date(o.created_at).toLocaleString("fr-FR")}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-[Space_Grotesk] text-lg font-bold tabular-nums">{Number(o.total_amount).toLocaleString("fr-FR")} <span className="text-xs text-muted-foreground">{o.currency}</span></p>
+                              <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${ORDER_STATUS_COLOR[o.status] || "bg-muted"}`}>{ORDER_STATUS_LABEL[o.status] || o.status}</span>
+                            </div>
+                          </div>
+                          <div className="mt-3 grid grid-cols-2 gap-1 border-t border-border pt-3 text-xs sm:grid-cols-3">
+                            {(o.items || []).map((it, i) => (
+                              <div key={i} className="text-muted-foreground"><span className="font-semibold text-foreground">{it.name}</span> × {it.quantity}</div>
+                            ))}
+                          </div>
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <a href={`/order/${o.public_token}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11px] hover:bg-muted"><ExternalLink className="h-3 w-3" /> Suivi client</a>
+                            <select value={o.status} onChange={(e) => onOrderStatus(o, e.target.value)} className="rounded-full border border-border bg-background px-3 py-1 text-[11px] font-medium">
+                              {Object.entries(ORDER_STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* PUBLICATIONS / POSTS */}
+                <section className="mt-8">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="font-[Space_Grotesk] text-xl font-bold inline-flex items-center gap-2"><Megaphone className="h-5 w-5" /> Publications</h3>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-card p-4">
+                    <input value={postDraft.title} onChange={(e) => setPostDraft((d) => ({ ...d, title: e.target.value }))} placeholder="Titre de la publication"
+                      className="w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
+                    <textarea value={postDraft.body} onChange={(e) => setPostDraft((d) => ({ ...d, body: e.target.value }))} rows={3} placeholder="Contenu (promo, actualité, offre du jour…)"
+                      className="mt-2 w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs hover:bg-muted">
+                        <ImageIcon className="h-3.5 w-3.5" />
+                        {uploadingImg ? "Chargement…" : postDraft.image_url ? "Image ajoutée ✓" : "Ajouter une image"}
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadPostImage(f); }} />
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => onCreatePost(false)} className="rounded-full border border-border px-4 py-1.5 text-xs font-semibold hover:bg-muted">Brouillon</button>
+                        <button onClick={() => onCreatePost(true)} className="rounded-full bg-gradient-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow">Publier</button>
+                      </div>
+                    </div>
+                    {postDraft.image_url && <img src={postDraft.image_url} alt="preview" className="mt-3 h-32 w-full rounded-xl object-cover" />}
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {posts.length === 0 && <p className="col-span-full text-sm text-muted-foreground">Aucune publication.</p>}
+                    {posts.map((p) => (
+                      <div key={p.id} className="overflow-hidden rounded-2xl border border-border bg-surface-2">
+                        {p.image_url && <img src={p.image_url} alt="" className="h-32 w-full object-cover" />}
+                        <div className="p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="font-bold">{p.title}</p>
+                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${p.published ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-500"}`}>{p.published ? "Publié" : "Brouillon"}</span>
+                          </div>
+                          {p.body && <p className="mt-1 text-xs text-muted-foreground line-clamp-3">{p.body}</p>}
+                          <div className="mt-3 flex items-center gap-2">
+                            <button onClick={() => onTogglePost(p)} className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-1 text-[10px] hover:bg-muted">
+                              {p.published ? <><EyeOff className="h-3 w-3" /> Dépublier</> : <><Eye className="h-3 w-3" /> Publier</>}
+                            </button>
+                            <button onClick={() => onDeletePost(p.id)} className="grid h-7 w-7 place-items-center rounded-full border border-destructive/40 text-destructive hover:bg-destructive/10"><Trash2 className="h-3 w-3" /></button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
                 {/* API keys */}
                 <section className="mt-8">
                   <div className="mb-3 flex items-center justify-between">
