@@ -131,7 +131,7 @@ function mapStatus(raw: string): "pending" | "success" | "failed" {
 // Crédite atomiquement le marchand si paiement marqué success (idempotent).
 async function settlePayment(db: any, paymentId: string, providerBody: any) {
   const { data: tx } = await db.from("payment_link_payments")
-    .select("id,business_id,amount,status,fee_amount,net_amount,reference,currency,customer_email,customer_name,link_id,project_id,product_id").eq("id", paymentId).maybeSingle();
+    .select("id,business_id,amount,status,fee_amount,net_amount,reference,currency,customer_email,customer_name,link_id,project_id,product_id,order_id").eq("id", paymentId).maybeSingle();
   if (!tx || tx.status !== "pending") return { credited: false };
   const { data: biz } = await db.from("businesses").select("id,balance,fee_bps").eq("id", tx.business_id).single();
   const fee = Math.round((Number(tx.amount) * Number(biz.fee_bps || 0)) / 10000);
@@ -147,6 +147,11 @@ async function settlePayment(db: any, paymentId: string, providerBody: any) {
   if ((tx as any).project_id) {
     const { data: proj } = await db.from("projects").select("id,balance").eq("id", (tx as any).project_id).maybeSingle();
     if (proj) await db.from("projects").update({ balance: Number(proj.balance) + net }).eq("id", proj.id);
+  }
+  // Marque la commande liée comme payée
+  if ((tx as any).order_id) {
+    await db.from("orders").update({ status: "paid", paid_at: new Date().toISOString() })
+      .eq("id", (tx as any).order_id).eq("status", "pending_payment");
   }
   // Auto-generate receipt invoice
   try {
@@ -244,7 +249,7 @@ async function initCheckout(body: any) {
 async function verifyPayment(reference: string) {
   const db = admin();
   const { data: tx } = await db.from("payment_link_payments")
-    .select("id,status,payment_intent_id,reference,amount,currency,net_amount,fee_amount,paid_at")
+    .select("id,status,payment_intent_id,reference,amount,currency,net_amount,fee_amount,paid_at,order_id")
     .eq("reference", reference).maybeSingle();
   if (!tx) return { ok: false, error: "Référence introuvable" };
   if (tx.status !== "pending") return { ok: true, status: tx.status, payment: tx };
@@ -253,13 +258,122 @@ async function verifyPayment(reference: string) {
   const st = mapStatus(body?.status || body?.paymentStatus || body?.data?.status);
   if (st === "success") {
     await settlePayment(db, tx.id, body);
-    return { ok: true, status: "success" };
+    return { ok: true, status: "success", order_id: (tx as any).order_id || null };
   }
   if (st === "failed") {
     await db.from("payment_link_payments").update({ status: "failed", metadata: { verify: body } }).eq("id", tx.id).eq("status", "pending");
+    if ((tx as any).order_id) {
+      await db.from("orders").update({ status: "cancelled" }).eq("id", (tx as any).order_id).eq("status", "pending_payment");
+    }
     return { ok: true, status: "failed" };
   }
   return { ok: true, status: "pending" };
+}
+
+// ============================================================
+// SHOP (public storefront) — vitrine complète du marchand
+// ============================================================
+async function getPublicShop(slug: string) {
+  const db = admin();
+  const { data: biz } = await db.from("businesses")
+    .select("id,name,slug,description,logo_url,contact_email,contact_phone,status")
+    .eq("slug", slug).maybeSingle();
+  if (!biz || biz.status !== "active") return null;
+  const [{ data: products }, { data: posts }, { data: media }] = await Promise.all([
+    db.from("products").select("id,name,slug,description,price,currency,status")
+      .eq("business_id", biz.id).eq("status", "active").order("created_at", { ascending: false }),
+    db.from("business_posts").select("id,title,body,image_url,product_id,published_at")
+      .eq("business_id", biz.id).eq("published", true).order("published_at", { ascending: false }).limit(20),
+    db.from("product_media").select("product_id,type,url,position").order("position", { ascending: true }),
+  ]);
+  const mediaByProduct: Record<string, any[]> = {};
+  for (const m of (media || [])) {
+    (mediaByProduct[(m as any).product_id] ||= []).push(m);
+  }
+  const productsWithMedia = (products || []).map((p: any) => ({ ...p, media: mediaByProduct[p.id] || [] }));
+  return {
+    business: { id: biz.id, name: biz.name, slug: biz.slug, description: biz.description, logo_url: biz.logo_url, contact_email: biz.contact_email, contact_phone: biz.contact_phone },
+    products: productsWithMedia,
+    posts: posts || [],
+  };
+}
+
+async function initShopCheckout(body: any) {
+  const db = admin();
+  const businessSlug = String(body?.business_slug || "");
+  const items: Array<{ product_id: string; quantity: number }> = Array.isArray(body?.items) ? body.items : [];
+  const customerEmail = String(body?.customer_email || "").trim().toLowerCase();
+  if (!customerEmail || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(customerEmail)) {
+    throw new Error("Email client requis pour recevoir le reçu");
+  }
+  if (items.length === 0) throw new Error("Panier vide");
+  const { data: biz } = await db.from("businesses").select("id,name,slug,status").eq("slug", businessSlug).maybeSingle();
+  if (!biz || biz.status !== "active") throw new Error("Boutique introuvable");
+  const productIds = items.map((i) => String(i.product_id));
+  const { data: products } = await db.from("products").select("id,name,price,currency,status,business_id").in("id", productIds);
+  const valid = (products || []).filter((p: any) => p.business_id === biz.id && p.status === "active");
+  if (valid.length === 0) throw new Error("Produits invalides");
+  const currency = valid[0].currency || "XOF";
+  let total = 0;
+  const orderItems: any[] = [];
+  for (const it of items) {
+    const p: any = valid.find((x: any) => x.id === it.product_id);
+    if (!p) continue;
+    const qty = Math.max(1, Math.floor(Number(it.quantity) || 1));
+    total += Number(p.price) * qty;
+    orderItems.push({ product_id: p.id, name: p.name, unit_price: Number(p.price), quantity: qty });
+  }
+  if (total <= 0) throw new Error("Total invalide");
+  // Créer l'ordre
+  const { data: numRow } = await db.rpc("generate_order_number");
+  const orderNumber = (numRow as any) || `CMD-${Date.now()}`;
+  const { data: order, error: oErr } = await db.from("orders").insert({
+    business_id: biz.id, order_number: orderNumber, status: "pending_payment",
+    customer_name: body?.customer_name || null, customer_email: customerEmail,
+    customer_phone: body?.customer_phone || null, shipping_address: body?.shipping_address || null,
+    customer_note: body?.customer_note || null,
+    total_amount: total, currency,
+    metadata: { source: "shop" },
+  }).select("id,order_number,public_token").single();
+  if (oErr) throw new Error(oErr.message);
+  await db.from("order_items").insert(orderItems.map((it) => ({ ...it, order_id: order.id })));
+  // Créer paiement YengaPay
+  const reference = ref("SHOP");
+  const callbackUrl = `${SUPABASE_URL}/functions/v1/yengapay-webhook`;
+  const baseReturn = String(body?.returnUrl || "");
+  const returnUrl = baseReturn
+    ? baseReturn + (baseReturn.includes("?") ? "&" : "?") + `pay_ref=${encodeURIComponent(reference)}&order=${encodeURIComponent(order.public_token)}`
+    : "";
+  const yp = await createYengaPayIntent({
+    amount: total, reference,
+    title: `Commande ${orderNumber}`,
+    description: `${biz.name} — ${orderItems.length} article(s)`,
+    callbackUrl, returnUrl,
+  });
+  await db.from("payment_link_payments").insert({
+    link_id: null as any, business_id: biz.id, order_id: order.id,
+    reference, amount: total, currency,
+    customer_name: body?.customer_name || null,
+    customer_phone: body?.customer_phone || null,
+    customer_email: customerEmail,
+    provider: "yengapay",
+    payment_intent_id: yp.paymentIntentId,
+    metadata: { init: yp.raw, order_id: order.id },
+  } as any);
+  return { ok: true, reference, checkout_url: yp.checkoutUrl, order_token: order.public_token, order_number: orderNumber };
+}
+
+async function getPublicOrder(token: string) {
+  const db = admin();
+  const { data: order } = await db.from("orders")
+    .select("id,order_number,status,customer_name,customer_email,total_amount,currency,paid_at,created_at,updated_at,merchant_note,shipping_address,business_id")
+    .eq("public_token", token).maybeSingle();
+  if (!order) return null;
+  const [{ data: items }, { data: biz }] = await Promise.all([
+    db.from("order_items").select("name,unit_price,quantity").eq("order_id", order.id),
+    db.from("businesses").select("name,slug,logo_url,contact_email,contact_phone").eq("id", order.business_id).single(),
+  ]);
+  return { order, items: items || [], business: biz };
 }
 
 // --- API key actions (LigdiCash-style) ---
@@ -330,7 +444,7 @@ Deno.serve(async (req) => {
       const payload = await req.json().catch(() => ({}));
       const action = String(payload?.action || "");
       // Anti-abuse: rate-limit by IP for public actions
-      const limits: Record<string, number> = { getLink: 60, initCheckout: 10, verifyPayment: 30 };
+      const limits: Record<string, number> = { getLink: 60, initCheckout: 10, verifyPayment: 30, getShop: 60, initShopCheckout: 10, getOrder: 30 };
       if (limits[action]) {
         const ok = await checkPublicRateLimit(`pay:${action}`, req, limits[action]);
         if (!ok) return jsonResponse({ error: "Trop de requêtes, réessayez dans une minute." }, 429);
@@ -352,6 +466,23 @@ Deno.serve(async (req) => {
         if (!/^[A-Z0-9\-]{6,40}$/.test(refStr)) return jsonResponse({ error: "Invalid reference" }, 400);
         const r = await verifyPayment(refStr);
         return jsonResponse(r);
+      }
+      if (action === "getShop") {
+        const s = String(payload?.slug || "");
+        const ctx = await getPublicShop(s);
+        if (!ctx) return jsonResponse({ error: "Boutique introuvable" }, 404);
+        return jsonResponse({ ok: true, ...ctx });
+      }
+      if (action === "initShopCheckout") {
+        const r = await initShopCheckout(payload);
+        return jsonResponse(r);
+      }
+      if (action === "getOrder") {
+        const tok = String(payload?.token || "");
+        if (!/^[a-f0-9]{16,64}$/i.test(tok)) return jsonResponse({ error: "Token invalide" }, 400);
+        const o = await getPublicOrder(tok);
+        if (!o) return jsonResponse({ error: "Commande introuvable" }, 404);
+        return jsonResponse({ ok: true, ...o });
       }
       return jsonResponse({ error: "Unknown action" }, 400);
     }

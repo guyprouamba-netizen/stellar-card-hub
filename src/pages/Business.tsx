@@ -7,8 +7,12 @@ import {
   updatePaymentLink, listLinkPayments, listApiKeys, createApiKey, revokeApiKey,
   cashoutBusinessBalance, listProjects, createProject, getBusinessDashboard,
 } from "@/lib/business.functions";
+import {
+  listOrders, updateOrderStatus,
+  listBusinessPosts, createBusinessPost, updateBusinessPost, deleteBusinessPost,
+} from "@/lib/orders.functions";
 import { uploadBusinessMedia } from "@/lib/upload";
-import { ArrowLeft, Building2, Copy, Key, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles } from "lucide-react";
+import { ArrowLeft, Building2, Copy, Key, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff } from "lucide-react";
 
 type Biz = { id: string; name: string; slug: string; status: string; balance: number; fee_bps: number };
 type PLink = { id: string; slug: string; title: string; amount: number | null; currency: string; status: string };
@@ -16,6 +20,8 @@ type Payment = { id: string; reference: string; amount: number; status: string; 
 type ApiKey = { id: string; label: string; key_prefix: string; mode: string; revoked_at: string | null; last_used_at: string | null };
 type Project = { id: string; name: string; slug: string; logo_url: string | null; cover_url: string | null; balance: number; financial_goal: number; currency: string; status: string };
 type Dashboard = { business: any; projects: Project[]; kpis: { total30: number; totalPrev: number; trend: number; count30: number; light: "red" | "yellow" | "green" }; series: Array<{ date: string; value: number }> };
+type Order = { id: string; order_number: string; public_token: string; status: string; customer_name: string | null; customer_email: string | null; total_amount: number; currency: string; created_at: string; items: Array<{ name: string; quantity: number; unit_price: number }> };
+type Post = { id: string; title: string; body: string | null; image_url: string | null; product_id: string | null; published: boolean; published_at: string | null; created_at: string };
 
 export default function BusinessPage() {
   const navigate = useNavigate();
@@ -28,6 +34,10 @@ export default function BusinessPage() {
   const [newKey, setNewKey] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [dash, setDash] = useState<Dashboard | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [postDraft, setPostDraft] = useState<{ title: string; body: string; image_url: string }>({ title: "", body: "", image_url: "" });
+  const [uploadingImg, setUploadingImg] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,11 +58,12 @@ export default function BusinessPage() {
     setLoading(false);
   }
   async function refreshCurrent(bizId: string) {
-    const [l, p, k, pr, d] = await Promise.all([
+    const [l, p, k, pr, d, o, po] = await Promise.all([
       listPaymentLinks(bizId), listLinkPayments(bizId), listApiKeys(bizId),
       listProjects(bizId), getBusinessDashboard(bizId),
+      listOrders(bizId), listBusinessPosts(bizId),
     ]);
-    setLinks(l); setPayments(p); setKeys(k); setProjects(pr); setDash(d);
+    setLinks(l); setPayments(p); setKeys(k); setProjects(pr); setDash(d); setOrders(o); setPosts(po);
   }
   useEffect(() => { if (session) refreshAll(); /* eslint-disable-next-line */ }, [session]);
   useEffect(() => { if (current) refreshCurrent(current.id); }, [current?.id]);
@@ -146,6 +157,57 @@ export default function BusinessPage() {
 
   function copy(text: string) { navigator.clipboard.writeText(text); toast.success("Copié"); }
 
+  async function onOrderStatus(o: Order, next: string) {
+    try { const u: any = await updateOrderStatus({ id: o.id, status: next }); setOrders((prev) => prev.map((x) => x.id === o.id ? { ...x, ...u } : x)); toast.success("Statut mis à jour"); }
+    catch (e: any) { toast.error(e.message); }
+  }
+
+  async function onUploadPostImage(file: File) {
+    setUploadingImg(true);
+    try { const url = await uploadBusinessMedia(file, "posts"); setPostDraft((d) => ({ ...d, image_url: url })); }
+    catch (e: any) { toast.error(e.message); }
+    finally { setUploadingImg(false); }
+  }
+
+  async function onCreatePost(publish: boolean) {
+    if (!current || !postDraft.title.trim()) { toast.error("Titre requis"); return; }
+    try {
+      const p: any = await createBusinessPost({
+        business_id: current.id, title: postDraft.title,
+        body: postDraft.body || undefined, image_url: postDraft.image_url || undefined,
+        published: publish,
+      });
+      setPosts((prev) => [p, ...prev]);
+      setPostDraft({ title: "", body: "", image_url: "" });
+      toast.success(publish ? "Publication publiée ✅" : "Brouillon sauvegardé");
+    } catch (e: any) { toast.error(e.message); }
+  }
+
+  async function onTogglePost(p: Post) {
+    try { const u: any = await updateBusinessPost({ id: p.id, published: !p.published }); setPosts((prev) => prev.map((x) => x.id === p.id ? { ...x, ...u } : x)); }
+    catch (e: any) { toast.error(e.message); }
+  }
+
+  async function onDeletePost(id: string) {
+    if (!confirm("Supprimer cette publication ?")) return;
+    try { await deleteBusinessPost(id); setPosts((prev) => prev.filter((x) => x.id !== id)); }
+    catch (e: any) { toast.error(e.message); }
+  }
+
+  const ORDER_STATUS_LABEL: Record<string, string> = {
+    pending_payment: "En attente paiement", paid: "Payée", preparing: "En préparation",
+    shipped: "Expédiée", delivered: "Livrée", cancelled: "Annulée", refunded: "Remboursée",
+  };
+  const ORDER_STATUS_COLOR: Record<string, string> = {
+    pending_payment: "bg-amber-500/15 text-amber-500",
+    paid: "bg-emerald-500/15 text-emerald-500",
+    preparing: "bg-blue-500/15 text-blue-500",
+    shipped: "bg-indigo-500/15 text-indigo-500",
+    delivered: "bg-emerald-600/20 text-emerald-600",
+    cancelled: "bg-destructive/15 text-destructive",
+    refunded: "bg-muted text-muted-foreground",
+  };
+
   const lightColors: Record<string, string> = {
     green: "from-emerald-500/30 to-emerald-500/5 border-emerald-500/40 text-emerald-400",
     yellow: "from-amber-500/30 to-amber-500/5 border-amber-500/40 text-amber-400",
@@ -229,6 +291,22 @@ export default function BusinessPage() {
                       </div>
                     </div>
                   )}
+                  {/* Boutique publique URL */}
+                  <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/40 bg-primary/5 p-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Store className="h-5 w-5 shrink-0 text-primary" />
+                      <div className="min-w-0">
+                        <p className="text-xs uppercase tracking-wider text-muted-foreground">Votre boutique publique</p>
+                        <p className="truncate text-sm font-mono text-primary">{`${window.location.origin}/shop/${current.slug}`}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => copy(`${window.location.origin}/shop/${current.slug}`)} className="grid h-9 w-9 place-items-center rounded-full border border-border hover:bg-muted"><Copy className="h-4 w-4" /></button>
+                      <a href={`/shop/${current.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow">
+                        <ExternalLink className="h-3.5 w-3.5" /> Ouvrir
+                      </a>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Projects */}
@@ -335,6 +413,94 @@ export default function BusinessPage() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                </section>
+
+                {/* ORDERS */}
+                <section className="mt-8">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="font-[Space_Grotesk] text-xl font-bold inline-flex items-center gap-2"><Package className="h-5 w-5" /> Commandes ({orders.length})</h3>
+                  </div>
+                  {orders.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-border bg-surface-2 p-8 text-center">
+                      <Package className="mx-auto h-8 w-8 text-muted-foreground" />
+                      <p className="mt-3 text-sm text-muted-foreground">Aucune commande. Partagez votre boutique publique pour recevoir vos premières commandes.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {orders.map((o) => (
+                        <div key={o.id} className="rounded-2xl border border-border bg-surface-2 p-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="font-mono text-sm font-bold">{o.order_number}</p>
+                              <p className="text-xs text-muted-foreground">{o.customer_name || "—"} · {o.customer_email || "—"}</p>
+                              <p className="mt-1 text-xs text-muted-foreground">{new Date(o.created_at).toLocaleString("fr-FR")}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-[Space_Grotesk] text-lg font-bold tabular-nums">{Number(o.total_amount).toLocaleString("fr-FR")} <span className="text-xs text-muted-foreground">{o.currency}</span></p>
+                              <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${ORDER_STATUS_COLOR[o.status] || "bg-muted"}`}>{ORDER_STATUS_LABEL[o.status] || o.status}</span>
+                            </div>
+                          </div>
+                          <div className="mt-3 grid grid-cols-2 gap-1 border-t border-border pt-3 text-xs sm:grid-cols-3">
+                            {(o.items || []).map((it, i) => (
+                              <div key={i} className="text-muted-foreground"><span className="font-semibold text-foreground">{it.name}</span> × {it.quantity}</div>
+                            ))}
+                          </div>
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <a href={`/order/${o.public_token}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11px] hover:bg-muted"><ExternalLink className="h-3 w-3" /> Suivi client</a>
+                            <select value={o.status} onChange={(e) => onOrderStatus(o, e.target.value)} className="rounded-full border border-border bg-background px-3 py-1 text-[11px] font-medium">
+                              {Object.entries(ORDER_STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* PUBLICATIONS / POSTS */}
+                <section className="mt-8">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="font-[Space_Grotesk] text-xl font-bold inline-flex items-center gap-2"><Megaphone className="h-5 w-5" /> Publications</h3>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-card p-4">
+                    <input value={postDraft.title} onChange={(e) => setPostDraft((d) => ({ ...d, title: e.target.value }))} placeholder="Titre de la publication"
+                      className="w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
+                    <textarea value={postDraft.body} onChange={(e) => setPostDraft((d) => ({ ...d, body: e.target.value }))} rows={3} placeholder="Contenu (promo, actualité, offre du jour…)"
+                      className="mt-2 w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs hover:bg-muted">
+                        <ImageIcon className="h-3.5 w-3.5" />
+                        {uploadingImg ? "Chargement…" : postDraft.image_url ? "Image ajoutée ✓" : "Ajouter une image"}
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadPostImage(f); }} />
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => onCreatePost(false)} className="rounded-full border border-border px-4 py-1.5 text-xs font-semibold hover:bg-muted">Brouillon</button>
+                        <button onClick={() => onCreatePost(true)} className="rounded-full bg-gradient-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow">Publier</button>
+                      </div>
+                    </div>
+                    {postDraft.image_url && <img src={postDraft.image_url} alt="preview" className="mt-3 h-32 w-full rounded-xl object-cover" />}
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {posts.length === 0 && <p className="col-span-full text-sm text-muted-foreground">Aucune publication.</p>}
+                    {posts.map((p) => (
+                      <div key={p.id} className="overflow-hidden rounded-2xl border border-border bg-surface-2">
+                        {p.image_url && <img src={p.image_url} alt="" className="h-32 w-full object-cover" />}
+                        <div className="p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="font-bold">{p.title}</p>
+                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${p.published ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-500"}`}>{p.published ? "Publié" : "Brouillon"}</span>
+                          </div>
+                          {p.body && <p className="mt-1 text-xs text-muted-foreground line-clamp-3">{p.body}</p>}
+                          <div className="mt-3 flex items-center gap-2">
+                            <button onClick={() => onTogglePost(p)} className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-1 text-[10px] hover:bg-muted">
+                              {p.published ? <><EyeOff className="h-3 w-3" /> Dépublier</> : <><Eye className="h-3 w-3" /> Publier</>}
+                            </button>
+                            <button onClick={() => onDeletePost(p.id)} className="grid h-7 w-7 place-items-center rounded-full border border-destructive/40 text-destructive hover:bg-destructive/10"><Trash2 className="h-3 w-3" /></button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </section>
 

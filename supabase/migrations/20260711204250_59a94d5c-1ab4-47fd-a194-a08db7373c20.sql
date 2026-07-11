@@ -1,0 +1,1 @@
+ALTER TABLE public.payment_link_payments ALTER COLUMN link_id DROP NOT NULL;

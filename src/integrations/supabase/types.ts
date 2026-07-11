@@ -224,6 +224,67 @@ export type Database = {
           },
         ]
       }
+      business_posts: {
+        Row: {
+          body: string | null
+          business_id: string
+          created_at: string
+          id: string
+          image_url: string | null
+          product_id: string | null
+          published: boolean
+          published_at: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string | null
+          business_id: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          product_id?: string | null
+          published?: boolean
+          published_at?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string | null
+          business_id?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          product_id?: string | null
+          published?: boolean
+          published_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_posts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_posts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_posts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       businesses: {
         Row: {
           balance: number
@@ -542,6 +603,126 @@ export type Database = {
         }
         Relationships: []
       }
+      order_items: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          order_id: string
+          product_id: string | null
+          quantity: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          order_id: string
+          product_id?: string | null
+          quantity?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          order_id?: string
+          product_id?: string | null
+          quantity?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          business_id: string
+          created_at: string
+          currency: string
+          customer_email: string | null
+          customer_name: string | null
+          customer_note: string | null
+          customer_phone: string | null
+          id: string
+          merchant_note: string | null
+          metadata: Json | null
+          order_number: string
+          paid_at: string | null
+          public_token: string
+          shipping_address: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_note?: string | null
+          customer_phone?: string | null
+          id?: string
+          merchant_note?: string | null
+          metadata?: Json | null
+          order_number: string
+          paid_at?: string | null
+          public_token?: string
+          shipping_address?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_note?: string | null
+          customer_phone?: string | null
+          id?: string
+          merchant_note?: string | null
+          metadata?: Json | null
+          order_number?: string
+          paid_at?: string | null
+          public_token?: string
+          shipping_address?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_link_payments: {
         Row: {
           amount: number
@@ -554,9 +735,10 @@ export type Database = {
           fee_amount: number
           id: string
           ip: unknown
-          link_id: string
+          link_id: string | null
           metadata: Json | null
           net_amount: number
+          order_id: string | null
           paid_at: string | null
           payment_intent_id: string | null
           product_id: string | null
@@ -581,9 +763,10 @@ export type Database = {
           fee_amount?: number
           id?: string
           ip?: unknown
-          link_id: string
+          link_id?: string | null
           metadata?: Json | null
           net_amount?: number
+          order_id?: string | null
           paid_at?: string | null
           payment_intent_id?: string | null
           product_id?: string | null
@@ -608,9 +791,10 @@ export type Database = {
           fee_amount?: number
           id?: string
           ip?: unknown
-          link_id?: string
+          link_id?: string | null
           metadata?: Json | null
           net_amount?: number
+          order_id?: string | null
           paid_at?: string | null
           payment_intent_id?: string | null
           product_id?: string | null
@@ -644,6 +828,13 @@ export type Database = {
             columns: ["link_id"]
             isOneToOne: false
             referencedRelation: "payment_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_link_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
           {
@@ -1271,6 +1462,7 @@ export type Database = {
       }
     }
     Functions: {
+      generate_order_number: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       has_role: {
         Args: {
@@ -1284,6 +1476,14 @@ export type Database = {
     Enums: {
       app_role: "admin" | "user"
       business_status: "pending" | "active" | "suspended"
+      order_status:
+        | "pending_payment"
+        | "paid"
+        | "preparing"
+        | "shipped"
+        | "delivered"
+        | "cancelled"
+        | "refunded"
       payment_link_payment_status: "pending" | "success" | "failed" | "expired"
       payment_link_status: "active" | "paused" | "archived"
       tx_status: "pending" | "success" | "failed" | "cancelled"
@@ -1431,6 +1631,15 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "user"],
       business_status: ["pending", "active", "suspended"],
+      order_status: [
+        "pending_payment",
+        "paid",
+        "preparing",
+        "shipped",
+        "delivered",
+        "cancelled",
+        "refunded",
+      ],
       payment_link_payment_status: ["pending", "success", "failed", "expired"],
       payment_link_status: ["active", "paused", "archived"],
       tx_status: ["pending", "success", "failed", "cancelled"],
