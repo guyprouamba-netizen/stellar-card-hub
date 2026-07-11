@@ -10,6 +10,8 @@ import Wallet from "@/pages/Wallet";
 import Business from "@/pages/Business";
 import ProjectDetail from "@/pages/ProjectDetail";
 import Pay from "@/pages/Pay";
+import Shop from "@/pages/Shop";
+import OrderTracking from "@/pages/OrderTracking";
 import NotFound from "@/pages/NotFound";
 
 export default function App() {
@@ -26,6 +28,8 @@ export default function App() {
       <Route path="/business" element={<Business />} />
       <Route path="/business/:businessId/projects/:projectId" element={<ProjectDetail />} />
       <Route path="/pay/:slug" element={<Pay />} />
+      <Route path="/shop/:slug" element={<Shop />} />
+      <Route path="/order/:token" element={<OrderTracking />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
