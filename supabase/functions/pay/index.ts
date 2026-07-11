@@ -444,7 +444,7 @@ Deno.serve(async (req) => {
       const payload = await req.json().catch(() => ({}));
       const action = String(payload?.action || "");
       // Anti-abuse: rate-limit by IP for public actions
-      const limits: Record<string, number> = { getLink: 60, initCheckout: 10, verifyPayment: 30 };
+      const limits: Record<string, number> = { getLink: 60, initCheckout: 10, verifyPayment: 30, getShop: 60, initShopCheckout: 10, getOrder: 30 };
       if (limits[action]) {
         const ok = await checkPublicRateLimit(`pay:${action}`, req, limits[action]);
         if (!ok) return jsonResponse({ error: "Trop de requêtes, réessayez dans une minute." }, 429);
