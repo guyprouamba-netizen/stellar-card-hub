@@ -15,7 +15,66 @@ const BRIDGE_URL = (process.env.BRIDGE_URL || "").replace(/\/+$/, "");
 const SESSION_SECRET = process.env.SESSION_SECRET || "";
 const POLL_MS = Number(process.env.POLL_MS || 3000);
 const AUTH_DIR = process.env.AUTH_DIR || "./auth";
-const VERSION = "1.0.0";
+const VERSION = "2.0.0";
+
+// ----- État global -----
+let botConfig = null;
+let botGroups = new Map(); // group_jid → override row
+let actionsThisMin = 0;
+let actionsThisHour = 0;
+setInterval(() => { actionsThisMin = 0; }, 60_000);
+setInterval(() => { actionsThisHour = 0; }, 3600_000);
+
+// Detection de liens
+const URL_RE = /\b((https?:\/\/|www\.)[^\s]+|[a-z0-9-]+\.(com|net|org|io|co|xyz|me|app|link|ml|tk|ga|cf|store|shop|site|online|info|biz|africa|bf|ci|sn|ml)\b[^\s]*)/i;
+const WA_LINK_RE = /(wa\.me\/|chat\.whatsapp\.com\/|whatsapp\.com\/channel\/)/i;
+
+function containsLink(text, whitelist) {
+  if (!text) return false;
+  if (WA_LINK_RE.test(text)) {
+    // whitelist s'applique aux domaines classiques, jamais aux liens de groupes concurrents
+    return true;
+  }
+  const m = text.match(URL_RE);
+  if (!m) return false;
+  const url = m[0].toLowerCase();
+  return !(whitelist || []).some((w) => url.includes(String(w).toLowerCase()));
+}
+
+function isNight(cfg) {
+  if (!cfg?.night_mode) return false;
+  const h = new Date().getHours();
+  const s = cfg.night_start_hour ?? 22, e = cfg.night_end_hour ?? 7;
+  return s > e ? (h >= s || h < e) : (h >= s && h < e);
+}
+
+function gaussian(min, max) {
+  // approx boîte-Muller centrée
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  const n = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  const clamped = Math.max(-2, Math.min(2, n));
+  const mid = (min + max) / 2, span = (max - min) / 4;
+  return Math.round(mid + clamped * span);
+}
+
+async function humanDelay(cfg) {
+  if (!cfg?.human_mode) return;
+  const min = cfg.human_min_ms || 2000, max = cfg.human_max_ms || 8000;
+  let d = gaussian(min, max);
+  if (isNight(cfg)) d *= 2;
+  await new Promise((r) => setTimeout(r, d));
+}
+
+async function rateGate(cfg) {
+  const perMin = cfg?.rate_per_minute ?? 8;
+  const perHour = cfg?.rate_per_hour ?? 120;
+  while (actionsThisMin >= perMin || actionsThisHour >= perHour) {
+    await new Promise((r) => setTimeout(r, 5000));
+  }
+  actionsThisMin++; actionsThisHour++;
+}
 
 if (!BRIDGE_URL || !SESSION_SECRET) {
   console.error("Missing BRIDGE_URL or SESSION_SECRET. See .env.example");
@@ -43,6 +102,20 @@ async function report(kind, payload) {
   try { await bridge("/event", "POST", { kind, payload }); }
   catch (e) { console.error("report failed", kind, e.message); }
 }
+
+async function logBot(kind, extra = {}) {
+  try { await bridge("/log", "POST", { kind, ...extra }); }
+  catch (e) { console.error("log failed", kind, e.message); }
+}
+
+async function refreshConfig() {
+  try {
+    const c = await bridge("/config", "GET");
+    botConfig = c.config;
+    botGroups = new Map((c.groups || []).map((g) => [g.group_jid, g]));
+  } catch (e) { /* silencieux */ }
+}
+setInterval(refreshConfig, 60_000);
 
 function normalizeJid(to) {
   if (!to) return null;
@@ -79,6 +152,7 @@ async function startSock() {
       const phone = sock.user?.id?.split(":")[0] || null;
       await bridge("/status", "POST", { status: "connected", phone_number: phone, qr_data_url: null });
       console.log("Connecté à WhatsApp:", phone);
+      await refreshConfig();
     }
     if (connection === "close") {
       const code = new Boom(lastDisconnect?.error)?.output?.statusCode;
@@ -93,6 +167,37 @@ async function startSock() {
     }
   });
 
+  // Rejet d'appels
+  sock.ev.on("call", async (calls) => {
+    if (!botConfig?.reject_calls) return;
+    for (const c of calls) {
+      if (c.status !== "offer") continue;
+      try { await sock.rejectCall(c.id, c.from); } catch (e) { console.error("rejectCall", e.message); }
+      try {
+        const r = await bridge("/call", "POST", { from_jid: c.from });
+        await logBot("call_rejected", { user_jid: c.from, payload: { block: r.block } });
+      } catch (e) { console.error(e); }
+    }
+  });
+
+  // Bienvenue nouveaux membres
+  sock.ev.on("group-participants.update", async (ev) => {
+    if (ev.action !== "add") return;
+    const g = botGroups.get(ev.id);
+    const enabled = g?.welcome_enabled_override ?? botConfig?.welcome_enabled;
+    if (!enabled) return;
+    const tpl = g?.welcome_message || botConfig?.welcome_message || "Bienvenue 👋";
+    for (const p of ev.participants) {
+      const name = p.split("@")[0];
+      const msg = tpl.replace(/\{\{name\}\}/g, name);
+      await rateGate(botConfig); await humanDelay(botConfig);
+      try {
+        await sock.sendMessage(ev.id, { text: msg, mentions: [p] });
+        await logBot("welcome", { group_jid: ev.id, user_jid: p });
+      } catch (e) { console.error("welcome", e.message); }
+    }
+  });
+
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
     if (type !== "notify") return;
     for (const m of messages) {
@@ -104,19 +209,73 @@ async function startSock() {
         m.message.extendedTextMessage?.text ||
         m.message.imageMessage?.caption ||
         m.message.videoMessage?.caption || "";
-      // Commandes bot en groupe
-      if (isGroup && text.startsWith("!")) {
-        const cmd = text.trim().split(/\s+/)[0];
-        await handleGroupCommand(sock, from, m, cmd, text);
-        await report("group_command", { from, cmd, text, participant: m.key.participant });
-        continue;
+      const participant = m.key.participant || from;
+
+      if (isGroup) {
+        // Enregistre le groupe s'il n'est pas déjà connu
+        if (!botGroups.has(from)) {
+          try {
+            const meta = await sock.groupMetadata(from);
+            await bridge("/group", "POST", { group_jid: from, name: meta.subject, member_count: meta.participants.length });
+            botGroups.set(from, { group_jid: from, name: meta.subject, active: true });
+          } catch {}
+        }
+
+        // Commandes admin
+        if (text.startsWith("!")) {
+          const cmd = text.trim().split(/\s+/)[0];
+          await handleGroupCommand(sock, from, m, cmd, text);
+          await report("group_command", { from, cmd, text, participant });
+          continue;
+        }
+
+        // Détection de liens
+        const g = botGroups.get(from);
+        const linkOn = g?.link_removal_override ?? botConfig?.link_removal;
+        if (linkOn && containsLink(text, botConfig?.link_whitelist || [])) {
+          try { await sock.sendMessage(from, { delete: m.key }); }
+          catch (e) { console.error("delete link", e.message); }
+          await logBot("link_removed", { group_jid: from, user_jid: participant, payload: { snippet: text.slice(0, 120) } });
+
+          const warnOn = g?.warnings_enabled_override ?? botConfig?.warnings_enabled;
+          if (warnOn) {
+            try {
+              const w = await bridge("/warn", "POST", { group_jid: from, user_jid: participant, reason: "link" });
+              await rateGate(botConfig); await humanDelay(botConfig);
+              const name = participant.split("@")[0];
+              if (w.banned) {
+                await sock.sendMessage(from, { text: `⛔ @${name} banni après ${w.count} avertissements (liens interdits).`, mentions: [participant] });
+                try { await sock.groupParticipantsUpdate(from, [participant], "remove"); } catch (e) { console.error("kick", e.message); }
+              } else {
+                const variants = [
+                  `⚠️ @${name} liens interdits (${w.count}/${w.threshold}).`,
+                  `🚫 @${name} pas de liens ici — avertissement ${w.count}/${w.threshold}.`,
+                  `⚠️ Merci @${name} d'éviter les liens (${w.count}/${w.threshold}).`,
+                ];
+                await sock.sendMessage(from, { text: variants[Math.floor(Math.random() * variants.length)], mentions: [participant] });
+              }
+            } catch (e) { console.error("warn flow", e.message); }
+          }
+          continue;
+        }
+
+        await report("incoming_message", { from, isGroup: true, text, participant, push_name: m.pushName || null });
+      } else {
+        // ----- DM privé : IA -----
+        await report("incoming_message", { from, isGroup: false, text, push_name: m.pushName || null });
+        if (!botConfig?.ai_enabled || !botConfig?.ai_dm_only && false) continue;
+        if (!text) continue;
+        try {
+          try { await sock.sendPresenceUpdate("composing", from); } catch {}
+          await humanDelay(botConfig);
+          const r = await bridge("/ai_reply", "POST", { from_jid: from, from_name: m.pushName || null, text });
+          if (r?.reply) {
+            await rateGate(botConfig);
+            await sock.sendMessage(from, { text: r.reply });
+            await logBot("ai_reply", { user_jid: from, payload: { in: text.slice(0, 200), out: r.reply.slice(0, 200) } });
+          }
+        } catch (e) { console.error("ai reply", e.message); }
       }
-      await report("incoming_message", {
-        from, isGroup, text,
-        participant: m.key.participant || null,
-        push_name: m.pushName || null,
-        ts: m.messageTimestamp,
-      });
     }
   });
 
