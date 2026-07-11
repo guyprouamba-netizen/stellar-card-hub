@@ -12,6 +12,7 @@ import ProjectDetail from "@/pages/ProjectDetail";
 import Pay from "@/pages/Pay";
 import Shop from "@/pages/Shop";
 import OrderTracking from "@/pages/OrderTracking";
+import BotPanel from "@/pages/BotPanel";
 import NotFound from "@/pages/NotFound";
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
       <Route path="/wallet" element={<Wallet />} />
       <Route path="/business" element={<Business />} />
       <Route path="/business/:businessId/projects/:projectId" element={<ProjectDetail />} />
+      <Route path="/business/:businessId/bot" element={<BotPanel />} />
       <Route path="/pay/:slug" element={<Pay />} />
       <Route path="/shop/:slug" element={<Shop />} />
       <Route path="/order/:token" element={<OrderTracking />} />
