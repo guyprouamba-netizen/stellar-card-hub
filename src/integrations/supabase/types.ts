@@ -735,7 +735,7 @@ export type Database = {
           fee_amount: number
           id: string
           ip: unknown
-          link_id: string
+          link_id: string | null
           metadata: Json | null
           net_amount: number
           order_id: string | null
@@ -763,7 +763,7 @@ export type Database = {
           fee_amount?: number
           id?: string
           ip?: unknown
-          link_id: string
+          link_id?: string | null
           metadata?: Json | null
           net_amount?: number
           order_id?: string | null
@@ -791,7 +791,7 @@ export type Database = {
           fee_amount?: number
           id?: string
           ip?: unknown
-          link_id?: string
+          link_id?: string | null
           metadata?: Json | null
           net_amount?: number
           order_id?: string | null
