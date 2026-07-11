@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.business-coach]
 verify_jwt = false
+
+[functions.whatsapp-bridge]
+verify_jwt = false
