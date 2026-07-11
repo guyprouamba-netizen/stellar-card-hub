@@ -14,6 +14,138 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounting_categories: {
+        Row: {
+          business_id: string
+          color: string | null
+          created_at: string
+          id: string
+          kind: string
+          name: string
+        }
+        Insert: {
+          business_id: string
+          color?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          name: string
+        }
+        Update: {
+          business_id?: string
+          color?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_categories_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_categories_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_entries: {
+        Row: {
+          amount: number
+          attachment_url: string | null
+          auto_generated: boolean
+          business_id: string
+          category_id: string | null
+          created_at: string
+          currency: string
+          entry_date: string
+          id: string
+          kind: string
+          label: string
+          notes: string | null
+          related_invoice_id: string | null
+          related_order_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          attachment_url?: string | null
+          auto_generated?: boolean
+          business_id: string
+          category_id?: string | null
+          created_at?: string
+          currency?: string
+          entry_date?: string
+          id?: string
+          kind: string
+          label: string
+          notes?: string | null
+          related_invoice_id?: string | null
+          related_order_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          attachment_url?: string | null
+          auto_generated?: boolean
+          business_id?: string
+          category_id?: string | null
+          created_at?: string
+          currency?: string
+          entry_date?: string
+          id?: string
+          kind?: string
+          label?: string
+          notes?: string | null
+          related_invoice_id?: string | null
+          related_order_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_entries_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_entries_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_entries_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_entries_related_invoice_id_fkey"
+            columns: ["related_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_entries_related_order_id_fkey"
+            columns: ["related_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       action_plans: {
         Row: {
           ai_generated: boolean
@@ -923,6 +1055,266 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_templates: {
+        Row: {
+          business_id: string
+          content: string
+          created_at: string
+          id: string
+          kind: string
+          name: string
+          updated_at: string
+          variables: string[]
+        }
+        Insert: {
+          business_id: string
+          content: string
+          created_at?: string
+          id?: string
+          kind?: string
+          name: string
+          updated_at?: string
+          variables?: string[]
+        }
+        Update: {
+          business_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          name?: string
+          updated_at?: string
+          variables?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_templates_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_templates_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contracts: {
+        Row: {
+          amount: number | null
+          business_id: string
+          client_email: string | null
+          client_name: string | null
+          client_phone: string | null
+          content: string
+          created_at: string
+          currency: string | null
+          id: string
+          kind: string
+          number: string
+          sent_at: string | null
+          signed_at: string | null
+          status: string
+          template_id: string | null
+          title: string
+          updated_at: string
+          variables: Json
+        }
+        Insert: {
+          amount?: number | null
+          business_id: string
+          client_email?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          content: string
+          created_at?: string
+          currency?: string | null
+          id?: string
+          kind?: string
+          number: string
+          sent_at?: string | null
+          signed_at?: string | null
+          status?: string
+          template_id?: string | null
+          title: string
+          updated_at?: string
+          variables?: Json
+        }
+        Update: {
+          amount?: number | null
+          business_id?: string
+          client_email?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          content?: string
+          created_at?: string
+          currency?: string | null
+          id?: string
+          kind?: string
+          number?: string
+          sent_at?: string | null
+          signed_at?: string | null
+          status?: string
+          template_id?: string | null
+          title?: string
+          updated_at?: string
+          variables?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "contract_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      facebook_campaigns: {
+        Row: {
+          business_id: string
+          created_at: string
+          currency: string | null
+          daily_budget: number | null
+          id: string
+          insights: Json | null
+          integration_id: string | null
+          last_synced_at: string | null
+          meta_campaign_id: string | null
+          name: string
+          objective: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          currency?: string | null
+          daily_budget?: number | null
+          id?: string
+          insights?: Json | null
+          integration_id?: string | null
+          last_synced_at?: string | null
+          meta_campaign_id?: string | null
+          name: string
+          objective?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          currency?: string | null
+          daily_budget?: number | null
+          id?: string
+          insights?: Json | null
+          integration_id?: string | null
+          last_synced_at?: string | null
+          meta_campaign_id?: string | null
+          name?: string
+          objective?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facebook_campaigns_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facebook_campaigns_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facebook_campaigns_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "facebook_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      facebook_integrations: {
+        Row: {
+          access_token: string
+          ad_account_id: string | null
+          business_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          meta_user_id: string | null
+          page_id: string | null
+          page_name: string | null
+          scopes: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token: string
+          ad_account_id?: string | null
+          business_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          meta_user_id?: string | null
+          page_id?: string | null
+          page_name?: string | null
+          scopes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          ad_account_id?: string | null
+          business_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          meta_user_id?: string | null
+          page_id?: string | null
+          page_name?: string | null
+          scopes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facebook_integrations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facebook_integrations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "public_business_view"
             referencedColumns: ["id"]
           },
         ]
@@ -2068,6 +2460,7 @@ export type Database = {
       }
     }
     Functions: {
+      generate_contract_number: { Args: never; Returns: string }
       generate_order_number: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       has_role: {
