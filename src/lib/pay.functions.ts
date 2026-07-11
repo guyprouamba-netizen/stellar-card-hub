@@ -19,3 +19,15 @@ export const initCheckout = (data: {
   slug: string; amount?: number; customer_name?: string; customer_phone?: string; customer_email?: string; returnUrl?: string;
 }) => call("initCheckout", data);
 export const verifyPayment = (reference: string) => call("verifyPayment", { reference });
+
+// --- Shop (vitrine publique) ---
+export const getShop = (slug: string) => call("getShop", { slug });
+export const initShopCheckout = (data: {
+  business_slug: string;
+  items: Array<{ product_id: string; quantity: number }>;
+  customer_email: string;
+  customer_name?: string; customer_phone?: string;
+  shipping_address?: string; customer_note?: string;
+  returnUrl?: string;
+}) => call("initShopCheckout", data);
+export const getOrder = (token: string) => call("getOrder", { token });
