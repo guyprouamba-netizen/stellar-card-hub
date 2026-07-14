@@ -87,6 +87,8 @@ function Dashboard() {
     enabled: !!session?.user?.id && !!session?.access_token,
     refetchInterval: 15_000,
     refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
   });
 
   // Vérification automatique du retour passerelle de paiement (?recharge=REF)
