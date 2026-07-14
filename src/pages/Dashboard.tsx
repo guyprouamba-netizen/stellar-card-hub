@@ -29,31 +29,62 @@ function Dashboard() {
   const location = useLocation();
   const initialUserId = (location.state as { userId?: string } | null)?.userId;
   const [tab, setTab] = useState<Tab>("home");
-  const [session, setSession] = useState<any>(initialUserId ? { user: { id: initialUserId } } : null);
-  const [checkingAuth, setCheckingAuth] = useState(!initialUserId);
+  // On n'affiche le dashboard qu'après que Supabase ait confirmé une session côté client
+  // (sinon les requêtes RLS partent sans JWT et renvoient des tableaux vides —
+  // ce qui obligeait l'utilisateur à rafraîchir après inscription/connexion).
+  const [session, setSession] = useState<any>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      if (!data.session) navigate("/auth", { replace: true });
-      else setSession(data.session);
-      setCheckingAuth(false);
-    });
+    // 1) Listener d'abord : on capte SIGNED_IN / TOKEN_REFRESHED sans race
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       if (!active) return;
-      if (!s) navigate("/auth", { replace: true });
-      else setSession(s);
+      if (!s) {
+        setSession(null);
+        navigate("/auth", { replace: true });
+      } else {
+        setSession(s);
+      }
       setCheckingAuth(false);
     });
+    // 2) Puis récupération initiale
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+      if (data.session) {
+        setSession(data.session);
+        setCheckingAuth(false);
+      } else if (initialUserId) {
+        // Fallback court : session pas encore hydratée mais on vient d'un login → on attend le listener
+        setTimeout(() => {
+          if (!active) return;
+          setCheckingAuth((prev) => {
+            if (prev) {
+              // toujours pas de session après 1.2s → on renvoie vers /auth
+              supabase.auth.getSession().then(({ data: d2 }) => {
+                if (!active) return;
+                if (d2.session) { setSession(d2.session); setCheckingAuth(false); }
+                else navigate("/auth", { replace: true });
+              });
+            }
+            return prev;
+          });
+        }, 1200);
+      } else {
+        navigate("/auth", { replace: true });
+        setCheckingAuth(false);
+      }
+    });
     return () => { active = false; sub.subscription.unsubscribe(); };
-  }, [navigate]);
+  }, [navigate, initialUserId]);
 
   const fetchDash = useServerFn(getDashboardData);
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["dashboard", session?.user?.id],
     queryFn: () => fetchDash({ userId: session?.user?.id }),
-    enabled: !!session?.user?.id,
+    // On n'active la query qu'une fois la session Supabase réellement présente
+    // (access_token attaché au client) — sinon RLS renvoie vide et l'écran paraît "en attente d'actualisation".
+    enabled: !!session?.user?.id && !!session?.access_token,
     refetchInterval: 15_000,
     refetchIntervalInBackground: true,
   });
