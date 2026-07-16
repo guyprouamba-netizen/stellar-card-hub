@@ -796,6 +796,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       status: "pending",
     }).select("id").single();
     if (error) throw new Error(error.message);
+    // Notif SMS demande de retrait (non bloquant)
+    notifySms(admin, "withdrawal_request", {
+      userId, amount, currency: "XOF",
+    }).catch(() => {});
 
     // Auto-payout via YengaPay cash-out pour Mobile Money
     if (data.method === "mobile_money") {
