@@ -109,6 +109,38 @@ Deno.serve(async (req) => {
         const { data: logs } = await admin.from("sms_logs").select("*").order("created_at", { ascending: false }).limit(limit);
         return json({ logs });
       }
+      case "getBalance": {
+        // BBG SMS: pas d'endpoint officiel de solde documenté publiquement.
+        // On tente plusieurs URLs candidates et on renvoie la 1re qui répond en 2xx.
+        const token = Deno.env.get("BBG_SMS_API_TOKEN");
+        if (!token) return json({ error: "BBG_SMS_API_TOKEN manquant" }, 500);
+        const candidates = [
+          "https://bbgsmsapp.betterbegoing.com/api/v3/wallet/balance",
+          "https://bbgsmsapp.betterbegoing.com/api/v3/balance",
+          "https://bbgsmsapp.betterbegoing.com/api/v3/user",
+          "https://bbgsmsapp.betterbegoing.com/api/http/balance",
+          "https://bbgsmsapp.betterbegoing.com/api/http/user",
+        ];
+        for (const url of candidates) {
+          try {
+            const r = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Accept": "application/json" },
+              body: JSON.stringify({ api_token: token }),
+            });
+            const txt = await r.text();
+            let bodyJ: any = txt; try { bodyJ = JSON.parse(txt); } catch { /* */ }
+            if (r.ok) return json({ ok: true, endpoint: url, response: bodyJ });
+          } catch { /* try next */ }
+        }
+        return json({ ok: false, error: "Aucun endpoint solde BBG accessible — vérifiez auprès de BBG le point de terminaison exact." }, 200);
+      }
+      case "sendersList": {
+        // Utilisé côté front pour lister les sender_id disponibles.
+        // BBG ne documente pas d'endpoint public; on renvoie celui configuré + suggestions.
+        const { data: cfg } = await admin.from("sms_config").select("sender_id").limit(1).maybeSingle();
+        return json({ current: cfg?.sender_id, suggestions: [cfg?.sender_id, "FASOINVEST", "BBG"].filter(Boolean) });
+      }
       default:
         return json({ error: `Unknown fn: ${fn}` }, 400);
     }

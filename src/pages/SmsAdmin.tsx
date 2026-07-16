@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Save, Send, Trash2, Plus, MessageSquare, ShieldAlert, Users, ScrollText } from "lucide-react";
+import { Loader2, Save, Send, Trash2, Plus, MessageSquare, ShieldAlert, Users, ScrollText, Wallet, RefreshCw } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
 import { BackButton } from "@/components/back-button";
 import {
   smsGetConfig, smsUpdateConfig, smsUpdateTemplate,
   smsListContacts, smsAddContact, smsDeleteContact,
-  smsSendCustom, smsSendTest, smsListLogs,
+  smsSendCustom, smsSendTest, smsListLogs, smsGetBalance,
 } from "@/lib/sms.functions";
 
 export default function SmsAdmin() {
@@ -15,6 +15,7 @@ export default function SmsAdmin() {
   const cfgQ = useQuery({ queryKey: ["sms-config"], queryFn: smsGetConfig });
   const contactsQ = useQuery({ queryKey: ["sms-contacts"], queryFn: smsListContacts });
   const logsQ = useQuery({ queryKey: ["sms-logs"], queryFn: () => smsListLogs(50), refetchInterval: 15000 });
+  const balanceQ = useQuery({ queryKey: ["sms-balance"], queryFn: smsGetBalance, refetchOnWindowFocus: false });
 
   const [cfg, setCfg] = useState<any>(null);
   const [adminPhonesText, setAdminPhonesText] = useState("");
@@ -68,24 +69,27 @@ export default function SmsAdmin() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sms-contacts"] }),
   });
 
-  if (cfgQ.isLoading || !cfg) {
-    return (
-      <div className="min-h-screen bg-background text-foreground">
-        <SiteNav />
-        <div className="container mx-auto grid min-h-[60vh] place-items-center px-4"><Loader2 className="h-6 w-6 animate-spin" /></div>
-      </div>
-    );
-  }
-
   if (cfgQ.error) {
     return (
       <div className="min-h-screen bg-background text-foreground">
         <SiteNav />
         <div className="container mx-auto max-w-2xl px-4 py-16">
+          <BackButton to="/admin" className="mb-4" />
           <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-6 text-sm text-destructive">
-            <ShieldAlert className="mb-2 h-5 w-5" /> Accès réservé aux administrateurs.
+            <ShieldAlert className="mb-2 h-5 w-5" />
+            <p className="font-semibold">Impossible de charger la configuration SMS</p>
+            <p className="mt-1 text-xs opacity-80">{(cfgQ.error as Error).message}</p>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (cfgQ.isLoading || !cfg) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <SiteNav />
+        <div className="container mx-auto grid min-h-[60vh] place-items-center px-4"><Loader2 className="h-6 w-6 animate-spin" /></div>
       </div>
     );
   }
@@ -102,6 +106,38 @@ export default function SmsAdmin() {
             <p className="text-sm text-muted-foreground">BBG SMS — modèles, admins, envois manuels et historique</p>
           </div>
         </div>
+
+        {/* SOLDE SMS */}
+        <section className="mb-6 rounded-3xl border border-border bg-gradient-card p-5 text-white shadow-card-premium">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/15"><Wallet className="h-4 w-4" /></span>
+              <div>
+                <p className="text-xs uppercase tracking-widest opacity-70">Solde BBG SMS</p>
+                {balanceQ.isLoading ? (
+                  <p className="mt-1 text-sm opacity-70">Interrogation…</p>
+                ) : balanceQ.data?.ok ? (
+                  <p className="mt-0.5 font-[Space_Grotesk] text-2xl font-bold tabular-nums">
+                    {formatBalance(balanceQ.data.response)}
+                  </p>
+                ) : (
+                  <p className="mt-1 max-w-md text-xs opacity-80">
+                    Endpoint solde non exposé publiquement par BBG. Consultez votre tableau de bord BBG SMS pour le solde exact.
+                  </p>
+                )}
+              </div>
+            </div>
+            <button onClick={() => balanceQ.refetch()} className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/25">
+              <RefreshCw className={`h-3 w-3 ${balanceQ.isFetching ? "animate-spin" : ""}`} /> Rafraîchir
+            </button>
+          </div>
+          {balanceQ.data?.ok && balanceQ.data.response && (
+            <details className="mt-3 text-xs opacity-80">
+              <summary className="cursor-pointer">Détails bruts</summary>
+              <pre className="mt-2 max-h-40 overflow-auto rounded bg-black/30 p-2 text-[10px]">{JSON.stringify(balanceQ.data.response, null, 2)}</pre>
+            </details>
+          )}
+        </section>
 
         {/* CONFIG GLOBALE */}
         <section className="rounded-3xl border border-border bg-card p-6 shadow-soft">
@@ -238,6 +274,14 @@ export default function SmsAdmin() {
       </div>
     </div>
   );
+}
+
+function formatBalance(resp: any): string {
+  if (!resp || typeof resp !== "object") return String(resp ?? "—");
+  // Essaie plusieurs champs courants
+  const cand = resp.balance ?? resp.credit ?? resp.credits ?? resp.data?.balance ?? resp.data?.credit ?? resp.wallet?.balance;
+  if (cand !== undefined && cand !== null) return `${Number(cand).toLocaleString("fr-FR")} SMS`;
+  return "—";
 }
 
 function TemplateRow({ tpl, onSave, saving }: { tpl: any; onSave: (patch: any) => void; saving: boolean }) {
