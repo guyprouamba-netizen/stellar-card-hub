@@ -68,24 +68,27 @@ export default function SmsAdmin() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sms-contacts"] }),
   });
 
-  if (cfgQ.isLoading || !cfg) {
-    return (
-      <div className="min-h-screen bg-background text-foreground">
-        <SiteNav />
-        <div className="container mx-auto grid min-h-[60vh] place-items-center px-4"><Loader2 className="h-6 w-6 animate-spin" /></div>
-      </div>
-    );
-  }
-
   if (cfgQ.error) {
     return (
       <div className="min-h-screen bg-background text-foreground">
         <SiteNav />
         <div className="container mx-auto max-w-2xl px-4 py-16">
+          <BackButton to="/admin" className="mb-4" />
           <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-6 text-sm text-destructive">
-            <ShieldAlert className="mb-2 h-5 w-5" /> Accès réservé aux administrateurs.
+            <ShieldAlert className="mb-2 h-5 w-5" />
+            <p className="font-semibold">Impossible de charger la configuration SMS</p>
+            <p className="mt-1 text-xs opacity-80">{(cfgQ.error as Error).message}</p>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (cfgQ.isLoading || !cfg) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <SiteNav />
+        <div className="container mx-auto grid min-h-[60vh] place-items-center px-4"><Loader2 className="h-6 w-6 animate-spin" /></div>
       </div>
     );
   }
