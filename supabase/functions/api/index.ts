@@ -6,6 +6,7 @@ import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import * as SW from "../_shared/strowallet.ts";
 import { computeCardCost, computeFundCost, loadPricingConfig } from "../_shared/pricing.ts";
 import { sendEmail } from "../_shared/email.ts";
+import { notifyEvent as notifySms } from "../_shared/sms.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -709,6 +710,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         description: `Recharge carte ${data.amountUsd} USD (≈ ${requiredXof} XOF)`,
         metadata: { pricing: cost, response: res },
       });
+      notifySms(admin, "card_recharge", {
+        userId, amount: Number(data.amountUsd), currency: "USD",
+      }).catch(() => {});
       return { ok: true, data: res };
     } catch (e) {
       await admin.from("wallets").update({ balance: Number(wallet.balance) }).eq("id", wallet.id);
@@ -792,6 +796,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       status: "pending",
     }).select("id").single();
     if (error) throw new Error(error.message);
+    // Notif SMS demande de retrait (non bloquant)
+    notifySms(admin, "withdrawal_request", {
+      userId, amount, currency: "XOF",
+    }).catch(() => {});
 
     // Auto-payout via YengaPay cash-out pour Mobile Money
     if (data.method === "mobile_money") {

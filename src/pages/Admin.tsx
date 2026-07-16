@@ -122,6 +122,9 @@ function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
             <it.Icon className="h-4 w-4" /> {it.label}
           </button>
         ))}
+        <Link to="/admin/sms" className="mt-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+          <SlidersHorizontal className="h-4 w-4" /> Notifications SMS
+        </Link>
       </nav>
       <button onClick={logout} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
         <LogOut className="h-4 w-4" /> Déconnexion
