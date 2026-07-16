@@ -710,6 +710,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         description: `Recharge carte ${data.amountUsd} USD (≈ ${requiredXof} XOF)`,
         metadata: { pricing: cost, response: res },
       });
+      notifySms(admin, "card_recharge", {
+        userId, amount: Number(data.amountUsd), currency: "USD",
+      }).catch(() => {});
       return { ok: true, data: res };
     } catch (e) {
       await admin.from("wallets").update({ balance: Number(wallet.balance) }).eq("id", wallet.id);
