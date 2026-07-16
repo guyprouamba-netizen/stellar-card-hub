@@ -2155,6 +2155,147 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_config: {
+        Row: {
+          admin_phones: string[]
+          created_at: string
+          daily_limit: number
+          enabled: boolean
+          event_card_recharge: boolean
+          event_wallet_recharge: boolean
+          event_withdrawal: boolean
+          event_withdrawal_paid: boolean
+          id: string
+          notify_admin: boolean
+          sender_id: string
+          updated_at: string
+        }
+        Insert: {
+          admin_phones?: string[]
+          created_at?: string
+          daily_limit?: number
+          enabled?: boolean
+          event_card_recharge?: boolean
+          event_wallet_recharge?: boolean
+          event_withdrawal?: boolean
+          event_withdrawal_paid?: boolean
+          id?: string
+          notify_admin?: boolean
+          sender_id?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_phones?: string[]
+          created_at?: string
+          daily_limit?: number
+          enabled?: boolean
+          event_card_recharge?: boolean
+          event_wallet_recharge?: boolean
+          event_withdrawal?: boolean
+          event_withdrawal_paid?: boolean
+          id?: string
+          notify_admin?: boolean
+          sender_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sms_contacts: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          notes: string | null
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          notes?: string | null
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          notes?: string | null
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sms_logs: {
+        Row: {
+          created_at: string
+          error: string | null
+          event_key: string | null
+          id: string
+          message: string
+          provider_response: Json | null
+          provider_uid: string | null
+          recipient: string
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          event_key?: string | null
+          id?: string
+          message: string
+          provider_response?: Json | null
+          provider_uid?: string | null
+          recipient: string
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          event_key?: string | null
+          id?: string
+          message?: string
+          provider_response?: Json | null
+          provider_uid?: string | null
+          recipient?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      sms_templates: {
+        Row: {
+          body: string
+          created_at: string
+          enabled: boolean
+          event_key: string
+          id: string
+          label: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          enabled?: boolean
+          event_key: string
+          id?: string
+          label: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          enabled?: boolean
+          event_key?: string
+          id?: string
+          label?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount: number
