@@ -23,3 +23,4 @@ export const smsDeleteContact = (id: string) => callSms("deleteContact", { id })
 export const smsSendCustom = (data: { recipients: string[] | string; message: string; sender_id?: string }) => callSms("sendCustom", data);
 export const smsSendTest = (data: { phone: string; message?: string }) => callSms("sendTest", data);
 export const smsListLogs = (limit = 100) => callSms<{ logs: any[] }>("listLogs", { limit });
+export const smsGetBalance = () => callSms<{ ok: boolean; endpoint?: string; response?: any; error?: string }>("getBalance");
