@@ -311,20 +311,10 @@ function computeMomoTransferFees(amount: number, cfg: { fee_bps: number; fee_fla
   const pct = Math.ceil((amount * cfg.fee_bps) / 10000);
   return Math.max(0, pct + Math.max(0, Math.floor(cfg.fee_flat_xof)));
 }
-// Transferts inter-réseaux → projet YengaPay dédié (séparé du projet recharges/retraits).
-// Fallback vers le projet principal si les variables dédiées ne sont pas configurées.
-function getTransferYengapayEnv() {
-  const groupId = Deno.env.get("YENGAPAY_TRANSFER_GROUP_ID") || Deno.env.get("YENGAPAY_GROUP_ID");
-  const projectId = Deno.env.get("YENGAPAY_TRANSFER_PROJECT_ID") || Deno.env.get("YENGAPAY_PROJECT_ID");
-  const payinKey = Deno.env.get("YENGAPAY_TRANSFER_API_KEY") || Deno.env.get("YENGAPAY_API_KEY");
-  const payoutKey = Deno.env.get("YENGAPAY_TRANSFER_CASHOUT_API_KEY")
-    || Deno.env.get("YENGAPAY_TRANSFER_API_KEY")
-    || Deno.env.get("YENGAPAY_CASHOUT_API_KEY")
-    || Deno.env.get("YENGAPAY_API_KEY");
-  return { groupId, projectId, payinKey, payoutKey };
-}
 async function triggerMomoTransferCashout(admin: any, t: any) {
-  const { groupId, projectId, payoutKey: apiKey } = getTransferYengapayEnv();
+  const apiKey = Deno.env.get("YENGAPAY_CASHOUT_API_KEY") || Deno.env.get("YENGAPAY_API_KEY");
+  const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
+  const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
   if (!apiKey || !groupId || !projectId) {
     await admin.from("momo_transfers").update({ status: "paid", admin_note: "YengaPay non configuré — payout manuel requis" }).eq("id", t.id);
     return;
@@ -420,7 +410,9 @@ async function refundMomoTransferToWallet(admin: any, t: any, reason: string) {
 async function pollAndProcessMomoTransfer(admin: any, t: any, opts: { forceDisburse?: boolean } = {}) {
   if (["delivered", "refunded"].includes(t.status)) return t;
   const piid = t.payment_intent_id;
-  const { groupId, projectId, payinKey: apiKey } = getTransferYengapayEnv();
+  const apiKey = Deno.env.get("YENGAPAY_API_KEY");
+  const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
+  const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
   let paid = ["paid", "disbursing"].includes(t.status) || !!t.paid_at;
   if (!paid && piid && apiKey && groupId && projectId) {
     try {
@@ -2689,9 +2681,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const fees = computeMomoTransferFees(amount, cfg);
     const total = amount + fees;
 
-    // Utilise le projet YengaPay dédié aux transferts (séparé des recharges/retraits de cartes)
-    const { groupId, projectId, payinKey: apiKey } = getTransferYengapayEnv();
-    if (!apiKey || !groupId || !projectId) throw new Error("YengaPay Transfer env missing");
+    const apiKey = Deno.env.get("YENGAPAY_API_KEY");
+    const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
+    const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
+    if (!apiKey || !groupId || !projectId) throw new Error("YengaPay env missing");
     const reference = `MTR-${Date.now()}-${userId.slice(0, 8)}`;
     const baseReturn = String(data?.returnUrl || "");
     const returnUrl = baseReturn
