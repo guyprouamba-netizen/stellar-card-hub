@@ -2689,10 +2689,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const fees = computeMomoTransferFees(amount, cfg);
     const total = amount + fees;
 
-    const apiKey = Deno.env.get("YENGAPAY_API_KEY");
-    const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
-    const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
-    if (!apiKey || !groupId || !projectId) throw new Error("YengaPay env missing");
+    // Utilise le projet YengaPay dédié aux transferts (séparé des recharges/retraits de cartes)
+    const { groupId, projectId, payinKey: apiKey } = getTransferYengapayEnv();
+    if (!apiKey || !groupId || !projectId) throw new Error("YengaPay Transfer env missing");
     const reference = `MTR-${Date.now()}-${userId.slice(0, 8)}`;
     const baseReturn = String(data?.returnUrl || "");
     const returnUrl = baseReturn
