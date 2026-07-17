@@ -395,10 +395,10 @@ async function refundMomoTransferToWallet(admin: any, t: any, reason: string) {
       description: `Remboursement transfert ${t.source_operator}→${t.dest_operator} (${reason})`,
     });
     await admin.from("momo_transfers").update({
-      status: "refunded", refunded_at: new Date().toISOString(),
+      status: "refunded",
       admin_note: `${reason} — ${refundAmount} XOF recrédité au portefeuille`,
     }).eq("id", t.id);
-    notifyEvent(admin, "wallet_recharge", {
+    notifySms(admin, "wallet_recharge", {
       userId: t.user_id, amount: refundAmount, currency: "XOF", balance: newBalance,
     }).catch(() => {});
   } catch (e) {
