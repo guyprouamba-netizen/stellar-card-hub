@@ -8,6 +8,7 @@ import logo from "@/assets/logo.png";
 const publicLinks = [
   { to: "/", label: "Accueil" },
   { to: "/dashboard", label: "Tableau de bord" },
+  { to: "/download", label: "Télécharger" },
 ];
 
 export function SiteNav() {
