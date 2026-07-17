@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Download as DownloadIcon, CheckCircle2, Loader2 } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
 import logo from "@/assets/logo.png";
-import { toast } from "sonner";
 
 function isIOS() {
   if (typeof navigator === "undefined") return false;
@@ -11,11 +10,32 @@ function isIOS() {
     (navigator.platform === "MacIntel" && (navigator as any).maxTouchPoints > 1);
 }
 
+function isAndroid() {
+  return typeof navigator !== "undefined" && /android/i.test(navigator.userAgent || "");
+}
+
+function isInIframe() {
+  try { return window.self !== window.top; } catch { return true; }
+}
+
+function isPreviewHost() {
+  const h = typeof window !== "undefined" ? window.location.hostname : "";
+  return (
+    h.startsWith("id-preview--") ||
+    h.startsWith("preview--") ||
+    h.endsWith(".lovableproject.com") ||
+    h.endsWith(".lovableproject-dev.com") ||
+    h.endsWith(".beta.lovable.dev") ||
+    h === "localhost" ||
+    h === "127.0.0.1"
+  );
+}
+
 export default function DownloadPage() {
   const [installEvt, setInstallEvt] = useState<any>(null);
   const [installed, setInstalled] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [showIosHint, setShowIosHint] = useState(false);
+  const [hint, setHint] = useState<null | "ios" | "iframe" | "desktop-manual">(null);
 
   useEffect(() => {
     const standalone =
@@ -24,9 +44,21 @@ export default function DownloadPage() {
     setInstalled(!!standalone);
 
     const onPrompt = (e: Event) => { e.preventDefault(); setInstallEvt(e); };
-    const onInstalled = () => { setInstalled(true); setBusy(false); toast.success("Application installée sur votre écran d'accueil"); };
+    const onInstalled = () => { setInstalled(true); setBusy(false); setHint(null); };
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onInstalled);
+
+    // Register a minimal SW in production only — required by Chrome desktop
+    // to expose the install prompt. Never in Lovable preview or iframes.
+    if (
+      "serviceWorker" in navigator &&
+      !isPreviewHost() &&
+      !isInIframe() &&
+      window.location.protocol === "https:"
+    ) {
+      navigator.serviceWorker.register("/sw.js").catch(() => { /* ignore */ });
+    }
+
     return () => {
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
@@ -36,17 +68,26 @@ export default function DownloadPage() {
   const install = async () => {
     if (installed) return;
     // iOS Safari does not expose a programmatic install API.
-    if (isIOS()) { setShowIosHint(true); return; }
+    if (isIOS()) { setHint("ios"); return; }
 
     if (!installEvt) {
-      // Try to open in Chrome on Android (works when opened from another browser/webview).
-      if (/android/i.test(navigator.userAgent)) {
+      // Lovable preview / any iframe never fires beforeinstallprompt — open
+      // the app in a real top-level window so the browser can install it.
+      if (isInIframe()) {
+        const url = window.location.href;
+        try { window.top!.location.href = url; } catch { window.open(url, "_blank"); }
+        setHint("iframe");
+        return;
+      }
+      // On Android outside Chrome, jump into Chrome where the prompt works.
+      if (isAndroid()) {
         const host = window.location.host;
         const path = window.location.pathname + window.location.search;
         window.location.href = `intent://${host}${path}#Intent;scheme=https;package=com.android.chrome;end`;
         return;
       }
-      toast.error("Ouvrez cette page dans Chrome, Edge ou Samsung Internet pour installer l'application.");
+      // Desktop without prompt yet — show the browser-address-bar hint.
+      setHint("desktop-manual");
       return;
     }
 
@@ -84,10 +125,28 @@ export default function DownloadPage() {
           </button>
         )}
 
-        {showIosHint && (
+        {hint === "ios" && (
           <div className="mt-6 w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 p-4 text-left text-sm">
             <p className="font-semibold text-sky-500">Sur iPhone, l'installation directe n'est pas autorisée par Apple.</p>
             <p className="mt-2 text-muted-foreground">Appuyez sur l'icône <b>Partager</b> ⬆︎ en bas de Safari, puis <b>« Sur l'écran d'accueil »</b>.</p>
+          </div>
+        )}
+
+        {hint === "iframe" && (
+          <div className="mt-6 w-full rounded-2xl border border-primary/40 bg-primary/10 p-4 text-left text-sm">
+            <p className="font-semibold text-primary">Ouverture de l'application…</p>
+            <p className="mt-2 text-muted-foreground">
+              L'installation ne fonctionne pas dans un aperçu intégré. Nous ouvrons l'app dans un nouvel onglet — cliquez de nouveau sur <b>Télécharger</b>.
+            </p>
+          </div>
+        )}
+
+        {hint === "desktop-manual" && (
+          <div className="mt-6 w-full rounded-2xl border border-border bg-card p-4 text-left text-sm">
+            <p className="font-semibold">Installation manuelle</p>
+            <p className="mt-2 text-muted-foreground">
+              Dans la barre d'adresse de votre navigateur, cliquez sur l'icône <b>⊕ Installer</b> (à droite de l'URL), ou ouvrez le menu <b>⋮</b> → <b>« Installer FASO-INVEST PAY »</b>.
+            </p>
           </div>
         )}
       </main>
