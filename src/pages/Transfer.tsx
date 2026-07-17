@@ -125,7 +125,6 @@ export default function TransferPage() {
 
   const cfg = cfgQ.data;
 
-  return (
   // KPI aggregates
   const list = listQ.data ?? [];
   const kpis = useMemo(() => {
