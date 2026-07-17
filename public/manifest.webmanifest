@@ -1,0 +1,17 @@
+{
+  "name": "FASO-INVEST PAY",
+  "short_name": "FasoPay",
+  "description": "Cartes virtuelles, transfert inter-réseaux Mobile Money et paiements mondiaux.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#0d7a5f",
+  "lang": "fr",
+  "categories": ["finance", "business"],
+  "icons": [
+    { "src": "./logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

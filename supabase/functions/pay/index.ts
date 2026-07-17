@@ -197,7 +197,9 @@ async function getPublicLink(slug: string) {
   const { data: biz } = await db.from("businesses")
     .select("id,name,slug,logo_url,status")
     .eq("id", link.business_id).maybeSingle();
-  if (!biz || biz.status !== "active") return null;
+  if (!biz) return null;
+  // On accepte tout business existant (les status "pending"/"review" doivent pouvoir encaisser).
+  if (biz.status === "suspended" || biz.status === "terminated" || biz.status === "banned") return null;
   return { link, business: { id: biz.id, name: biz.name, slug: biz.slug, logo_url: biz.logo_url } };
 }
 

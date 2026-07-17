@@ -19,12 +19,15 @@ import Marketing from "@/pages/Marketing";
 import SmsAdmin from "@/pages/SmsAdmin";
 import Transfer from "@/pages/Transfer";
 import AdminTransfers from "@/pages/AdminTransfers";
+import Download from "@/pages/Download";
 import NotFound from "@/pages/NotFound";
 
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Index />} />
+      <Route path="/download" element={<Download />} />
+      <Route path="/telecharger" element={<Download />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
