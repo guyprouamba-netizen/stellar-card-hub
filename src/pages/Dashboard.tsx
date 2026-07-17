@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard, ArrowDownLeft, ArrowUpRight, CreditCard, History,
   UserCircle, LogOut, Plus, Snowflake, Loader2,
-  AlertTriangle, Wallet, Building2, Users, Share2, MessageCircle, Copy, Check,
+  AlertTriangle, Wallet, Building2, Users, Share2, MessageCircle, Copy, Check, Repeat,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
