@@ -17,6 +17,7 @@ import Accounting from "@/pages/Accounting";
 import Contracts from "@/pages/Contracts";
 import Marketing from "@/pages/Marketing";
 import SmsAdmin from "@/pages/SmsAdmin";
+import Transfer from "@/pages/Transfer";
 import NotFound from "@/pages/NotFound";
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/admin" element={<Admin />} />
       <Route path="/admin/sms" element={<SmsAdmin />} />
+      <Route path="/transfer" element={<Transfer />} />
       <Route path="/cards" element={<Cards />} />
       <Route path="/wallet" element={<Wallet />} />
       <Route path="/business" element={<Business />} />
