@@ -271,7 +271,7 @@ function OperatorSelect({ label, value, onChange, exclude }: { label: string; va
   );
 }
 
-function Field({ label, value, onChange, placeholder, type = "text" }: any) {
+function Field({ label, value, onChange, placeholder, type = "text" }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
   return (
     <div>
       <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{label}</label>
