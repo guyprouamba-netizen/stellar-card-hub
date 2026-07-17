@@ -1474,6 +1474,84 @@ export type Database = {
         }
         Relationships: []
       }
+      momo_transfers: {
+        Row: {
+          admin_note: string | null
+          amount_send: number
+          cashout_ref: string | null
+          cashout_response: Json | null
+          checkout_url: string | null
+          created_at: string
+          currency: string
+          delivered_at: string | null
+          dest_holder: string | null
+          dest_operator: string
+          dest_phone: string
+          fees_xof: number
+          id: string
+          metadata: Json
+          paid_at: string | null
+          payment_intent_id: string | null
+          payment_reference: string | null
+          source_operator: string
+          source_phone: string
+          status: string
+          total_charged_xof: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount_send: number
+          cashout_ref?: string | null
+          cashout_response?: Json | null
+          checkout_url?: string | null
+          created_at?: string
+          currency?: string
+          delivered_at?: string | null
+          dest_holder?: string | null
+          dest_operator: string
+          dest_phone: string
+          fees_xof?: number
+          id?: string
+          metadata?: Json
+          paid_at?: string | null
+          payment_intent_id?: string | null
+          payment_reference?: string | null
+          source_operator: string
+          source_phone: string
+          status?: string
+          total_charged_xof: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount_send?: number
+          cashout_ref?: string | null
+          cashout_response?: Json | null
+          checkout_url?: string | null
+          created_at?: string
+          currency?: string
+          delivered_at?: string | null
+          dest_holder?: string | null
+          dest_operator?: string
+          dest_phone?: string
+          fees_xof?: number
+          id?: string
+          metadata?: Json
+          paid_at?: string | null
+          payment_intent_id?: string | null
+          payment_reference?: string | null
+          source_operator?: string
+          source_phone?: string
+          status?: string
+          total_charged_xof?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string

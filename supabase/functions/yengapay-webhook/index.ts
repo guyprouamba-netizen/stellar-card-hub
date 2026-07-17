@@ -100,6 +100,72 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // ============ 2bis) MoMo inter-network transfer (payment_reference MTR-xxx) ============
+  const { data: mtr } = await admin.from("momo_transfers").select("*").eq("payment_reference", reference).maybeSingle();
+  if (mtr) {
+    if (status === "success" && mtr.status === "awaiting_payment") {
+      await admin.from("momo_transfers").update({
+        status: "paid", paid_at: new Date().toISOString(),
+        metadata: { ...(mtr.metadata || {}), webhook: payload },
+      }).eq("id", mtr.id).eq("status", "awaiting_payment");
+      // Trigger cashout (fire-and-forget via inline call to api endpoint would be complex; do it inline)
+      try {
+        const apiUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/api`;
+        // Direct disburse using admin: reuse module code via HTTP not possible; import helper isn't
+        // available here — call cash-out API directly.
+        const apiKey = Deno.env.get("YENGAPAY_CASHOUT_API_KEY") || Deno.env.get("YENGAPAY_API_KEY");
+        const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
+        const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
+        const mapOp = (op: string) => {
+          const o = String(op || "").toLowerCase();
+          if (o.includes("orange")) return "ORANGE_MONEY";
+          if (o.includes("moov")) return "MOOV_MONEY";
+          if (o.includes("telecel")) return "TELECEL_MONEY";
+          if (o.includes("sank")) return "SANK_MONEY";
+          if (o.includes("wave")) return "WAVE_MONEY";
+          return "ORANGE_MONEY";
+        };
+        if (apiKey && groupId && projectId) {
+          await admin.from("momo_transfers").update({ status: "disbursing" }).eq("id", mtr.id);
+          const cashoutMethod = mapOp(mtr.dest_operator);
+          const r = await fetch(`https://api.yengapay.com/api/v1/groups/${groupId}/cash-out`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+            body: JSON.stringify({
+              cashoutMethod,
+              description: `Transfert vers ${mtr.dest_holder || "Bénéficiaire"}`,
+              amount: Number(mtr.amount_send),
+              destNumber: mtr.dest_phone,
+              groupId, projectId,
+            }),
+          });
+          const txt = await r.text(); let body: any = txt; try { body = JSON.parse(txt); } catch { /**/ }
+          if (r.ok) {
+            const prov = String(body?.status || "PENDING").toUpperCase();
+            const delivered = ["SUCCESS", "COMPLETED", "PAID", "SUCCESSFUL", "DONE"].includes(prov);
+            await admin.from("momo_transfers").update({
+              status: delivered ? "delivered" : "disbursing",
+              delivered_at: delivered ? new Date().toISOString() : null,
+              cashout_ref: body?.id || body?.transactionId || cashoutMethod,
+              cashout_response: body,
+            }).eq("id", mtr.id);
+          } else {
+            await admin.from("momo_transfers").update({ status: "failed", admin_note: "Cashout refusé", cashout_response: body }).eq("id", mtr.id);
+          }
+        }
+        void apiUrl;
+      } catch (e) {
+        await admin.from("momo_transfers").update({ admin_note: `Cashout error: ${(e as Error).message}` }).eq("id", mtr.id);
+      }
+    } else if (status === "failed" && mtr.status === "awaiting_payment") {
+      await admin.from("momo_transfers").update({
+        status: "failed", admin_note: "Paiement échoué",
+        metadata: { ...(mtr.metadata || {}), webhook: payload },
+      }).eq("id", mtr.id);
+    }
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   // ============ 3) Withdrawal cashout (search by yengapay id in destination) ============
   if (providerId) {
     const { data: wd } = await admin.from("withdrawals")

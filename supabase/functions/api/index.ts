@@ -291,6 +291,101 @@ function uniqueCashoutMethods(preferred?: string | null) {
   return Array.from(new Set([preferred, ...YENGAPAY_CASHOUT_METHODS].filter(Boolean))) as string[];
 }
 
+// ============ MoMo inter-network transfer helpers ============
+async function loadMomoTransferConfig(admin: any) {
+  const keys = ["momo_transfer_fee_bps", "momo_transfer_fee_flat_xof", "momo_transfer_min_xof", "momo_transfer_max_xof", "momo_transfer_enabled"];
+  const { data } = await admin.from("platform_config").select("key,value").in("key", keys);
+  const m = new Map((data ?? []).map((r: any) => [r.key, r.value]));
+  const num = (k: string, d: number) => { const v = m.get(k); const n = Number(v); return Number.isFinite(n) ? n : d; };
+  return {
+    fee_bps: num("momo_transfer_fee_bps", 150),
+    fee_flat_xof: num("momo_transfer_fee_flat_xof", 100),
+    min: num("momo_transfer_min_xof", 500),
+    max: num("momo_transfer_max_xof", 500000),
+    enabled: m.get("momo_transfer_enabled") !== false,
+  };
+}
+function computeMomoTransferFees(amount: number, cfg: { fee_bps: number; fee_flat_xof: number }) {
+  const pct = Math.ceil((amount * cfg.fee_bps) / 10000);
+  return Math.max(0, pct + Math.max(0, Math.floor(cfg.fee_flat_xof)));
+}
+async function triggerMomoTransferCashout(admin: any, t: any) {
+  const apiKey = Deno.env.get("YENGAPAY_CASHOUT_API_KEY") || Deno.env.get("YENGAPAY_API_KEY");
+  const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
+  const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
+  if (!apiKey || !groupId || !projectId) {
+    await admin.from("momo_transfers").update({ status: "paid", admin_note: "YengaPay non configuré — payout manuel requis" }).eq("id", t.id);
+    return;
+  }
+  const destNumber = normalizeBfPhone(t.dest_phone);
+  const preferred = mapCashoutMethod(t.dest_operator);
+  const methods = preferred ? [preferred] : uniqueCashoutMethods(null);
+  const holder = String(t.dest_holder || "Bénéficiaire").slice(0, 120);
+  const url = `https://api.yengapay.com/api/v1/groups/${groupId}/cash-out`;
+  const attempts: any[] = [];
+  let accepted: any = null, acceptedMethod: string | null = null;
+  await admin.from("momo_transfers").update({ status: "disbursing" }).eq("id", t.id);
+  for (const cashoutMethod of methods) {
+    try {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+        body: JSON.stringify({ cashoutMethod, description: `Transfert vers ${holder}`, amount: Number(t.amount_send), destNumber, groupId, projectId }),
+      });
+      const txt = await r.text(); let body: any = txt; try { body = JSON.parse(txt); } catch { /**/ }
+      attempts.push({ method: cashoutMethod, status: r.status, body });
+      if (r.ok) { accepted = body; acceptedMethod = cashoutMethod; break; }
+    } catch (e) { attempts.push({ method: cashoutMethod, error: (e as Error).message }); }
+  }
+  if (!accepted) {
+    await admin.from("momo_transfers").update({
+      status: "failed", admin_note: "Cashout refusé par tous les opérateurs",
+      cashout_response: { attempts },
+    }).eq("id", t.id);
+    return;
+  }
+  const provStatus = String(accepted?.status || "PENDING").toUpperCase();
+  const delivered = ["SUCCESS", "COMPLETED", "PAID", "SUCCESSFUL", "DONE"].includes(provStatus);
+  await admin.from("momo_transfers").update({
+    status: delivered ? "delivered" : "disbursing",
+    delivered_at: delivered ? new Date().toISOString() : null,
+    cashout_ref: accepted?.id || accepted?.transactionId || accepted?.reference || acceptedMethod,
+    cashout_response: { accepted, method: acceptedMethod, attempts },
+  }).eq("id", t.id);
+}
+async function pollAndProcessMomoTransfer(admin: any, t: any, opts: { forceDisburse?: boolean } = {}) {
+  if (["delivered", "refunded"].includes(t.status)) return t;
+  const piid = t.payment_intent_id;
+  const apiKey = Deno.env.get("YENGAPAY_API_KEY");
+  const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
+  const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
+  let paid = ["paid", "disbursing"].includes(t.status) || !!t.paid_at;
+  if (!paid && piid && apiKey && groupId && projectId) {
+    try {
+      const r = await fetch(`https://api.yengapay.com/api/v1/groups/${groupId}/projects/${projectId}/direct-payment/status/${piid}`,
+        { headers: { "x-api-key": apiKey, "Accept": "application/json" } });
+      const txt = await r.text(); let body: any = txt; try { body = JSON.parse(txt); } catch { /**/ }
+      const st = String(body?.status || body?.paymentStatus || body?.data?.status || "").toUpperCase();
+      if (["DONE", "SUCCESS", "SUCCEEDED", "COMPLETED", "PAID"].includes(st)) {
+        paid = true;
+        await admin.from("momo_transfers").update({ status: "paid", paid_at: new Date().toISOString(), metadata: { ...(t.metadata || {}), verify: body } }).eq("id", t.id).eq("status", "awaiting_payment");
+      } else if (["FAILED", "CANCELLED", "CANCELED", "EXPIRED", "REJECTED"].includes(st)) {
+        await admin.from("momo_transfers").update({ status: "failed", admin_note: `Paiement ${st}`, metadata: { ...(t.metadata || {}), verify: body } }).eq("id", t.id);
+        const { data: rr } = await admin.from("momo_transfers").select("*").eq("id", t.id).maybeSingle();
+        return rr;
+      }
+    } catch { /**/ }
+  }
+  if (paid || opts.forceDisburse) {
+    const { data: fresh } = await admin.from("momo_transfers").select("*").eq("id", t.id).maybeSingle();
+    if (fresh && !fresh.cashout_ref && (fresh.status === "paid" || opts.forceDisburse)) {
+      await triggerMomoTransferCashout(admin, fresh);
+    }
+  }
+  const { data: out } = await admin.from("momo_transfers").select("*").eq("id", t.id).maybeSingle();
+  return out;
+}
+
 // ============= Business helpers =============
 function slugify(input: string) {
   return String(input || "")
@@ -2494,6 +2589,126 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       status: "PAUSED", daily_budget: data.daily_budget ?? null,
     }).select("*").single();
     return row;
+  },
+
+  // ============================================================
+  // MOMO INTER-NETWORK TRANSFERS (Orange <-> Moov <-> Wave ...)
+  // ============================================================
+  async getMomoTransferConfig({ admin }) {
+    const cfg = await loadMomoTransferConfig(admin);
+    return cfg;
+  },
+  async quoteMomoTransfer({ data, admin }) {
+    const cfg = await loadMomoTransferConfig(admin);
+    const amount = Math.floor(Number(data?.amount || 0));
+    if (!cfg.enabled) return { ok: false, error: "Fonctionnalité désactivée" };
+    if (!Number.isFinite(amount) || amount < cfg.min) return { ok: false, error: `Montant minimum ${cfg.min} XOF` };
+    if (amount > cfg.max) return { ok: false, error: `Montant maximum ${cfg.max} XOF` };
+    const fees = computeMomoTransferFees(amount, cfg);
+    return { ok: true, amount_send: amount, fees_xof: fees, total_charged_xof: amount + fees, currency: "XOF", cfg };
+  },
+  async initMomoTransfer({ data, user, admin }) {
+    const userId = user.id;
+    await assertUserRateLimit(admin, userId, "initMomoTransfer", 8);
+    const cfg = await loadMomoTransferConfig(admin);
+    if (!cfg.enabled) return { ok: false, error: "Transferts inter-réseaux désactivés" };
+    const amount = Math.floor(Number(data?.amount || 0));
+    if (!Number.isFinite(amount) || amount < cfg.min) return { ok: false, error: `Montant minimum ${cfg.min} XOF` };
+    if (amount > cfg.max) return { ok: false, error: `Montant maximum ${cfg.max} XOF` };
+    const sourceOperator = String(data?.source_operator || "").trim();
+    const destOperator = String(data?.dest_operator || "").trim();
+    const sourcePhone = normalizeBfPhone(data?.source_phone);
+    const destPhone = normalizeBfPhone(data?.dest_phone);
+    const destHolder = String(data?.dest_holder || "").slice(0, 120);
+    if (!sourceOperator || !destOperator) return { ok: false, error: "Opérateurs requis" };
+    if (!sourcePhone) return { ok: false, error: "Numéro source invalide" };
+    if (!destPhone) return { ok: false, error: "Numéro destinataire invalide" };
+    if (!mapCashoutMethod(destOperator)) return { ok: false, error: "Opérateur destinataire non supporté" };
+    const fees = computeMomoTransferFees(amount, cfg);
+    const total = amount + fees;
+
+    const apiKey = Deno.env.get("YENGAPAY_API_KEY");
+    const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
+    const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
+    if (!apiKey || !groupId || !projectId) throw new Error("YengaPay env missing");
+    const reference = `MTR-${Date.now()}-${userId.slice(0, 8)}`;
+    const baseReturn = String(data?.returnUrl || "");
+    const returnUrl = baseReturn
+      ? (baseReturn + (baseReturn.includes("?") ? "&" : "?") + `mtr=${encodeURIComponent(reference)}`)
+      : "";
+    const callbackUrl = `${SUPABASE_URL}/functions/v1/yengapay-webhook`;
+    const url = `https://api.yengapay.com/api/v1/groups/${groupId}/payment-intent/${projectId}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+      body: JSON.stringify({
+        paymentAmount: total, reference,
+        articles: [{ title: `Transfert ${sourceOperator}→${destOperator}`, description: `Vers ${destPhone}`, pictures: [], price: total }],
+        callbackUrl,
+        ...(returnUrl ? { returnUrl, successUrl: returnUrl, cancelUrl: returnUrl } : {}),
+      }),
+    });
+    const text = await res.text(); let body: any = text;
+    try { body = JSON.parse(text); } catch { /**/ }
+    if (!res.ok) throw new Error(`YengaPay ${res.status}: ${typeof body === "string" ? body : JSON.stringify(body)}`);
+    const paymentIntentId = body?.id || body?.paymentIntentId || body?.paymentIntent?.id || body?.data?.id || null;
+    const checkoutUrl = body?.checkoutPageUrlWithPaymentToken || body?.checkout_url || body?.paymentUrl || null;
+    const { data: row, error } = await admin.from("momo_transfers").insert({
+      user_id: userId, source_operator: sourceOperator, source_phone: sourcePhone,
+      dest_operator: destOperator, dest_phone: destPhone, dest_holder: destHolder || null,
+      amount_send: amount, fees_xof: fees, total_charged_xof: total,
+      status: "awaiting_payment",
+      payment_reference: reference, payment_intent_id: paymentIntentId,
+      checkout_url: checkoutUrl,
+      metadata: { init: body },
+    }).select("*").single();
+    if (error) throw new Error(error.message);
+    return { ok: true, transfer: row, checkout_url: checkoutUrl, reference };
+  },
+  async verifyMomoTransfer({ data, user, admin }) {
+    const userId = user.id;
+    const reference = String(data?.reference || "");
+    if (!reference) return { ok: false, error: "reference manquante" };
+    const { data: t } = await admin.from("momo_transfers").select("*").eq("payment_reference", reference).maybeSingle();
+    if (!t) return { ok: false, error: "Transfert introuvable" };
+    if (t.user_id !== userId && !(await isAdmin(admin, userId))) return { ok: false, error: "Forbidden" };
+    const updated = await pollAndProcessMomoTransfer(admin, t);
+    return { ok: true, transfer: updated };
+  },
+  async listMyMomoTransfers({ user, admin }) {
+    const { data } = await admin.from("momo_transfers").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(100);
+    return data ?? [];
+  },
+  async adminListMomoTransfers({ user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const { data } = await admin.from("momo_transfers").select("*").order("created_at", { ascending: false }).limit(200);
+    const ids = Array.from(new Set((data ?? []).map((r: any) => r.user_id)));
+    const { data: profs } = await admin.from("profiles").select("id,full_name,email,phone").in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
+    const byId = new Map((profs ?? []).map((p: any) => [p.id, p]));
+    return (data ?? []).map((r: any) => ({ ...r, user: byId.get(r.user_id) || null }));
+  },
+  async adminRetryMomoTransferPayout({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const { data: t } = await admin.from("momo_transfers").select("*").eq("id", data.id).maybeSingle();
+    if (!t) throw new Error("Transfert introuvable");
+    if (t.status === "delivered") return { ok: true, transfer: t };
+    const updated = await pollAndProcessMomoTransfer(admin, t, { forceDisburse: true });
+    return { ok: true, transfer: updated };
+  },
+  async adminUpdateMomoTransferConfig({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const map: Record<string, any> = {
+      momo_transfer_fee_bps: data?.fee_bps,
+      momo_transfer_fee_flat_xof: data?.fee_flat_xof,
+      momo_transfer_min_xof: data?.min_xof,
+      momo_transfer_max_xof: data?.max_xof,
+      momo_transfer_enabled: data?.enabled,
+    };
+    for (const [k, v] of Object.entries(map)) {
+      if (v === undefined || v === null) continue;
+      await admin.from("platform_config").upsert({ key: k, value: v }, { onConflict: "key" });
+    }
+    return await loadMomoTransferConfig(admin);
   },
 };
 
