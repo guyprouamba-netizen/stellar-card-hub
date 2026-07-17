@@ -377,7 +377,7 @@ async function refundMomoTransferToWallet(admin: any, t: any, reason: string) {
   try {
     const { data: existing } = await admin
       .from("transactions").select("id")
-      .eq("user_id", t.user_id).eq("type", "momo_transfer_refund")
+      .eq("user_id", t.user_id).eq("type", "refund")
       .eq("provider_ref", t.payment_reference).maybeSingle();
     if (existing) return;
     const refundAmount = Number(t.total_charged_xof ?? (Number(t.amount_send) + Number(t.fees_xof || 0)));
@@ -389,7 +389,7 @@ async function refundMomoTransferToWallet(admin: any, t: any, reason: string) {
       await admin.from("wallets").update({ balance: newBalance }).eq("id", w.id);
     }
     await admin.from("transactions").insert({
-      user_id: t.user_id, type: "momo_transfer_refund", status: "success",
+      user_id: t.user_id, type: "refund", status: "success",
       amount: refundAmount, currency: "XOF",
       provider: "yengapay", provider_ref: t.payment_reference,
       description: `Remboursement transfert ${t.source_operator}→${t.dest_operator} (${reason})`,
