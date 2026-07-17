@@ -22,8 +22,8 @@ const OPERATORS = [
   { code: "ORANGE_MONEY", label: "Orange", color: "#ff6600" },
   { code: "MOOV_MONEY", label: "Moov", color: "#005cff" },
   { code: "TELECEL_MONEY", label: "Telecel", color: "#ed1c24" },
-  { code: "WAVE_MONEY", label: "Wave", color: "#00c5ff" },
   { code: "SANK_MONEY", label: "Sank", color: "#22c55e" },
+  { code: "CORIS_MONEY", label: "Coris", color: "#f59e0b" },
 ];
 
 function opInfo(code: string) {

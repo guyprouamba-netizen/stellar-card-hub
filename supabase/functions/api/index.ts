@@ -180,7 +180,8 @@ async function payReferralCardReward(admin: any, referredUserId: string, provide
   return { paid: rewardXof, alreadyPaid: false };
 }
 
-const YENGAPAY_CASHOUT_METHODS = ["ORANGE_MONEY", "MOOV_MONEY", "TELECEL_MONEY", "SANK_MONEY", "WAVE_MONEY"] as const;
+// YengaPay payout supported methods (Wave is NOT supported by the payout API).
+const YENGAPAY_CASHOUT_METHODS = ["ORANGE_MONEY", "MOOV_MONEY", "TELECEL_MONEY", "SANK_MONEY", "CORIS_MONEY"] as const;
 
 function mapCashoutMethod(operator?: string | null) {
   const opNorm = String(operator || "").toLowerCase();
@@ -188,7 +189,8 @@ function mapCashoutMethod(operator?: string | null) {
   if (opNorm.includes("moov")) return "MOOV_MONEY";
   if (opNorm.includes("telecel")) return "TELECEL_MONEY";
   if (opNorm.includes("sank")) return "SANK_MONEY";
-  if (opNorm.includes("wave")) return "WAVE_MONEY";
+  if (opNorm.includes("coris")) return "CORIS_MONEY";
+  // Wave payout non supporté par l'API YengaPay
   return null;
 }
 
@@ -319,29 +321,45 @@ async function triggerMomoTransferCashout(admin: any, t: any) {
   }
   const destNumber = normalizeBfPhone(t.dest_phone);
   const preferred = mapCashoutMethod(t.dest_operator);
-  const methods = preferred ? [preferred] : uniqueCashoutMethods(null);
+  if (!preferred) {
+    await admin.from("momo_transfers").update({
+      status: "failed",
+      admin_note: `Opérateur destinataire non supporté par le payout (${t.dest_operator}). Remboursement automatique déclenché.`,
+    }).eq("id", t.id);
+    await refundMomoTransferToWallet(admin, t, "Opérateur destinataire non supporté");
+    return;
+  }
+  const methods = [preferred];
   const holder = String(t.dest_holder || "Bénéficiaire").slice(0, 120);
-  const url = `https://api.yengapay.com/api/v1/groups/${groupId}/cash-out`;
+  // Endpoint payout officiel: /groups/{groupId}/project/{projectId}/payout
+  const url = `https://api.yengapay.com/api/v1/groups/${groupId}/project/${projectId}/payout`;
   const attempts: any[] = [];
   let accepted: any = null, acceptedMethod: string | null = null;
   await admin.from("momo_transfers").update({ status: "disbursing" }).eq("id", t.id);
-  for (const cashoutMethod of methods) {
+  for (const paymentMethod of methods) {
     try {
       const r = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": apiKey },
-        body: JSON.stringify({ cashoutMethod, description: `Transfert vers ${holder}`, amount: Number(t.amount_send), destNumber, groupId, projectId }),
+        body: JSON.stringify({
+          amount: Number(t.amount_send),
+          destNumber,
+          destName: holder,
+          paymentMethod,
+          description: `Transfert vers ${holder}`.slice(0, 140),
+        }),
       });
       const txt = await r.text(); let body: any = txt; try { body = JSON.parse(txt); } catch { /**/ }
-      attempts.push({ method: cashoutMethod, status: r.status, body });
-      if (r.ok) { accepted = body; acceptedMethod = cashoutMethod; break; }
-    } catch (e) { attempts.push({ method: cashoutMethod, error: (e as Error).message }); }
+      attempts.push({ method: paymentMethod, status: r.status, body });
+      if (r.ok) { accepted = body; acceptedMethod = paymentMethod; break; }
+    } catch (e) { attempts.push({ method: paymentMethod, error: (e as Error).message }); }
   }
   if (!accepted) {
     await admin.from("momo_transfers").update({
-      status: "failed", admin_note: "Cashout refusé par tous les opérateurs",
+      status: "failed", admin_note: "Cashout refusé — remboursement automatique déclenché",
       cashout_response: { attempts },
     }).eq("id", t.id);
+    await refundMomoTransferToWallet(admin, t, "Cashout refusé par l'opérateur");
     return;
   }
   const provStatus = String(accepted?.status || "PENDING").toUpperCase();
@@ -352,6 +370,42 @@ async function triggerMomoTransferCashout(admin: any, t: any) {
     cashout_ref: accepted?.id || accepted?.transactionId || accepted?.reference || acceptedMethod,
     cashout_response: { accepted, method: acceptedMethod, attempts },
   }).eq("id", t.id);
+}
+
+// Rembourse un transfert MoMo en créditant le portefeuille XOF de l'utilisateur.
+async function refundMomoTransferToWallet(admin: any, t: any, reason: string) {
+  try {
+    const { data: existing } = await admin
+      .from("transactions").select("id")
+      .eq("user_id", t.user_id).eq("type", "refund")
+      .eq("provider_ref", t.payment_reference).maybeSingle();
+    if (existing) return;
+    const refundAmount = Number(t.total_charged_xof ?? (Number(t.amount_send) + Number(t.fees_xof || 0)));
+    const { data: w } = await admin.from("wallets")
+      .select("id,balance").eq("user_id", t.user_id).eq("currency", "XOF").maybeSingle();
+    let newBalance: number | undefined;
+    if (w) {
+      newBalance = Number(w.balance) + refundAmount;
+      await admin.from("wallets").update({ balance: newBalance }).eq("id", w.id);
+    }
+    await admin.from("transactions").insert({
+      user_id: t.user_id, type: "refund", status: "success",
+      amount: refundAmount, currency: "XOF",
+      provider: "yengapay", provider_ref: t.payment_reference,
+      description: `Remboursement transfert ${t.source_operator}→${t.dest_operator} (${reason})`,
+    });
+    await admin.from("momo_transfers").update({
+      status: "refunded",
+      admin_note: `${reason} — ${refundAmount} XOF recrédité au portefeuille`,
+    }).eq("id", t.id);
+    notifySms(admin, "wallet_recharge", {
+      userId: t.user_id, amount: refundAmount, currency: "XOF", balance: newBalance,
+    }).catch(() => {});
+  } catch (e) {
+    await admin.from("momo_transfers").update({
+      admin_note: `Remboursement automatique échoué: ${(e as Error).message}`,
+    }).eq("id", t.id);
+  }
 }
 async function pollAndProcessMomoTransfer(admin: any, t: any, opts: { forceDisburse?: boolean } = {}) {
   if (["delivered", "refunded"].includes(t.status)) return t;
