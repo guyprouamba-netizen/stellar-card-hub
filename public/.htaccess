@@ -8,7 +8,9 @@ RewriteBase /
 # Don't rewrite real files or directories
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule . /index.html [L]
+# Preserve original path — otherwise React Router receives "/" and every
+# deep link like /pay/:slug renders a blank page on shared hosts.
+RewriteRule ^ /index.html [L]
 
 # Gzip & cache (optional, improves perf)
 <IfModule mod_deflate.c>
