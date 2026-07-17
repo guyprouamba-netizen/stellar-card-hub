@@ -420,9 +420,7 @@ async function refundMomoTransferToWallet(admin: any, t: any, reason: string) {
 async function pollAndProcessMomoTransfer(admin: any, t: any, opts: { forceDisburse?: boolean } = {}) {
   if (["delivered", "refunded"].includes(t.status)) return t;
   const piid = t.payment_intent_id;
-  const apiKey = Deno.env.get("YENGAPAY_API_KEY");
-  const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
-  const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
+  const { groupId, projectId, payinKey: apiKey } = getTransferYengapayEnv();
   let paid = ["paid", "disbursing"].includes(t.status) || !!t.paid_at;
   if (!paid && piid && apiKey && groupId && projectId) {
     try {
