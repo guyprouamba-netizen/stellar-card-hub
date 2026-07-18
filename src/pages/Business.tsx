@@ -56,21 +56,31 @@ export default function BusinessPage() {
   }, [navigate]);
 
   async function refreshAll() {
-    const list = await listMyBusinesses();
-    setBusinesses(list);
-    if (list.length) {
-      const keepId = current?.id;
-      const next = (keepId && list.find((b: Biz) => b.id === keepId)) || list[0];
-      setCurrent(next);
-    }
-    setLoading(false);
+    try {
+      const list = await listMyBusinesses();
+      setBusinesses(list);
+      if (list.length) {
+        const keepId = current?.id;
+        const next = (keepId && list.find((b: Biz) => b.id === keepId)) || list[0];
+        setCurrent(next);
+      }
+    } catch (e: any) {
+      toast.error("Impossible de charger vos business: " + (e?.message || "erreur"));
+    } finally { setLoading(false); }
   }
   async function refreshCurrent(bizId: string) {
+    // Un onglet en erreur ne doit pas casser les autres — chaque appel a son propre fallback.
+    const safe = <T,>(p: Promise<T>, fb: T): Promise<T> => p.catch((e) => { console.warn("[business fetch]", e?.message); return fb; });
     const [l, p, k, pr, d, o, po, ws, we] = await Promise.all([
-      listPaymentLinks(bizId), listLinkPayments(bizId), listApiKeys(bizId),
-      listProjects(bizId), getBusinessDashboard(bizId),
-      listOrders(bizId), listBusinessPosts(bizId),
-      getWhatsappSession(bizId), listWhatsappEvents(bizId),
+      safe(listPaymentLinks(bizId), [] as any),
+      safe(listLinkPayments(bizId), [] as any),
+      safe(listApiKeys(bizId), [] as any),
+      safe(listProjects(bizId), [] as any),
+      safe(getBusinessDashboard(bizId), null as any),
+      safe(listOrders(bizId), [] as any),
+      safe(listBusinessPosts(bizId), [] as any),
+      safe(getWhatsappSession(bizId), null as any),
+      safe(listWhatsappEvents(bizId), [] as any),
     ]);
     setLinks(l); setPayments(p); setKeys(k); setProjects(pr); setDash(d); setOrders(o); setPosts(po);
     setWa(ws); setWaEvents(we);
