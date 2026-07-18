@@ -276,7 +276,7 @@ function Sidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
           <Building2 className="h-4 w-4" /> Espace Business
         </Link>
         <Link to="/transfer" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
-          <Repeat className="h-4 w-4" /> Transfert inter-réseaux
+          <Repeat className="h-4 w-4" /> Transfert
         </Link>
       </nav>
       <button onClick={logout} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive">

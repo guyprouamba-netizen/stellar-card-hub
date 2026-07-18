@@ -11,7 +11,7 @@ import homeBusiness from "@/assets/home-business.jpg";
 
 const services = [
   { icon: CreditCard, title: "Carte prépayée virtuelle", desc: "Visa & Mastercard valable 3 ans." },
-  { icon: Repeat, title: "Transfert d'argent", desc: "Orange, Moov, Wave, Sank, Coris, Telecel." },
+  { icon: Repeat, title: "Transfert", desc: "Envoyez de l'argent par numéro ou QR code, gratuitement." },
   { icon: Wallet, title: "Retrait PayPal", desc: "PayPal → Mobile Money." },
   { icon: Store, title: "Espace Business", desc: "Boutique en ligne clé en main." },
   { icon: Globe2, title: "Réception de paiements", desc: "Local et international." },
@@ -34,7 +34,7 @@ const faqs = [
   { q: "Faut-il valider une pièce d'identité pour ouvrir un compte ?", a: "Non — la plupart des services de FASO-INVEST PAY sont accessibles sans vérification KYC." },
   { q: "Combien coûte la création d'une carte virtuelle ?", a: "0 F CFA. Vous rechargez seulement le montant que vous souhaitez utiliser, à partir de 2 000 F CFA." },
   { q: "Les dépôts et retraits sont-ils automatiques ?", a: "Oui. Les dépôts et retraits Mobile Money sont crédités automatiquement en quelques secondes, 24/7." },
-  { q: "Quels transferts inter-réseaux sont supportés ?", a: "Orange Money, Moov Money, Wave, Sank Money, Coris Money et Telecel Money." },
+  { q: "Comment fonctionne le transfert ?", a: "Envoyez de l'argent à n'importe quel numéro burkinabè, gratuitement et instantanément. Si le destinataire n'a pas encore de compte FASO-INVEST PAY, il reçoit un SMS pour le créer et récupérer son argent." },
   { q: "Comment fonctionne l'Espace Business ?", a: "Créez votre boutique, recevez vos paiements au Burkina et à l'international, gérez vos factures et votre comptabilité depuis un tableau de bord unique." },
 ];
 
@@ -126,18 +126,18 @@ function Index() {
         {/* SECTION 2: TRANSFERT */}
         <section id="transfert" className="border-y border-border bg-muted/20">
           <div className="container mx-auto grid items-center gap-10 px-4 py-16 sm:px-6 md:grid-cols-2">
-            <img src={homeTransfer} alt="Transfert d'argent inter-réseaux" loading="lazy" width={1408} height={912} className="w-full rounded-3xl object-cover shadow-card-premium" />
+            <img src={homeTransfer} alt="Transfert d'argent instantané" loading="lazy" width={1408} height={912} className="w-full rounded-3xl object-cover shadow-card-premium" />
             <div>
-              <span className="text-xs font-semibold uppercase tracking-widest text-primary">02 · Transfert d'argent inter-réseaux</span>
-              <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">D'un réseau à l'autre, en quelques secondes.</h2>
-              <p className="mt-4 text-muted-foreground">Orange vers Moov, Wave vers Sank, Coris vers Telecel — tous les réseaux communiquent enfin. Le destinataire reçoit son argent instantanément.</p>
+              <span className="text-xs font-semibold uppercase tracking-widest text-primary">02 · Transfert</span>
+              <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Envoyez de l'argent, gratuitement et instantanément.</h2>
+              <p className="mt-4 text-muted-foreground">Saisissez un numéro ou scannez le QR code du bénéficiaire — l'argent arrive immédiatement sur son compte FASO-INVEST PAY. S'il n'a pas encore de compte, il reçoit un SMS pour le créer et récupérer ses fonds.</p>
               <div className="mt-6 grid grid-cols-3 gap-3">
-                {["Orange Money","Moov Money","Wave","Sank Money","Coris Money","Telecel"].map((op) => (
+                {["0 F de frais","Instantané","QR code","Par numéro","SMS auto","24/7"].map((op) => (
                   <div key={op} className="rounded-xl border border-border bg-card px-3 py-2 text-center text-xs font-semibold">{op}</div>
                 ))}
               </div>
               <Link to="/transfer" className="mt-6 inline-flex items-center gap-2 rounded-full bg-gradient-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-glow">
-                Faire un transfert <ArrowRight className="h-4 w-4" />
+                Envoyer de l'argent <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           </div>
