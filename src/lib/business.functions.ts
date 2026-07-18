@@ -3,7 +3,7 @@ import { callApi } from "./api-client";
 export const listMyBusinesses = () => callApi("listMyBusinesses");
 export const createBusiness = (data: { name: string; description?: string; contact_email?: string; contact_phone?: string }) =>
   callApi("createBusiness", data);
-export const updateBusiness = (data: { id: string; name?: string; description?: string; contact_email?: string; contact_phone?: string; logo_url?: string }) =>
+export const updateBusiness = (data: { id: string; name?: string; description?: string; contact_email?: string; contact_phone?: string; logo_url?: string; cover_url?: string }) =>
   callApi("updateBusiness", data);
 
 export const listPaymentLinks = (business_id: string) => callApi("listPaymentLinks", { business_id });
@@ -69,3 +69,16 @@ export const sendWhatsappMessage = (data: { business_id: string; to: string; bod
   callApi("sendWhatsappMessage", data);
 export const listWhatsappEvents = (business_id: string) =>
   callApi("listWhatsappEvents", { business_id });
+
+// --- SMS Sender ID + credits ---
+export const createSenderIdRequest = (data: { business_id?: string; company_name: string; sender_id: string; usage_note?: string }) =>
+  callApi("createSenderIdRequest", data);
+export const listMySenderIdRequests = (business_id?: string) =>
+  callApi("listMySenderIdRequests", business_id ? { business_id } : {});
+export const adminListSenderRequests = () => callApi("adminListSenderRequests");
+export const adminUpdateSenderRequest = (data: { id: string; status?: "pending"|"approved"|"rejected"; admin_note?: string }) =>
+  callApi("adminUpdateSenderRequest", data);
+export const listSmsCredits = (business_id: string) =>
+  callApi("listSmsCredits", { business_id });
+export const purchaseSmsCredits = (data: { business_id: string; sender_id: string; quantity: number }) =>
+  callApi("purchaseSmsCredits", data);
