@@ -5,7 +5,7 @@ import QRCode from "qrcode";
 import { supabase } from "@/integrations/supabase/client";
 import {
   listProjects, updateProject, listProducts, createProduct, updateProduct, deleteProduct,
-  addProductMedia, deleteProductMedia, listPaymentLinks, createPaymentLink, updatePaymentLink,
+  addProductMedia, deleteProductMedia, reorderProductMedia, listPaymentLinks, createPaymentLink, updatePaymentLink,
   listLinkPayments, listInvoices, listActionPlans, createActionPlan, updateActionPlan, deleteActionPlan,
 } from "@/lib/business.functions";
 import { coachChat, coachDailyTip, coachStrategy, coachAlert, coachGeneratePlan, listCoachMessages } from "@/lib/coach.functions";
