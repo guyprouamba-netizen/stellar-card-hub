@@ -180,8 +180,8 @@ async function payReferralCardReward(admin: any, referredUserId: string, provide
   return { paid: rewardXof, alreadyPaid: false };
 }
 
-// YengaPay payout supported methods (Wave is NOT supported by the payout API).
-const YENGAPAY_CASHOUT_METHODS = ["ORANGE_MONEY", "MOOV_MONEY", "TELECEL_MONEY", "SANK_MONEY", "CORIS_MONEY"] as const;
+// YengaPay payout supported methods (Wave dispo sur certains projets payout — on tente et on rembourse si refusé).
+const YENGAPAY_CASHOUT_METHODS = ["ORANGE_MONEY", "MOOV_MONEY", "TELECEL_MONEY", "SANK_MONEY", "CORIS_MONEY", "WAVE_MONEY"] as const;
 
 function mapCashoutMethod(operator?: string | null) {
   const opNorm = String(operator || "").toLowerCase();
@@ -190,7 +190,7 @@ function mapCashoutMethod(operator?: string | null) {
   if (opNorm.includes("telecel")) return "TELECEL_MONEY";
   if (opNorm.includes("sank")) return "SANK_MONEY";
   if (opNorm.includes("coris")) return "CORIS_MONEY";
-  // Wave payout non supporté par l'API YengaPay
+  if (opNorm.includes("wave")) return "WAVE_MONEY";
   return null;
 }
 
