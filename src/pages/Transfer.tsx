@@ -187,39 +187,37 @@ export default function TransferPage() {
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Source operator */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-widest mb-3" style={{ color: C.ink }}>
-                  Réseau Source (Débit)
-                </label>
-                <OperatorChips value={form.source_operator} onChange={(v) => setForm({ ...form, source_operator: v })} exclude={form.dest_operator} />
-              </div>
-
-              {/* Arrow */}
-              <div className="flex items-center justify-center gap-3 -my-1">
-                <div className="h-px flex-1" style={{ backgroundColor: C.border }} />
-                <div className="flex items-center gap-2 text-xs uppercase tracking-widest font-bold" style={{ color: C.gold }}>
-                  <ArrowLeft className="h-3 w-3 rotate-180" /> Vers
+              {/* Wallet balance */}
+              <div className="flex items-center justify-between p-4 rounded-xl border" style={{ borderColor: C.border, backgroundColor: C.cream }}>
+                <div className="flex items-center gap-3">
+                  <span className="grid h-10 w-10 place-items-center rounded-full" style={{ backgroundColor: C.ink, color: C.gold }}>
+                    <Wallet className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500">Portefeuille XOF</p>
+                    <p className="text-lg font-bold tabular-nums" style={{ color: C.ink }}>{xofBalance.toLocaleString("fr-FR")} XOF</p>
+                  </div>
                 </div>
-                <div className="h-px flex-1" style={{ backgroundColor: C.border }} />
+                <Link to="/dashboard" className="text-xs font-bold px-3 py-2 rounded-full" style={{ backgroundColor: C.gold, color: C.ink }}>
+                  Recharger
+                </Link>
               </div>
 
               {/* Dest operator */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest mb-3" style={{ color: C.ink }}>
-                  Réseau Destinataire (Crédit)
+                  Opérateur destinataire
                 </label>
-                <OperatorChips value={form.dest_operator} onChange={(v) => setForm({ ...form, dest_operator: v })} exclude={form.source_operator} />
+                <OperatorChips value={form.dest_operator} onChange={(v) => setForm({ ...form, dest_operator: v })} />
               </div>
 
               {/* Inputs grid */}
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <Field label="Numéro Source" value={form.source_phone} onChange={(v) => setForm({ ...form, source_phone: v })} placeholder="70 00 00 00" mono />
-                  <Field label="Numéro Destinataire" value={form.dest_phone} onChange={(v) => setForm({ ...form, dest_phone: v })} placeholder="65 00 00 00" mono />
+                  <Field label="Numéro destinataire" value={form.dest_phone} onChange={(v) => setForm({ ...form, dest_phone: v })} placeholder="65 00 00 00" mono />
+                  <Field label="Nom du bénéficiaire" value={form.dest_holder} onChange={(v) => setForm({ ...form, dest_holder: v })} placeholder="Ex. Awa Ouédraogo" />
                 </div>
                 <div className="space-y-4">
-                  <Field label="Nom du Bénéficiaire" value={form.dest_holder} onChange={(v) => setForm({ ...form, dest_holder: v })} placeholder="Ex. Awa Ouédraogo" />
                   <Field
                     label="Montant à envoyer (XOF)"
                     value={form.amount}
@@ -234,7 +232,7 @@ export default function TransferPage() {
               <div className="p-4 rounded-lg flex items-start gap-3" style={{ backgroundColor: C.cream, borderColor: C.border, borderWidth: 1 }}>
                 <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: C.green }}>i</div>
                 <p className="text-xs leading-relaxed" style={{ color: C.ink }}>
-                  <strong>Comment ça marche :</strong> 1. Choisissez les opérateurs et saisissez les numéros. 2. Confirmez le montant. 3. Validez le paiement sur votre téléphone source — le destinataire est crédité automatiquement.
+                  <strong>Comment ça marche :</strong> le montant est débité de votre portefeuille XOF (rechargé au préalable via Mobile Money) et versé instantanément vers l'opérateur du destinataire. En cas d'échec, vous êtes automatiquement remboursé.
                 </p>
               </div>
             </div>
