@@ -2483,6 +2483,11 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       notes: data.notes || null, attachment_url: data.attachment_url || null,
       related_order_id: data.related_order_id || null,
       related_invoice_id: data.related_invoice_id || null,
+      account_id: data.account_id || null,
+      tva_rate: Number(data.tva_rate || 0),
+      tva_amount: Number(data.tva_amount || 0),
+      syscohada_code: data.syscohada_code || null,
+      counterparty: data.counterparty || null,
     };
     if (data.id) {
       const { data: row, error } = await admin.from("accounting_entries")
