@@ -83,15 +83,34 @@ export default function ProjectDetailPage() {
     } catch (e: any) { toast.error(e.message); }
   }
 
-  async function onAddMedia(productId: string, file: File) {
+  async function onAddMedia(productId: string, files: FileList | File[]) {
+    const list = Array.from(files);
+    if (!list.length) return;
     try {
-      toast.loading("Téléversement…", { id: "m" });
-      const url = await uploadBusinessMedia(file, `products/${productId}`);
-      const type = file.type.startsWith("video") ? "video" : "image";
-      const m = await addProductMedia({ product_id: productId, type, url });
-      setProducts((prev) => prev.map((p) => p.id === productId ? { ...p, product_media: [...(p.product_media || []), m] } : p));
-      toast.success("Média ajouté ✅", { id: "m" });
+      toast.loading(`Téléversement de ${list.length} fichier(s)…`, { id: "m" });
+      const added: any[] = [];
+      for (const file of list) {
+        const url = await uploadBusinessMedia(file, `products/${productId}`);
+        const type = file.type.startsWith("video") ? "video" : "image";
+        const m = await addProductMedia({ product_id: productId, type, url });
+        added.push(m);
+      }
+      setProducts((prev) => prev.map((p) => p.id === productId ? { ...p, product_media: [...(p.product_media || []), ...added] } : p));
+      toast.success(`${added.length} média(s) ajouté(s) ✅`, { id: "m" });
     } catch (e: any) { toast.error(e.message, { id: "m" }); }
+  }
+
+  async function onReorderMedia(productId: string, mediaId: string, dir: -1 | 1) {
+    const prod = products.find((p) => p.id === productId);
+    if (!prod) return;
+    const media: any[] = [...(prod.product_media || [])];
+    const idx = media.findIndex((m) => m.id === mediaId);
+    const swap = idx + dir;
+    if (idx < 0 || swap < 0 || swap >= media.length) return;
+    [media[idx], media[swap]] = [media[swap], media[idx]];
+    setProducts((prev) => prev.map((p) => p.id === productId ? { ...p, product_media: media } : p));
+    try { await reorderProductMedia(productId, media.map((m) => m.id)); }
+    catch (e: any) { toast.error(e.message); }
   }
 
   async function onCreateLinkForProduct(prod: any) {
