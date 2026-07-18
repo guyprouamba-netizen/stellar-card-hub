@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Send, Wallet, QrCode, CheckCircle2, Clock, Loader2, RefreshCw,
   ArrowDownLeft, ArrowUpRight, Copy, X, Phone, User as UserIcon,
+  ScanLine, Camera, Image as ImageIcon,
 } from "lucide-react";
+import QRCode from "qrcode";
+import jsQR from "jsqr";
 import { BackButton } from "@/components/back-button";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -74,6 +77,8 @@ export default function TransferPage() {
   });
   const [lookup, setLookup] = useState<{ found: boolean; name?: string | null } | null>(null);
   const [showQr, setShowQr] = useState(false);
+  const [showScan, setShowScan] = useState(false);
+  const [myQrDataUrl, setMyQrDataUrl] = useState<string>("");
 
   // Live lookup by phone
   useEffect(() => {
@@ -137,9 +142,51 @@ export default function TransferPage() {
   const myShareUrl = myPhone
     ? `${window.location.origin}/transfer?to=${encodeURIComponent(myPhone)}${me?.profile?.full_name ? `&name=${encodeURIComponent(me.profile.full_name)}` : ""}`
     : "";
-  const myQrImg = myShareUrl
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=8&data=${encodeURIComponent(myShareUrl)}`
-    : "";
+
+  // Génération QR 100% locale (fonctionne hors ligne, s'affiche même sans réseau).
+  useEffect(() => {
+    let cancel = false;
+    if (!myShareUrl) { setMyQrDataUrl(""); return; }
+    QRCode.toDataURL(myShareUrl, {
+      errorCorrectionLevel: "H",
+      margin: 2,
+      width: 512,
+      color: { dark: "#064e3b", light: "#f9f7f0" },
+    }).then((u) => { if (!cancel) setMyQrDataUrl(u); }).catch(() => {});
+    return () => { cancel = true; };
+  }, [myShareUrl]);
+
+  // Parse d'un contenu scanné (URL /transfer?to=…&name=… ou simple numéro).
+  function applyScanned(raw: string) {
+    if (!raw) return;
+    try {
+      let phone = "";
+      let name = "";
+      let amount = "";
+      if (raw.startsWith("http://") || raw.startsWith("https://")) {
+        const u = new URL(raw);
+        phone = u.searchParams.get("to") || "";
+        name = u.searchParams.get("name") || "";
+        amount = u.searchParams.get("amount") || "";
+      } else if (/^\+?\d[\d\s]{6,}$/.test(raw.trim())) {
+        phone = raw.trim();
+      } else {
+        toast.error("QR code non reconnu");
+        return;
+      }
+      if (!phone) { toast.error("QR sans numéro"); return; }
+      setForm((f) => ({
+        ...f,
+        recipient_phone: phone,
+        recipient_name: name || f.recipient_name,
+        amount: amount || f.amount,
+      }));
+      setShowScan(false);
+      toast.success("Bénéficiaire chargé depuis le QR");
+    } catch {
+      toast.error("QR invalide");
+    }
+  }
 
   return (
     <div className="min-h-screen p-4 md:p-8" style={{ backgroundColor: C.bg, color: C.ink, fontFamily: "'IBM Plex Sans', system-ui, sans-serif" }}>
@@ -195,10 +242,20 @@ export default function TransferPage() {
 
               {/* Phone */}
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
-                  <Phone className="inline h-3 w-3 mr-1" />
-                  Numéro du destinataire
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <Phone className="inline h-3 w-3 mr-1" />
+                    Numéro du destinataire
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowScan(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold"
+                    style={{ backgroundColor: C.gold, color: C.ink }}
+                  >
+                    <ScanLine className="h-3.5 w-3.5" /> Scanner un QR
+                  </button>
+                </div>
                 <input
                   type="tel"
                   value={form.recipient_phone}
@@ -311,12 +368,17 @@ export default function TransferPage() {
             {myPhone ? (
               <>
                 <div className="flex justify-center p-4 rounded-xl" style={{ backgroundColor: C.cream, borderColor: C.border, borderWidth: 1 }}>
-                  <img src={myQrImg} alt="Mon QR Code" width={200} height={200} className="rounded" />
+                  {myQrDataUrl
+                    ? <img src={myQrDataUrl} alt="Mon QR Code" width={200} height={200} className="rounded" />
+                    : <div className="h-[200px] w-[200px] grid place-items-center text-xs text-slate-400">Génération…</div>}
                 </div>
                 <div className="text-center">
                   <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Mon numéro</p>
                   <p className="text-lg font-mono font-bold" style={{ color: C.ink }}>{myPhone}</p>
                 </div>
+                <p className="text-[10px] text-center text-slate-400 leading-relaxed">
+                  Ce QR est généré sur votre appareil — il reste affichable même sans connexion internet.
+                </p>
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(myShareUrl);
@@ -362,12 +424,9 @@ export default function TransferPage() {
             </h3>
             <p className="text-xs text-center text-slate-500 mb-4">Faites scanner ce QR pour recevoir un paiement instantané.</p>
             <div className="flex justify-center p-6 rounded-xl" style={{ backgroundColor: C.cream }}>
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=380x380&margin=12&data=${encodeURIComponent(myShareUrl)}`}
-                alt="QR"
-                className="rounded"
-                width={320} height={320}
-              />
+              {myQrDataUrl
+                ? <img src={myQrDataUrl} alt="QR" className="rounded" width={320} height={320} />
+                : <div className="h-[320px] w-[320px] grid place-items-center text-xs text-slate-400">Génération…</div>}
             </div>
             <div className="text-center mt-4">
               <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Numéro</p>
@@ -376,6 +435,163 @@ export default function TransferPage() {
           </div>
         </div>
       )}
+
+      {showScan && (
+        <QrScanModal onClose={() => setShowScan(false)} onResult={applyScanned} />
+      )}
+    </div>
+  );
+}
+
+function QrScanModal({ onClose, onResult }: { onClose: () => void; onResult: (v: string) => void }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [mode, setMode] = useState<"camera" | "photo">("camera");
+  const [error, setError] = useState<string>("");
+
+  useEffect(() => {
+    if (mode !== "camera") return;
+    let stream: MediaStream | null = null;
+    let raf = 0;
+    let stopped = false;
+
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false,
+        });
+        const video = videoRef.current;
+        if (!video) return;
+        video.srcObject = stream;
+        video.setAttribute("playsinline", "true");
+        await video.play();
+
+        const canvas = canvasRef.current || document.createElement("canvas");
+        canvasRef.current = canvas;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return;
+
+        const tick = () => {
+          if (stopped) return;
+          if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(img.data, img.width, img.height, { inversionAttempts: "attemptBoth" });
+            if (code?.data) {
+              stopped = true;
+              onResult(code.data);
+              return;
+            }
+          }
+          raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+      } catch (e: any) {
+        setError(e?.message || "Caméra indisponible");
+      }
+    })();
+
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(raf);
+      stream?.getTracks().forEach((t) => t.stop());
+    };
+  }, [mode, onResult]);
+
+  async function handleFile(file: File) {
+    try {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas");
+      ctx.drawImage(img, 0, 0);
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(data.data, data.width, data.height, { inversionAttempts: "attemptBoth" });
+      URL.revokeObjectURL(url);
+      if (code?.data) onResult(code.data);
+      else toast.error("Aucun QR détecté dans l'image");
+    } catch {
+      toast.error("Impossible de lire l'image");
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl max-w-md w-full p-5 relative" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600">
+          <X className="h-5 w-5" />
+        </button>
+        <h3 className="font-bold text-lg mb-1 text-center" style={{ fontFamily: "'Libre Baskerville', serif", color: C.ink }}>
+          Scanner un QR code
+        </h3>
+        <p className="text-xs text-center text-slate-500 mb-4">
+          Pointez la caméra sur le QR du bénéficiaire ou importez une photo.
+        </p>
+
+        <div className="grid grid-cols-2 gap-2 mb-3 p-1 rounded-full" style={{ backgroundColor: C.cream }}>
+          <button
+            onClick={() => setMode("camera")}
+            className="inline-flex items-center justify-center gap-1.5 py-2 rounded-full text-xs font-bold"
+            style={mode === "camera" ? { backgroundColor: C.ink, color: C.gold } : { color: C.ink }}
+          >
+            <Camera className="h-3.5 w-3.5" /> Caméra
+          </button>
+          <button
+            onClick={() => setMode("photo")}
+            className="inline-flex items-center justify-center gap-1.5 py-2 rounded-full text-xs font-bold"
+            style={mode === "photo" ? { backgroundColor: C.ink, color: C.gold } : { color: C.ink }}
+          >
+            <ImageIcon className="h-3.5 w-3.5" /> Photo
+          </button>
+        </div>
+
+        {mode === "camera" ? (
+          <div className="relative rounded-xl overflow-hidden bg-black aspect-square">
+            <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
+            <div className="pointer-events-none absolute inset-8 border-2 rounded-2xl" style={{ borderColor: C.gold }} />
+            {error && (
+              <div className="absolute inset-0 grid place-items-center bg-black/70 text-white text-xs p-4 text-center">
+                {error}
+                <br />
+                Basculez sur « Photo » pour importer une image du QR.
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-xl p-6 text-center" style={{ backgroundColor: C.cream, borderColor: C.border, borderWidth: 1 }}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleFile(f);
+              }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-bold text-sm"
+              style={{ backgroundColor: C.ink, color: C.gold }}
+            >
+              <ImageIcon className="h-4 w-4" /> Choisir une photo
+            </button>
+            <p className="text-[11px] text-slate-500 mt-3">
+              Prenez une photo du QR ou choisissez-en une dans votre galerie.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
