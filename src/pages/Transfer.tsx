@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowRight, RefreshCw, CheckCircle2, ShieldCheck, Loader2, Wallet } from "lucide-react";
-import { Link } from "react-router-dom";
-import { BackButton } from "@/components/back-button";
 import {
-  getMomoTransferConfig, quoteMomoTransfer, initMomoTransfer,
-  listMyMomoTransfers, verifyMomoTransfer,
+  Send, Wallet, QrCode, CheckCircle2, Clock, Loader2, RefreshCw,
+  ArrowDownLeft, ArrowUpRight, Copy, X, Phone, User as UserIcon,
+} from "lucide-react";
+import { BackButton } from "@/components/back-button";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  initInternalTransfer, listMyInternalTransfers, lookupInternalRecipient,
 } from "@/lib/transfer.functions";
-import { getDashboardData } from "@/lib/dashboard.functions";
 
-// Emerald Prestige palette (page-scoped to build banking trust)
 const C = {
   bg: "#f5f0e0",
   cream: "#f9f7f0",
@@ -20,174 +21,164 @@ const C = {
   border: "#e2decb",
 };
 
-const OPERATORS = [
-  { code: "ORANGE_MONEY", label: "Orange", color: "#ff6600" },
-  { code: "MOOV_MONEY", label: "Moov", color: "#005cff" },
-  { code: "TELECEL_MONEY", label: "Telecel", color: "#ed1c24" },
-  { code: "SANK_MONEY", label: "Sank", color: "#22c55e" },
-  { code: "CORIS_MONEY", label: "Coris", color: "#f59e0b" },
-  { code: "WAVE_MONEY", label: "Wave", color: "#00b4ff" },
-];
-
-function opInfo(code: string) {
-  return OPERATORS.find((o) => o.code === code) || { code, label: code, color: "#94a3b8" };
-}
-
 function StatusPill({ status }: { status: string }) {
-  const map: Record<string, { label: string; bg: string; fg: string }> = {
-    awaiting_payment: { label: "En attente", bg: "bg-amber-100", fg: "text-amber-700" },
-    paid: { label: "Envoi en cours", bg: "bg-sky-100", fg: "text-sky-700" },
-    disbursing: { label: "Envoi en cours", bg: "bg-sky-100", fg: "text-sky-700" },
-    delivered: { label: "Livré", bg: "bg-emerald-100", fg: "text-emerald-700" },
-    failed: { label: "Échec", bg: "bg-red-100", fg: "text-red-700" },
-    refunded: { label: "Remboursé", bg: "bg-slate-100", fg: "text-slate-600" },
+  const map: Record<string, { label: string; bg: string; fg: string; Icon: any }> = {
+    delivered: { label: "Livré", bg: "bg-emerald-100", fg: "text-emerald-700", Icon: CheckCircle2 },
+    claimed:   { label: "Récupéré", bg: "bg-emerald-100", fg: "text-emerald-700", Icon: CheckCircle2 },
+    pending_claim: { label: "En attente d'inscription", bg: "bg-amber-100", fg: "text-amber-700", Icon: Clock },
+    cancelled: { label: "Annulé", bg: "bg-slate-100", fg: "text-slate-600", Icon: X },
   };
-  const s = map[status] || map.awaiting_payment;
+  const s = map[status] || map.delivered;
+  const Icon = s.Icon;
   return (
-    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${s.bg} ${s.fg}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${s.bg} ${s.fg}`}>
+      <Icon className="h-3 w-3" />
       {s.label}
     </span>
   );
 }
 
-export default function TransferPage() {
-  const qc = useQueryClient();
-  const [form, setForm] = useState({
-    dest_operator: "MOOV_MONEY",
-    dest_phone: "",
-    dest_holder: "",
-    amount: "" as string,
-  });
-  const [quote, setQuote] = useState<any>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const cfgQ = useQuery({ queryKey: ["mtr-cfg"], queryFn: getMomoTransferConfig });
-  const listQ = useQuery({
-    queryKey: ["mtr-list"],
-    queryFn: listMyMomoTransfers,
+function useMe() {
+  return useQuery({
+    queryKey: ["me-profile"],
+    queryFn: async () => {
+      const { data: sess } = await supabase.auth.getSession();
+      const uid = sess.session?.user?.id;
+      if (!uid) throw new Error("Non connecté");
+      const [{ data: prof }, { data: wallets }] = await Promise.all([
+        supabase.from("profiles").select("full_name,phone,email").eq("id", uid).maybeSingle(),
+        supabase.from("wallets").select("currency,balance").eq("user_id", uid),
+      ]);
+      const xof = Number((wallets || []).find((w: any) => w.currency === "XOF")?.balance || 0);
+      return { uid, profile: prof, xofBalance: xof };
+    },
     refetchInterval: 15_000,
   });
-  const dashQ = useQuery({
-    queryKey: ["mtr-dash"],
-    queryFn: () => getDashboardData(),
-    refetchInterval: 20_000,
-  });
-  const xofBalance = Number((dashQ.data as any)?.wallets?.find((w: any) => w.currency === "XOF")?.balance ?? 0);
+}
 
-  const amountNum = Math.floor(Number(form.amount) || 0);
+export default function TransferPage() {
+  const qc = useQueryClient();
+  const [params, setParams] = useSearchParams();
+  const meQ = useMe();
+  const listQ = useQuery({
+    queryKey: ["itr-list"],
+    queryFn: listMyInternalTransfers,
+    refetchInterval: 15_000,
+  });
+
+  const [form, setForm] = useState({
+    recipient_phone: params.get("to") || "",
+    recipient_name: params.get("name") || "",
+    amount: params.get("amount") || "",
+    note: "",
+  });
+  const [lookup, setLookup] = useState<{ found: boolean; name?: string | null } | null>(null);
+  const [showQr, setShowQr] = useState(false);
+
+  // Live lookup by phone
   useEffect(() => {
     let cancel = false;
-    if (!amountNum || !cfgQ.data?.enabled) { setQuote(null); return; }
+    const raw = form.recipient_phone.replace(/\D/g, "");
+    if (raw.length < 8) { setLookup(null); return; }
     const t = setTimeout(async () => {
       try {
-        const q = await quoteMomoTransfer({ data: { amount: amountNum } });
-        if (!cancel) setQuote(q);
-      } catch (e: any) {
-        if (!cancel) setQuote({ ok: false, error: e.message });
-      }
-    }, 250);
+        const r = await lookupInternalRecipient(form.recipient_phone);
+        if (!cancel) {
+          setLookup(r);
+          if (r.found && r.name && !form.recipient_name) {
+            setForm((f) => ({ ...f, recipient_name: r.name || "" }));
+          }
+        }
+      } catch { /* ignore */ }
+    }, 300);
     return () => { cancel = true; clearTimeout(t); };
-  }, [amountNum, cfgQ.data?.enabled]);
+  }, [form.recipient_phone]);
 
-  const initMut = useMutation({
-    mutationFn: async () => {
-      setSubmitting(true);
-      return await initMomoTransfer({ data: { ...form, amount: amountNum } });
-    },
-    onSuccess: (res: any) => {
-      if (res?.ok === false) { toast.error(res.error || "Erreur"); return; }
-      const st = res?.transfer?.status;
-      if (st === "delivered") toast.success("✅ Transfert livré au destinataire");
-      else if (st === "refunded") toast.error("Échec — vous avez été remboursé");
-      else toast.success("Transfert en cours vers le destinataire…");
-      qc.invalidateQueries({ queryKey: ["mtr-list"] });
-      qc.invalidateQueries({ queryKey: ["mtr-dash"] });
-      setForm({ dest_operator: form.dest_operator, dest_phone: "", dest_holder: "", amount: "" });
-    },
-    onError: (e: any) => toast.error(e.message || "Erreur"),
-    onSettled: () => setSubmitting(false),
-  });
+  // Clear URL params once consumed
+  useEffect(() => {
+    if (params.get("to") || params.get("amount") || params.get("name")) {
+      const p = new URLSearchParams(params);
+      p.delete("to"); p.delete("amount"); p.delete("name");
+      setParams(p, { replace: true });
+    }
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const verifyMut = useMutation({
-    mutationFn: (reference: string) => verifyMomoTransfer({ data: { reference } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["mtr-list"] }); qc.invalidateQueries({ queryKey: ["mtr-dash"] }); toast.success("Statut mis à jour"); },
-    onError: (e: any) => toast.error(e.message || "Erreur"),
-  });
+  const amountNum = Math.floor(Number(form.amount) || 0);
+  const me = meQ.data;
+  const xofBalance = me?.xofBalance ?? 0;
 
   const valid = useMemo(() => {
-    return !!form.dest_operator
-      && form.dest_phone.replace(/\D/g, "").length >= 8
-      && amountNum > 0 && quote?.ok
-      && xofBalance >= (quote?.total_charged_xof || 0);
-  }, [form, amountNum, quote, xofBalance]);
+    return form.recipient_phone.replace(/\D/g, "").length >= 8
+      && amountNum >= 100
+      && xofBalance >= amountNum;
+  }, [form, amountNum, xofBalance]);
 
-  const cfg = cfgQ.data;
+  const sendMut = useMutation({
+    mutationFn: () => initInternalTransfer({
+      recipient_phone: form.recipient_phone,
+      recipient_name: form.recipient_name,
+      amount: amountNum,
+      note: form.note,
+    }),
+    onSuccess: (res: any) => {
+      if (res?.ok === false) { toast.error(res.error || "Erreur"); return; }
+      if (res.delivered) toast.success(`✅ ${amountNum.toLocaleString("fr-FR")} XOF envoyés instantanément`);
+      else toast.success(`Transfert en attente — le destinataire recevra ${amountNum.toLocaleString("fr-FR")} XOF dès son inscription`);
+      qc.invalidateQueries({ queryKey: ["itr-list"] });
+      qc.invalidateQueries({ queryKey: ["me-profile"] });
+      setForm({ recipient_phone: "", recipient_name: "", amount: "", note: "" });
+      setLookup(null);
+    },
+    onError: (e: any) => toast.error(e.message || "Erreur"),
+  });
 
-  // KPI aggregates
-  const list = listQ.data ?? [];
-  const kpis = useMemo(() => {
-    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
-    let volume = 0, fees = 0, delivered = 0;
-    let last: any = null;
-    for (const t of list) {
-      const d = new Date(t.created_at);
-      if (d >= monthStart && ["paid", "disbursing", "delivered"].includes(t.status)) {
-        volume += Number(t.amount_send || 0);
-        fees += Number(t.fees_xof || 0);
-      }
-      if (t.status === "delivered") delivered++;
-      if (!last || new Date(t.created_at) > new Date(last.created_at)) last = t;
-    }
-    return { volume, fees, delivered, last };
-  }, [list]);
+  const myPhone = me?.profile?.phone || "";
+  const myShareUrl = myPhone
+    ? `${window.location.origin}/transfer?to=${encodeURIComponent(myPhone)}${me?.profile?.full_name ? `&name=${encodeURIComponent(me.profile.full_name)}` : ""}`
+    : "";
+  const myQrImg = myShareUrl
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=8&data=${encodeURIComponent(myShareUrl)}`
+    : "";
 
   return (
     <div className="min-h-screen p-4 md:p-8" style={{ backgroundColor: C.bg, color: C.ink, fontFamily: "'IBM Plex Sans', system-ui, sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="max-w-5xl mx-auto space-y-6">
 
         <BackButton to="/dashboard" className="mb-2 !text-[#064e3b] hover:!text-[#0d7a5f]" />
 
-        {/* Header & KPIs */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold" style={{ fontFamily: "'Libre Baskerville', serif", color: C.ink }}>
-              Transfert Inter-Réseaux
+              Envoyer de l'argent
             </h1>
-            <p className="mt-2 flex items-center gap-2 text-sm font-medium" style={{ color: C.green }}>
-              <ShieldCheck className="h-4 w-4" style={{ color: C.gold }} />
-              Transferts sécurisés entre tous les opérateurs nationaux
+            <p className="mt-2 text-sm font-medium" style={{ color: C.green }}>
+              Transferts <b>gratuits & instantanés</b> entre comptes FASO-INVEST PAY. Même si le destinataire n'a pas encore de compte, il recevra un SMS pour récupérer son argent.
             </p>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <KpiCard label="Volume / mois" value={`${kpis.volume.toLocaleString("fr-FR")}`} unit="XOF" accent={C.gold} />
-            <KpiCard label="Dernier envoi" value={kpis.last ? `${Number(kpis.last.amount_send).toLocaleString("fr-FR")}` : "—"} unit="XOF" accent={C.green} />
-            <KpiCard label="Frais / mois" value={`${kpis.fees.toLocaleString("fr-FR")}`} unit="XOF" accent={C.ink} className="hidden sm:block" />
-          </div>
+          <button
+            onClick={() => setShowQr(true)}
+            disabled={!myPhone}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-sm disabled:opacity-40"
+            style={{ backgroundColor: C.ink, color: C.gold }}
+          >
+            <QrCode className="h-4 w-4" /> Mon QR Code
+          </button>
         </header>
 
-        {cfg && !cfg.enabled && (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
-            Cette fonctionnalité est temporairement désactivée. Réessayez plus tard.
-          </div>
-        )}
-
-        {/* Main Transfer Section */}
-        <div className="grid lg:grid-cols-3 gap-8 items-start">
-
-          {/* Form */}
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl overflow-hidden" style={{ borderColor: C.border, borderWidth: 1 }}>
+        <div className="grid lg:grid-cols-5 gap-6 items-start">
+          {/* FORM */}
+          <div className="lg:col-span-3 bg-white rounded-2xl shadow-xl overflow-hidden" style={{ borderColor: C.border, borderWidth: 1 }}>
             <div className="px-6 py-4 flex items-center justify-between" style={{ backgroundColor: C.ink }}>
-              <h2 className="text-white text-lg" style={{ fontFamily: "'Libre Baskerville', serif" }}>
-                Configuration du transfert
-              </h2>
+              <h2 className="text-white text-lg" style={{ fontFamily: "'Libre Baskerville', serif" }}>Nouveau transfert</h2>
               <span className="text-[10px] uppercase tracking-widest font-bold px-2 py-1 rounded" style={{ color: C.ink, backgroundColor: C.gold }}>
-                Sécurisé
+                Gratuit
               </span>
             </div>
 
-            <div className="p-6 space-y-6">
-              {/* Wallet balance */}
+            <div className="p-6 space-y-5">
+              {/* Balance */}
               <div className="flex items-center justify-between p-4 rounded-xl border" style={{ borderColor: C.border, backgroundColor: C.cream }}>
                 <div className="flex items-center gap-3">
                   <span className="grid h-10 w-10 place-items-center rounded-full" style={{ backgroundColor: C.ink, color: C.gold }}>
@@ -195,233 +186,240 @@ export default function TransferPage() {
                   </span>
                   <div>
                     <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500">Portefeuille XOF</p>
-                    <p className="text-lg font-bold tabular-nums" style={{ color: C.ink }}>{xofBalance.toLocaleString("fr-FR")} XOF</p>
+                    <p className="text-lg font-bold tabular-nums" style={{ color: C.ink }}>
+                      {xofBalance.toLocaleString("fr-FR")} XOF
+                    </p>
                   </div>
                 </div>
-                <Link to="/dashboard" className="text-xs font-bold px-3 py-2 rounded-full" style={{ backgroundColor: C.gold, color: C.ink }}>
-                  Recharger
-                </Link>
               </div>
 
-              {/* Dest operator */}
+              {/* Phone */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest mb-3" style={{ color: C.ink }}>
-                  Opérateur destinataire
+                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  <Phone className="inline h-3 w-3 mr-1" />
+                  Numéro du destinataire
                 </label>
-                <OperatorChips value={form.dest_operator} onChange={(v) => setForm({ ...form, dest_operator: v })} />
+                <input
+                  type="tel"
+                  value={form.recipient_phone}
+                  onChange={(e) => setForm({ ...form, recipient_phone: e.target.value })}
+                  placeholder="70 00 00 00"
+                  className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:outline-none text-lg font-mono"
+                  style={{ color: C.ink }}
+                />
+                {lookup && (
+                  <div className={`mt-2 flex items-center gap-2 text-xs font-medium ${lookup.found ? "text-emerald-700" : "text-amber-700"}`}>
+                    {lookup.found ? (
+                      <><CheckCircle2 className="h-4 w-4" /> Compte FASO-INVEST PAY trouvé{lookup.name ? ` — ${lookup.name}` : ""}. Livraison instantanée.</>
+                    ) : (
+                      <><Clock className="h-4 w-4" /> Pas de compte détecté. Le destinataire recevra un SMS pour créer son compte gratuit et récupérer l'argent.</>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Inputs grid */}
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <Field label="Numéro destinataire" value={form.dest_phone} onChange={(v) => setForm({ ...form, dest_phone: v })} placeholder="65 00 00 00" mono />
-                  <Field label="Nom du bénéficiaire" value={form.dest_holder} onChange={(v) => setForm({ ...form, dest_holder: v })} placeholder="Ex. Awa Ouédraogo" />
-                </div>
-                <div className="space-y-4">
-                  <Field
-                    label="Montant à envoyer (XOF)"
-                    value={form.amount}
-                    onChange={(v) => setForm({ ...form, amount: v.replace(/\D/g, "") })}
-                    placeholder="10 000"
-                    big
-                  />
+              {/* Name */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  <UserIcon className="inline h-3 w-3 mr-1" />
+                  Nom du destinataire (facultatif)
+                </label>
+                <input
+                  type="text"
+                  value={form.recipient_name}
+                  onChange={(e) => setForm({ ...form, recipient_name: e.target.value })}
+                  placeholder="Ex. Awa Ouédraogo"
+                  className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:outline-none text-sm"
+                  style={{ color: C.ink }}
+                />
+              </div>
+
+              {/* Amount */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  Montant (XOF)
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.amount}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value.replace(/\D/g, "") })}
+                  placeholder="5 000"
+                  className="w-full px-4 py-4 rounded-lg border border-slate-200 focus:ring-2 focus:outline-none text-2xl font-bold tabular-nums"
+                  style={{ color: C.ink }}
+                />
+                <div className="mt-2 flex gap-2 flex-wrap">
+                  {[500, 1000, 2500, 5000, 10000].map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setForm({ ...form, amount: String(v) })}
+                      className="px-3 py-1 rounded-full text-xs font-bold border"
+                      style={{ borderColor: C.border, color: C.green, backgroundColor: "white" }}
+                    >
+                      +{v.toLocaleString("fr-FR")}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Guide */}
-              <div className="p-4 rounded-lg flex items-start gap-3" style={{ backgroundColor: C.cream, borderColor: C.border, borderWidth: 1 }}>
-                <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: C.green }}>i</div>
-                <p className="text-xs leading-relaxed" style={{ color: C.ink }}>
-                  <strong>Comment ça marche :</strong> le montant est débité de votre portefeuille XOF (rechargé au préalable via Mobile Money) et versé instantanément vers l'opérateur du destinataire. En cas d'échec, vous êtes automatiquement remboursé.
+              {/* Note */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  Message (facultatif)
+                </label>
+                <input
+                  type="text"
+                  value={form.note}
+                  onChange={(e) => setForm({ ...form, note: e.target.value.slice(0, 200) })}
+                  placeholder="Merci pour ton aide"
+                  className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:outline-none text-sm"
+                  style={{ color: C.ink }}
+                />
+              </div>
+
+              <div className="p-3 rounded-lg text-xs flex items-start gap-2" style={{ backgroundColor: C.cream, borderColor: C.border, borderWidth: 1, color: C.ink }}>
+                <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: C.green }}>i</div>
+                <p>
+                  <b>0 F de frais.</b> Le montant est débité de votre portefeuille XOF et crédité instantanément au bénéficiaire. Un SMS le notifie automatiquement.
                 </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Receipt */}
-          <div className="bg-white rounded-2xl shadow-xl relative" style={{ borderColor: C.border, borderWidth: 1 }}>
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest" style={{ backgroundColor: C.gold, color: C.ink }}>
-              Récapitulatif
-            </div>
-
-            <div className="p-8 flex flex-col items-center">
-              <div className="w-12 h-12 rounded-full mb-4 flex items-center justify-center" style={{ backgroundColor: C.bg }}>
-                <CheckCircle2 className="w-6 h-6" style={{ color: C.green }} />
-              </div>
-
-              <div className="w-full space-y-4 pt-4 border-t border-dashed" style={{ borderColor: C.border }}>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Reçu par le destinataire</span>
-                  <b className="tabular-nums">{amountNum ? amountNum.toLocaleString("fr-FR") : "—"} XOF</b>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Frais {cfg ? `(${((cfg.fee_bps ?? 150) / 100).toFixed(2)}% + ${cfg.fee_flat_xof ?? 100})` : ""}</span>
-                  <b className="tabular-nums text-red-600">
-                    {quote?.ok ? `- ${quote.fees_xof.toLocaleString("fr-FR")}` : "—"} XOF
-                  </b>
-                </div>
-                <div className="pt-4 border-t flex justify-between items-baseline" style={{ borderColor: C.border }}>
-                  <span className="text-xs font-bold uppercase text-slate-400">Total à payer</span>
-                  <span className="text-2xl font-bold tabular-nums" style={{ fontFamily: "'Libre Baskerville', serif", color: C.ink }}>
-                    {quote?.ok ? quote.total_charged_xof.toLocaleString("fr-FR") : "—"} <span className="text-xs">XOF</span>
-                  </span>
-                </div>
-                {quote?.error && <p className="text-xs text-red-600 text-right">{quote.error}</p>}
               </div>
 
               <button
-                disabled={!valid || submitting || !cfg?.enabled}
-                onClick={() => initMut.mutate()}
-                className="w-full mt-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:transform-none disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                disabled={!valid || sendMut.isPending}
+                onClick={() => sendMut.mutate()}
+                className="w-full py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 active:scale-95 disabled:opacity-40 disabled:transform-none disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                 style={{ backgroundColor: C.ink, color: C.gold }}
               >
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                Transférer maintenant
+                {sendMut.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                Envoyer {amountNum ? `${amountNum.toLocaleString("fr-FR")} XOF` : ""}
               </button>
-
-              <p className="mt-4 text-[10px] text-center text-slate-400 leading-relaxed">
-                Débit direct depuis votre portefeuille XOF.<br />
-                Remboursement automatique en cas d'échec.
-              </p>
             </div>
           </div>
+
+          {/* SIDE — QR share */}
+          <aside className="lg:col-span-2 bg-white rounded-2xl shadow-xl p-6 space-y-4" style={{ borderColor: C.border, borderWidth: 1 }}>
+            <div className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" style={{ color: C.gold }} />
+              <h3 className="font-bold" style={{ fontFamily: "'Libre Baskerville', serif", color: C.ink }}>
+                Recevoir par QR Code
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Partagez votre QR code : un expéditeur le scanne avec l'appareil photo de son téléphone et le formulaire se remplit automatiquement.
+            </p>
+            {myPhone ? (
+              <>
+                <div className="flex justify-center p-4 rounded-xl" style={{ backgroundColor: C.cream, borderColor: C.border, borderWidth: 1 }}>
+                  <img src={myQrImg} alt="Mon QR Code" width={200} height={200} className="rounded" />
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Mon numéro</p>
+                  <p className="text-lg font-mono font-bold" style={{ color: C.ink }}>{myPhone}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(myShareUrl);
+                    toast.success("Lien copié");
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold border"
+                  style={{ borderColor: C.border, color: C.green, backgroundColor: "white" }}
+                >
+                  <Copy className="h-3 w-3" /> Copier mon lien de paiement
+                </button>
+              </>
+            ) : (
+              <div className="p-4 rounded-lg text-xs text-amber-700 bg-amber-50">
+                Ajoutez votre numéro de téléphone dans votre profil pour générer votre QR code.
+              </div>
+            )}
+          </aside>
         </div>
 
-        {/* History */}
+        {/* HISTORY */}
         <section className="bg-white rounded-2xl shadow-lg overflow-hidden" style={{ borderColor: C.border, borderWidth: 1 }}>
           <div className="px-6 py-4 border-b flex justify-between items-center" style={{ borderColor: C.bg }}>
             <h2 className="font-bold text-lg" style={{ fontFamily: "'Libre Baskerville', serif", color: C.ink }}>
-              Mes transferts récents
+              Historique
             </h2>
             <button onClick={() => listQ.refetch()} className="inline-flex items-center gap-1 text-xs font-bold hover:underline" style={{ color: C.green }}>
               <RefreshCw className="h-3 w-3" /> Actualiser
             </button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-left">
-              <thead className="text-[10px] uppercase tracking-wider font-bold" style={{ backgroundColor: C.cream, color: C.green }}>
-                <tr>
-                  <th className="px-6 py-3">Date & Heure</th>
-                  <th className="px-6 py-3">Trajet</th>
-                  <th className="px-6 py-3">Destinataire</th>
-                  <th className="px-6 py-3 text-right">Montant</th>
-                  <th className="px-6 py-3 text-center">Statut</th>
-                  <th className="px-6 py-3 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
-                {list.map((t: any) => {
-                  const src = opInfo(t.source_operator), dst = opInfo(t.dest_operator);
-                  return (
-                    <tr key={t.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-slate-500 text-xs">
-                        {new Date(t.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold" style={{ color: src.color, backgroundColor: src.color + "1a" }}>
-                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: src.color }} />
-                            {src.label}
-                          </span>
-                          <ArrowRight className="w-3 h-3 text-slate-300" />
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold" style={{ color: dst.color, backgroundColor: dst.color + "1a" }}>
-                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: dst.color }} />
-                            {dst.label}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-xs">
-                        <div className="font-medium" style={{ color: C.ink }}>{t.dest_holder || "—"}</div>
-                        <div className="text-slate-400 tabular-nums">{t.dest_phone}</div>
-                      </td>
-                      <td className="px-6 py-4 text-right tabular-nums font-bold" style={{ color: C.ink }}>
-                        {Number(t.amount_send).toLocaleString("fr-FR")} XOF
-                      </td>
-                      <td className="px-6 py-4 text-center"><StatusPill status={t.status} /></td>
-                      <td className="px-6 py-4 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => verifyMut.mutate(t.payment_reference)}
-                          className="text-xs font-bold hover:underline"
-                          style={{ color: C.green }}
-                        >
-                          Vérifier
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {list.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="py-10 text-center text-xs text-slate-400">
-                      Aucun transfert pour le moment. Lancez votre premier envoi ci-dessus.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <TransfersHistory data={listQ.data} />
         </section>
       </div>
+
+      {/* QR MODAL */}
+      {showQr && myPhone && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowQr(false)}>
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowQr(false)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600">
+              <X className="h-5 w-5" />
+            </button>
+            <h3 className="font-bold text-xl mb-1 text-center" style={{ fontFamily: "'Libre Baskerville', serif", color: C.ink }}>
+              Recevoir de l'argent
+            </h3>
+            <p className="text-xs text-center text-slate-500 mb-4">Faites scanner ce QR pour recevoir un paiement instantané.</p>
+            <div className="flex justify-center p-6 rounded-xl" style={{ backgroundColor: C.cream }}>
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=380x380&margin=12&data=${encodeURIComponent(myShareUrl)}`}
+                alt="QR"
+                className="rounded"
+                width={320} height={320}
+              />
+            </div>
+            <div className="text-center mt-4">
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Numéro</p>
+              <p className="text-2xl font-mono font-bold" style={{ color: C.ink }}>{myPhone}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function KpiCard({ label, value, unit, accent, className = "" }: { label: string; value: string; unit?: string; accent: string; className?: string }) {
-  return (
-    <div
-      className={`bg-white p-4 rounded shadow-sm min-w-[140px] ${className}`}
-      style={{ borderLeftWidth: 4, borderLeftColor: accent }}
-    >
-      <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">{label}</p>
-      <p className="text-xl font-bold mt-1 tabular-nums" style={{ color: C.ink }}>
-        {value} {unit && <span className="text-xs font-normal text-slate-500">{unit}</span>}
-      </p>
-    </div>
-  );
-}
+function TransfersHistory({ data }: { data?: { sent: any[]; received: any[] } }) {
+  const rows = useMemo(() => {
+    const s = (data?.sent || []).map((r) => ({ ...r, _dir: "out" as const }));
+    const r = (data?.received || []).map((x) => ({ ...x, _dir: "in" as const }));
+    return [...s, ...r].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [data]);
 
-function OperatorChips({ value, onChange, exclude }: { value: string; onChange: (v: string) => void; exclude?: string }) {
+  if (!rows.length) {
+    return <div className="py-12 text-center text-xs text-slate-400">Aucun transfert pour le moment.</div>;
+  }
   return (
-    <div className="flex flex-wrap gap-2.5">
-      {OPERATORS.map((o) => {
-        const disabled = exclude === o.code;
-        const active = value === o.code;
+    <div className="divide-y divide-slate-100">
+      {rows.map((r: any) => {
+        const isOut = r._dir === "out";
+        const other = isOut
+          ? (r.recipient_name || r.recipient?.full_name || r.recipient_phone)
+          : (r.sender?.full_name || "Expéditeur");
         return (
-          <button
-            key={o.code}
-            type="button"
-            disabled={disabled}
-            onClick={() => onChange(o.code)}
-            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all disabled:opacity-25 disabled:cursor-not-allowed"
-            style={
-              active
-                ? { borderWidth: 2, borderColor: o.color, backgroundColor: o.color + "14", color: o.color, fontWeight: 700 }
-                : { borderWidth: 1, borderColor: "#e2e8f0", color: "#475569", backgroundColor: "white" }
-            }
-          >
-            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: o.color }} />
-            {o.label}
-          </button>
+          <div key={`${r._dir}-${r.id}`} className="px-6 py-4 flex items-center gap-3 hover:bg-slate-50">
+            <span className={`grid h-10 w-10 place-items-center rounded-full flex-shrink-0 ${isOut ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"}`}>
+              {isOut ? <ArrowUpRight className="h-5 w-5" /> : <ArrowDownLeft className="h-5 w-5" />}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm" style={{ color: C.ink }}>
+                  {isOut ? "Envoyé à" : "Reçu de"} {other}
+                </span>
+                <StatusPill status={r.status} />
+              </div>
+              <div className="text-[11px] text-slate-500">
+                {new Date(r.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                {r.note ? ` · ${r.note}` : ""}
+              </div>
+            </div>
+            <div className={`text-right font-bold tabular-nums ${isOut ? "text-red-600" : "text-emerald-700"}`}>
+              {isOut ? "-" : "+"}{Number(r.amount).toLocaleString("fr-FR")} <span className="text-[10px] font-normal">{r.currency}</span>
+            </div>
+          </div>
         );
       })}
-    </div>
-  );
-}
-
-function Field({ label, value, onChange, placeholder, mono, big }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; mono?: boolean; big?: boolean }) {
-  return (
-    <div>
-      <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">{label}</label>
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={`w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:outline-none transition-all ${mono ? "font-mono text-lg" : ""} ${big ? "font-bold text-xl" : "text-sm"}`}
-        style={{ color: C.ink }}
-        onFocus={(e) => { e.currentTarget.style.boxShadow = `0 0 0 2px ${big ? C.gold : C.green}`; e.currentTarget.style.borderColor = "transparent"; }}
-        onBlur={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "#e2e8f0"; }}
-      />
     </div>
   );
 }

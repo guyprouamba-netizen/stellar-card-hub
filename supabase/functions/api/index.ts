@@ -6,7 +6,7 @@ import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import * as SW from "../_shared/strowallet.ts";
 import { computeCardCost, computeFundCost, loadPricingConfig } from "../_shared/pricing.ts";
 import { sendEmail } from "../_shared/email.ts";
-import { notifyEvent as notifySms } from "../_shared/sms.ts";
+import { notifyEvent as notifySms, sendSmsRaw } from "../_shared/sms.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -2969,6 +2969,145 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       .createSignedUrl(data.path, 60 * 60);
     if (error) throw new Error(error.message);
     return { url: signed.signedUrl };
+  },
+
+  // ============ TRANSFERTS INTER-COMPTES (P2P gratuit) ============
+  async lookupInternalRecipient({ data, admin }) {
+    const phone = normalizeBfPhone(data?.phone);
+    if (!phone) return { found: false };
+    const { data: profs } = await admin.from("profiles").select("id,full_name,phone");
+    const match = (profs || []).find((p: any) => normalizeBfPhone(p.phone) === phone);
+    return match
+      ? { found: true, name: match.full_name || null }
+      : { found: false };
+  },
+
+  async initInternalTransfer({ data, user, admin }) {
+    const userId = user.id;
+    await assertUserRateLimit(admin, userId, "initInternalTransfer", 20);
+
+    const amount = Math.floor(Number(data?.amount || 0));
+    if (!Number.isFinite(amount) || amount < 100) return { ok: false, error: "Montant minimum 100 XOF" };
+    if (amount > 1_000_000) return { ok: false, error: "Montant maximum 1 000 000 XOF" };
+
+    const phone = normalizeBfPhone(data?.recipient_phone);
+    if (!phone) return { ok: false, error: "Numéro destinataire invalide" };
+
+    const recipientName = String(data?.recipient_name || "").slice(0, 120).trim() || null;
+    const note = String(data?.note || "").slice(0, 240).trim() || null;
+
+    // Fetch sender profile for name + self-transfer guard
+    const { data: senderProfile } = await admin.from("profiles")
+      .select("id,full_name,phone").eq("id", userId).maybeSingle();
+    if (senderProfile?.phone && normalizeBfPhone(senderProfile.phone) === phone) {
+      return { ok: false, error: "Vous ne pouvez pas transférer à votre propre numéro" };
+    }
+
+    // Debit sender XOF wallet
+    const { data: wS } = await admin.from("wallets")
+      .select("id,balance").eq("user_id", userId).eq("currency", "XOF").maybeSingle();
+    const bal = Number(wS?.balance || 0);
+    if (!wS || bal < amount) {
+      return { ok: false, error: `Solde XOF insuffisant (${bal.toLocaleString("fr-FR")} XOF). Rechargez votre portefeuille.` };
+    }
+
+    // Lookup recipient by normalized phone
+    const { data: profs } = await admin.from("profiles").select("id,full_name,phone");
+    const recipient = (profs || []).find((p: any) => p.id !== userId && normalizeBfPhone(p.phone) === phone);
+
+    const reference = `INT-${Date.now()}-${userId.slice(0, 6)}`;
+
+    // Debit sender
+    const { error: dErr } = await admin.from("wallets").update({ balance: bal - amount }).eq("id", wS.id);
+    if (dErr) throw new Error(dErr.message);
+    await admin.from("transactions").insert({
+      user_id: userId, type: "transfer_out", status: "success",
+      amount, currency: "XOF", provider: "internal", provider_ref: reference,
+      description: `Transfert à ${recipientName || phone}${note ? " · " + note : ""}`,
+    });
+
+    const senderName = senderProfile?.full_name || "Un utilisateur FASO-INVEST PAY";
+    let status = "delivered";
+    let recipient_id: string | null = null;
+
+    if (recipient) {
+      recipient_id = recipient.id;
+      const { data: wR } = await admin.from("wallets")
+        .select("id,balance").eq("user_id", recipient.id).eq("currency", "XOF").maybeSingle();
+      if (wR) {
+        await admin.from("wallets").update({ balance: Number(wR.balance || 0) + amount }).eq("id", wR.id);
+      } else {
+        await admin.from("wallets").insert({ user_id: recipient.id, currency: "XOF", balance: amount });
+      }
+      await admin.from("transactions").insert({
+        user_id: recipient.id, type: "transfer_in", status: "success",
+        amount, currency: "XOF", provider: "internal", provider_ref: reference,
+        description: `Reçu de ${senderName}${note ? " · " + note : ""}`,
+      });
+    } else {
+      status = "pending_claim";
+    }
+
+    const { data: row, error: insErr } = await admin.from("internal_transfers").insert({
+      sender_id: userId,
+      recipient_id,
+      recipient_phone: phone,
+      recipient_name: recipientName,
+      amount,
+      currency: "XOF",
+      note,
+      status,
+      reference,
+      claimed_at: status === "delivered" ? new Date().toISOString() : null,
+    }).select("*").single();
+    if (insErr) throw new Error(insErr.message);
+
+    // SMS notification (best-effort)
+    try {
+      const { data: cfg } = await admin.from("sms_config").select("*").limit(1).maybeSingle();
+      if (cfg?.enabled) {
+        const sender_id = cfg.sender_id || "BBG";
+        const amountFmt = amount.toLocaleString("fr-FR");
+        const message = recipient
+          ? `FASO-INVEST PAY: Vous venez de recevoir ${amountFmt} XOF de ${senderName}. Consultez votre solde dans l'application.`
+          : `FASO-INVEST PAY: ${senderName} vous a envoye ${amountFmt} XOF. Creez votre compte gratuit avec ce numero sur fasoinvestpay.com pour retirer via Mobile Money.`;
+        const r = await sendSmsRaw({ recipient: phone, message, sender_id });
+        await admin.from("sms_logs").insert({
+          recipient: phone, message,
+          event_key: recipient ? "internal_transfer_received" : "internal_transfer_invite",
+          user_id: recipient_id,
+          status: r.ok ? "success" : "failed",
+          provider_response: r.body,
+          error: r.ok ? null : String(r.body?.message || r.body?.error || `HTTP ${r.status}`),
+        });
+      }
+    } catch (e) {
+      console.error("[internal-transfer] sms failed", e);
+    }
+
+    return { ok: true, transfer: row, delivered: !!recipient };
+  },
+
+  async listMyInternalTransfers({ user, admin }) {
+    const userId = user.id;
+    const { data: sent } = await admin.from("internal_transfers")
+      .select("*").eq("sender_id", userId).order("created_at", { ascending: false }).limit(60);
+    const { data: received } = await admin.from("internal_transfers")
+      .select("*").eq("recipient_id", userId).order("created_at", { ascending: false }).limit(60);
+    // Enrich with counterpart names
+    const otherIds = Array.from(new Set([
+      ...(sent || []).map((r: any) => r.recipient_id).filter(Boolean),
+      ...(received || []).map((r: any) => r.sender_id).filter(Boolean),
+    ]));
+    let byId = new Map<string, any>();
+    if (otherIds.length) {
+      const { data: profs } = await admin.from("profiles").select("id,full_name,phone").in("id", otherIds);
+      byId = new Map((profs || []).map((p: any) => [p.id, p]));
+    }
+    return {
+      sent: (sent || []).map((r: any) => ({ ...r, recipient: r.recipient_id ? byId.get(r.recipient_id) : null })),
+      received: (received || []).map((r: any) => ({ ...r, sender: byId.get(r.sender_id) || null })),
+    };
   },
 };
 

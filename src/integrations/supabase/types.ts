@@ -1464,6 +1464,51 @@ export type Database = {
           },
         ]
       }
+      internal_transfers: {
+        Row: {
+          amount: number
+          claimed_at: string | null
+          created_at: string
+          currency: string
+          id: string
+          note: string | null
+          recipient_id: string | null
+          recipient_name: string | null
+          recipient_phone: string
+          reference: string | null
+          sender_id: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          claimed_at?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          note?: string | null
+          recipient_id?: string | null
+          recipient_name?: string | null
+          recipient_phone: string
+          reference?: string | null
+          sender_id: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          claimed_at?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          note?: string | null
+          recipient_id?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string
+          reference?: string | null
+          sender_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       invoices: {
         Row: {
           business_id: string
@@ -2972,6 +3017,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      normalize_bf_phone: { Args: { input: string }; Returns: string }
       purge_rate_limit_hits: { Args: never; Returns: undefined }
     }
     Enums: {
