@@ -180,8 +180,8 @@ async function payReferralCardReward(admin: any, referredUserId: string, provide
   return { paid: rewardXof, alreadyPaid: false };
 }
 
-// YengaPay payout supported methods (Wave is NOT supported by the payout API).
-const YENGAPAY_CASHOUT_METHODS = ["ORANGE_MONEY", "MOOV_MONEY", "TELECEL_MONEY", "SANK_MONEY", "CORIS_MONEY"] as const;
+// YengaPay payout supported methods (Wave dispo sur certains projets payout — on tente et on rembourse si refusé).
+const YENGAPAY_CASHOUT_METHODS = ["ORANGE_MONEY", "MOOV_MONEY", "TELECEL_MONEY", "SANK_MONEY", "CORIS_MONEY", "WAVE_MONEY"] as const;
 
 function mapCashoutMethod(operator?: string | null) {
   const opNorm = String(operator || "").toLowerCase();
@@ -190,7 +190,7 @@ function mapCashoutMethod(operator?: string | null) {
   if (opNorm.includes("telecel")) return "TELECEL_MONEY";
   if (opNorm.includes("sank")) return "SANK_MONEY";
   if (opNorm.includes("coris")) return "CORIS_MONEY";
-  // Wave payout non supporté par l'API YengaPay
+  if (opNorm.includes("wave")) return "WAVE_MONEY";
   return null;
 }
 
@@ -312,9 +312,13 @@ function computeMomoTransferFees(amount: number, cfg: { fee_bps: number; fee_fla
   return Math.max(0, pct + Math.max(0, Math.floor(cfg.fee_flat_xof)));
 }
 async function triggerMomoTransferCashout(admin: any, t: any) {
-  const apiKey = Deno.env.get("YENGAPAY_CASHOUT_API_KEY") || Deno.env.get("YENGAPAY_API_KEY");
-  const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
-  const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
+  // Utilise en priorité le projet YengaPay dédié au PAYOUT (transferts sortants).
+  const apiKey = Deno.env.get("YENGAPAY_TRANSFER_CASHOUT_API_KEY")
+    || Deno.env.get("YENGAPAY_TRANSFER_API_KEY")
+    || Deno.env.get("YENGAPAY_CASHOUT_API_KEY")
+    || Deno.env.get("YENGAPAY_API_KEY");
+  const groupId = Deno.env.get("YENGAPAY_TRANSFER_GROUP_ID") || Deno.env.get("YENGAPAY_GROUP_ID");
+  const projectId = Deno.env.get("YENGAPAY_TRANSFER_PROJECT_ID") || Deno.env.get("YENGAPAY_PROJECT_ID");
   if (!apiKey || !groupId || !projectId) {
     await admin.from("momo_transfers").update({ status: "paid", admin_note: "YengaPay non configuré — payout manuel requis" }).eq("id", t.id);
     return;
@@ -2669,55 +2673,52 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const amount = Math.floor(Number(data?.amount || 0));
     if (!Number.isFinite(amount) || amount < cfg.min) return { ok: false, error: `Montant minimum ${cfg.min} XOF` };
     if (amount > cfg.max) return { ok: false, error: `Montant maximum ${cfg.max} XOF` };
-    const sourceOperator = String(data?.source_operator || "").trim();
+    const sourceOperator = String(data?.source_operator || "WALLET").trim();
     const destOperator = String(data?.dest_operator || "").trim();
-    const sourcePhone = normalizeBfPhone(data?.source_phone);
     const destPhone = normalizeBfPhone(data?.dest_phone);
     const destHolder = String(data?.dest_holder || "").slice(0, 120);
-    if (!sourceOperator || !destOperator) return { ok: false, error: "Opérateurs requis" };
-    if (!sourcePhone) return { ok: false, error: "Numéro source invalide" };
+    if (!destOperator) return { ok: false, error: "Opérateur destinataire requis" };
     if (!destPhone) return { ok: false, error: "Numéro destinataire invalide" };
     if (!mapCashoutMethod(destOperator)) return { ok: false, error: "Opérateur destinataire non supporté" };
     const fees = computeMomoTransferFees(amount, cfg);
     const total = amount + fees;
 
-    const apiKey = Deno.env.get("YENGAPAY_API_KEY");
-    const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
-    const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
-    if (!apiKey || !groupId || !projectId) throw new Error("YengaPay env missing");
+    // Débit direct du portefeuille XOF (pas de pay-in) — le client a déjà rechargé.
+    const { data: w } = await admin.from("wallets")
+      .select("id,balance").eq("user_id", userId).eq("currency", "XOF").maybeSingle();
+    const currentBalance = Number(w?.balance || 0);
+    if (!w || currentBalance < total) {
+      return {
+        ok: false,
+        error: `Solde XOF insuffisant. Il vous faut ${total.toLocaleString("fr-FR")} XOF (solde: ${currentBalance.toLocaleString("fr-FR")}). Rechargez votre portefeuille depuis le tableau de bord.`,
+      };
+    }
     const reference = `MTR-${Date.now()}-${userId.slice(0, 8)}`;
-    const baseReturn = String(data?.returnUrl || "");
-    const returnUrl = baseReturn
-      ? (baseReturn + (baseReturn.includes("?") ? "&" : "?") + `mtr=${encodeURIComponent(reference)}`)
-      : "";
-    const callbackUrl = `${SUPABASE_URL}/functions/v1/yengapay-webhook`;
-    const url = `https://api.yengapay.com/api/v1/groups/${groupId}/payment-intent/${projectId}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": apiKey },
-      body: JSON.stringify({
-        paymentAmount: total, reference,
-        articles: [{ title: `Transfert ${sourceOperator}→${destOperator}`, description: `Vers ${destPhone}`, pictures: [], price: total }],
-        callbackUrl,
-        ...(returnUrl ? { returnUrl, successUrl: returnUrl, cancelUrl: returnUrl } : {}),
-      }),
+    // Débit du wallet
+    const newBalance = currentBalance - total;
+    const { error: wErr } = await admin.from("wallets").update({ balance: newBalance }).eq("id", w.id);
+    if (wErr) throw new Error(wErr.message);
+    await admin.from("transactions").insert({
+      user_id: userId, type: "withdrawal", status: "success",
+      amount: total, currency: "XOF",
+      provider: "wallet", provider_ref: reference,
+      description: `Transfert inter-réseaux vers ${destOperator} · ${destPhone}`,
     });
-    const text = await res.text(); let body: any = text;
-    try { body = JSON.parse(text); } catch { /**/ }
-    if (!res.ok) throw new Error(`YengaPay ${res.status}: ${typeof body === "string" ? body : JSON.stringify(body)}`);
-    const paymentIntentId = body?.id || body?.paymentIntentId || body?.paymentIntent?.id || body?.data?.id || null;
-    const checkoutUrl = body?.checkoutPageUrlWithPaymentToken || body?.checkout_url || body?.paymentUrl || null;
     const { data: row, error } = await admin.from("momo_transfers").insert({
-      user_id: userId, source_operator: sourceOperator, source_phone: sourcePhone,
+      user_id: userId, source_operator: sourceOperator, source_phone: null,
       dest_operator: destOperator, dest_phone: destPhone, dest_holder: destHolder || null,
       amount_send: amount, fees_xof: fees, total_charged_xof: total,
-      status: "awaiting_payment",
-      payment_reference: reference, payment_intent_id: paymentIntentId,
-      checkout_url: checkoutUrl,
-      metadata: { init: body },
+      status: "paid",
+      paid_at: new Date().toISOString(),
+      payment_reference: reference, payment_intent_id: null,
+      checkout_url: null,
+      metadata: { init: { mode: "wallet_debit", balance_before: currentBalance, balance_after: newBalance } },
     }).select("*").single();
     if (error) throw new Error(error.message);
-    return { ok: true, transfer: row, checkout_url: checkoutUrl, reference };
+    // Déclenche immédiatement le payout vers le destinataire
+    try { await triggerMomoTransferCashout(admin, row); } catch (e) { console.error("cashout trigger failed", e); }
+    const { data: fresh } = await admin.from("momo_transfers").select("*").eq("id", row.id).maybeSingle();
+    return { ok: true, transfer: fresh || row, reference };
   },
   async verifyMomoTransfer({ data, user, admin }) {
     const userId = user.id;

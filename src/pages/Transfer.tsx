@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowRight, ArrowLeft, ExternalLink, RefreshCw, CheckCircle2, ShieldCheck, Loader2 } from "lucide-react";
+import { ArrowRight, RefreshCw, CheckCircle2, ShieldCheck, Loader2, Wallet } from "lucide-react";
+import { Link } from "react-router-dom";
 import { BackButton } from "@/components/back-button";
 import {
   getMomoTransferConfig, quoteMomoTransfer, initMomoTransfer,
   listMyMomoTransfers, verifyMomoTransfer,
 } from "@/lib/transfer.functions";
+import { getDashboardData } from "@/lib/dashboard.functions";
 
 // Emerald Prestige palette (page-scoped to build banking trust)
 const C = {
@@ -24,6 +26,7 @@ const OPERATORS = [
   { code: "TELECEL_MONEY", label: "Telecel", color: "#ed1c24" },
   { code: "SANK_MONEY", label: "Sank", color: "#22c55e" },
   { code: "CORIS_MONEY", label: "Coris", color: "#f59e0b" },
+  { code: "WAVE_MONEY", label: "Wave", color: "#00b4ff" },
 ];
 
 function opInfo(code: string) {
@@ -50,8 +53,6 @@ function StatusPill({ status }: { status: string }) {
 export default function TransferPage() {
   const qc = useQueryClient();
   const [form, setForm] = useState({
-    source_operator: "ORANGE_MONEY",
-    source_phone: "",
     dest_operator: "MOOV_MONEY",
     dest_phone: "",
     dest_holder: "",
@@ -66,6 +67,12 @@ export default function TransferPage() {
     queryFn: listMyMomoTransfers,
     refetchInterval: 15_000,
   });
+  const dashQ = useQuery({
+    queryKey: ["mtr-dash"],
+    queryFn: () => getDashboardData(),
+    refetchInterval: 20_000,
+  });
+  const xofBalance = Number((dashQ.data as any)?.wallets?.find((w: any) => w.currency === "XOF")?.balance ?? 0);
 
   const amountNum = Math.floor(Number(form.amount) || 0);
   useEffect(() => {
@@ -85,13 +92,17 @@ export default function TransferPage() {
   const initMut = useMutation({
     mutationFn: async () => {
       setSubmitting(true);
-      const returnUrl = `${window.location.origin}/transfer`;
-      return await initMomoTransfer({ data: { ...form, amount: amountNum, returnUrl } });
+      return await initMomoTransfer({ data: { ...form, amount: amountNum } });
     },
     onSuccess: (res: any) => {
-      toast.success("Redirection vers le paiement…");
+      if (res?.ok === false) { toast.error(res.error || "Erreur"); return; }
+      const st = res?.transfer?.status;
+      if (st === "delivered") toast.success("✅ Transfert livré au destinataire");
+      else if (st === "refunded") toast.error("Échec — vous avez été remboursé");
+      else toast.success("Transfert en cours vers le destinataire…");
       qc.invalidateQueries({ queryKey: ["mtr-list"] });
-      if (res?.checkout_url) window.location.href = res.checkout_url;
+      qc.invalidateQueries({ queryKey: ["mtr-dash"] });
+      setForm({ dest_operator: form.dest_operator, dest_phone: "", dest_holder: "", amount: "" });
     },
     onError: (e: any) => toast.error(e.message || "Erreur"),
     onSettled: () => setSubmitting(false),
@@ -99,29 +110,16 @@ export default function TransferPage() {
 
   const verifyMut = useMutation({
     mutationFn: (reference: string) => verifyMomoTransfer({ data: { reference } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["mtr-list"] }); toast.success("Statut mis à jour"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["mtr-list"] }); qc.invalidateQueries({ queryKey: ["mtr-dash"] }); toast.success("Statut mis à jour"); },
     onError: (e: any) => toast.error(e.message || "Erreur"),
   });
 
-  // Auto-verify on return from checkout
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const ref = url.searchParams.get("mtr");
-    if (ref) {
-      verifyMomoTransfer({ data: { reference: ref } }).finally(() => {
-        qc.invalidateQueries({ queryKey: ["mtr-list"] });
-        url.searchParams.delete("mtr");
-        window.history.replaceState({}, "", url.toString());
-      });
-    }
-  }, [qc]);
-
   const valid = useMemo(() => {
-    return form.source_operator && form.dest_operator
-      && form.source_operator !== form.dest_operator
-      && form.source_phone.length >= 8 && form.dest_phone.length >= 8
-      && amountNum > 0 && quote?.ok;
-  }, [form, amountNum, quote]);
+    return !!form.dest_operator
+      && form.dest_phone.replace(/\D/g, "").length >= 8
+      && amountNum > 0 && quote?.ok
+      && xofBalance >= (quote?.total_charged_xof || 0);
+  }, [form, amountNum, quote, xofBalance]);
 
   const cfg = cfgQ.data;
 
@@ -189,39 +187,37 @@ export default function TransferPage() {
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Source operator */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-widest mb-3" style={{ color: C.ink }}>
-                  Réseau Source (Débit)
-                </label>
-                <OperatorChips value={form.source_operator} onChange={(v) => setForm({ ...form, source_operator: v })} exclude={form.dest_operator} />
-              </div>
-
-              {/* Arrow */}
-              <div className="flex items-center justify-center gap-3 -my-1">
-                <div className="h-px flex-1" style={{ backgroundColor: C.border }} />
-                <div className="flex items-center gap-2 text-xs uppercase tracking-widest font-bold" style={{ color: C.gold }}>
-                  <ArrowLeft className="h-3 w-3 rotate-180" /> Vers
+              {/* Wallet balance */}
+              <div className="flex items-center justify-between p-4 rounded-xl border" style={{ borderColor: C.border, backgroundColor: C.cream }}>
+                <div className="flex items-center gap-3">
+                  <span className="grid h-10 w-10 place-items-center rounded-full" style={{ backgroundColor: C.ink, color: C.gold }}>
+                    <Wallet className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500">Portefeuille XOF</p>
+                    <p className="text-lg font-bold tabular-nums" style={{ color: C.ink }}>{xofBalance.toLocaleString("fr-FR")} XOF</p>
+                  </div>
                 </div>
-                <div className="h-px flex-1" style={{ backgroundColor: C.border }} />
+                <Link to="/dashboard" className="text-xs font-bold px-3 py-2 rounded-full" style={{ backgroundColor: C.gold, color: C.ink }}>
+                  Recharger
+                </Link>
               </div>
 
               {/* Dest operator */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest mb-3" style={{ color: C.ink }}>
-                  Réseau Destinataire (Crédit)
+                  Opérateur destinataire
                 </label>
-                <OperatorChips value={form.dest_operator} onChange={(v) => setForm({ ...form, dest_operator: v })} exclude={form.source_operator} />
+                <OperatorChips value={form.dest_operator} onChange={(v) => setForm({ ...form, dest_operator: v })} />
               </div>
 
               {/* Inputs grid */}
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <Field label="Numéro Source" value={form.source_phone} onChange={(v) => setForm({ ...form, source_phone: v })} placeholder="70 00 00 00" mono />
-                  <Field label="Numéro Destinataire" value={form.dest_phone} onChange={(v) => setForm({ ...form, dest_phone: v })} placeholder="65 00 00 00" mono />
+                  <Field label="Numéro destinataire" value={form.dest_phone} onChange={(v) => setForm({ ...form, dest_phone: v })} placeholder="65 00 00 00" mono />
+                  <Field label="Nom du bénéficiaire" value={form.dest_holder} onChange={(v) => setForm({ ...form, dest_holder: v })} placeholder="Ex. Awa Ouédraogo" />
                 </div>
                 <div className="space-y-4">
-                  <Field label="Nom du Bénéficiaire" value={form.dest_holder} onChange={(v) => setForm({ ...form, dest_holder: v })} placeholder="Ex. Awa Ouédraogo" />
                   <Field
                     label="Montant à envoyer (XOF)"
                     value={form.amount}
@@ -236,7 +232,7 @@ export default function TransferPage() {
               <div className="p-4 rounded-lg flex items-start gap-3" style={{ backgroundColor: C.cream, borderColor: C.border, borderWidth: 1 }}>
                 <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: C.green }}>i</div>
                 <p className="text-xs leading-relaxed" style={{ color: C.ink }}>
-                  <strong>Comment ça marche :</strong> 1. Choisissez les opérateurs et saisissez les numéros. 2. Confirmez le montant. 3. Validez le paiement sur votre téléphone source — le destinataire est crédité automatiquement.
+                  <strong>Comment ça marche :</strong> le montant est débité de votre portefeuille XOF (rechargé au préalable via Mobile Money) et versé instantanément vers l'opérateur du destinataire. En cas d'échec, vous êtes automatiquement remboursé.
                 </p>
               </div>
             </div>
@@ -280,12 +276,12 @@ export default function TransferPage() {
                 style={{ backgroundColor: C.ink, color: C.gold }}
               >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                Payer et transférer
+                Transférer maintenant
               </button>
 
               <p className="mt-4 text-[10px] text-center text-slate-400 leading-relaxed">
-                Transaction sécurisée par Faso-Invest Pay.<br />
-                Vous serez redirigé vers votre opérateur pour valider le paiement.
+                Débit direct depuis votre portefeuille XOF.<br />
+                Remboursement automatique en cas d'échec.
               </p>
             </div>
           </div>
@@ -343,11 +339,6 @@ export default function TransferPage() {
                       </td>
                       <td className="px-6 py-4 text-center"><StatusPill status={t.status} /></td>
                       <td className="px-6 py-4 text-right whitespace-nowrap">
-                        {t.status === "awaiting_payment" && t.checkout_url && (
-                          <a href={t.checkout_url} className="mr-3 inline-flex items-center gap-1 text-xs font-bold hover:underline" style={{ color: C.gold }}>
-                            <ExternalLink className="h-3 w-3" /> Payer
-                          </a>
-                        )}
                         <button
                           onClick={() => verifyMut.mutate(t.payment_reference)}
                           className="text-xs font-bold hover:underline"
