@@ -17,8 +17,14 @@ export function RechargeSheet({ open, onClose }: { open: boolean; onClose: () =>
       const returnUrl = `${window.location.origin}/dashboard`;
       const res = await walletApi.rechargeYengapay(amount, "XOF", returnUrl);
       const url = res?.data?.checkout_url;
-      if (url) window.location.href = url;
-      else throw new Error("Lien de paiement introuvable");
+      if (!url) throw new Error("Lien de paiement introuvable");
+      // 1) tenter d'ouvrir dans un nouvel onglet (fiable même dans un iframe)
+      const win = window.open(url, "_blank", "noopener,noreferrer");
+      if (win) return;
+      // 2) tenter la navigation au niveau top (échappe à l'iframe preview)
+      try { if (window.top && window.top !== window.self) { window.top.location.href = url; return; } } catch { /* ignore */ }
+      // 3) fallback : navigation classique
+      window.location.href = url;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Une erreur est survenue");
       setLoading(false);
