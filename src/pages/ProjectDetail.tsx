@@ -5,7 +5,7 @@ import QRCode from "qrcode";
 import { supabase } from "@/integrations/supabase/client";
 import {
   listProjects, updateProject, listProducts, createProduct, updateProduct, deleteProduct,
-  addProductMedia, deleteProductMedia, listPaymentLinks, createPaymentLink, updatePaymentLink,
+  addProductMedia, deleteProductMedia, reorderProductMedia, listPaymentLinks, createPaymentLink, updatePaymentLink,
   listLinkPayments, listInvoices, listActionPlans, createActionPlan, updateActionPlan, deleteActionPlan,
 } from "@/lib/business.functions";
 import { coachChat, coachDailyTip, coachStrategy, coachAlert, coachGeneratePlan, listCoachMessages } from "@/lib/coach.functions";
@@ -83,15 +83,34 @@ export default function ProjectDetailPage() {
     } catch (e: any) { toast.error(e.message); }
   }
 
-  async function onAddMedia(productId: string, file: File) {
+  async function onAddMedia(productId: string, files: FileList | File[]) {
+    const list = Array.from(files);
+    if (!list.length) return;
     try {
-      toast.loading("Téléversement…", { id: "m" });
-      const url = await uploadBusinessMedia(file, `products/${productId}`);
-      const type = file.type.startsWith("video") ? "video" : "image";
-      const m = await addProductMedia({ product_id: productId, type, url });
-      setProducts((prev) => prev.map((p) => p.id === productId ? { ...p, product_media: [...(p.product_media || []), m] } : p));
-      toast.success("Média ajouté ✅", { id: "m" });
+      toast.loading(`Téléversement de ${list.length} fichier(s)…`, { id: "m" });
+      const added: any[] = [];
+      for (const file of list) {
+        const url = await uploadBusinessMedia(file, `products/${productId}`);
+        const type = file.type.startsWith("video") ? "video" : "image";
+        const m = await addProductMedia({ product_id: productId, type, url });
+        added.push(m);
+      }
+      setProducts((prev) => prev.map((p) => p.id === productId ? { ...p, product_media: [...(p.product_media || []), ...added] } : p));
+      toast.success(`${added.length} média(s) ajouté(s) ✅`, { id: "m" });
     } catch (e: any) { toast.error(e.message, { id: "m" }); }
+  }
+
+  async function onReorderMedia(productId: string, mediaId: string, dir: -1 | 1) {
+    const prod = products.find((p) => p.id === productId);
+    if (!prod) return;
+    const media: any[] = [...(prod.product_media || [])];
+    const idx = media.findIndex((m) => m.id === mediaId);
+    const swap = idx + dir;
+    if (idx < 0 || swap < 0 || swap >= media.length) return;
+    [media[idx], media[swap]] = [media[swap], media[idx]];
+    setProducts((prev) => prev.map((p) => p.id === productId ? { ...p, product_media: media } : p));
+    try { await reorderProductMedia(productId, media.map((m) => m.id)); }
+    catch (e: any) { toast.error(e.message); }
   }
 
   async function onCreateLinkForProduct(prod: any) {
@@ -306,16 +325,23 @@ export default function ProjectDetailPage() {
                     </div>
                     {/* Media gallery */}
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {(prod.product_media || []).map((m: any) => (
-                        <div key={m.id} className="relative h-16 w-16 overflow-hidden rounded-lg border border-border">
+                      {(prod.product_media || []).map((m: any, i: number) => (
+                        <div key={m.id} className="group relative h-16 w-16 overflow-hidden rounded-lg border border-border">
                           {m.type === "video" ? <video src={m.url} className="h-full w-full object-cover" /> : <img src={m.url} className="h-full w-full object-cover" alt="" />}
+                          {i === 0 && <span className="absolute bottom-0.5 left-0.5 rounded-sm bg-primary/90 px-1 text-[9px] font-bold text-primary-foreground">1er</span>}
+                          <div className="absolute inset-x-0 bottom-0 hidden justify-between bg-black/60 px-0.5 py-0.5 group-hover:flex">
+                            <button onClick={() => onReorderMedia(prod.id, m.id, -1)} disabled={i === 0}
+                              className="text-white text-[10px] disabled:opacity-30">◀</button>
+                            <button onClick={() => onReorderMedia(prod.id, m.id, 1)} disabled={i === (prod.product_media?.length || 1) - 1}
+                              className="text-white text-[10px] disabled:opacity-30">▶</button>
+                          </div>
                           <button onClick={async () => { await deleteProductMedia(m.id); setProducts((prev) => prev.map((p) => p.id === prod.id ? { ...p, product_media: p.product_media.filter((x: any) => x.id !== m.id) } : p)); }}
                             className="absolute top-0.5 right-0.5 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-white"><X className="h-3 w-3" /></button>
                         </div>
                       ))}
-                      <label className="grid h-16 w-16 cursor-pointer place-items-center rounded-lg border border-dashed border-border bg-surface-2 hover:bg-muted">
+                      <label className="grid h-16 w-16 cursor-pointer place-items-center rounded-lg border border-dashed border-border bg-surface-2 hover:bg-muted" title="Ajouter photos/vidéos">
                         <Upload className="h-4 w-4 text-muted-foreground" />
-                        <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => e.target.files?.[0] && onAddMedia(prod.id, e.target.files[0])} />
+                        <input type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => e.target.files && onAddMedia(prod.id, e.target.files)} />
                       </label>
                     </div>
                     <div className="mt-3 flex gap-2">
