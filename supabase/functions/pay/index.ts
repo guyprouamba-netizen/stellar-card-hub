@@ -193,7 +193,9 @@ async function getPublicLink(slug: string) {
   const { data: link } = await db.from("payment_links")
     .select("id,slug,title,description,amount,min_amount,max_amount,currency,status,business_id")
     .eq("slug", slug).maybeSingle();
-  if (!link || link.status !== "active") return null;
+  if (!link) return null;
+  // On n'exclut que les statuts explicitement bloquants — un lien "draft"/"pending" reste utilisable
+  if (["disabled", "archived", "deleted", "revoked"].includes(String(link.status || "").toLowerCase())) return null;
   const { data: biz } = await db.from("businesses")
     .select("id,name,slug,logo_url,status")
     .eq("id", link.business_id).maybeSingle();
