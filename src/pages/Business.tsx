@@ -678,7 +678,8 @@ export default function BusinessPage() {
                   )}
                 </section>
 
-                {/* API keys */}
+                {/* API keys — masqué (usage interne / admin uniquement) */}
+                {false && (
                 <section className="mt-8">
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="font-[Space_Grotesk] text-xl font-bold">Clés API</h3>
@@ -730,6 +731,7 @@ export default function BusinessPage() {
                     </div>
                   </details>
                 </section>
+                )}
               </>
             )}
           </>
