@@ -1,7 +1,7 @@
 {
   "name": "FASO-INVEST PAY",
   "short_name": "FasoPay",
-  "description": "Cartes virtuelles, transfert inter-réseaux Mobile Money et paiements mondiaux.",
+  "description": "Cartes virtuelles, transferts instantanés et paiements Mobile Money.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
