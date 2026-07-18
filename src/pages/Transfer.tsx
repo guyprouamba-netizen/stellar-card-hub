@@ -276,12 +276,12 @@ export default function TransferPage() {
                 style={{ backgroundColor: C.ink, color: C.gold }}
               >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                Payer et transférer
+                Transférer maintenant
               </button>
 
               <p className="mt-4 text-[10px] text-center text-slate-400 leading-relaxed">
-                Transaction sécurisée par Faso-Invest Pay.<br />
-                Vous serez redirigé vers votre opérateur pour valider le paiement.
+                Débit direct depuis votre portefeuille XOF.<br />
+                Remboursement automatique en cas d'échec.
               </p>
             </div>
           </div>
