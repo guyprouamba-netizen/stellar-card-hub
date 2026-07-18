@@ -40,6 +40,8 @@ export const deleteProduct = (id: string) => callApi("deleteProduct", { id });
 export const addProductMedia = (data: { product_id: string; type: "image" | "video"; url: string; position?: number }) =>
   callApi("addProductMedia", data);
 export const deleteProductMedia = (id: string) => callApi("deleteProductMedia", { id });
+export const reorderProductMedia = (product_id: string, order: string[]) =>
+  callApi("reorderProductMedia", { product_id, order });
 
 // --- Invoices ---
 export const listInvoices = (business_id: string, project_id?: string) =>
