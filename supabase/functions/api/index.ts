@@ -2034,6 +2034,17 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     await admin.from("product_media").delete().eq("id", data.id);
     return { ok: true };
   },
+  async reorderProductMedia({ data, user, admin }) {
+    // data.product_id + data.order: string[] (ordered media ids)
+    const { data: prod } = await admin.from("products").select("business_id").eq("id", data.product_id).maybeSingle();
+    if (!prod) throw new Error("Produit introuvable");
+    await assertBusinessOwner(admin, user.id, (prod as any).business_id);
+    const ids: string[] = Array.isArray(data.order) ? data.order : [];
+    await Promise.all(ids.map((id, idx) =>
+      admin.from("product_media").update({ position: idx }).eq("id", id).eq("product_id", data.product_id)
+    ));
+    return { ok: true };
+  },
 
   // ===========================================================
   // INVOICES / RECEIPTS
