@@ -45,7 +45,7 @@ export default function AdminTransfersPage() {
         <div className="flex items-center gap-3">
           <span className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-primary text-primary-foreground"><Repeat className="h-5 w-5" /></span>
           <div>
-            <h1 className="font-[Space_Grotesk] text-2xl font-bold">Transferts inter-réseaux</h1>
+            <h1 className="font-[Space_Grotesk] text-2xl font-bold">Transferts</h1>
             <p className="text-sm text-muted-foreground">Supervision et configuration.</p>
           </div>
         </div>
