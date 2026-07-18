@@ -9,6 +9,7 @@ import {
   smsListContacts, smsAddContact, smsDeleteContact,
   smsSendCustom, smsSendTest, smsListLogs, smsGetBalance,
 } from "@/lib/sms.functions";
+import { adminListSenderRequests, adminUpdateSenderRequest } from "@/lib/business.functions";
 
 export default function SmsAdmin() {
   const qc = useQueryClient();
@@ -187,6 +188,9 @@ export default function SmsAdmin() {
             Enregistrer
           </button>
         </section>
+
+        {/* DEMANDES SENDER ID (BUSINESS) */}
+        <SenderRequestsPanel />
 
         {/* TEMPLATES */}
         <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-soft">
