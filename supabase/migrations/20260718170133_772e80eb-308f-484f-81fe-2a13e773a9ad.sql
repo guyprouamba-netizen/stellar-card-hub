@@ -1,0 +1,1 @@
+ALTER TABLE public.momo_transfers ALTER COLUMN source_phone DROP NOT NULL;
