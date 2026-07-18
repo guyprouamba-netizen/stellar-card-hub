@@ -114,6 +114,16 @@ export function RechargeSheet({ open, onClose }: { open: boolean; onClose: () =>
             {error && (
               <p className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
             )}
+            {manualUrl && (
+              <a
+                href={manualUrl}
+                target="_top"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 p-3 text-sm font-semibold text-primary hover:bg-primary/20"
+              >
+                Ouvrir la page de paiement YengaPay <ArrowRight className="h-4 w-4" />
+              </a>
+            )}
 
             <button
               onClick={submit}
