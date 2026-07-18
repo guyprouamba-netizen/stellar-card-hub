@@ -1107,6 +1107,17 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     try { body = JSON.parse(text); } catch { /**/ }
     if (!res.ok) throw new Error(`YengaPay ${res.status}: ${typeof body === "string" ? body : JSON.stringify(body)}`);
     const paymentIntentId = body?.id || body?.paymentIntentId || body?.paymentIntent?.id || body?.data?.id || null;
+    const checkoutUrl =
+      body?.checkoutPageUrlWithPaymentToken
+      || body?.checkout_url
+      || body?.paymentUrl
+      || body?.data?.checkoutPageUrlWithPaymentToken
+      || body?.data?.checkout_url
+      || body?.data?.paymentUrl
+      || body?.paymentIntent?.checkoutPageUrlWithPaymentToken
+      || body?.paymentIntent?.checkout_url
+      || null;
+    console.log("[initRecharge] yengapay response keys:", Object.keys(body || {}), "checkoutUrl?", !!checkoutUrl);
     const { error: txErr } = await admin.from("transactions").insert({
       user_id: userId, type: "deposit", status: "pending",
       amount: Number(data.amount), currency: "XOF",
@@ -1115,7 +1126,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       metadata: { paymentIntentId, init: body },
     });
     if (txErr) throw new Error(txErr.message);
-    return { ok: true, checkout_url: body?.checkoutPageUrlWithPaymentToken || body?.checkout_url || body?.paymentUrl, reference, paymentIntentId, raw: body };
+    if (!checkoutUrl) {
+      throw new Error("YengaPay n'a pas retourné de lien de paiement. Réponse : " + JSON.stringify(body).slice(0, 300));
+    }
+    return { ok: true, checkout_url: checkoutUrl, reference, paymentIntentId, raw: body };
   },
 
   // Vérifie manuellement le statut d'une recharge auprès de YengaPay et crédite le wallet si payé.
