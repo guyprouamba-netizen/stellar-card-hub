@@ -2483,6 +2483,11 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       notes: data.notes || null, attachment_url: data.attachment_url || null,
       related_order_id: data.related_order_id || null,
       related_invoice_id: data.related_invoice_id || null,
+      account_id: data.account_id || null,
+      tva_rate: Number(data.tva_rate || 0),
+      tva_amount: Number(data.tva_amount || 0),
+      syscohada_code: data.syscohada_code || null,
+      counterparty: data.counterparty || null,
     };
     if (data.id) {
       const { data: row, error } = await admin.from("accounting_entries")
@@ -2766,6 +2771,190 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       await admin.from("platform_config").upsert({ key: k, value: v }, { onConflict: "key" });
     }
     return await loadMomoTransferConfig(admin);
+  },
+
+  // ============================================================
+  // COMPTABILITÉ PRO — Settings, Comptes, Stock, Rapports
+  // ============================================================
+  async getAccountingSettings({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: row } = await admin.from("accounting_settings").select("*").eq("business_id", data.business_id).maybeSingle();
+    return row || null;
+  },
+  async upsertAccountingSettings({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const patch = {
+      business_id: data.business_id,
+      legal_name: data.legal_name || null,
+      ifu: data.ifu || null,
+      rccm: data.rccm || null,
+      address: data.address || null,
+      phone: data.phone || null,
+      email: data.email || null,
+      logo_url: data.logo_url || null,
+      currency: data.currency || "XOF",
+      tva_enabled: !!data.tva_enabled,
+      tva_rate: Number(data.tva_rate ?? 18),
+      fiscal_year_start: data.fiscal_year_start || "01-01",
+      regime: data.regime || "reel_simplifie",
+    };
+    const { data: row, error } = await admin.from("accounting_settings")
+      .upsert(patch, { onConflict: "business_id" }).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+
+  async listAccountingAccounts({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: rows } = await admin.from("accounting_accounts")
+      .select("*").eq("business_id", data.business_id).order("created_at");
+    return rows ?? [];
+  },
+  async upsertAccountingAccount({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const patch = {
+      business_id: data.business_id,
+      name: data.name, kind: data.kind || "cash",
+      currency: data.currency || "XOF",
+      opening_balance: Number(data.opening_balance || 0),
+      is_active: data.is_active !== false,
+    };
+    if (data.id) {
+      const { data: row, error } = await admin.from("accounting_accounts").update(patch).eq("id", data.id).select("*").single();
+      if (error) throw new Error(error.message);
+      return row;
+    }
+    const { data: row, error } = await admin.from("accounting_accounts").insert(patch).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+  async deleteAccountingAccount({ data, user, admin }) {
+    const { data: a } = await admin.from("accounting_accounts").select("business_id").eq("id", data.id).maybeSingle();
+    if (!a) return { ok: true };
+    await assertBusinessOwner(admin, user.id, a.business_id);
+    await admin.from("accounting_accounts").delete().eq("id", data.id);
+    return { ok: true };
+  },
+
+  async listStockItems({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: rows } = await admin.from("stock_items").select("*").eq("business_id", data.business_id).order("name");
+    return rows ?? [];
+  },
+  async upsertStockItem({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const patch = {
+      business_id: data.business_id,
+      sku: data.sku || null,
+      name: data.name,
+      unit: data.unit || "unité",
+      purchase_price: Number(data.purchase_price || 0),
+      sale_price: Number(data.sale_price || 0),
+      stock_qty: Number(data.stock_qty || 0),
+      alert_threshold: Number(data.alert_threshold || 0),
+      linked_product_id: data.linked_product_id || null,
+      image_url: data.image_url || null,
+      is_active: data.is_active !== false,
+    };
+    if (data.id) {
+      const { data: row, error } = await admin.from("stock_items").update(patch).eq("id", data.id).select("*").single();
+      if (error) throw new Error(error.message);
+      return row;
+    }
+    const { data: row, error } = await admin.from("stock_items").insert(patch).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+  async deleteStockItem({ data, user, admin }) {
+    const { data: s } = await admin.from("stock_items").select("business_id").eq("id", data.id).maybeSingle();
+    if (!s) return { ok: true };
+    await assertBusinessOwner(admin, user.id, s.business_id);
+    await admin.from("stock_items").delete().eq("id", data.id);
+    return { ok: true };
+  },
+  async listStockMovements({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    let q = admin.from("stock_movements").select("*, item:stock_items(name,unit)").eq("business_id", data.business_id).order("created_at", { ascending: false }).limit(300);
+    if (data.item_id) q = q.eq("item_id", data.item_id);
+    const { data: rows } = await q;
+    return rows ?? [];
+  },
+  async createStockMovement({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const kind = String(data.kind || "in");
+    const qty = Number(data.qty || 0);
+    if (!qty) throw new Error("Quantité requise");
+    const { data: item } = await admin.from("stock_items").select("*").eq("id", data.item_id).maybeSingle();
+    if (!item) throw new Error("Article introuvable");
+    let delta = 0;
+    if (kind === "in") delta = qty;
+    else if (kind === "out") delta = -qty;
+    else if (kind === "adjust") delta = qty - Number(item.stock_qty || 0);
+    await admin.from("stock_items").update({ stock_qty: Number(item.stock_qty || 0) + delta }).eq("id", item.id);
+    const { data: mv, error } = await admin.from("stock_movements").insert({
+      business_id: data.business_id, item_id: item.id, kind, qty,
+      unit_cost: data.unit_cost != null ? Number(data.unit_cost) : null,
+      note: data.note || null,
+    }).select("*").single();
+    if (error) throw new Error(error.message);
+    return mv;
+  },
+
+  async getAccountingReports({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const from = data.from || new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+    const to = data.to || new Date().toISOString().slice(0, 10);
+    const [{ data: entries }, { data: accounts }, { data: settings }, { data: items }] = await Promise.all([
+      admin.from("accounting_entries").select("*, category:accounting_categories(name), account:accounting_accounts(name,kind)")
+        .eq("business_id", data.business_id).gte("entry_date", from).lte("entry_date", to),
+      admin.from("accounting_accounts").select("*").eq("business_id", data.business_id),
+      admin.from("accounting_settings").select("*").eq("business_id", data.business_id).maybeSingle(),
+      admin.from("stock_items").select("id,name,stock_qty,purchase_price,alert_threshold").eq("business_id", data.business_id),
+    ]);
+    let income = 0, expense = 0, tvaCollected = 0, tvaDeductible = 0;
+    const byCategory: Record<string, { name: string; income: number; expense: number }> = {};
+    const byAccount: Record<string, { name: string; kind: string; balance: number }> = {};
+    for (const a of accounts || []) byAccount[a.id] = { name: a.name, kind: a.kind, balance: Number(a.opening_balance || 0) };
+    for (const e of entries || []) {
+      const amt = Number(e.amount || 0);
+      const tva = Number(e.tva_amount || 0);
+      if (e.kind === "income") { income += amt; tvaCollected += tva; }
+      else { expense += amt; tvaDeductible += tva; }
+      const catKey = e.category_id || "none";
+      if (!byCategory[catKey]) byCategory[catKey] = { name: e.category?.name || "Sans catégorie", income: 0, expense: 0 };
+      byCategory[catKey][e.kind as "income" | "expense"] += amt;
+      if (e.account_id && byAccount[e.account_id]) {
+        byAccount[e.account_id].balance += e.kind === "income" ? amt : -amt;
+      }
+    }
+    const stockValue = (items || []).reduce((s: number, i: any) => s + Number(i.stock_qty || 0) * Number(i.purchase_price || 0), 0);
+    const stockAlerts = (items || []).filter((i: any) => Number(i.alert_threshold || 0) > 0 && Number(i.stock_qty || 0) <= Number(i.alert_threshold || 0));
+    return {
+      period: { from, to },
+      settings: settings || null,
+      pnl: { income, expense, net: income - expense },
+      tva: { collected: tvaCollected, deductible: tvaDeductible, due: tvaCollected - tvaDeductible },
+      byCategory: Object.values(byCategory),
+      byAccount: Object.values(byAccount),
+      stock: { value: stockValue, alerts: stockAlerts, count: (items || []).length },
+    };
+  },
+
+  async createAccountingAttachmentUrl({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const ext = String(data.ext || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin";
+    const path = `${data.business_id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { data: signed, error } = await admin.storage.from("accounting-attachments")
+      .createSignedUploadUrl(path);
+    if (error) throw new Error(error.message);
+    return { path, token: signed.token, signedUrl: signed.signedUrl };
+  },
+  async getAccountingAttachmentUrl({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: signed, error } = await admin.storage.from("accounting-attachments")
+      .createSignedUrl(data.path, 60 * 60);
+    if (error) throw new Error(error.message);
+    return { url: signed.signedUrl };
   },
 };
 

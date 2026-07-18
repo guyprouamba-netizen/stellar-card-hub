@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounting_accounts: {
+        Row: {
+          business_id: string
+          created_at: string
+          currency: string
+          id: string
+          is_active: boolean
+          kind: string
+          name: string
+          opening_balance: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          currency?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name: string
+          opening_balance?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name?: string
+          opening_balance?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_accounts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_accounts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounting_categories: {
         Row: {
           business_id: string
@@ -58,11 +109,13 @@ export type Database = {
       }
       accounting_entries: {
         Row: {
+          account_id: string | null
           amount: number
           attachment_url: string | null
           auto_generated: boolean
           business_id: string
           category_id: string | null
+          counterparty: string | null
           created_at: string
           currency: string
           entry_date: string
@@ -72,14 +125,19 @@ export type Database = {
           notes: string | null
           related_invoice_id: string | null
           related_order_id: string | null
+          syscohada_code: string | null
+          tva_amount: number
+          tva_rate: number
           updated_at: string
         }
         Insert: {
+          account_id?: string | null
           amount: number
           attachment_url?: string | null
           auto_generated?: boolean
           business_id: string
           category_id?: string | null
+          counterparty?: string | null
           created_at?: string
           currency?: string
           entry_date?: string
@@ -89,14 +147,19 @@ export type Database = {
           notes?: string | null
           related_invoice_id?: string | null
           related_order_id?: string | null
+          syscohada_code?: string | null
+          tva_amount?: number
+          tva_rate?: number
           updated_at?: string
         }
         Update: {
+          account_id?: string | null
           amount?: number
           attachment_url?: string | null
           auto_generated?: boolean
           business_id?: string
           category_id?: string | null
+          counterparty?: string | null
           created_at?: string
           currency?: string
           entry_date?: string
@@ -106,9 +169,19 @@ export type Database = {
           notes?: string | null
           related_invoice_id?: string | null
           related_order_id?: string | null
+          syscohada_code?: string | null
+          tva_amount?: number
+          tva_rate?: number
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "accounting_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "accounting_entries_business_id_fkey"
             columns: ["business_id"]
@@ -142,6 +215,78 @@ export type Database = {
             columns: ["related_order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_settings: {
+        Row: {
+          address: string | null
+          business_id: string
+          created_at: string
+          currency: string
+          email: string | null
+          fiscal_year_start: string
+          id: string
+          ifu: string | null
+          legal_name: string | null
+          logo_url: string | null
+          phone: string | null
+          rccm: string | null
+          regime: string
+          tva_enabled: boolean
+          tva_rate: number
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          business_id: string
+          created_at?: string
+          currency?: string
+          email?: string | null
+          fiscal_year_start?: string
+          id?: string
+          ifu?: string | null
+          legal_name?: string | null
+          logo_url?: string | null
+          phone?: string | null
+          rccm?: string | null
+          regime?: string
+          tva_enabled?: boolean
+          tva_rate?: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          business_id?: string
+          created_at?: string
+          currency?: string
+          email?: string | null
+          fiscal_year_start?: string
+          id?: string
+          ifu?: string | null
+          legal_name?: string | null
+          logo_url?: string | null
+          phone?: string | null
+          rccm?: string | null
+          regime?: string
+          tva_enabled?: boolean
+          tva_rate?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_settings_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_settings_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "public_business_view"
             referencedColumns: ["id"]
           },
         ]
@@ -2373,6 +2518,144 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      stock_items: {
+        Row: {
+          alert_threshold: number
+          business_id: string
+          created_at: string
+          id: string
+          image_url: string | null
+          is_active: boolean
+          linked_product_id: string | null
+          name: string
+          purchase_price: number
+          sale_price: number
+          sku: string | null
+          stock_qty: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          alert_threshold?: number
+          business_id: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          linked_product_id?: string | null
+          name: string
+          purchase_price?: number
+          sale_price?: number
+          sku?: string | null
+          stock_qty?: number
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          alert_threshold?: number
+          business_id?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          linked_product_id?: string | null
+          name?: string
+          purchase_price?: number
+          sale_price?: number
+          sku?: string | null
+          stock_qty?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_items_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_items_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_items_linked_product_id_fkey"
+            columns: ["linked_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_movements: {
+        Row: {
+          business_id: string
+          created_at: string
+          id: string
+          item_id: string
+          kind: string
+          note: string | null
+          qty: number
+          related_entry_id: string | null
+          unit_cost: number | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          id?: string
+          item_id: string
+          kind: string
+          note?: string | null
+          qty: number
+          related_entry_id?: string | null
+          unit_cost?: number | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          kind?: string
+          note?: string | null
+          qty?: number
+          related_entry_id?: string | null
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "stock_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_related_entry_id_fkey"
+            columns: ["related_entry_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transactions: {
         Row: {
