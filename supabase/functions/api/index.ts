@@ -1775,7 +1775,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   async listMyBusinesses({ user, admin }) {
     const { data, error } = await admin.from("businesses")
-      .select("id,name,slug,description,logo_url,contact_email,contact_phone,country,status,fee_bps,balance,created_at")
+      .select("id,name,slug,description,logo_url,cover_url,contact_email,contact_phone,country,status,fee_bps,balance,created_at")
       .eq("owner_id", user.id).order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -1801,7 +1801,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async updateBusiness({ data, user, admin }) {
     await assertBusinessOwner(admin, user.id, data.id);
     const patch: Record<string, any> = {};
-    for (const k of ["name", "description", "contact_email", "contact_phone", "logo_url"]) {
+    for (const k of ["name", "description", "contact_email", "contact_phone", "logo_url", "cover_url"]) {
       if (data?.[k] !== undefined) patch[k] = data[k];
     }
     const { data: row, error } = await admin.from("businesses").update(patch).eq("id", data.id).select("*").single();
