@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { Routes, Route } from "react-router-dom";
 import Index from "@/pages/Index";
 import Auth from "@/pages/Auth";
@@ -21,6 +22,12 @@ import Transfer from "@/pages/Transfer";
 import AdminTransfers from "@/pages/AdminTransfers";
 import Download from "@/pages/Download";
 import NotFound from "@/pages/NotFound";
+import { AuthGate } from "@/components/auth-gate";
+import { ErrorBoundary } from "@/components/error-boundary";
+
+const guarded = (el: ReactElement, label: string) => (
+  <AuthGate><ErrorBoundary label={label}>{el}</ErrorBoundary></AuthGate>
+);
 
 export default function App() {
   return (
@@ -31,19 +38,19 @@ export default function App() {
       <Route path="/auth" element={<Auth />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/admin" element={<Admin />} />
-      <Route path="/admin/sms" element={<SmsAdmin />} />
-      <Route path="/admin/transfers" element={<AdminTransfers />} />
-      <Route path="/transfer" element={<Transfer />} />
-      <Route path="/cards" element={<Cards />} />
-      <Route path="/wallet" element={<Wallet />} />
-      <Route path="/business" element={<Business />} />
-      <Route path="/business/:businessId/projects/:projectId" element={<ProjectDetail />} />
-      <Route path="/business/:businessId/bot" element={<BotPanel />} />
-      <Route path="/business/:businessId/accounting" element={<Accounting />} />
-      <Route path="/business/:businessId/contracts" element={<Contracts />} />
-      <Route path="/business/:businessId/marketing" element={<Marketing />} />
+      <Route path="/dashboard" element={guarded(<Dashboard />, "dashboard")} />
+      <Route path="/admin" element={guarded(<Admin />, "admin")} />
+      <Route path="/admin/sms" element={guarded(<SmsAdmin />, "admin-sms")} />
+      <Route path="/admin/transfers" element={guarded(<AdminTransfers />, "admin-transfers")} />
+      <Route path="/transfer" element={guarded(<Transfer />, "transfer")} />
+      <Route path="/cards" element={guarded(<Cards />, "cards")} />
+      <Route path="/wallet" element={guarded(<Wallet />, "wallet")} />
+      <Route path="/business" element={guarded(<Business />, "business")} />
+      <Route path="/business/:businessId/projects/:projectId" element={guarded(<ProjectDetail />, "project")} />
+      <Route path="/business/:businessId/bot" element={guarded(<BotPanel />, "bot")} />
+      <Route path="/business/:businessId/accounting" element={guarded(<Accounting />, "accounting")} />
+      <Route path="/business/:businessId/contracts" element={guarded(<Contracts />, "contracts")} />
+      <Route path="/business/:businessId/marketing" element={guarded(<Marketing />, "marketing")} />
       <Route path="/pay/:slug" element={<Pay />} />
       <Route path="/shop/:slug" element={<Shop />} />
       <Route path="/order/:token" element={<OrderTracking />} />

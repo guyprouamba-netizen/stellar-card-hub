@@ -94,11 +94,13 @@ function DashboardTab({ businessId, settings }: any) {
   const [report, setReport] = useState<any>(null);
   useEffect(() => {
     (async () => {
-      const [s, r] = await Promise.all([
-        getAccountingSummary(businessId),
-        getAccountingReports(businessId),
-      ]);
-      setSummary(s); setReport(r);
+      try {
+        const [s, r] = await Promise.all([
+          getAccountingSummary(businessId).catch(() => ({ totals: { income: 0, expense: 0, net: 0 } })),
+          getAccountingReports(businessId).catch(() => ({ stock: { value: 0, alerts: [], count: 0 }, tva: { collected: 0, deductible: 0, due: 0 } })),
+        ]);
+        setSummary(s); setReport(r);
+      } catch (e) { console.warn("[accounting dashboard]", e); }
     })();
   }, [businessId]);
   const totals = summary?.totals || { income: 0, expense: 0, net: 0 };
