@@ -552,7 +552,7 @@ function TxTab({ transactions }: { transactions: any[] }) {
   );
 }
 
-function ProfileTab({ profile, onDone }: { profile: any; onDone: () => void }) {
+function ProfileTab({ profile, onDone, setTab }: { profile: any; onDone: () => void; setTab: (t: Tab) => void }) {
   const [fullName, setFullName] = useState<string>(profile?.full_name || "");
   const [phone, setPhone] = useState<string>(profile?.phone || "");
   const [avatarUrl, setAvatarUrl] = useState<string>(profile?.avatar_url || "");
@@ -617,6 +617,30 @@ function ProfileTab({ profile, onDone }: { profile: any; onDone: () => void }) {
   return (
     <div className="max-w-2xl space-y-6">
       <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Mon profil</h1>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <button onClick={() => setTab("referrals")} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left hover:border-primary/40 transition">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><Users className="h-5 w-5" /></span>
+          <div>
+            <div className="text-sm font-semibold">Parrainage</div>
+            <div className="text-xs text-muted-foreground">Invitez et gagnez</div>
+          </div>
+        </button>
+        <Link to="/business" className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 hover:border-primary/40 transition">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><Building2 className="h-5 w-5" /></span>
+          <div>
+            <div className="text-sm font-semibold">Espace Business</div>
+            <div className="text-xs text-muted-foreground">Ma boutique en ligne</div>
+          </div>
+        </Link>
+        <button onClick={() => setTab("tx")} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left hover:border-primary/40 transition">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><History className="h-5 w-5" /></span>
+          <div>
+            <div className="text-sm font-semibold">Historique complet</div>
+            <div className="text-xs text-muted-foreground">Toutes mes transactions</div>
+          </div>
+        </button>
+      </div>
 
       <div className="rounded-2xl border border-border bg-card p-6">
         <div className="flex items-center gap-4">
