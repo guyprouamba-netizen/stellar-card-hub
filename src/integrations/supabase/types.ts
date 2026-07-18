@@ -1478,6 +1478,7 @@ export type Database = {
           reference: string | null
           sender_id: string
           status: string
+          updated_at: string
         }
         Insert: {
           amount: number
@@ -1492,6 +1493,7 @@ export type Database = {
           reference?: string | null
           sender_id: string
           status?: string
+          updated_at?: string
         }
         Update: {
           amount?: number
@@ -1506,6 +1508,7 @@ export type Database = {
           reference?: string | null
           sender_id?: string
           status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2081,6 +2084,39 @@ export type Database = {
           },
         ]
       }
+      phone_otp: {
+        Row: {
+          attempts: number
+          code_hash: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          phone: string
+          user_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          phone: string
+          user_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          phone?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       platform_config: {
         Row: {
           key: string
@@ -2214,6 +2250,8 @@ export type Database = {
           id: string
           is_active: boolean
           phone: string | null
+          phone_verified: boolean
+          phone_verified_at: string | null
           referral_code: string | null
           referrer_code: string | null
           strowallet_customer_id: string | null
@@ -2228,6 +2266,8 @@ export type Database = {
           id: string
           is_active?: boolean
           phone?: string | null
+          phone_verified?: boolean
+          phone_verified_at?: string | null
           referral_code?: string | null
           referrer_code?: string | null
           strowallet_customer_id?: string | null
@@ -2242,6 +2282,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           phone?: string | null
+          phone_verified?: boolean
+          phone_verified_at?: string | null
           referral_code?: string | null
           referrer_code?: string | null
           strowallet_customer_id?: string | null
