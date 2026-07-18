@@ -165,7 +165,7 @@ function Dashboard() {
               {tab === "cards" && <CardsTab cards={data.cards} onAction={() => refetch()} />}
               {tab === "tx" && <TxTab transactions={data.transactions} />}
               {tab === "referrals" && <ReferralsTab />}
-              {tab === "profile" && <ProfileTab profile={data.profile} onDone={() => refetch()} />}
+              {tab === "profile" && <ProfileTab profile={data.profile} onDone={() => refetch()} setTab={setTab} />}
             </>
           )}
         </main>
