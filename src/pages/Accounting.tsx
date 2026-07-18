@@ -736,7 +736,7 @@ function Kpi({ icon: Icon, label, value, tone, small, hint }: any) {
     </div>
   );
 }
-function Field({ label, value, onChange }: any) {
+function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div>
       <label className="text-[10px] font-bold uppercase text-muted-foreground">{label}</label>
