@@ -1,39 +1,27 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, ShieldCheck, Zap, Globe2, Smartphone, CheckCircle2, Lock, Banknote, CreditCard, TrendingUp, Users, Star, ChevronDown, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, CreditCard, TrendingUp, Users, Star, ChevronDown, Repeat, Wallet, Store, Globe2 } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
-import { VirtualCard } from "@/components/virtual-card";
 import logo from "@/assets/logo.png";
 import heroCustomer from "@/assets/hero-customer.jpg";
-import sectionPayment from "@/assets/section-payment.jpg";
+import homeCards from "@/assets/home-cards.jpg";
+import homeTransfer from "@/assets/home-transfer.jpg";
+import homePaypal from "@/assets/home-paypal.jpg";
+import homeBusiness from "@/assets/home-business.jpg";
 
-const features = [
-  { icon: Zap, title: "Émission instantanée", desc: "Créez votre carte virtuelle USD ou XOF en quelques secondes après validation KYC." },
-  { icon: ShieldCheck, title: "KYC sécurisé", desc: "Vos pièces sont chiffrées et stockées sur notre infrastructure protégée." },
-  { icon: Smartphone, title: "Recharge Mobile Money", desc: "Rechargez votre compte en XOF en Mobile Money : Orange, Moov, Wave." },
-  { icon: Globe2, title: "Paiements mondiaux", desc: "Visa & Mastercard acceptées partout : Netflix, Amazon, AliExpress, AdSense…" },
+const services = [
+  { icon: CreditCard, title: "Carte prépayée virtuelle", desc: "Visa & Mastercard valable 3 ans." },
+  { icon: Repeat, title: "Transfert d'argent", desc: "Orange, Moov, Wave, Sank, Coris, Telecel." },
+  { icon: Wallet, title: "Retrait PayPal", desc: "PayPal → Mobile Money." },
+  { icon: Store, title: "Espace Business", desc: "Boutique en ligne clé en main." },
+  { icon: Globe2, title: "Réception de paiements", desc: "Local et international." },
 ];
 
 const steps = [
-  { n: "01", t: "Créez votre compte", d: "Inscription en 2 minutes avec votre email et votre numéro mobile." },
-  { n: "02", t: "Validez votre KYC", d: "Photo de pièce + selfie. Validation rapide par notre équipe." },
-  { n: "03", t: "Rechargez en Mobile Money", d: "Orange Money, Moov, Wave — crédit instantané sur votre portefeuille XOF." },
-  { n: "04", t: "Émettez votre carte", d: "Visa ou Mastercard virtuelle en USD ou XOF, utilisable partout dans le monde immédiatement." },
-];
-
-const partners: Array<{ name: string; slug: string }> = [
-  { name: "Netflix", slug: "netflix" },
-  { name: "Amazon", slug: "amazon" },
-  { name: "Spotify", slug: "spotify" },
-  { name: "AliExpress", slug: "aliexpress" },
-  { name: "Google", slug: "google" },
-  { name: "Meta", slug: "meta" },
-  { name: "Apple", slug: "apple" },
-  { name: "Microsoft", slug: "microsoft" },
-  { name: "OpenAI", slug: "openai" },
-  { name: "Shopify", slug: "shopify" },
-  { name: "PayPal", slug: "paypal" },
-  { name: "Steam", slug: "steam" },
+  { n: "01", t: "Créez votre compte", d: "Inscription gratuite en 2 minutes, sans vérification KYC." },
+  { n: "02", t: "Rechargez en Mobile Money", d: "Orange, Moov, Wave, Coris — dépôt automatique 24/7." },
+  { n: "03", t: "Choisissez votre service", d: "Carte virtuelle, transfert, retrait PayPal, boutique." },
+  { n: "04", t: "Retirez automatiquement", d: "Vos retraits arrivent sur Mobile Money en quelques secondes." },
 ];
 
 const testimonials = [
@@ -43,11 +31,11 @@ const testimonials = [
 ];
 
 const faqs = [
-  { q: "Combien coûte la création d'une carte ?", a: "Tous les frais applicables (émission + traitement) sont affichés à l'écran avant la confirmation, depuis votre tableau de bord." },
-  { q: "Quels moyens de recharge sont acceptés ?", a: "Orange Money, Moov Money, et Wave en Mobile Money — crédit instantané sur votre portefeuille." },
-  { q: "Que se passe-t-il si un paiement échoue ?", a: "Pour protéger votre carte, nous la gelons automatiquement dès la 1ʳᵉ tentative refusée. Vous pouvez la débloquer en un clic depuis votre tableau de bord." },
-  { q: "Où puis-je utiliser la carte ?", a: "Partout où Visa/Mastercard sont acceptées : Netflix, Amazon, AliExpress, Google Ads, Meta Ads, AdSense, SaaS, formations en ligne…" },
-  { q: "Mes données sont-elles sécurisées ?", a: "Oui. Vos pièces KYC sont stockées dans un espace privé chiffré, accessible uniquement par notre équipe de validation." },
+  { q: "Faut-il valider une pièce d'identité pour ouvrir un compte ?", a: "Non — la plupart des services de FASO-INVEST PAY sont accessibles sans vérification KYC." },
+  { q: "Combien coûte la création d'une carte virtuelle ?", a: "0 F CFA. Vous rechargez seulement le montant que vous souhaitez utiliser, à partir de 2 000 F CFA." },
+  { q: "Les dépôts et retraits sont-ils automatiques ?", a: "Oui. Les dépôts et retraits Mobile Money sont crédités automatiquement en quelques secondes, 24/7." },
+  { q: "Quels transferts inter-réseaux sont supportés ?", a: "Orange Money, Moov Money, Wave, Sank Money, Coris Money et Telecel Money." },
+  { q: "Comment fonctionne l'Espace Business ?", a: "Créez votre boutique, recevez vos paiements au Burkina et à l'international, gérez vos factures et votre comptabilité depuis un tableau de bord unique." },
 ];
 
 function Index() {
@@ -59,96 +47,158 @@ function Index() {
         <section className="container mx-auto grid gap-12 px-4 py-16 sm:px-6 md:grid-cols-2 md:py-24">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Burkina Faso
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> La néobanque du Burkina Faso
             </span>
             <h1 className="mt-6 font-[Space_Grotesk] text-5xl font-bold leading-tight tracking-tight md:text-6xl">
-              Cartes virtuelles <span className="bg-gradient-primary bg-clip-text text-transparent">Visa & Mastercard</span>,<br />paiements mondiaux.
+              Prenez le <span className="bg-gradient-primary bg-clip-text text-transparent">contrôle</span> de vos paiements en ligne.
             </h1>
             <p className="mt-6 max-w-lg text-lg text-muted-foreground">
-              Rechargez en Mobile Money, validez votre KYC, émettez votre carte Visa/Mastercard et payez partout dans le monde — Netflix, Amazon, AliExpress, AdSense, formations, SaaS.
+              Gérez vos paiements en ligne en toute simplicité, où que vous soyez. Que vous vendiez, achetiez ou transfériez, FASO-INVEST PAY vous accompagne. Inscription gratuite en quelques clics.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/auth" className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-glow">
                 Créer mon compte <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link to="/dashboard" className="inline-flex items-center gap-2 rounded-full border border-border px-6 py-3 text-sm font-semibold hover:bg-muted">
-                Tableau de bord
+              <Link to="/download" className="inline-flex items-center gap-2 rounded-full border border-border px-6 py-3 text-sm font-semibold hover:bg-muted">
+                Télécharger l'app
               </Link>
             </div>
             <div className="mt-8 grid grid-cols-3 gap-4">
-              <Stat value="Mobile Money" label="Recharge instantanée" />
-              <Stat value="Visa & MC" label="Réseaux acceptés" />
-              <Stat value="24/7" label="Support Ouaga" />
+              <Stat value="Automatique" label="Dépôts & retraits 24/7" />
+              <Stat value="Sans KYC" label="Ouverture instantanée" />
+              <Stat value="6 réseaux" label="Mobile Money supportés" />
             </div>
           </motion.div>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, delay: 0.1 }} className="relative">
             <div className="absolute inset-0 -z-10 rounded-[3rem] bg-gradient-primary opacity-20 blur-3xl" />
-            <div className="relative">
-              <img
-                src={heroCustomer}
-                alt="Cliente FASO-INVEST PAY effectuant un paiement en ligne"
-                width={1024}
-                height={1024}
-                className="w-full rounded-[2.5rem] object-cover shadow-card-premium aspect-square"
-              />
-              <div className="absolute -bottom-8 -left-6 w-[60%] rotate-[-6deg] md:-left-10">
-                <VirtualCard variant="primary" holder="GUY ROUAMBA" number="4242  ••••  ••••  4242" balance="$ 1 250.00" brand="Visa" />
-              </div>
-            </div>
+            <img src={heroCustomer} alt="Client FASO-INVEST PAY" width={1024} height={1024} className="w-full rounded-[2.5rem] object-cover shadow-card-premium aspect-square" />
           </motion.div>
         </section>
 
-        {/* TRUST BAR — marquee */}
-        <section className="border-y border-border bg-muted/30 py-10">
-          <p className="mb-6 text-center text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-            Acceptée sur les plus grandes plateformes
-          </p>
-          <div
-            className="group relative overflow-hidden"
-            style={{
-              maskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
-              WebkitMaskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
-            }}
-          >
-            <div className="flex w-max animate-marquee gap-14 px-8 group-hover:[animation-play-state:paused]">
-              {[...partners, ...partners].map((p, i) => (
-                <div key={`${p.slug}-${i}`} className="flex shrink-0 items-center gap-3 opacity-70 transition hover:opacity-100">
-                  <img
-                    src={`https://cdn.simpleicons.org/${p.slug}`}
-                    alt={p.name}
-                    width={28}
-                    height={28}
-                    className="h-7 w-7 object-contain dark:invert"
-                    loading="lazy"
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                  />
-                  <span className="whitespace-nowrap text-sm font-semibold tracking-wide text-foreground/80">{p.name}</span>
-                </div>
-              ))}
+        {/* SERVICES QUICKGRID */}
+        <section className="container mx-auto px-4 py-14 sm:px-6">
+          <div className="mb-10 max-w-2xl">
+            <span className="text-xs font-semibold uppercase tracking-widest text-primary">Nos services</span>
+            <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Une néobanque, cinq super-pouvoirs.</h2>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {services.map((f) => (
+              <div key={f.title} className="rounded-2xl border border-border bg-card p-5">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><f.icon className="h-5 w-5" /></span>
+                <h4 className="mt-3 text-sm font-semibold">{f.title}</h4>
+                <p className="mt-1 text-xs text-muted-foreground">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* SECTION 1: CARTE */}
+        <section id="carte" className="container mx-auto grid items-center gap-10 px-4 py-16 sm:px-6 md:grid-cols-2">
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-widest text-primary">01 · Carte prépayée virtuelle</span>
+            <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Votre Visa & Mastercard, personnalisée FASO-INVEST PAY.</h2>
+            <p className="mt-4 text-muted-foreground">Créée en quelques secondes, valable dans le monde entier — Netflix, Amazon, AliExpress, AdSense, formations, SaaS.</p>
+            <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-card">
+              <table className="w-full text-sm">
+                <tbody className="divide-y divide-border">
+                  {[
+                    ["Validité", "3 ans"],
+                    ["Frais de création", "0 F CFA"],
+                    ["Recharge minimum", "2 000 F CFA"],
+                    ["Dépôts & retraits", "Automatiques via Mobile Money"],
+                    ["Frais transfrontaliers", "2,5 % + 0,5 $"],
+                  ].map(([k, v]) => (
+                    <tr key={k}>
+                      <td className="px-4 py-3 text-muted-foreground">{k}</td>
+                      <td className="px-4 py-3 text-right font-semibold">{v}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Link to="/auth" className="mt-6 inline-flex items-center gap-2 rounded-full bg-gradient-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-glow">
+              Commander ma carte <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <img src={homeCards} alt="Cartes Visa et Mastercard FASO-INVEST PAY" loading="lazy" width={1408} height={912} className="w-full rounded-3xl object-cover shadow-card-premium" />
+        </section>
+
+        {/* SECTION 2: TRANSFERT */}
+        <section id="transfert" className="border-y border-border bg-muted/20">
+          <div className="container mx-auto grid items-center gap-10 px-4 py-16 sm:px-6 md:grid-cols-2">
+            <img src={homeTransfer} alt="Transfert d'argent inter-réseaux" loading="lazy" width={1408} height={912} className="w-full rounded-3xl object-cover shadow-card-premium" />
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-widest text-primary">02 · Transfert d'argent inter-réseaux</span>
+              <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">D'un réseau à l'autre, en quelques secondes.</h2>
+              <p className="mt-4 text-muted-foreground">Orange vers Moov, Wave vers Sank, Coris vers Telecel — tous les réseaux communiquent enfin. Le destinataire reçoit son argent instantanément.</p>
+              <div className="mt-6 grid grid-cols-3 gap-3">
+                {["Orange Money","Moov Money","Wave","Sank Money","Coris Money","Telecel"].map((op) => (
+                  <div key={op} className="rounded-xl border border-border bg-card px-3 py-2 text-center text-xs font-semibold">{op}</div>
+                ))}
+              </div>
+              <Link to="/transfer" className="mt-6 inline-flex items-center gap-2 rounded-full bg-gradient-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-glow">
+                Faire un transfert <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
           </div>
         </section>
 
-        {/* FEATURES */}
-        <section className="container mx-auto grid gap-4 px-4 pt-20 pb-20 sm:px-6 md:grid-cols-4">
-          {features.map((f) => (
-            <div key={f.title} className="rounded-2xl border border-border bg-card p-6">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><f.icon className="h-5 w-5" /></span>
-              <h4 className="mt-4 font-semibold">{f.title}</h4>
-              <p className="mt-1 text-sm text-muted-foreground">{f.desc}</p>
+        {/* SECTION 3: PAYPAL */}
+        <section id="paypal" className="container mx-auto grid items-center gap-10 px-4 py-16 sm:px-6 md:grid-cols-2">
+          <div className="order-2 md:order-1">
+            <span className="text-xs font-semibold uppercase tracking-widest text-primary">03 · Retrait PayPal</span>
+            <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Transformez votre solde PayPal en Mobile Money.</h2>
+            <p className="mt-4 text-muted-foreground">Freelance, dropshipper, créateur — recevez vos revenus PayPal et retirez-les directement sur Orange Money, Moov ou Wave au Burkina Faso.</p>
+            <ul className="mt-6 space-y-3 text-sm">
+              {["Taux de change transparent","Aucun compte bancaire requis","Traitement en moins de 24 h"].map((t) => (
+                <li key={t} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> {t}</li>
+              ))}
+            </ul>
+            <Link to="/dashboard" className="mt-6 inline-flex items-center gap-2 rounded-full border border-border px-6 py-3 text-sm font-semibold hover:bg-muted">
+              Demander un retrait <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <img src={homePaypal} alt="Retrait PayPal via Mobile Money au Burkina Faso" loading="lazy" width={1408} height={912} className="order-1 md:order-2 w-full rounded-3xl object-cover shadow-card-premium" />
+        </section>
+
+        {/* SECTION 4: BUSINESS */}
+        <section id="business" className="border-t border-border bg-muted/20">
+          <div className="container mx-auto grid items-center gap-10 px-4 py-16 sm:px-6 md:grid-cols-2">
+            <img src={homeBusiness} alt="Espace Business : boutique en ligne, comptabilité et factures" loading="lazy" width={1408} height={912} className="w-full rounded-3xl object-cover shadow-card-premium" />
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-widest text-primary">04 · Espace Business</span>
+              <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Votre boutique en ligne, tout-en-un.</h2>
+              <p className="mt-4 text-muted-foreground">Créez votre projet, lancez votre boutique, recevez vos paiements au Burkina et à l'international, et pilotez tout depuis un tableau de bord premium.</p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {[
+                  { i: Store, t: "Boutique en ligne", d: "Catalogue, panier, checkout." },
+                  { i: TrendingUp, t: "Comptabilité intégrée", d: "Recettes, dépenses, exports." },
+                  { i: Users, t: "Suivi client", d: "CRM, factures et reçus." },
+                  { i: Globe2, t: "International", d: "Recevez du monde entier." },
+                ].map((b) => (
+                  <div key={b.t} className="rounded-xl border border-border bg-card p-4">
+                    <b.i className="h-5 w-5 text-primary" />
+                    <div className="mt-2 text-sm font-semibold">{b.t}</div>
+                    <div className="text-xs text-muted-foreground">{b.d}</div>
+                  </div>
+                ))}
+              </div>
+              <Link to="/business" className="mt-6 inline-flex items-center gap-2 rounded-full bg-gradient-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-glow">
+                Ouvrir mon Espace Business <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
-          ))}
+          </div>
         </section>
 
         {/* HOW IT WORKS */}
-        <section className="container mx-auto px-4 pb-20 sm:px-6">
+        <section className="container mx-auto px-4 py-16 sm:px-6">
           <div className="mb-12 max-w-2xl">
             <span className="text-xs font-semibold uppercase tracking-widest text-primary">Comment ça marche</span>
-            <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">4 étapes pour payer le monde entier</h2>
+            <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">4 étapes pour tout gérer.</h2>
           </div>
           <div className="grid gap-4 md:grid-cols-4">
             {steps.map((s) => (
-              <div key={s.n} className="relative rounded-2xl border border-border bg-card p-6">
+              <div key={s.n} className="rounded-2xl border border-border bg-card p-6">
                 <span className="font-[Space_Grotesk] text-3xl font-black text-primary/30">{s.n}</span>
                 <h4 className="mt-3 font-semibold">{s.t}</h4>
                 <p className="mt-2 text-sm text-muted-foreground">{s.d}</p>
@@ -157,85 +207,11 @@ function Index() {
           </div>
         </section>
 
-        {/* PRICING — value props seulement (aucun calcul affiché) */}
-        <section className="border-y border-border bg-muted/20">
-          <div className="container mx-auto px-4 py-20 sm:px-6">
-            <div className="mx-auto max-w-2xl text-center">
-              <span className="text-xs font-semibold uppercase tracking-widest text-primary">Tarification transparente</span>
-              <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Pas de surprise. Pas de frais cachés.</h2>
-              <p className="mt-4 text-muted-foreground">Les frais s'affichent à l'écran avant chaque confirmation. Aucun abonnement, aucun frais mensuel.</p>
-            </div>
-            <div className="mt-10 grid gap-4 md:grid-cols-3">
-              {[
-                { t: "Recharge Mobile Money", d: "Crédit instantané sur votre portefeuille — Orange, Moov, Wave." },
-                { t: "Carte virtuelle mondiale", d: "Payez Netflix, Amazon, AliExpress, Google Ads, AdSense et plus." },
-                { t: "Aucun abonnement", d: "Vous payez uniquement à l'usage. Frais visibles avant chaque opération." },
-              ].map((b) => (
-                <div key={b.t} className="rounded-2xl border border-border bg-card p-6">
-                  <CheckCircle2 className="h-5 w-5 text-success" />
-                  <h4 className="mt-3 font-semibold">{b.t}</h4>
-                  <p className="mt-1 text-sm text-muted-foreground">{b.d}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* SECURITY */}
-        <section className="container mx-auto grid gap-8 px-4 py-20 sm:px-6 md:grid-cols-3">
-          {[
-            { i: Lock, t: "Chiffrement bout-en-bout", d: "Toutes vos données KYC sont stockées chiffrées et transmises uniquement à notre émetteur certifié." },
-            { i: ShieldCheck, t: "Gèle anti-fraude", d: "Carte automatiquement gelée à la 1ʳᵉ tentative de paiement échouée pour éviter toute résiliation." },
-            { i: Banknote, t: "Fonds séparés", d: "Votre solde XOF (recharges Mobile Money) et votre carte USD sont cloisonnés. Vous gardez le contrôle total à tout moment." },
-          ].map((b) => (
-            <div key={b.t} className="rounded-2xl border border-border bg-card p-6">
-              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary"><b.i className="h-6 w-6" /></span>
-              <h4 className="mt-4 font-semibold">{b.t}</h4>
-              <p className="mt-1 text-sm text-muted-foreground">{b.d}</p>
-            </div>
-          ))}
-        </section>
-
-        {/* HUMAN PAYMENT SECTION */}
-        <section className="container mx-auto grid items-center gap-10 px-4 pb-20 sm:px-6 md:grid-cols-2">
-          <div className="order-2 md:order-1">
-            <span className="text-xs font-semibold uppercase tracking-widest text-primary">Pensé pour vous</span>
-            <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Payez en ligne où que vous soyez, en toute confiance.</h2>
-            <p className="mt-4 text-muted-foreground">Que vous régliez vos abonnements, vos publicités en ligne ou vos achats e-commerce, FASO-INVEST PAY vous accompagne avec une carte virtuelle locale et fiable.</p>
-            <ul className="mt-6 space-y-3 text-sm">
-              {["Compatible avec tous les marchands en ligne","Suivi instantané dans votre tableau de bord","Support client basé à Ouagadougou"].map(t => (
-                <li key={t} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" /> {t}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="order-1 md:order-2">
-            <img src={sectionPayment} alt="Entrepreneur effectuant un paiement en ligne" loading="lazy" width={1920} height={1080} className="w-full rounded-3xl object-cover shadow-card-premium" />
-          </div>
-        </section>
-
-        {/* STATS */}
-        <section className="border-y border-border bg-gradient-primary/5">
-          <div className="container mx-auto grid gap-6 px-4 py-16 sm:px-6 md:grid-cols-4">
-            {[
-              { i: Users, v: "10 000+", l: "Utilisateurs servis" },
-              { i: CreditCard, v: "25 000+", l: "Cartes émises" },
-              { i: TrendingUp, v: "2,8 M $", l: "Volume traité" },
-              { i: Star, v: "4.8/5", l: "Note moyenne" },
-            ].map((s) => (
-              <div key={s.l} className="text-center">
-                <s.i className="mx-auto h-6 w-6 text-primary" />
-                <div className="mt-3 font-[Space_Grotesk] text-3xl font-bold tabular-nums">{s.v}</div>
-                <div className="text-xs uppercase tracking-widest text-muted-foreground">{s.l}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
         {/* TESTIMONIALS */}
-        <section className="container mx-auto px-4 py-20 sm:px-6">
+        <section className="container mx-auto px-4 py-16 sm:px-6">
           <div className="mb-10 max-w-2xl">
             <span className="text-xs font-semibold uppercase tracking-widest text-primary">Ils nous font confiance</span>
-            <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Plus de 10 000 Burkinabè paient déjà le monde entier.</h2>
+            <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Plus de 10 000 Burkinabè utilisent FASO-INVEST PAY.</h2>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             {testimonials.map((t) => (
@@ -256,7 +232,7 @@ function Index() {
 
         {/* FAQ */}
         <section className="border-t border-border bg-muted/20">
-          <div className="container mx-auto max-w-3xl px-4 py-20 sm:px-6">
+          <div className="container mx-auto max-w-3xl px-4 py-16 sm:px-6">
             <span className="text-xs font-semibold uppercase tracking-widest text-primary">Questions fréquentes</span>
             <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Tout ce qu'il faut savoir.</h2>
             <div className="mt-10 space-y-3">
@@ -273,11 +249,11 @@ function Index() {
         </section>
 
         {/* CTA */}
-        <section className="container mx-auto px-4 py-24 sm:px-6">
+        <section className="container mx-auto px-4 py-20 sm:px-6">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-primary p-12 text-center text-primary-foreground shadow-card-premium md:p-16">
             <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
             <div className="absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-black/20 blur-3xl" />
-            <h2 className="relative font-[Space_Grotesk] text-3xl font-bold md:text-5xl">Prêt à payer le monde entier ?</h2>
+            <h2 className="relative font-[Space_Grotesk] text-3xl font-bold md:text-5xl">Prêt à basculer sur votre néobanque ?</h2>
             <p className="relative mx-auto mt-4 max-w-xl text-primary-foreground/80">Ouvrez votre compte FASO-INVEST PAY en moins de 2 minutes. Aucun engagement.</p>
             <Link to="/auth" className="relative mt-8 inline-flex items-center gap-2 rounded-full bg-background px-7 py-3 text-sm font-semibold text-foreground hover:scale-[1.02] transition-transform">
               Commencer maintenant <ArrowRight className="h-4 w-4" />
@@ -285,7 +261,6 @@ function Index() {
           </div>
         </section>
 
-        {/* FOOTER */}
         <footer className="border-t border-border">
           <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 py-8 sm:flex-row sm:px-6">
             <div className="flex items-center gap-2">
