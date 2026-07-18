@@ -6,7 +6,7 @@ import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import * as SW from "../_shared/strowallet.ts";
 import { computeCardCost, computeFundCost, loadPricingConfig } from "../_shared/pricing.ts";
 import { sendEmail } from "../_shared/email.ts";
-import { notifyEvent as notifySms } from "../_shared/sms.ts";
+import { notifyEvent as notifySms, sendSmsRaw } from "../_shared/sms.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
