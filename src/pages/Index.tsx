@@ -47,7 +47,7 @@ function Index() {
         <section className="container mx-auto grid gap-12 px-4 py-16 sm:px-6 md:grid-cols-2 md:py-24">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> La néobanque du Burkina Faso
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> La fintech burkinabè du Burkina Faso
             </span>
             <h1 className="mt-6 font-[Space_Grotesk] text-5xl font-bold leading-tight tracking-tight md:text-6xl">
               Prenez le <span className="bg-gradient-primary bg-clip-text text-transparent">contrôle</span> de vos paiements en ligne.
@@ -79,7 +79,7 @@ function Index() {
         <section className="container mx-auto px-4 py-14 sm:px-6">
           <div className="mb-10 max-w-2xl">
             <span className="text-xs font-semibold uppercase tracking-widest text-primary">Nos services</span>
-            <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Une néobanque, cinq super-pouvoirs.</h2>
+            <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Une fintech burkinabè, cinq super-pouvoirs.</h2>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {services.map((f) => (
@@ -253,7 +253,7 @@ function Index() {
           <div className="relative overflow-hidden rounded-3xl bg-gradient-primary p-12 text-center text-primary-foreground shadow-card-premium md:p-16">
             <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
             <div className="absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-black/20 blur-3xl" />
-            <h2 className="relative font-[Space_Grotesk] text-3xl font-bold md:text-5xl">Prêt à basculer sur votre néobanque ?</h2>
+            <h2 className="relative font-[Space_Grotesk] text-3xl font-bold md:text-5xl">Prêt à basculer sur votre fintech burkinabè ?</h2>
             <p className="relative mx-auto mt-4 max-w-xl text-primary-foreground/80">Ouvrez votre compte FASO-INVEST PAY en moins de 2 minutes. Aucun engagement.</p>
             <Link to="/auth" className="relative mt-8 inline-flex items-center gap-2 rounded-full bg-background px-7 py-3 text-sm font-semibold text-foreground hover:scale-[1.02] transition-transform">
               Commencer maintenant <ArrowRight className="h-4 w-4" />
