@@ -47,7 +47,7 @@ function Index() {
         <section className="container mx-auto grid gap-12 px-4 py-16 sm:px-6 md:grid-cols-2 md:py-24">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> La fintech burkinabè du Burkina Faso
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> La fintech burkinabè
             </span>
             <h1 className="mt-6 font-[Space_Grotesk] text-5xl font-bold leading-tight tracking-tight md:text-6xl">
               Prenez le <span className="bg-gradient-primary bg-clip-text text-transparent">contrôle</span> de vos paiements en ligne.
@@ -79,7 +79,7 @@ function Index() {
         <section className="container mx-auto px-4 py-14 sm:px-6">
           <div className="mb-10 max-w-2xl">
             <span className="text-xs font-semibold uppercase tracking-widest text-primary">Nos services</span>
-            <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Une fintech burkinabè, cinq super-pouvoirs.</h2>
+            <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Une fintech, cinq super-pouvoirs.</h2>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {services.map((f) => (
