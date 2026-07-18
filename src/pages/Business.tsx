@@ -678,60 +678,7 @@ export default function BusinessPage() {
                   )}
                 </section>
 
-                {/* API keys — masqué (usage interne / admin uniquement) */}
-                {false && (
-                <section className="mt-8">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h3 className="font-[Space_Grotesk] text-xl font-bold">Clés API</h3>
-                    <button onClick={onCreateKey} className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted">
-                      <Plus className="h-3.5 w-3.5" /> Générer une clé
-                    </button>
-                  </div>
-                  {newKey && (
-                    <div className="mb-4 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-emerald-500">Copiez votre clé maintenant — elle ne sera plus jamais affichée</p>
-                      <div className="mt-2 flex items-center gap-2 rounded-xl bg-background p-3">
-                        <code className="flex-1 truncate font-mono text-xs">{newKey}</code>
-                        <button onClick={() => { copy(newKey); setNewKey(null); }} className="rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background"><Copy className="h-3 w-3" /></button>
-                      </div>
-                    </div>
-                  )}
-                  <div className="space-y-2">
-                    {keys.length === 0 && <p className="text-sm text-muted-foreground">Aucune clé.</p>}
-                    {keys.map((k) => (
-                      <div key={k.id} className="flex items-center justify-between rounded-2xl border border-border bg-surface-2 p-4">
-                        <div className="flex items-center gap-3">
-                          <Key className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="font-mono text-sm">{k.key_prefix}…</p>
-                            <p className="text-xs text-muted-foreground">{k.label} · {k.mode} {k.revoked_at ? "· révoquée" : ""}</p>
-                          </div>
-                        </div>
-                        {!k.revoked_at && (
-                          <button onClick={() => onRevokeKey(k.id)} className="grid h-8 w-8 place-items-center rounded-full border border-destructive/40 text-destructive hover:bg-destructive/10"><Trash2 className="h-3.5 w-3.5" /></button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  <details className="mt-6 rounded-2xl border border-border bg-surface-2 p-4 text-sm">
-                    <summary className="cursor-pointer font-semibold">Documentation API REST</summary>
-                    <div className="mt-3 space-y-3 text-xs text-muted-foreground">
-                      <p>Base URL : <code className="rounded bg-muted px-1.5 py-0.5">{import.meta.env.VITE_SUPABASE_URL}/functions/v1/pay/v1</code></p>
-                      <p>Authentification : header <code className="rounded bg-muted px-1.5 py-0.5">Authorization: Bearer fip_live_xxx</code></p>
-                      <div>
-                        <p className="font-semibold text-foreground">Créer un lien :</p>
-                        <pre className="mt-1 overflow-x-auto rounded bg-background p-2 text-[10px]">{`POST /v1/payment-links
-{ "title": "Commande #123", "amount": 5000, "currency": "XOF" }`}</pre>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-foreground">Récupérer un paiement :</p>
-                        <pre className="mt-1 overflow-x-auto rounded bg-background p-2 text-[10px]">{`GET /v1/payments/{reference}`}</pre>
-                      </div>
-                    </div>
-                  </details>
-                </section>
-                )}
+                {/* Section « Clés API » masquée volontairement — accès interne uniquement */}
               </>
             )}
           </>
