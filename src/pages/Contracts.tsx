@@ -40,10 +40,16 @@ export default function Contracts() {
   const [tab, setTab] = useState<"documents" | "templates">("documents");
   const [templates, setTemplates] = useState<any[]>([]);
   const [contracts, setContracts] = useState<any[]>([]);
+  const [biz, setBiz] = useState<any>(null);
 
   const load = async () => {
-    const [t, c] = await Promise.all([listContractTemplates(businessId), listContracts(businessId)]);
+    const [t, c, all] = await Promise.all([
+      listContractTemplates(businessId),
+      listContracts(businessId),
+      listMyBusinesses().catch(() => [] as any[]),
+    ]);
     setTemplates(t); setContracts(c);
+    setBiz((all || []).find((b: any) => b.id === businessId) || null);
   };
   useEffect(() => { load(); }, [businessId]);
 
@@ -61,7 +67,7 @@ export default function Contracts() {
           <TabBtn active={tab === "templates"} onClick={() => setTab("templates")}>Modèles</TabBtn>
         </div>
 
-        {tab === "documents" && <DocumentsTab businessId={businessId} contracts={contracts} templates={templates} reload={load} />}
+        {tab === "documents" && <DocumentsTab businessId={businessId} biz={biz} contracts={contracts} templates={templates} reload={load} />}
         {tab === "templates" && <TemplatesTab businessId={businessId} templates={templates} reload={load} />}
       </div>
     </div>
@@ -309,9 +315,9 @@ pre{white-space:pre-wrap;font-family:inherit;line-height:1.6;margin:24px 0 0}
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-function DocumentsTab({ businessId, contracts, templates, reload }: any) {
+function DocumentsTab({ businessId, biz, contracts, templates, reload }: any) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<any>({ template_id: "", title: "", client_name: "", client_email: "", client_phone: "", amount: "", currency: "XOF", variables: {} });
+  const [form, setForm] = useState<any>({ template_id: "", title: "", client_name: "", client_email: "", client_phone: "", amount: "", currency: "XOF", kind: "other", variables: { acheteur_nom: "", promoteur_nom: "" } });
   const tpl = templates.find((t: any) => t.id === form.template_id);
   const vars = tpl?.variables || [];
 
@@ -338,11 +344,19 @@ function DocumentsTab({ businessId, contracts, templates, reload }: any) {
               <option value="">Sans modèle</option>
               {templates.map((t: any) => <option key={t.id} value={t.id}>{t.name} ({t.kind})</option>)}
             </select>
+            <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} className="rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="other">Reçu de caisse</option>
+              <option value="invoice">Facture</option>
+              <option value="quote">Devis</option>
+              <option value="contract">Contrat</option>
+            </select>
             <input placeholder="Titre" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
             <input placeholder="Nom client" value={form.client_name} onChange={(e) => setForm({ ...form, client_name: e.target.value })} className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
             <input placeholder="Email client" value={form.client_email} onChange={(e) => setForm({ ...form, client_email: e.target.value })} className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
             <input type="number" placeholder="Montant" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
             <input placeholder="Devise" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            <input placeholder="Nom acheteur (bas de page)" value={form.variables?.acheteur_nom || ""} onChange={(e) => setForm({ ...form, variables: { ...form.variables, acheteur_nom: e.target.value } })} className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            <input placeholder="Nom promoteur/vendeur" value={form.variables?.promoteur_nom || ""} onChange={(e) => setForm({ ...form, variables: { ...form.variables, promoteur_nom: e.target.value } })} className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
           </div>
           {vars.length > 0 && (
             <div className="mt-4">
@@ -382,7 +396,20 @@ function DocumentsTab({ businessId, contracts, templates, reload }: any) {
             </div>
             <div className="flex items-center gap-2">
               <StatusBadge status={c.status} />
-              <button onClick={() => downloadContractPdf(c)} className="rounded-full border border-border p-2 hover:bg-muted" title="PDF"><Download className="h-3.5 w-3.5" /></button>
+              <div className="flex items-center gap-1 rounded-full border border-border px-1">
+                <button onClick={() => exportA4(c, biz)} className="rounded-full px-2 py-1 text-[10px] font-semibold hover:bg-muted" title="PDF A4">
+                  <FileText className="inline h-3 w-3" /> A4
+                </button>
+                <button onClick={() => exportTicket80(c, biz)} className="rounded-full px-2 py-1 text-[10px] font-semibold hover:bg-muted" title="Ticket de caisse 80mm">
+                  <Receipt className="inline h-3 w-3" /> 80mm
+                </button>
+                <button onClick={() => exportImage(c, biz)} className="rounded-full px-2 py-1 text-[10px] font-semibold hover:bg-muted" title="Image PNG">
+                  <FileImage className="inline h-3 w-3" /> PNG
+                </button>
+                <button onClick={() => exportHtml(c, biz)} className="rounded-full px-2 py-1 text-[10px] font-semibold hover:bg-muted" title="Page web">
+                  <Globe className="inline h-3 w-3" /> Web
+                </button>
+              </div>
               {c.status === "draft" && (
                 <button onClick={async () => { await updateContractStatus(c.id, "sent"); await reload(); }} className="rounded-full border border-border p-2 hover:bg-muted" title="Marquer envoyé"><Send className="h-3.5 w-3.5" /></button>
               )}
