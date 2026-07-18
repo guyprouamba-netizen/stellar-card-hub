@@ -339,11 +339,6 @@ export default function TransferPage() {
                       </td>
                       <td className="px-6 py-4 text-center"><StatusPill status={t.status} /></td>
                       <td className="px-6 py-4 text-right whitespace-nowrap">
-                        {t.status === "awaiting_payment" && t.checkout_url && (
-                          <a href={t.checkout_url} className="mr-3 inline-flex items-center gap-1 text-xs font-bold hover:underline" style={{ color: C.gold }}>
-                            <ExternalLink className="h-3 w-3" /> Payer
-                          </a>
-                        )}
                         <button
                           onClick={() => verifyMut.mutate(t.payment_reference)}
                           className="text-xs font-bold hover:underline"
