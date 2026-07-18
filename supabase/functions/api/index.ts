@@ -312,9 +312,13 @@ function computeMomoTransferFees(amount: number, cfg: { fee_bps: number; fee_fla
   return Math.max(0, pct + Math.max(0, Math.floor(cfg.fee_flat_xof)));
 }
 async function triggerMomoTransferCashout(admin: any, t: any) {
-  const apiKey = Deno.env.get("YENGAPAY_CASHOUT_API_KEY") || Deno.env.get("YENGAPAY_API_KEY");
-  const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
-  const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
+  // Utilise en priorité le projet YengaPay dédié au PAYOUT (transferts sortants).
+  const apiKey = Deno.env.get("YENGAPAY_TRANSFER_CASHOUT_API_KEY")
+    || Deno.env.get("YENGAPAY_TRANSFER_API_KEY")
+    || Deno.env.get("YENGAPAY_CASHOUT_API_KEY")
+    || Deno.env.get("YENGAPAY_API_KEY");
+  const groupId = Deno.env.get("YENGAPAY_TRANSFER_GROUP_ID") || Deno.env.get("YENGAPAY_GROUP_ID");
+  const projectId = Deno.env.get("YENGAPAY_TRANSFER_PROJECT_ID") || Deno.env.get("YENGAPAY_PROJECT_ID");
   if (!apiKey || !groupId || !projectId) {
     await admin.from("momo_transfers").update({ status: "paid", admin_note: "YengaPay non configuré — payout manuel requis" }).eq("id", t.id);
     return;
