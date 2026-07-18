@@ -332,9 +332,9 @@ export default function ProjectDetailPage() {
                             className="absolute top-0.5 right-0.5 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-white"><X className="h-3 w-3" /></button>
                         </div>
                       ))}
-                      <label className="grid h-16 w-16 cursor-pointer place-items-center rounded-lg border border-dashed border-border bg-surface-2 hover:bg-muted">
+                      <label className="grid h-16 w-16 cursor-pointer place-items-center rounded-lg border border-dashed border-border bg-surface-2 hover:bg-muted" title="Ajouter photos/vidéos">
                         <Upload className="h-4 w-4 text-muted-foreground" />
-                        <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => e.target.files?.[0] && onAddMedia(prod.id, e.target.files[0])} />
+                        <input type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => e.target.files && onAddMedia(prod.id, e.target.files)} />
                       </label>
                     </div>
                     <div className="mt-3 flex gap-2">
