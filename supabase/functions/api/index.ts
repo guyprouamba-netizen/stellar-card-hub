@@ -312,17 +312,19 @@ function computeMomoTransferFees(amount: number, cfg: { fee_bps: number; fee_fla
   return Math.max(0, pct + Math.max(0, Math.floor(cfg.fee_flat_xof)));
 }
 async function triggerMomoTransferCashout(admin: any, t: any) {
-  // Utilise en priorité le projet YengaPay dédié au PAYOUT (transferts sortants).
+  // UNIQUEMENT le projet YengaPay PAYOUT dédié — jamais de fallback vers le projet marchand
+  // pour éviter que la requête soit rejetée (403 "opération réservée aux projets PAYOUT")
+  // ou pire, débitée du mauvais projet.
   const apiKey = Deno.env.get("YENGAPAY_TRANSFER_CASHOUT_API_KEY")
-    || Deno.env.get("YENGAPAY_TRANSFER_API_KEY")
-    || Deno.env.get("YENGAPAY_CASHOUT_API_KEY")
-    || Deno.env.get("YENGAPAY_API_KEY");
-  const groupId = Deno.env.get("YENGAPAY_TRANSFER_GROUP_ID") || Deno.env.get("YENGAPAY_GROUP_ID");
-  const projectId = Deno.env.get("YENGAPAY_TRANSFER_PROJECT_ID") || Deno.env.get("YENGAPAY_PROJECT_ID");
+    || Deno.env.get("YENGAPAY_TRANSFER_API_KEY");
+  const groupId = Deno.env.get("YENGAPAY_TRANSFER_GROUP_ID");
+  const projectId = Deno.env.get("YENGAPAY_TRANSFER_PROJECT_ID");
   if (!apiKey || !groupId || !projectId) {
-    await admin.from("momo_transfers").update({ status: "paid", admin_note: "YengaPay non configuré — payout manuel requis" }).eq("id", t.id);
+    await admin.from("momo_transfers").update({ status: "failed", admin_note: "Projet YengaPay PAYOUT non configuré (YENGAPAY_TRANSFER_*)" }).eq("id", t.id);
+    await refundMomoTransferToWallet(admin, t, "Projet PAYOUT non configuré");
     return;
   }
+  console.log("[momo-cashout] using PAYOUT project", { projectId, groupId, transferId: t.id });
   const destNumber = normalizeBfPhone(t.dest_phone);
   const preferred = mapCashoutMethod(t.dest_operator);
   if (!preferred) {
