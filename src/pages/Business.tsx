@@ -386,6 +386,10 @@ export default function BusinessPage() {
                   </div>
                 </div>
 
+                {/* Personnalisation boutique + SMS Sender ID */}
+                <ShopBrandingPanel biz={current} onUpdated={refreshAll} />
+                <SmsSenderPanel biz={current} />
+
                 {/* Projects */}
                 <section className="mt-8">
                   <div className="mb-3 flex items-center justify-between">
