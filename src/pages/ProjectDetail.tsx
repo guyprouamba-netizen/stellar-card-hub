@@ -325,9 +325,16 @@ export default function ProjectDetailPage() {
                     </div>
                     {/* Media gallery */}
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {(prod.product_media || []).map((m: any) => (
-                        <div key={m.id} className="relative h-16 w-16 overflow-hidden rounded-lg border border-border">
+                      {(prod.product_media || []).map((m: any, i: number) => (
+                        <div key={m.id} className="group relative h-16 w-16 overflow-hidden rounded-lg border border-border">
                           {m.type === "video" ? <video src={m.url} className="h-full w-full object-cover" /> : <img src={m.url} className="h-full w-full object-cover" alt="" />}
+                          {i === 0 && <span className="absolute bottom-0.5 left-0.5 rounded-sm bg-primary/90 px-1 text-[9px] font-bold text-primary-foreground">1er</span>}
+                          <div className="absolute inset-x-0 bottom-0 hidden justify-between bg-black/60 px-0.5 py-0.5 group-hover:flex">
+                            <button onClick={() => onReorderMedia(prod.id, m.id, -1)} disabled={i === 0}
+                              className="text-white text-[10px] disabled:opacity-30">◀</button>
+                            <button onClick={() => onReorderMedia(prod.id, m.id, 1)} disabled={i === (prod.product_media?.length || 1) - 1}
+                              className="text-white text-[10px] disabled:opacity-30">▶</button>
+                          </div>
                           <button onClick={async () => { await deleteProductMedia(m.id); setProducts((prev) => prev.map((p) => p.id === prod.id ? { ...p, product_media: p.product_media.filter((x: any) => x.id !== m.id) } : p)); }}
                             className="absolute top-0.5 right-0.5 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-white"><X className="h-3 w-3" /></button>
                         </div>
