@@ -9,22 +9,31 @@ export function RechargeSheet({ open, onClose }: { open: boolean; onClose: () =>
   const [amount, setAmount] = useState<number>(10000);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [manualUrl, setManualUrl] = useState<string | null>(null);
 
   async function submit() {
     setLoading(true);
     setError(null);
+    setManualUrl(null);
     try {
       const returnUrl = `${window.location.origin}/dashboard`;
       const res = await walletApi.rechargeYengapay(amount, "XOF", returnUrl);
       const url = res?.data?.checkout_url;
       if (!url) throw new Error("Lien de paiement introuvable");
-      // 1) tenter d'ouvrir dans un nouvel onglet (fiable même dans un iframe)
+      // 1) Navigation au niveau top (échappe à l'iframe de preview Lovable)
+      try {
+        if (window.top && window.top !== window.self) {
+          window.top.location.href = url;
+          return;
+        }
+      } catch { /* cross-origin, on ignore */ }
+      // 2) Nouvel onglet (peut être bloqué par le navigateur)
       const win = window.open(url, "_blank", "noopener,noreferrer");
       if (win) return;
-      // 2) tenter la navigation au niveau top (échappe à l'iframe preview)
-      try { if (window.top && window.top !== window.self) { window.top.location.href = url; return; } } catch { /* ignore */ }
-      // 3) fallback : navigation classique
+      // 3) Fallback : navigation classique dans la même fenêtre
       window.location.href = url;
+      // 4) Filet de sécurité : si rien n'a fonctionné après 800ms, on montre le lien
+      setTimeout(() => setManualUrl(url), 800);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Une erreur est survenue");
       setLoading(false);
@@ -104,6 +113,16 @@ export function RechargeSheet({ open, onClose }: { open: boolean; onClose: () =>
 
             {error && (
               <p className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
+            )}
+            {manualUrl && (
+              <a
+                href={manualUrl}
+                target="_top"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 p-3 text-sm font-semibold text-primary hover:bg-primary/20"
+              >
+                Ouvrir la page de paiement YengaPay <ArrowRight className="h-4 w-4" />
+              </a>
             )}
 
             <button
