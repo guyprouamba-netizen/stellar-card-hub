@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, FileText, Plus, Download, Trash2, Send, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, FileText, Plus, Trash2, Send, CheckCircle2, Receipt, FileImage, Globe } from "lucide-react";
 import jsPDF from "jspdf";
+import QRCode from "qrcode";
 import {
   listContractTemplates, upsertContractTemplate, deleteContractTemplate,
   listContracts, generateContract, updateContractStatus, deleteContract,
 } from "@/lib/contracts.functions";
+import { listMyBusinesses } from "@/lib/business.functions";
 
 const DEFAULT_TPL = `# {{titre}}
 
