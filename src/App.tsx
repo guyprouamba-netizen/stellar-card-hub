@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { Routes, Route } from "react-router-dom";
 import Index from "@/pages/Index";
 import Auth from "@/pages/Auth";
@@ -24,7 +25,7 @@ import NotFound from "@/pages/NotFound";
 import { AuthGate } from "@/components/auth-gate";
 import { ErrorBoundary } from "@/components/error-boundary";
 
-const guarded = (el: JSX.Element, label: string) => (
+const guarded = (el: ReactElement, label: string) => (
   <AuthGate><ErrorBoundary label={label}>{el}</ErrorBoundary></AuthGate>
 );
 
