@@ -1494,7 +1494,7 @@ export type Database = {
           payment_intent_id: string | null
           payment_reference: string | null
           source_operator: string
-          source_phone: string
+          source_phone: string | null
           status: string
           total_charged_xof: number
           updated_at: string
@@ -1519,7 +1519,7 @@ export type Database = {
           payment_intent_id?: string | null
           payment_reference?: string | null
           source_operator: string
-          source_phone: string
+          source_phone?: string | null
           status?: string
           total_charged_xof: number
           updated_at?: string
@@ -1544,7 +1544,7 @@ export type Database = {
           payment_intent_id?: string | null
           payment_reference?: string | null
           source_operator?: string
-          source_phone?: string
+          source_phone?: string | null
           status?: string
           total_charged_xof?: number
           updated_at?: string
