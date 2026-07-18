@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowRight, ArrowLeft, ExternalLink, RefreshCw, CheckCircle2, ShieldCheck, Loader2 } from "lucide-react";
+import { ArrowRight, RefreshCw, CheckCircle2, ShieldCheck, Loader2, Wallet } from "lucide-react";
+import { Link } from "react-router-dom";
 import { BackButton } from "@/components/back-button";
 import {
   getMomoTransferConfig, quoteMomoTransfer, initMomoTransfer,
   listMyMomoTransfers, verifyMomoTransfer,
 } from "@/lib/transfer.functions";
+import { getDashboardData } from "@/lib/dashboard.functions";
 
 // Emerald Prestige palette (page-scoped to build banking trust)
 const C = {
@@ -24,6 +26,7 @@ const OPERATORS = [
   { code: "TELECEL_MONEY", label: "Telecel", color: "#ed1c24" },
   { code: "SANK_MONEY", label: "Sank", color: "#22c55e" },
   { code: "CORIS_MONEY", label: "Coris", color: "#f59e0b" },
+  { code: "WAVE_MONEY", label: "Wave", color: "#00b4ff" },
 ];
 
 function opInfo(code: string) {
@@ -50,8 +53,6 @@ function StatusPill({ status }: { status: string }) {
 export default function TransferPage() {
   const qc = useQueryClient();
   const [form, setForm] = useState({
-    source_operator: "ORANGE_MONEY",
-    source_phone: "",
     dest_operator: "MOOV_MONEY",
     dest_phone: "",
     dest_holder: "",
@@ -66,6 +67,12 @@ export default function TransferPage() {
     queryFn: listMyMomoTransfers,
     refetchInterval: 15_000,
   });
+  const dashQ = useQuery({
+    queryKey: ["mtr-dash"],
+    queryFn: () => getDashboardData(),
+    refetchInterval: 20_000,
+  });
+  const xofBalance = Number((dashQ.data as any)?.wallets?.find((w: any) => w.currency === "XOF")?.balance ?? 0);
 
   const amountNum = Math.floor(Number(form.amount) || 0);
   useEffect(() => {
@@ -85,13 +92,17 @@ export default function TransferPage() {
   const initMut = useMutation({
     mutationFn: async () => {
       setSubmitting(true);
-      const returnUrl = `${window.location.origin}/transfer`;
-      return await initMomoTransfer({ data: { ...form, amount: amountNum, returnUrl } });
+      return await initMomoTransfer({ data: { ...form, amount: amountNum } });
     },
     onSuccess: (res: any) => {
-      toast.success("Redirection vers le paiement…");
+      if (res?.ok === false) { toast.error(res.error || "Erreur"); return; }
+      const st = res?.transfer?.status;
+      if (st === "delivered") toast.success("✅ Transfert livré au destinataire");
+      else if (st === "refunded") toast.error("Échec — vous avez été remboursé");
+      else toast.success("Transfert en cours vers le destinataire…");
       qc.invalidateQueries({ queryKey: ["mtr-list"] });
-      if (res?.checkout_url) window.location.href = res.checkout_url;
+      qc.invalidateQueries({ queryKey: ["mtr-dash"] });
+      setForm({ dest_operator: form.dest_operator, dest_phone: "", dest_holder: "", amount: "" });
     },
     onError: (e: any) => toast.error(e.message || "Erreur"),
     onSettled: () => setSubmitting(false),
@@ -99,29 +110,16 @@ export default function TransferPage() {
 
   const verifyMut = useMutation({
     mutationFn: (reference: string) => verifyMomoTransfer({ data: { reference } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["mtr-list"] }); toast.success("Statut mis à jour"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["mtr-list"] }); qc.invalidateQueries({ queryKey: ["mtr-dash"] }); toast.success("Statut mis à jour"); },
     onError: (e: any) => toast.error(e.message || "Erreur"),
   });
 
-  // Auto-verify on return from checkout
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const ref = url.searchParams.get("mtr");
-    if (ref) {
-      verifyMomoTransfer({ data: { reference: ref } }).finally(() => {
-        qc.invalidateQueries({ queryKey: ["mtr-list"] });
-        url.searchParams.delete("mtr");
-        window.history.replaceState({}, "", url.toString());
-      });
-    }
-  }, [qc]);
-
   const valid = useMemo(() => {
-    return form.source_operator && form.dest_operator
-      && form.source_operator !== form.dest_operator
-      && form.source_phone.length >= 8 && form.dest_phone.length >= 8
-      && amountNum > 0 && quote?.ok;
-  }, [form, amountNum, quote]);
+    return !!form.dest_operator
+      && form.dest_phone.replace(/\D/g, "").length >= 8
+      && amountNum > 0 && quote?.ok
+      && xofBalance >= (quote?.total_charged_xof || 0);
+  }, [form, amountNum, quote, xofBalance]);
 
   const cfg = cfgQ.data;
 
