@@ -9,7 +9,6 @@ import {
   smsListContacts, smsAddContact, smsDeleteContact,
   smsSendCustom, smsSendTest, smsListLogs, smsGetBalance,
 } from "@/lib/sms.functions";
-import { adminListSenderRequests, adminUpdateSenderRequest } from "@/lib/business.functions";
 
 export default function SmsAdmin() {
   const qc = useQueryClient();
@@ -189,9 +188,6 @@ export default function SmsAdmin() {
           </button>
         </section>
 
-        {/* DEMANDES SENDER ID (BUSINESS) */}
-        <SenderRequestsPanel />
-
         {/* TEMPLATES */}
         <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-soft">
           <h2 className="mb-1 text-lg font-semibold">Modèles de messages</h2>
@@ -286,79 +282,6 @@ function formatBalance(resp: any): string {
   const cand = resp.balance ?? resp.credit ?? resp.credits ?? resp.data?.balance ?? resp.data?.credit ?? resp.wallet?.balance;
   if (cand !== undefined && cand !== null) return `${Number(cand).toLocaleString("fr-FR")} SMS`;
   return "—";
-}
-
-function SenderRequestsPanel() {
-  const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["sender-requests"], queryFn: adminListSenderRequests, refetchInterval: 30000 });
-  const [note, setNote] = useState<Record<string, string>>({});
-  const upd = useMutation({
-    mutationFn: adminUpdateSenderRequest,
-    onSuccess: () => { toast.success("Mise à jour ✅"); qc.invalidateQueries({ queryKey: ["sender-requests"] }); },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  const rows: any[] = Array.isArray(q.data) ? q.data : (q.data as any)?.requests || [];
-  const pending = rows.filter((r) => r.status === "pending");
-  const done = rows.filter((r) => r.status !== "pending");
-
-  return (
-    <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-soft">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Demandes de Sender ID (business)</h2>
-        <button onClick={() => q.refetch()} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs hover:bg-muted">
-          <RefreshCw className={`h-3 w-3 ${q.isFetching ? "animate-spin" : ""}`} /> Rafraîchir
-        </button>
-      </div>
-      {q.isLoading && <p className="text-xs text-muted-foreground">Chargement…</p>}
-      {!q.isLoading && rows.length === 0 && <p className="text-xs text-muted-foreground">Aucune demande.</p>}
-
-      {pending.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase text-amber-600">En attente ({pending.length})</p>
-          {pending.map((r) => (
-            <div key={r.id} className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="font-semibold">{r.company_name} · <span className="font-mono">{r.sender_id}</span></p>
-                  <p className="text-xs text-muted-foreground">{r.usage_note || "—"}</p>
-                  <p className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleString("fr-FR")} · business {r.business_id?.slice(0,8)}…</p>
-                </div>
-              </div>
-              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                <input value={note[r.id] || ""} onChange={(e) => setNote({ ...note, [r.id]: e.target.value })}
-                  placeholder="Note (optionnel)"
-                  className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-xs" />
-                <button onClick={() => upd.mutate({ id: r.id, status: "approved", admin_note: note[r.id] })}
-                  disabled={upd.isPending}
-                  className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">Approuver</button>
-                <button onClick={() => upd.mutate({ id: r.id, status: "rejected", admin_note: note[r.id] })}
-                  disabled={upd.isPending}
-                  className="rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">Refuser</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {done.length > 0 && (
-        <div className="mt-4">
-          <p className="text-xs font-semibold uppercase text-muted-foreground">Historique</p>
-          <ul className="mt-2 divide-y divide-border">
-            {done.map((r) => (
-              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-xs">
-                <span className="font-mono font-semibold">{r.sender_id}</span>
-                <span className="text-muted-foreground">{r.company_name}</span>
-                <span className={`rounded-full px-2 py-0.5 font-semibold ${r.status === "approved" ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-600"}`}>
-                  {r.status === "approved" ? "Approuvé" : "Refusé"}
-                </span>
-                {r.admin_note && <span className="w-full text-[10px] text-muted-foreground">Note : {r.admin_note}</span>}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </section>
-  );
 }
 
 function TemplateRow({ tpl, onSave, saving }: { tpl: any; onSave: (patch: any) => void; saving: boolean }) {
