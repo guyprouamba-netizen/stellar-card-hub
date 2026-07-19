@@ -1047,7 +1047,6 @@ export type Database = {
           contact_email: string | null
           contact_phone: string | null
           country: string
-          cover_url: string | null
           created_at: string
           description: string | null
           fee_bps: number
@@ -1064,7 +1063,6 @@ export type Database = {
           contact_email?: string | null
           contact_phone?: string | null
           country?: string
-          cover_url?: string | null
           created_at?: string
           description?: string | null
           fee_bps?: number
@@ -1081,7 +1079,6 @@ export type Database = {
           contact_email?: string | null
           contact_phone?: string | null
           country?: string
-          cover_url?: string | null
           created_at?: string
           description?: string | null
           fee_bps?: number
@@ -2540,54 +2537,6 @@ export type Database = {
         }
         Relationships: []
       }
-      sms_credits: {
-        Row: {
-          balance: number
-          business_id: string
-          created_at: string
-          id: string
-          sender_id: string
-          total_purchased: number
-          total_used: number
-          updated_at: string
-        }
-        Insert: {
-          balance?: number
-          business_id: string
-          created_at?: string
-          id?: string
-          sender_id: string
-          total_purchased?: number
-          total_used?: number
-          updated_at?: string
-        }
-        Update: {
-          balance?: number
-          business_id?: string
-          created_at?: string
-          id?: string
-          sender_id?: string
-          total_purchased?: number
-          total_used?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sms_credits_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "businesses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sms_credits_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "public_business_view"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       sms_logs: {
         Row: {
           created_at: string
@@ -2626,60 +2575,6 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
-      }
-      sms_sender_requests: {
-        Row: {
-          admin_note: string | null
-          business_id: string | null
-          company_name: string
-          created_at: string
-          id: string
-          sender_id: string
-          status: string
-          updated_at: string
-          usage_note: string | null
-          user_id: string
-        }
-        Insert: {
-          admin_note?: string | null
-          business_id?: string | null
-          company_name: string
-          created_at?: string
-          id?: string
-          sender_id: string
-          status?: string
-          updated_at?: string
-          usage_note?: string | null
-          user_id: string
-        }
-        Update: {
-          admin_note?: string | null
-          business_id?: string | null
-          company_name?: string
-          created_at?: string
-          id?: string
-          sender_id?: string
-          status?: string
-          updated_at?: string
-          usage_note?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sms_sender_requests_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "businesses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sms_sender_requests_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "public_business_view"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       sms_templates: {
         Row: {

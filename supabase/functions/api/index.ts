@@ -1775,7 +1775,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   async listMyBusinesses({ user, admin }) {
     const { data, error } = await admin.from("businesses")
-      .select("id,name,slug,description,logo_url,cover_url,contact_email,contact_phone,country,status,fee_bps,balance,created_at")
+      .select("id,name,slug,description,logo_url,contact_email,contact_phone,country,status,fee_bps,balance,created_at")
       .eq("owner_id", user.id).order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -1801,7 +1801,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async updateBusiness({ data, user, admin }) {
     await assertBusinessOwner(admin, user.id, data.id);
     const patch: Record<string, any> = {};
-    for (const k of ["name", "description", "contact_email", "contact_phone", "logo_url", "cover_url"]) {
+    for (const k of ["name", "description", "contact_email", "contact_phone", "logo_url"]) {
       if (data?.[k] !== undefined) patch[k] = data[k];
     }
     const { data: row, error } = await admin.from("businesses").update(patch).eq("id", data.id).select("*").single();
@@ -3109,108 +3109,6 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       sent: (sent || []).map((r: any) => ({ ...r, recipient: r.recipient_id ? byId.get(r.recipient_id) : null })),
       received: (received || []).map((r: any) => ({ ...r, sender: byId.get(r.sender_id) || null })),
     };
-  },
-
-  // ============================================================
-  // SMS SENDER ID + CREDIT PURCHASE (Business ↔ BBG SMS)
-  // ============================================================
-
-  async createSenderIdRequest({ data, user, admin }) {
-    const business_id = data?.business_id || null;
-    const company_name = String(data?.company_name || "").trim();
-    const sender_id = String(data?.sender_id || "").trim().slice(0, 11);
-    const usage_note = String(data?.usage_note || "").trim() || null;
-    if (!company_name) throw new Error("Nom d'entreprise requis");
-    if (!sender_id) throw new Error("Sender ID requis (max 11 caractères)");
-    if (business_id) await assertBusinessOwner(admin, user.id, business_id);
-    const { data: row, error } = await admin.from("sms_sender_requests").insert({
-      business_id, user_id: user.id, company_name, sender_id, usage_note,
-    }).select("*").single();
-    if (error) throw new Error(error.message);
-    return row;
-  },
-
-  async listMySenderIdRequests({ user, admin, data }) {
-    let q = admin.from("sms_sender_requests").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
-    if (data?.business_id) q = q.eq("business_id", data.business_id);
-    const { data: rows, error } = await q;
-    if (error) throw new Error(error.message);
-    return rows ?? [];
-  },
-
-  async adminListSenderRequests({ user, admin }) {
-    const { data: isAdmin } = await admin.rpc("has_role", { _user_id: user.id, _role: "admin" });
-    if (!isAdmin) throw new Error("Forbidden");
-    const { data: rows, error } = await admin.from("sms_sender_requests")
-      .select("*").order("created_at", { ascending: false }).limit(200);
-    if (error) throw new Error(error.message);
-    return rows ?? [];
-  },
-
-  async adminUpdateSenderRequest({ data, user, admin }) {
-    const { data: isAdmin } = await admin.rpc("has_role", { _user_id: user.id, _role: "admin" });
-    if (!isAdmin) throw new Error("Forbidden");
-    const patch: Record<string, any> = { updated_at: new Date().toISOString() };
-    if (data?.status) patch.status = data.status;
-    if (data?.admin_note !== undefined) patch.admin_note = data.admin_note;
-    const { data: row, error } = await admin.from("sms_sender_requests").update(patch).eq("id", data.id).select("*").single();
-    if (error) throw new Error(error.message);
-    return row;
-  },
-
-  async listSmsCredits({ data, user, admin }) {
-    await assertBusinessOwner(admin, user.id, data.business_id);
-    const { data: rows, error } = await admin.from("sms_credits")
-      .select("*").eq("business_id", data.business_id).order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
-    return rows ?? [];
-  },
-
-  async purchaseSmsCredits({ data, user, admin }) {
-    // Débite le portefeuille XOF du propriétaire et crédite le compteur SMS de la boutique.
-    // Tarif: 20 XOF / SMS par défaut. Sender ID doit être approuvé au préalable.
-    const business_id = data?.business_id;
-    const sender_id = String(data?.sender_id || "").trim();
-    const qty = Math.max(1, Math.floor(Number(data?.quantity) || 0));
-    const unitPrice = 20;
-    if (!business_id || !sender_id) throw new Error("business_id et sender_id requis");
-    if (!qty || qty > 100000) throw new Error("Quantité invalide (1 – 100 000)");
-    await assertBusinessOwner(admin, user.id, business_id);
-
-    // Vérifie le Sender ID approuvé
-    const { data: sr } = await admin.from("sms_sender_requests")
-      .select("id,status").eq("business_id", business_id).eq("sender_id", sender_id).eq("status", "approved").maybeSingle();
-    if (!sr) throw new Error("Sender ID non approuvé — attendez la validation admin.");
-
-    const cost = qty * unitPrice;
-    const { data: wallet } = await admin.from("wallets")
-      .select("id,balance").eq("user_id", user.id).eq("currency", "XOF").maybeSingle();
-    if (!wallet) throw new Error("Portefeuille XOF introuvable");
-    if (Number(wallet.balance) < cost) throw new Error(`Solde insuffisant : ${cost} XOF requis`);
-
-    // Débite
-    await admin.from("wallets").update({ balance: Number(wallet.balance) - cost }).eq("id", wallet.id);
-    await admin.from("transactions").insert({
-      user_id: user.id, type: "sms_purchase", status: "success",
-      amount: cost, currency: "XOF", provider: "internal",
-      description: `Achat ${qty} SMS (${sender_id}) — ${unitPrice} XOF/sms`,
-    });
-
-    // Upsert crédit SMS
-    const { data: existing } = await admin.from("sms_credits")
-      .select("id,balance,total_purchased").eq("business_id", business_id).eq("sender_id", sender_id).maybeSingle();
-    if (existing) {
-      await admin.from("sms_credits").update({
-        balance: (existing.balance || 0) + qty,
-        total_purchased: (existing.total_purchased || 0) + qty,
-        updated_at: new Date().toISOString(),
-      }).eq("id", existing.id);
-    } else {
-      await admin.from("sms_credits").insert({
-        business_id, sender_id, balance: qty, total_purchased: qty,
-      });
-    }
-    return { ok: true, added: qty, cost_xof: cost };
   },
 };
 

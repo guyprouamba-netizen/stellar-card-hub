@@ -88,23 +88,6 @@ function qrPayload(c: any, biz: any) {
 async function qrDataUrl(text: string, size = 220) {
   return QRCode.toDataURL(text, { width: size, margin: 1, errorCorrectionLevel: "M" });
 }
-
-// Charge une image (logo boutique) en dataURL pour l'insérer dans jsPDF/canvas sans CORS.
-async function toDataUrl(url: string | null | undefined): Promise<string | null> {
-  if (!url) return null;
-  try {
-    const res = await fetch(url, { mode: "cors" });
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return await new Promise((resolve) => {
-      const fr = new FileReader();
-      fr.onload = () => resolve(String(fr.result || ""));
-      fr.onerror = () => resolve(null as any);
-      fr.readAsDataURL(blob);
-    });
-  } catch { return null; }
-}
-
 function cleanContent(raw: string) {
   return String(raw || "")
     .replace(/^#+\s*/gm, "")
@@ -121,16 +104,11 @@ async function exportA4(c: any, biz: any) {
   const W = doc.internal.pageSize.getWidth();
   doc.setFillColor(16, 133, 79); doc.rect(0, 0, W, 28, "F");
   doc.setFillColor(214, 168, 65); doc.rect(0, 28, W, 2, "F");
-  const logo = await toDataUrl(biz?.logo_url);
-  const nameX = logo ? 34 : 14;
-  if (logo) {
-    try { doc.addImage(logo, "PNG", 14, 5, 16, 16); } catch { /* ignore */ }
-  }
   doc.setTextColor(255).setFont("helvetica", "bold").setFontSize(18);
-  doc.text(biz?.name || "Boutique", nameX, 14);
+  doc.text(biz?.name || "Boutique", 14, 14);
   doc.setFontSize(10).setFont("helvetica", "normal");
   const contact = [biz?.contact_phone, biz?.contact_email].filter(Boolean).join("  ·  ");
-  if (contact) doc.text(contact, nameX, 22);
+  if (contact) doc.text(contact, 14, 22);
   doc.setTextColor(15, 23, 42).setFont("helvetica", "bold").setFontSize(15);
   doc.text(`${KIND_LABEL[c.kind] || "DOCUMENT"} — ${c.title}`, 14, 42);
   doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(90);
@@ -175,10 +153,6 @@ async function exportTicket80(c: any, biz: any) {
   const est = 100 + (String(c.content || "").length / 40) * 4;
   const doc = new jsPDF({ unit: "mm", format: [width, Math.max(160, est)] });
   let y = 6;
-  const logo = await toDataUrl(biz?.logo_url);
-  if (logo) {
-    try { doc.addImage(logo, "PNG", (width - 18) / 2, y, 18, 18); y += 20; } catch { /* ignore */ }
-  }
   doc.setFont("helvetica", "bold").setFontSize(12);
   doc.text(biz?.name || "Boutique", width / 2, y, { align: "center" }); y += 5;
   doc.setFont("helvetica", "normal").setFontSize(8);
@@ -220,7 +194,6 @@ async function exportTicket80(c: any, biz: any) {
 
 async function exportImage(c: any, biz: any) {
   const qr = await qrDataUrl(qrPayload(c, biz), 300);
-  const logo = await toDataUrl(biz?.logo_url);
   const W = 900, H = 1200;
   const canvas = document.createElement("canvas");
   canvas.width = W; canvas.height = H;
@@ -228,20 +201,11 @@ async function exportImage(c: any, biz: any) {
   ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = "#10854F"; ctx.fillRect(0, 0, W, 130);
   ctx.fillStyle = "#D6A841"; ctx.fillRect(0, 130, W, 8);
-  let nameX = 40;
-  if (logo) {
-    try {
-      const li = new Image(); li.src = logo;
-      await new Promise((r) => (li.onload = r));
-      ctx.drawImage(li, 40, 25, 80, 80);
-      nameX = 140;
-    } catch { /* ignore */ }
-  }
   ctx.fillStyle = "#fff"; ctx.font = "bold 40px sans-serif";
-  ctx.fillText(biz?.name || "Boutique", nameX, 70);
+  ctx.fillText(biz?.name || "Boutique", 40, 70);
   ctx.font = "20px sans-serif";
   const contact = [biz?.contact_phone, biz?.contact_email].filter(Boolean).join("   ·   ");
-  if (contact) ctx.fillText(contact, nameX, 105);
+  if (contact) ctx.fillText(contact, 40, 105);
   ctx.fillStyle = "#0f172a"; ctx.font = "bold 32px sans-serif";
   ctx.fillText(`${KIND_LABEL[c.kind] || "DOCUMENT"} — ${c.title}`, 40, 200);
   ctx.font = "18px sans-serif"; ctx.fillStyle = "#64748b";
@@ -313,12 +277,8 @@ pre{white-space:pre-wrap;font-family:inherit;line-height:1.6;margin:24px 0 0}
 @media print{body{background:#fff}.card{box-shadow:none;margin:0}}
 </style></head><body>
 <div class="card">
-  <div class="hd" style="display:flex;align-items:center;gap:16px">
-    ${biz?.logo_url ? `<img src="${escapeHtml(biz.logo_url)}" alt="logo" style="width:56px;height:56px;border-radius:12px;object-fit:cover;background:#fff;padding:4px"/>` : ""}
-    <div>
-      <h1 style="margin:0 0 6px;font-size:24px">${escapeHtml(biz?.name || "Boutique")}</h1>
-      <div style="opacity:.9;font-size:13px">${escapeHtml([biz?.contact_phone, biz?.contact_email].filter(Boolean).join(" · "))}</div>
-    </div>
+  <div class="hd"><h1>${escapeHtml(biz?.name || "Boutique")}</h1>
+    <div style="opacity:.9;font-size:13px">${escapeHtml([biz?.contact_phone, biz?.contact_email].filter(Boolean).join(" · "))}</div>
   </div><div class="strip"></div>
   <div class="body">
     <div class="row">
