@@ -1,5 +1,5 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Mail, Lock, ArrowRight, User, Phone, Loader2, AlertCircle, ShieldCheck } from "lucide-react";
+import { Mail, Lock, ArrowRight, User, Phone, Loader2, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { VirtualCard } from "@/components/virtual-card";
 import { BackButton } from "@/components/back-button";
@@ -53,45 +53,6 @@ function Auth() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  // Étape OTP après création du compte
-  const [otpStep, setOtpStep] = useState<null | { userId: string; phone: string }>(null);
-  const [otpCode, setOtpCode] = useState("");
-  const [otpSending, setOtpSending] = useState(false);
-
-  async function callPhoneOtp(action: "send" | "verify", body: any) {
-    const { data, error } = await supabase.functions.invoke("phone-otp", { body: { action, ...body } });
-    if (error) {
-      const ctx: any = (error as any).context;
-      let msg = error.message;
-      if (ctx?.text) { try { const t = await ctx.text(); try { msg = JSON.parse(t).error || msg; } catch { msg = t || msg; } } catch { /**/ } }
-      throw new Error(msg);
-    }
-    if (data?.error) throw new Error(data.error);
-    return data;
-  }
-
-  async function sendOtp(phone: string, userId: string) {
-    setOtpSending(true);
-    try {
-      await callPhoneOtp("send", { phone, user_id: userId });
-      toast.success("Code envoyé par SMS");
-    } catch (e: any) { toast.error(e.message || "Envoi impossible"); throw e; }
-    finally { setOtpSending(false); }
-  }
-
-  async function verifyOtp() {
-    if (!otpStep) return;
-    if (!/^\d{6}$/.test(otpCode)) { toast.error("Code à 6 chiffres"); return; }
-    setLoading(true);
-    try {
-      await callPhoneOtp("verify", { phone: otpStep.phone, code: otpCode, user_id: otpStep.userId });
-      toast.success("Numéro vérifié — bienvenue !");
-      const { data: { user } } = await supabase.auth.getUser();
-      await fastRedirect(user ?? { id: otpStep.userId });
-    } catch (e: any) { toast.error(e.message || "Code incorrect"); }
-    finally { setLoading(false); }
-  }
-
   function frenchAuthError(err: any): string {
     const code = err?.code ?? err?.error_code ?? "";
     const msg = (err?.message ?? "").toString();
@@ -147,37 +108,18 @@ function Auth() {
         if (Array.isArray(identities) && identities.length === 0) {
           throw { code: "user_already_exists", message: "Un compte existe déjà avec cet email." };
         }
-        // S'assurer d'avoir une session pour pouvoir vérifier le numéro
-        let userId = signUpData.session?.user?.id ?? signUpData.user?.id ?? null;
+        let signedInUser = signUpData.session?.user ?? signUpData.user ?? null;
         if (!signUpData.session) {
           const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
           if (signInErr) throw signInErr;
-          userId = signInData.session?.user?.id ?? userId;
+          signedInUser = signInData.session?.user ?? signedInUser;
         }
-        if (!userId) throw new Error("Session introuvable");
-        // Envoi du code OTP au téléphone
-        try {
-          await sendOtp(phone, userId);
-          setOtpStep({ userId, phone });
-        } catch {
-          // Échec de l'envoi SMS → on garde la session, on affiche l'étape pour réessayer
-          setOtpStep({ userId, phone });
-        }
+        if (!signedInUser?.id) throw new Error("Session introuvable");
+        toast.success("Compte créé — bienvenue !");
+        await fastRedirect(signedInUser);
       } else {
         const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        // Bloquer la connexion si le téléphone n'est pas vérifié
-        const uid = signInData.session?.user?.id;
-        if (uid) {
-          const { data: prof } = await supabase.from("profiles")
-            .select("phone, phone_verified").eq("id", uid).maybeSingle();
-          if (prof && prof.phone && !prof.phone_verified) {
-            toast.info("Vérification du numéro requise");
-            await sendOtp(prof.phone as string, uid).catch(() => { /* on affiche l'écran quand même */ });
-            setOtpStep({ userId: uid, phone: prof.phone as string });
-            return;
-          }
-        }
         toast.success("Bienvenue !");
         await fastRedirect(signInData.session?.user);
       }
@@ -214,41 +156,6 @@ function Auth() {
             FASO-INVEST PAY
           </Link>
           <BackButton to="/" className="mb-4" />
-          {otpStep ? (
-            <div>
-              <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">
-                Vérifiez votre numéro
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Un code à 6 chiffres a été envoyé au <b>{otpStep.phone}</b>. Saisissez-le pour activer votre compte.
-              </p>
-              <div className="mt-6 space-y-4">
-                <div className="relative">
-                  <ShieldCheck className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    autoFocus inputMode="numeric" maxLength={6}
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    placeholder="123456"
-                    className="w-full rounded-full border border-border bg-surface-2 py-3 pl-10 pr-4 text-center text-lg tracking-[0.5em] outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
-                  />
-                </div>
-                <button
-                  onClick={verifyOtp} disabled={loading || otpCode.length !== 6}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-60"
-                >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Vérifier mon numéro"}
-                </button>
-                <button
-                  onClick={() => sendOtp(otpStep.phone, otpStep.userId).catch(() => {})}
-                  disabled={otpSending}
-                  className="w-full text-center text-xs text-muted-foreground hover:text-primary"
-                >
-                  {otpSending ? "Envoi..." : "Renvoyer le code"}
-                </button>
-              </div>
-            </div>
-          ) : (<>
           <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">
             {mode === "login" ? "Bon retour 👋" : "Créer un compte"}
           </h1>
@@ -314,7 +221,6 @@ function Auth() {
               {mode === "login" ? "Inscrivez-vous" : "Se connecter"}
             </button>
           </p>
-          </>)}
         </div>
       </div>
     </div>
