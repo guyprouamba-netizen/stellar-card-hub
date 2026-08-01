@@ -97,8 +97,6 @@ function CardsPage() {
       if (!c.provider_card_id) return;
       // Les cartes créées avant la recharge initiale obligatoire restent visibles.
       // pour récupérer PAN/CVV (le serveur les renverrait masqués de toute façon).
-      const funded = Number((c as any).total_funded_usd ?? 0);
-      if (funded < 3 && c.created_at && new Date(c.created_at).getTime() >= Date.UTC(2026, 7, 1)) return;
       const meta: any = c.metadata as any;
       const cached =
         meta?.response?.card_detail ??
@@ -151,8 +149,8 @@ function CardsPage() {
             const variant = variantByIndex[i % variantByIndex.length];
             const det = c.provider_card_id ? details[c.provider_card_id] : undefined;
             const m: any = c.metadata as any;
-            const funded = Number((c as any).total_funded_usd ?? 0);
-             const locked = funded < 3 && !!(c as any).created_at && new Date((c as any).created_at).getTime() >= Date.UTC(2026, 7, 1);
+             const funded = Number((c as any).total_funded_usd ?? 0);
+             const locked = false;
             const apiDetail =
               m?.response?.card_detail ??
               m?.card_detail ??

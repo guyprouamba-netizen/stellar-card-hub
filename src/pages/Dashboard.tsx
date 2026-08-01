@@ -139,7 +139,7 @@ function Dashboard() {
   // "en attente" de l'utilisateur et créditer celles qui ont été payées chez YengaPay
   // (filet de sécurité si le webhook n'est pas arrivé).
   useEffect(() => {
-    if (!session?.user?.id) return;
+    if (!session?.user?.id || offline) return;
     let cancelled = false;
     const run = async () => {
       try {
@@ -154,7 +154,7 @@ function Dashboard() {
     run();
     const id = setInterval(run, 60_000);
     return () => { cancelled = true; clearInterval(id); };
-  }, [session?.user?.id]);
+  }, [session?.user?.id, offline]);
 
   if (!session && checkingAuth) return <FullPageLoader />;
   if (!session) return null;

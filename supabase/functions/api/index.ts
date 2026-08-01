@@ -133,10 +133,10 @@ function isIssuerFailed(details: { status: string | null; number: string | null 
 const CARD_DETAILS_UNLOCK_USD = 3;
 const REQUIRED_INITIAL_CARD_FUND_USD = 3;
 
-// Masque UNIQUEMENT le CVV tant que le dépôt cumulé < 5 USD.
+// Utilitaire historique de masquage conservé pour les réponses fournisseur incomplètes.
 // Le PAN complet, la date d'expiration et le titulaire restent visibles pour
 // que le client voit qu'il possède bien une vraie carte — seul le code de
-// sécurité est verrouillé, l'incitant à recharger 5 USD.
+// sécurité peut être masqué par le fournisseur.
 function maskCardDetailsResponse(res: any, _last4: string | null) {
   const clone = JSON.parse(JSON.stringify(res ?? {}));
   const nodes: any[] = [clone?.response?.card_detail, clone?.data?.card_detail, clone?.card_detail].filter(Boolean);
@@ -673,13 +673,6 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         }
       }
     }
-    // Le verrou ne concerne que les nouvelles cartes soumises à la recharge initiale obligatoire.
-    const funded = Number(card?.total_funded_usd ?? 0);
-    const isOwnerAdmin = await isAdmin(admin, user.id);
-    const createdAfterMinimumRule = !!(card as any)?.created_at && new Date((card as any).created_at).getTime() >= Date.UTC(2026, 7, 1);
-    if (!isOwnerAdmin && createdAfterMinimumRule && funded < CARD_DETAILS_UNLOCK_USD) {
-      return { ...maskCardDetailsResponse(res, (card?.last4 ?? null) as string | null), _locked: true, funded_usd: funded, unlock_usd: CARD_DETAILS_UNLOCK_USD };
-    }
     return res;
   },
 
@@ -853,7 +846,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (debErr) throw new Error(debErr.message);
     try {
       const res = await SW.fundWithdrawNfcCard({ card_id: data.card_id, amount: Number(data.amountUsd), type: "fund" });
-      // Incrémente le solde ET le cumul historique (pour déblocage des infos > 5 USD).
+      // Incrémente le solde et le cumul historique des approvisionnements.
       const { data: fresh } = await admin.from("cards").select("total_funded_usd").eq("id", card.id).maybeSingle();
       await admin.from("cards").update({
         balance: Number(card.balance) + Number(data.amountUsd),
