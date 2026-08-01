@@ -4,8 +4,8 @@ import { X, Loader2, ArrowRight, Check, AlertTriangle, CreditCard, Wallet } from
 import { cardApi, walletApi } from "@/lib/api";
 
 type Brand = "visa" | "mastercard";
-// 0 = aucun financement initial (carte créée à 0 $).
-const FUND_PRESETS = [0, 5, 10, 25, 50, 100];
+const MIN_INITIAL_FUND_USD = 3;
+const FUND_PRESETS = [3, 5, 10, 25, 50, 100];
 
 type Form = {
   firstName: string; lastName: string; dob: string;
@@ -28,7 +28,7 @@ const DEFAULT_FORM: Form = {
 
 export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onClose: () => void; onIssued?: () => void }) {
   const [brand, setBrand] = useState<Brand>("visa");
-  const [amount, setAmount] = useState<number>(0);
+  const [amount, setAmount] = useState<number>(MIN_INITIAL_FUND_USD);
   const [form, setForm] = useState<Form>(DEFAULT_FORM);
   const [checking, setChecking] = useState(false);
   const [afford, setAfford] = useState<{ can_afford: boolean; required: number; available: number } | null>(null);
@@ -52,6 +52,7 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
 
   function validate(): string | null {
     if (!form.firstName.trim() || !form.lastName.trim()) return "Prénom et nom requis";
+    if (!Number.isFinite(amount) || amount < MIN_INITIAL_FUND_USD) return "La recharge initiale minimum est de 3 USD";
     if (!/^\d{4}-\d{2}-\d{2}$/.test(form.dob)) return "Date de naissance requise (AAAA-MM-JJ)";
     if (!form.idNumber.trim()) return "Numéro de pièce requis";
     if (!form.phone.trim()) return "Téléphone requis";
@@ -132,19 +133,14 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
             <div className="mt-6">
               <div className="flex items-baseline justify-between">
                 <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Approvisionnement initial <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">Optionnel</span>
+                  Approvisionnement initial <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-primary">Minimum 3 USD</span>
                 </label>
-                {amount > 0 && (
-                  <button onClick={() => setAmount(0)} className="text-[11px] font-semibold text-primary hover:underline">
-                    Créer sans financer
-                  </button>
-                )}
               </div>
               <div className="mt-2 flex items-baseline gap-2 rounded-2xl border border-border bg-surface-2 px-4 py-3">
                 <input
                   type="number"
                   inputMode="decimal"
-                  min={0}
+                  min={MIN_INITIAL_FUND_USD}
                   value={amount}
                   onChange={(e) => setAmount(Number(e.target.value) || 0)}
                   className="w-full bg-transparent font-[Space_Grotesk] text-3xl font-bold tabular-nums outline-none"
@@ -160,12 +156,12 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
                       amount === q ? "border-primary bg-primary/10 text-foreground" : "border-border bg-surface-2 hover:bg-muted"
                     }`}
                   >
-                    {q === 0 ? "0 $ (aucun)" : `$${q}`}
+                    ${q}
                   </button>
                 ))}
               </div>
               <p className="mt-2 text-[11px] text-muted-foreground">
-                Vous pouvez créer la carte sans dépôt initial. Pour révéler le numéro complet et le CVV, il vous faudra recharger au moins <b>5 USD</b> plus tard.
+                La carte est créée avec une recharge initiale obligatoire d'au moins <b>3 USD</b>. Son numéro complet et son CVV sont alors disponibles.
               </p>
             </div>
 
@@ -245,7 +241,7 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
 
             <button
               onClick={submit}
-              disabled={submitting || checking || !afford?.can_afford || amount < 0}
+              disabled={submitting || checking || !afford?.can_afford || amount < MIN_INITIAL_FUND_USD}
               className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? (
@@ -259,7 +255,7 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
               )}
             </button>
             <p className="mt-3 text-center text-[11px] text-muted-foreground">
-              Frais d'émission : <b>4 500 XOF</b> — la carte est créée instantanément, même sans dépôt initial.
+               Frais d'émission : <b>4 500 XOF</b> — recharge initiale minimum : <b>3 USD</b>.
             </p>
           </motion.div>
         </>

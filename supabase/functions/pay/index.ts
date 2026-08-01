@@ -282,7 +282,7 @@ async function getPublicShop(slug: string) {
   const { data: biz } = await db.from("businesses")
     .select("id,name,slug,description,logo_url,contact_email,contact_phone,status")
     .eq("slug", slug).maybeSingle();
-  if (!biz || biz.status !== "active") return null;
+  if (!biz || ["suspended", "terminated", "banned"].includes(String(biz.status || "").toLowerCase())) return null;
   const [{ data: products }, { data: posts }, { data: media }] = await Promise.all([
     db.from("products").select("id,name,slug,description,price,currency,status")
       .eq("business_id", biz.id).eq("status", "active").order("created_at", { ascending: false }),
@@ -312,7 +312,7 @@ async function initShopCheckout(body: any) {
   }
   if (items.length === 0) throw new Error("Panier vide");
   const { data: biz } = await db.from("businesses").select("id,name,slug,status").eq("slug", businessSlug).maybeSingle();
-  if (!biz || biz.status !== "active") throw new Error("Boutique introuvable");
+  if (!biz || ["suspended", "terminated", "banned"].includes(String(biz.status || "").toLowerCase())) throw new Error("Boutique introuvable");
   const productIds = items.map((i) => String(i.product_id));
   const { data: products } = await db.from("products").select("id,name,price,currency,status,business_id").in("id", productIds);
   const valid = (products || []).filter((p: any) => p.business_id === biz.id && p.status === "active");

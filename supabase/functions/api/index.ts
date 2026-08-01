@@ -130,7 +130,8 @@ function isIssuerFailed(details: { status: string | null; number: string | null 
 }
 
 // Seuil (USD) de dépôt cumulé requis pour révéler PAN complet + CVV.
-const CARD_DETAILS_UNLOCK_USD = 5;
+const CARD_DETAILS_UNLOCK_USD = 3;
+const REQUIRED_INITIAL_CARD_FUND_USD = 3;
 
 // Masque UNIQUEMENT le CVV tant que le dépôt cumulé < 5 USD.
 // Le PAN complet, la date d'expiration et le titulaire restent visibles pour
@@ -539,13 +540,11 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async issueCard({ data, user, admin, userClient }) {
     const userId = user.id; const email = user.email;
     const cfg = await loadPricingConfig(admin);
-    // Financement initial 100 % optionnel : 0 par défaut. La carte est créée à 0 $.
-    const amountUsdRaw = Number(data?.amountUsd ?? 0);
-    const amountUsd = Number.isFinite(amountUsdRaw) && amountUsdRaw > 0 ? amountUsdRaw : 0;
-    // Prix = frais d'émission fixe (4500 XOF par défaut) + éventuel financement.
-    const cost = amountUsd > 0
-      ? computeCardCost(amountUsd, cfg)
-      : { amountUsd: 0, feeXof: cfg.card_issue_fee_xof, strowalletFixedUsd: 0, strowalletPctUsd: 0, rateXof: cfg.usd_rate_xof, loadedToStrowalletUsd: 0, loadedToStrowalletXof: 0, totalXof: cfg.card_issue_fee_xof };
+    const amountUsd = Number(data?.amountUsd);
+    if (!Number.isFinite(amountUsd) || amountUsd < REQUIRED_INITIAL_CARD_FUND_USD) {
+      return { ok: false, error: "La recharge initiale minimum est de 3 USD" };
+    }
+    const cost = computeCardCost(amountUsd, cfg);
     const requiredXof = cost.totalXof;
     // Validation des infos perso requises par l'API NFC
     const required = ["firstName","lastName","dob","idType","idNumber","line1","city","state","postalCode","country","phone"] as const;
@@ -674,10 +673,11 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         }
       }
     }
-    // Verrou : PAN + CVV masqués tant que le dépôt cumulé sur la carte < 5 USD.
+    // Le verrou ne concerne que les nouvelles cartes soumises à la recharge initiale obligatoire.
     const funded = Number(card?.total_funded_usd ?? 0);
     const isOwnerAdmin = await isAdmin(admin, user.id);
-    if (!isOwnerAdmin && funded < CARD_DETAILS_UNLOCK_USD) {
+    const createdAfterMinimumRule = !!(card as any)?.created_at && new Date((card as any).created_at).getTime() >= Date.UTC(2026, 7, 1);
+    if (!isOwnerAdmin && createdAfterMinimumRule && funded < CARD_DETAILS_UNLOCK_USD) {
       return { ...maskCardDetailsResponse(res, (card?.last4 ?? null) as string | null), _locked: true, funded_usd: funded, unlock_usd: CARD_DETAILS_UNLOCK_USD };
     }
     return res;

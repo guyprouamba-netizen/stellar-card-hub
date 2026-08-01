@@ -34,17 +34,21 @@ function Dashboard() {
   // ce qui obligeait l'utilisateur à rafraîchir après inscription/connexion).
   const [session, setSession] = useState<any>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const offline = !navigator.onLine;
 
   useEffect(() => {
     let active = true;
     // 1) Listener d'abord : on capte SIGNED_IN / TOKEN_REFRESHED sans race
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       if (!active) return;
-      if (!s) {
+      if (!s && !navigator.onLine) {
+        setSession((current: any) => current || { user: { id: localStorage.getItem("fasopay:last-user") }, access_token: "offline" });
+      } else if (!s) {
         setSession(null);
         navigate("/auth", { replace: true });
       } else {
         setSession(s);
+        localStorage.setItem("fasopay:last-user", s.user.id);
       }
       setCheckingAuth(false);
     });
@@ -70,7 +74,10 @@ function Dashboard() {
             return prev;
           });
         }, 1200);
-      } else {
+       } else if (!navigator.onLine && localStorage.getItem("fasopay:last-user")) {
+         setSession({ user: { id: localStorage.getItem("fasopay:last-user") }, access_token: "offline" });
+         setCheckingAuth(false);
+       } else {
         navigate("/auth", { replace: true });
         setCheckingAuth(false);
       }
@@ -85,7 +92,7 @@ function Dashboard() {
     // On n'active la query qu'une fois la session Supabase réellement présente
     // (access_token attaché au client) — sinon RLS renvoie vide et l'écran paraît "en attente d'actualisation".
     enabled: !!session?.user?.id && !!session?.access_token,
-    refetchInterval: 15_000,
+    refetchInterval: offline ? false : 15_000,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
     refetchOnMount: "always",
@@ -157,11 +164,12 @@ function Dashboard() {
       <div className="flex">
         <Sidebar tab={tab} setTab={setTab} />
         <main className="flex-1 px-4 pb-24 pt-20 sm:px-8 md:py-8 md:pt-8">
+          {offline && <div className="mb-4 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">Mode hors ligne — consultation uniquement. Recharge, retrait et actions financières sont désactivés.</div>}
           {isLoading ? <FullPageLoader /> : isError || !data ? <LoadError error={error} onRetry={() => refetch()} busy={isFetching} /> : (
             <>
               {tab === "home" && <HomeTab data={data} onAction={() => refetch()} onOpenTx={() => setTab("tx")} />}
-              {tab === "deposit" && <DepositTab onDone={() => refetch()} />}
-              {tab === "withdraw" && <WithdrawTab balance={Number(data.wallets.find((w: any) => w.currency === "XOF")?.balance ?? 0)} profile={data.profile} onDone={() => refetch()} />}
+               {tab === "deposit" && (offline ? <OfflineAction /> : <DepositTab onDone={() => refetch()} />)}
+               {tab === "withdraw" && (offline ? <OfflineAction /> : <WithdrawTab balance={Number(data.wallets.find((w: any) => w.currency === "XOF")?.balance ?? 0)} profile={data.profile} onDone={() => refetch()} />)}
               {tab === "cards" && <CardsTab cards={data.cards} onAction={() => refetch()} />}
               {tab === "tx" && <TxTab transactions={data.transactions} />}
               {tab === "referrals" && <ReferralsTab />}
@@ -191,6 +199,18 @@ function LoadError({ error, onRetry, busy }: { error: unknown; onRetry: () => vo
           {busy && <Loader2 className="h-4 w-4 animate-spin" />}
           Réessayer
         </button>
+      </div>
+    </div>
+  );
+}
+
+function OfflineAction() {
+  return (
+    <div className="grid min-h-[50vh] place-items-center px-4 text-center">
+      <div className="max-w-sm rounded-2xl border border-warning/40 bg-warning/10 p-6">
+        <AlertTriangle className="mx-auto h-7 w-7 text-warning" />
+        <h1 className="mt-3 text-lg font-semibold">Connexion requise</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Cette opération modifie votre argent et reste désactivée hors ligne. Vos soldes, cartes et historiques synchronisés restent consultables.</p>
       </div>
     </div>
   );
