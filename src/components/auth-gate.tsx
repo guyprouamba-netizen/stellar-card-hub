@@ -17,11 +17,13 @@ export function AuthGate({ children }: { children: ReactNode }) {
     const sub = supabase.auth.onAuthStateChange((_e, sess) => {
       if (cancelled) return;
       if (sess) setReady(true);
+      else if (!navigator.onLine) setReady(true);
       else { setReady(false); navigate("/auth", { replace: true }); }
     });
     supabase.auth.getSession().then(({ data }) => {
       if (cancelled) return;
       if (data.session) setReady(true);
+      else if (!navigator.onLine) setReady(true);
       else navigate("/auth", { replace: true });
     });
     return () => { cancelled = true; sub.data.subscription.unsubscribe(); };
