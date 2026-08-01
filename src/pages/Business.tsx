@@ -379,9 +379,9 @@ export default function BusinessPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <button onClick={() => copy(`${window.location.origin}/shop/${current.slug}`)} className="grid h-9 w-9 place-items-center rounded-full border border-border hover:bg-muted"><Copy className="h-4 w-4" /></button>
-                      <a href={`/shop/${current.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow">
+                      <Link to={`/shop/${encodeURIComponent(current.slug)}`} className="inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow">
                         <ExternalLink className="h-3.5 w-3.5" /> Ouvrir
-                      </a>
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -461,7 +461,7 @@ export default function BusinessPage() {
                           </div>
                           <div className="flex items-center gap-2">
                             <button onClick={() => copy(url)} className="grid h-8 w-8 place-items-center rounded-full border border-border hover:bg-muted"><Copy className="h-3.5 w-3.5" /></button>
-                            <a href={url} target="_blank" rel="noreferrer" className="grid h-8 w-8 place-items-center rounded-full border border-border hover:bg-muted"><Link2 className="h-3.5 w-3.5" /></a>
+                            <Link to={`/pay/${encodeURIComponent(l.slug)}`} className="grid h-8 w-8 place-items-center rounded-full border border-border hover:bg-muted"><Link2 className="h-3.5 w-3.5" /></Link>
                             <button onClick={() => onEditLink(l)} className="rounded-full border border-border px-3 py-1.5 text-xs hover:bg-muted">Modifier prix</button>
                             <button onClick={() => onToggleLink(l)} className="rounded-full border border-border px-3 py-1.5 text-xs hover:bg-muted">{l.status === "active" ? "Pauser" : "Activer"}</button>
                           </div>
@@ -528,7 +528,7 @@ export default function BusinessPage() {
                             ))}
                           </div>
                           <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <a href={`/order/${o.public_token}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11px] hover:bg-muted"><ExternalLink className="h-3 w-3" /> Suivi client</a>
+                            <Link to={`/order/${encodeURIComponent(o.public_token)}`} className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11px] hover:bg-muted"><ExternalLink className="h-3 w-3" /> Suivi client</Link>
                             <select value={o.status} onChange={(e) => onOrderStatus(o, e.target.value)} className="rounded-full border border-border bg-background px-3 py-1 text-[11px] font-medium">
                               {Object.entries(ORDER_STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                             </select>
@@ -643,9 +643,9 @@ export default function BusinessPage() {
                         <div className="mt-3 flex flex-wrap gap-2">
                           <button onClick={onWaCreate} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold hover:bg-muted"><RefreshCw className="h-3 w-3" /> Régénérer secret</button>
                           <button onClick={onWaReset} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold hover:bg-muted"><QrCode className="h-3 w-3" /> Redemander un QR</button>
-                          <a href={`/business/${current?.id}/bot`} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-glow">
+                          <Link to={`/business/${current?.id}/bot`} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-glow">
                             <MessageCircle className="h-3 w-3" /> Ouvrir le panel du bot
-                          </a>
+                          </Link>
                         </div>
                       </div>
 

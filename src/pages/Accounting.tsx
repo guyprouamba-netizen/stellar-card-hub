@@ -52,7 +52,7 @@ export default function Accounting() {
       <div className="mx-auto max-w-7xl px-4 py-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <Link to={`/business/${businessId}`} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+            <Link to="/business" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4" /> Business
             </Link>
             <h1 className="mt-3 font-[Space_Grotesk] text-2xl font-bold flex items-center gap-2">

@@ -95,10 +95,8 @@ function CardsPage() {
   useEffect(() => {
     cards.forEach((c) => {
       if (!c.provider_card_id) return;
-      // Verrou : tant que < 5 USD cumulés déposés, on n'appelle pas l'émetteur
+      // Les cartes créées avant la recharge initiale obligatoire restent visibles.
       // pour récupérer PAN/CVV (le serveur les renverrait masqués de toute façon).
-      const funded = Number((c as any).total_funded_usd ?? 0);
-      if (funded < 5) return;
       const meta: any = c.metadata as any;
       const cached =
         meta?.response?.card_detail ??
@@ -151,8 +149,8 @@ function CardsPage() {
             const variant = variantByIndex[i % variantByIndex.length];
             const det = c.provider_card_id ? details[c.provider_card_id] : undefined;
             const m: any = c.metadata as any;
-            const funded = Number((c as any).total_funded_usd ?? 0);
-            const locked = funded < 5;
+             const funded = Number((c as any).total_funded_usd ?? 0);
+             const locked = false;
             const apiDetail =
               m?.response?.card_detail ??
               m?.card_detail ??
@@ -189,7 +187,7 @@ function CardsPage() {
                   <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/5 p-3 text-xs">
                     <p className="font-semibold text-primary">Infos verrouillées</p>
                     <p className="mt-1 text-muted-foreground">
-                      Déposez au moins <b className="text-foreground">5&nbsp;USD</b> sur cette carte pour révéler le numéro complet, le CVV et la date d'expiration.
+                       Déposez au moins <b className="text-foreground">3&nbsp;USD</b> sur cette nouvelle carte pour révéler le numéro complet, le CVV et la date d'expiration.
                       Déjà cumulé : <b className="text-foreground">${funded.toFixed(2)}</b>.
                     </p>
                     <button
@@ -300,7 +298,7 @@ function CardsPage() {
 }
 
 function FundDialog({ cardId, onClose, onDone }: { cardId: string; onClose: () => void; onDone: () => void }) {
-  const [amount, setAmount] = useState("10");
+  const [amount, setAmount] = useState("3");
   const fn = useServerFn(fundCard);
   const mut = useMutation({
     mutationFn: () => fn({ data: { card_id: cardId, amountUsd: Number(amount) } }),
@@ -316,12 +314,12 @@ function FundDialog({ cardId, onClose, onDone }: { cardId: string; onClose: () =
         <DialogHeader><DialogTitle>Recharger la carte</DialogTitle></DialogHeader>
         <div className="space-y-2">
           <label className="text-sm text-muted-foreground">Montant (USD)</label>
-          <Input type="number" min={1} max={1000} step={1} value={amount} onChange={(e) => setAmount(e.target.value)} />
+           <Input type="number" min={3} max={1000} step={1} value={amount} onChange={(e) => setAmount(e.target.value)} />
           <p className="text-xs text-muted-foreground">Frais émetteur (1,9 USD + 1 %) débités de votre solde XOF.</p>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Annuler</Button>
-          <Button onClick={() => mut.mutate()} disabled={mut.isPending || !Number(amount)}>
+           <Button onClick={() => mut.mutate()} disabled={mut.isPending || Number(amount) < 3}>
             {mut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Recharger"}
           </Button>
         </DialogFooter>

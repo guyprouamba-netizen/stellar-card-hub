@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { callApi } from "./api-client";
+import { isOffline, readOfflineData, saveOfflineData } from "./offline-cache";
 
 const DEFAULT_PRICING = {
   card_issue_fee_xof: 4500,
@@ -11,6 +12,12 @@ const DEFAULT_PRICING = {
 export const getDashboardData = async (args?: { userId?: string } | any) => {
   const userId = args?.userId;
   if (!userId) throw new Error("Session expirée. Reconnectez-vous.");
+  const cacheKey = `dashboard:${userId}`;
+  if (isOffline()) {
+    const cached = readOfflineData<any>(cacheKey);
+    if (cached) return { ...cached, offline: true };
+    throw new Error("Connectez-vous une première fois pour synchroniser vos informations hors ligne.");
+  }
 
   const [w, t, c, p] = await Promise.all([
     supabase.from("wallets").select("id,currency,balance").eq("user_id", userId),
@@ -22,7 +29,7 @@ export const getDashboardData = async (args?: { userId?: string } | any) => {
   const firstError = w.error || t.error || c.error || p.error;
   if (firstError) throw new Error(firstError.message);
 
-  return {
+  return saveOfflineData(cacheKey, {
     wallets: w.data ?? [],
     transactions: t.data ?? [],
     cards: c.data ?? [],
@@ -32,7 +39,7 @@ export const getDashboardData = async (args?: { userId?: string } | any) => {
     kycSubmitted: true,
     kycApproved: true,
     kycReady: true,
-  };
+  });
 };
 export const computePricingPreview = (args: { data: { amountUsd: number } }) =>
   callApi("computePricingPreview", args.data);

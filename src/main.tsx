@@ -7,6 +7,9 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { queryClient } from "@/lib/query-client";
 import App from "./App";
+import { registerOfflineApp } from "@/lib/pwa-registration";
+
+void registerOfflineApp();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
