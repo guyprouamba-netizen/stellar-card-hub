@@ -20,6 +20,7 @@ export default defineConfig({
       runtimeCaching: [
         { urlPattern: ({ request }) => request.mode === "navigate", handler: "NetworkFirst", options: { cacheName: "fasopay-pages", networkTimeoutSeconds: 4 } },
         { urlPattern: ({ url }) => url.origin === self.location.origin && /\/assets\/.*\.[a-f0-9]+\./.test(url.pathname), handler: "CacheFirst", options: { cacheName: "fasopay-assets" } },
+        { urlPattern: ({ request, url }) => request.destination === "image" || /\.(png|jpg|jpeg|svg|webp|gif)$/.test(url.pathname), handler: "StaleWhileRevalidate", options: { cacheName: "fasopay-images" } },
       ],
     },
     manifest: false,

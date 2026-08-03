@@ -7,6 +7,7 @@ import * as SW from "../_shared/strowallet.ts";
 import { computeCardCost, computeFundCost, loadPricingConfig } from "../_shared/pricing.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { notifyEvent as notifySms, sendSmsRaw } from "../_shared/sms.ts";
+import * as YP from "../_shared/yengapay.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -808,23 +809,24 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (String(card?.status || "") === "terminated") return await fallbackFromDb();
     try {
       const res = await SW.getNfcCardHistory(data.card_id);
+      // Normalisation robuste (l'émetteur renvoie des formes variables selon l'endpoint atteint).
+      const items = SW.extractCardTransactions(res);
       // Journalisation : enregistre chaque transaction carte dans `transactions` (dédup par provider_ref).
-      const raw: any = (res as any)?.response ?? (res as any)?.data ?? res;
-      const items: any[] = Array.isArray(raw) ? raw : Array.isArray(raw?.response) ? raw.response : Array.isArray(raw?.data) ? raw.data : [];
       for (const t of items) {
-        const sig = `cardtx:${data.card_id}:${t.id || t.transaction_id || t.reference || `${t.date || t.created_at || ""}-${t.amount || ""}`}`;
+        const sig = `cardtx:${data.card_id}:${t.id || `${t.date || ""}-${t.amount || ""}`}`;
         const { data: existing } = await admin.from("transactions").select("id").eq("provider_ref", sig).maybeSingle();
         if (existing) continue;
         await admin.from("transactions").insert({
           user_id: ownerId, type: "card_tx",
-          status: String(t.status || t.transaction_status || "success").toLowerCase().includes("fail") ? "failed" : "success",
-          amount: Number(t.amount || 0), currency: String(t.currency || "USD"),
+          status: t.status === "failed" ? "failed" : "success",
+          amount: t.amount, currency: t.currency,
           provider: "issuer", provider_ref: sig,
-          description: t.description || t.narration || t.type || "Transaction carte",
+          description: t.description,
           metadata: { card_id: data.card_id, raw: t },
         });
       }
-      return { ok: true, data: res };
+      // Réponse compatible avec le frontend actuel : { response: [...] } normalisé.
+      return { ok: true, data: { response: items.map((t) => ({ ...t })) } };
     } catch (_e) {
       // En cas d'échec côté émetteur, on sert le cache local.
       return await fallbackFromDb();
@@ -1158,13 +1160,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const paid = ["DONE", "SUCCESS", "SUCCEEDED", "COMPLETED", "PAID"].includes(st);
     const failed = ["FAILED", "CANCELLED", "CANCELED", "EXPIRED", "REJECTED"].includes(st);
     if (paid) {
-      // Crédit atomique idempotent
-      const { data: updated } = await admin
-        .from("transactions").update({ status: "success", metadata: { ...(tx.metadata as any), verify: body } })
-        .eq("id", tx.id).eq("status", "pending").select("id").maybeSingle();
-      if (updated) {
-        const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", tx.user_id).eq("currency", "XOF").maybeSingle();
-        if (w) await admin.from("wallets").update({ balance: Number(w.balance) + Number(tx.amount) }).eq("id", w.id);
+      // Crédit atomique idempotent (partagé avec le webhook et le flux dépôt direct)
+      const { credited } = await YP.creditDeposit(admin, tx.user_id, tx.provider_ref, Number(tx.amount), { verify: body });
+      if (credited) {
         await notifyUser(admin, tx.user_id,
           "✅ Recharge créditée",
           txEmailHtml({ title: "Recharge créditée sur votre portefeuille", intro: "Votre paiement a été confirmé et votre solde a été mis à jour immédiatement.", amount: Number(tx.amount), currency: "XOF", reference: tx.provider_ref }),
@@ -1178,6 +1176,164 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       return { ok: true, status: "failed", credited: false };
     }
     return { ok: true, status: "pending", credited: false, providerStatus: st };
+  },
+
+  // ================= Dépôt in-app via YengaPay Direct Payment (sans redirection) =================
+
+  async listDepositOperators() {
+    return { ok: true, operators: YP.OPERATORS.map((o) => ({ code: o.code, label: o.label, flow: o.flow })) };
+  },
+
+  async initDeposit({ data, user, admin }) {
+    const userId = user.id;
+    await assertUserRateLimit(admin, userId, "initRecharge", 10);
+    const amount = Number(data?.amount);
+    const operatorCode = String(data?.operator || "").toUpperCase();
+    const phone = String(data?.phone || "").trim();
+    if (!Number.isFinite(amount) || amount < 100) return { ok: false, error: "Montant minimum : 100 XOF" };
+    const operator = YP.findOperator(operatorCode);
+    if (!operator) return { ok: false, error: "Opérateur non pris en charge" };
+    if (!phone) return { ok: false, error: "Numéro de téléphone requis" };
+
+    const reference = `FIP-${Date.now()}-${userId.slice(0, 8)}`;
+    const callbackUrl = `${SUPABASE_URL}/functions/v1/yengapay-webhook`;
+
+    let initRes: any;
+    try {
+      initRes = await YP.initDirectPayment({ amount, reference, callbackUrl, description: "Recharge portefeuille" });
+    } catch (e) {
+      return { ok: false, error: "Impossible de contacter la passerelle de paiement. " + (e as Error).message };
+    }
+    if (!initRes.ok) {
+      return { ok: false, error: "La passerelle de paiement a refusé l'opération.", message: typeof initRes.body === "string" ? initRes.body.slice(0, 200) : JSON.stringify(initRes.body).slice(0, 200) };
+    }
+    const body = initRes.body;
+    const paymentIntentId = body?.id || body?.paymentIntentId || body?.paymentIntent?.id || body?.data?.id || null;
+
+    const { error: txErr } = await admin.from("transactions").insert({
+      user_id: userId, type: "deposit", status: "pending",
+      amount, currency: "XOF",
+      provider: "yengapay", provider_ref: reference,
+      description: `Recharge portefeuille — ${operator.label}`,
+      metadata: { operator: operator.code, phone, intent: paymentIntentId, init: body },
+    });
+    if (txErr) return { ok: false, error: "Erreur lors de l'enregistrement de l'opération." };
+
+    if (operator.flow === "otp") {
+      let otpRes: any;
+      try {
+        otpRes = await YP.sendDirectPaymentOtp({ reference, phone, operator: operator.code, paymentIntentId });
+      } catch (e) {
+        return { ok: false, error: "Impossible d'envoyer le code de confirmation. " + (e as Error).message };
+      }
+      if (!otpRes.ok) {
+        return { ok: false, error: "L'envoi du code de confirmation a échoué." };
+      }
+      return { ok: true, reference, requiresOtp: true, status: "pending", message: "Un code de confirmation vous a été envoyé par SMS." };
+    }
+
+    // Flux push USSD : on déclenche directement le paiement, l'utilisateur confirme sur son téléphone.
+    let payRes: any;
+    try {
+      payRes = await YP.payDirectPayment({ reference, phone, operator: operator.code, paymentIntentId });
+    } catch (e) {
+      return { ok: false, error: "Impossible d'initier le paiement. " + (e as Error).message };
+    }
+    if (!payRes.ok) {
+      return { ok: false, error: "La passerelle de paiement a refusé l'opération." };
+    }
+    const providerStatus = YP.extractProviderStatus(payRes.body);
+    if (providerStatus === "success") {
+      const { credited } = await YP.creditDeposit(admin, userId, reference, amount, { pay: payRes.body });
+      return { ok: true, reference, requiresOtp: false, status: "success", message: credited ? "Dépôt crédité avec succès." : "Dépôt déjà traité." };
+    }
+    if (providerStatus === "failed") {
+      await admin.from("transactions").update({ status: "failed", metadata: { operator: operator.code, phone, pay: payRes.body } }).eq("provider_ref", reference).eq("status", "pending");
+      return { ok: true, reference, requiresOtp: false, status: "failed", message: "Le paiement a été refusé ou annulé." };
+    }
+    return { ok: true, reference, requiresOtp: false, status: "pending", message: "Validez le paiement depuis votre téléphone." };
+  },
+
+  async sendDepositOtp({ data, user, admin }) {
+    const reference = String(data?.reference || "");
+    if (!reference) return { ok: false, error: "Référence manquante" };
+    const { data: tx } = await admin.from("transactions").select("id,user_id,status,metadata").eq("provider_ref", reference).eq("type", "deposit").maybeSingle();
+    if (!tx) return { ok: false, error: "Opération introuvable" };
+    if (tx.user_id !== user.id) return { ok: false, error: "Forbidden" };
+    if (tx.status !== "pending") return { ok: false, error: "Cette opération n'est plus en attente." };
+    const meta = (tx.metadata as any) || {};
+    try {
+      const otpRes = await YP.sendDirectPaymentOtp({ reference, phone: meta.phone, operator: meta.operator, paymentIntentId: meta.intent });
+      if (!otpRes.ok) return { ok: false, error: "L'envoi du code de confirmation a échoué." };
+      return { ok: true, message: "Code de confirmation renvoyé." };
+    } catch (e) {
+      return { ok: false, error: "Impossible d'envoyer le code de confirmation. " + (e as Error).message };
+    }
+  },
+
+  async payDeposit({ data, user, admin }) {
+    const reference = String(data?.reference || "");
+    if (!reference) return { ok: false, error: "Référence manquante" };
+    const { data: tx } = await admin.from("transactions").select("id,user_id,amount,status,metadata").eq("provider_ref", reference).eq("type", "deposit").maybeSingle();
+    if (!tx) return { ok: false, error: "Opération introuvable" };
+    if (tx.user_id !== user.id) return { ok: false, error: "Forbidden" };
+    if (tx.status === "success") return { ok: true, status: "success", message: "Dépôt déjà crédité." };
+    if (tx.status === "failed") return { ok: true, status: "failed", message: "Ce dépôt a échoué." };
+    const meta = (tx.metadata as any) || {};
+    let payRes: any;
+    try {
+      payRes = await YP.payDirectPayment({ reference, phone: meta.phone, operator: meta.operator, otp: data?.otp, paymentIntentId: meta.intent });
+    } catch (e) {
+      return { ok: false, status: "failed", message: "Impossible de contacter la passerelle de paiement. " + (e as Error).message };
+    }
+    if (!payRes.ok) {
+      return { ok: true, status: "failed", message: "Code incorrect ou paiement refusé." };
+    }
+    const providerStatus = YP.extractProviderStatus(payRes.body);
+    if (providerStatus === "success") {
+      const { credited } = await YP.creditDeposit(admin, tx.user_id, reference, Number(tx.amount), { pay: payRes.body });
+      if (credited) {
+        await notifyUser(admin, tx.user_id,
+          "✅ Recharge créditée",
+          txEmailHtml({ title: "Recharge créditée sur votre portefeuille", intro: "Votre paiement a été confirmé et votre solde a été mis à jour immédiatement.", amount: Number(tx.amount), currency: "XOF", reference }),
+          `Recharge de ${tx.amount} XOF créditée. Référence ${reference}.`);
+      }
+      return { ok: true, status: "success", message: "Dépôt crédité avec succès." };
+    }
+    if (providerStatus === "failed") {
+      await admin.from("transactions").update({ status: "failed", metadata: { ...meta, pay: payRes.body } }).eq("id", tx.id).eq("status", "pending");
+      return { ok: true, status: "failed", message: "Le paiement a été refusé ou annulé." };
+    }
+    return { ok: true, status: "pending", message: "Paiement en cours de confirmation." };
+  },
+
+  async depositStatus({ data, user, admin }) {
+    const reference = String(data?.reference || "");
+    if (!reference) return { ok: false, error: "Référence manquante" };
+    const { data: tx } = await admin.from("transactions").select("id,user_id,amount,status,metadata").eq("provider_ref", reference).eq("type", "deposit").maybeSingle();
+    if (!tx) return { ok: false, error: "Opération introuvable" };
+    if (tx.user_id !== user.id && !(await isAdmin(admin, user.id))) return { ok: false, error: "Forbidden" };
+    if (tx.status === "success") return { ok: true, status: "success", credited: false };
+    if (tx.status === "failed") return { ok: true, status: "failed", credited: false };
+    const meta = (tx.metadata as any) || {};
+    const piid = meta.intent || meta.paymentIntentId;
+    if (!piid) return { ok: true, status: "pending", credited: false };
+    try {
+      const r = await YP.checkDirectPaymentStatus(piid);
+      if (!r.ok) return { ok: true, status: "pending", credited: false };
+      const providerStatus = YP.extractProviderStatus(r.body);
+      if (providerStatus === "success") {
+        const { credited } = await YP.creditDeposit(admin, tx.user_id, reference, Number(tx.amount), { statusCheck: r.body });
+        return { ok: true, status: "success", credited };
+      }
+      if (providerStatus === "failed") {
+        await admin.from("transactions").update({ status: "failed", metadata: { ...meta, statusCheck: r.body } }).eq("id", tx.id).eq("status", "pending");
+        return { ok: true, status: "failed", credited: false };
+      }
+      return { ok: true, status: "pending", credited: false };
+    } catch {
+      return { ok: true, status: "pending", credited: false };
+    }
   },
 
   // Sweep all pending deposit transactions for the current user (or all users for admin)
