@@ -328,6 +328,13 @@ function FundDialog({ cardId, onClose, onDone }: { cardId: string; onClose: () =
   );
 }
 
+function formatTxDate(v: any): string {
+  if (!v) return "—";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return String(v);
+  return d.toLocaleString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
 function TransactionsDialog({ cardId, onClose }: { cardId: string; onClose: () => void }) {
   const fn = useServerFn(listCardTransactions);
   const q = useQuery({ queryKey: ["card-tx", cardId], queryFn: () => fn({ data: { card_id: cardId } }) });
@@ -353,7 +360,7 @@ function TransactionsDialog({ cardId, onClose }: { cardId: string; onClose: () =
               <tbody>
                 {list.map((t, i) => (
                   <tr key={i} className="border-t border-border/40">
-                    <td className="py-2 text-muted-foreground">{t.date || t.created_at || t.transaction_date || t.createdAt || "—"}</td>
+                    <td className="py-2 text-muted-foreground">{formatTxDate(t.date || t.created_at || t.transaction_date || t.createdAt)}</td>
                     <td>
                       <div className="font-medium">{t.merchant_name || t.merchant || t.merchantName || t.description || t.narration || t.type || "—"}</div>
                       {(t.merchant_category || t.category || t.merchantCategory) && (

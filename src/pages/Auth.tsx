@@ -1,6 +1,8 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Mail, Lock, ArrowRight, User, Phone, Loader2, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
+import { PinLock } from "@/components/pin-lock";
+import { getPinStatus, markPinEnabledOnDevice, setLastEmail, setSessionLocked } from "@/lib/pin";
 import { VirtualCard } from "@/components/virtual-card";
 import { BackButton } from "@/components/back-button";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,9 +30,19 @@ function Auth() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const [pinSetup, setPinSetup] = useState<null | { id: string; email?: string | null }>(null);
   async function fastRedirect(user?: { id: string; email?: string | null }) {
     const userId = user?.id;
     if (!userId) return;
+    if (user?.email) setLastEmail(user.email);
+    if (!pinSetup) {
+      try {
+        const st = await getPinStatus();
+        if (!st?.hasPin) { setPinSetup({ id: userId, email: user?.email }); return; }
+        markPinEnabledOnDevice(userId);
+        setSessionLocked(false);
+      } catch { /* on continue sans PIN */ }
+    }
     const dashboardWarmup = queryClient.prefetchQuery({
       queryKey: ["dashboard", userId],
       queryFn: () => getDashboardData({ userId }),
@@ -130,6 +142,20 @@ function Auth() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (pinSetup) {
+    return (
+      <PinLock
+        mode="create"
+        onSuccess={() => {
+          markPinEnabledOnDevice(pinSetup.id);
+          setSessionLocked(false);
+          const u = pinSetup; setPinSetup(null);
+          void fastRedirect({ id: u.id, email: u.email });
+        }}
+      />
+    );
   }
 
   return (

@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { OfflineBanner } from "@/components/offline-banner";
 import { queryClient } from "@/lib/query-client";
 import App from "./App";
 import { registerOfflineApp } from "@/lib/pwa-registration";
@@ -16,6 +17,7 @@ createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <ThemeProvider>
+          <OfflineBanner />
           <App />
           <Toaster richColors position="top-right" />
         </ThemeProvider>

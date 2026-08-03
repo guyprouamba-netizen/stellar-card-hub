@@ -87,7 +87,54 @@ export async function getNfcCardDetails(card_id: string) {
 }
 
 export async function getNfcCardHistory(card_id: string) {
-  return call("GET", "/bitvcard/nfc-card-transactions/", { card_id });
+  const paths = [
+    "/bitvcard/nfc-card-transactions/",
+    "/bitvcard/card-transactions/",
+    "/bitvcard/nfc-card-transaction/",
+  ];
+  let lastErr: unknown = null;
+  for (const p of paths) {
+    try {
+      const res = await call("GET", p, { card_id });
+      const items = extractCardTransactions(res);
+      if (items.length > 0) return res;
+      // Réponse exploitable mais vide : on la garde en réserve si aucun autre chemin ne fait mieux.
+      lastErr = lastErr ?? res;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  if (lastErr instanceof Error) throw lastErr;
+  return lastErr ?? { response: [] };
+}
+
+// Normalise la réponse (quelle que soit sa forme) en tableau homogène
+// [{id,date,amount,currency,status,description,type}] pour l'affichage et la persistance.
+export function extractCardTransactions(resp: any): Array<{
+  id: string | null; date: string | null; amount: number; currency: string;
+  status: string; description: string; type: string | null;
+}> {
+  const raw: any = resp?.response ?? resp?.data ?? resp;
+  let list: any[] = [];
+  if (Array.isArray(raw)) list = raw;
+  else if (Array.isArray(raw?.response)) list = raw.response;
+  else if (Array.isArray(raw?.data)) list = raw.data;
+  else if (Array.isArray(raw?.transactions)) list = raw.transactions;
+  else if (Array.isArray(resp?.transactions)) list = resp.transactions;
+  else if (Array.isArray(resp)) list = resp;
+
+  return list.map((t: any) => {
+    const statusRaw = String(t.status || t.transaction_status || "success").toLowerCase();
+    return {
+      id: t.id ? String(t.id) : (t.transaction_id ? String(t.transaction_id) : (t.reference ? String(t.reference) : null)),
+      date: t.date || t.created_at || t.createdAt || t.transaction_date || null,
+      amount: Number(t.amount || 0),
+      currency: String(t.currency || "USD"),
+      status: statusRaw.includes("fail") ? "failed" : statusRaw.includes("pending") ? "pending" : "success",
+      description: t.description || t.narration || t.type || t.transaction_type || "Transaction carte",
+      type: t.type || t.transaction_type || null,
+    };
+  });
 }
 
 export async function fundWithdrawNfcCard(p: { card_id: string; amount: number; type: "fund" | "withdraw" }) {

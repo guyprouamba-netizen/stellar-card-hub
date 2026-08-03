@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { corsHeaders } from "../_shared/cors.ts";
 import { notifyEvent } from "../_shared/sms.ts";
+import { creditDeposit } from "../_shared/yengapay.ts";
 
 function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
@@ -80,20 +81,17 @@ Deno.serve(async (req) => {
   if (tx) {
     if (tx.status === "success") return new Response("ok", { headers: corsHeaders });
     if (status === "success" && tx.type === "deposit") {
-      await admin.from("transactions").update({ status: "success", metadata: payload }).eq("id", tx.id);
-      const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", tx.user_id).eq("currency", "XOF").maybeSingle();
-      let newBalance: number | undefined;
-      if (w) {
-        newBalance = Number(w.balance) + Number(tx.amount);
-        await admin.from("wallets").update({ balance: newBalance }).eq("id", w.id);
+      const { credited } = await creditDeposit(admin, tx.user_id, reference, Number(tx.amount), { webhook: payload });
+      if (credited) {
+        const { data: w } = await admin.from("wallets").select("balance").eq("user_id", tx.user_id).eq("currency", "XOF").maybeSingle();
+        // Notif SMS (non bloquant)
+        notifyEvent(admin, "wallet_recharge", {
+          userId: tx.user_id as string,
+          amount: Number(tx.amount),
+          currency: "XOF",
+          balance: w ? Number(w.balance) : undefined,
+        }).catch(() => {});
       }
-      // Notif SMS (non bloquant)
-      notifyEvent(admin, "wallet_recharge", {
-        userId: tx.user_id as string,
-        amount: Number(tx.amount),
-        currency: "XOF",
-        balance: newBalance,
-      }).catch(() => {});
     } else if (status === "failed") {
       await admin.from("transactions").update({ status: "failed", metadata: payload }).eq("id", tx.id);
     }
