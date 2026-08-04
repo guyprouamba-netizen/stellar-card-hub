@@ -506,6 +506,77 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       )}
+
+      {editing && (
+        <ProductModal
+          initial={editing}
+          currency={project.currency}
+          onCancel={() => setEditing(null)}
+          onSave={onSaveProduct}
+        />
+      )}
+    </div>
+  );
+}
+
+function ProductModal({ initial, currency, onCancel, onSave }: {
+  initial: any; currency: string;
+  onCancel: () => void;
+  onSave: (form: any, file?: File | null) => Promise<void>;
+}) {
+  const [form, setForm] = useState<any>(initial);
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 backdrop-blur-sm" onClick={onCancel}>
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-border bg-card p-6" onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-[Space_Grotesk] text-xl font-bold">{form.id ? "Modifier le produit" : "Nouveau produit"}</h3>
+        <p className="mt-1 text-xs text-muted-foreground">Renseignez votre article : il sera vendable en boutique et via lien de paiement.</p>
+        <div className="mt-5 space-y-3">
+          <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">Nom du produit
+            <input value={form.name || ""} onChange={(e) => set("name", e.target.value)} placeholder="Ex : Sac en cuir"
+              className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-primary" />
+          </label>
+          <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">Description
+            <textarea value={form.description || ""} onChange={(e) => set("description", e.target.value)} rows={3} placeholder="Détails, matière, taille, livraison…"
+              className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-primary" />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">Prix ({currency})
+              <input type="number" min={0} value={form.price ?? ""} onChange={(e) => set("price", e.target.value)}
+                className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-primary" />
+            </label>
+            <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">Stock (vide = illimité)
+              <input type="number" min={0} value={form.stock ?? ""} onChange={(e) => set("stock", e.target.value)}
+                className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-primary" />
+            </label>
+            <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">Référence / SKU
+              <input value={form.sku || ""} onChange={(e) => set("sku", e.target.value)}
+                className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-primary" />
+            </label>
+            <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">Visibilité
+              <select value={form.status || "active"} onChange={(e) => set("status", e.target.value)}
+                className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-primary">
+                <option value="active">Publié en boutique</option>
+                <option value="draft">Brouillon</option>
+              </select>
+            </label>
+          </div>
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-border bg-surface-2 p-3 text-xs text-muted-foreground hover:bg-muted">
+            <ImageIcon className="h-4 w-4" />
+            {file ? file.name : "Ajouter une photo ou vidéo du produit"}
+            <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          </label>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <button onClick={onCancel} className="rounded-full border border-border px-4 py-2 text-sm">Annuler</button>
+          <button disabled={busy} onClick={async () => { setBusy(true); try { await onSave(form, file); } finally { setBusy(false); } }}
+            className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
