@@ -791,28 +791,20 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (!(await isAdmin(admin, user.id))) return { ok: false, error: "Carte introuvable" };
     }
     const ownerId = card?.user_id || user.id;
-    // Historique local : transactions émetteur mises en cache + opérations plateforme
-    // (émission, recharges, retraits, frais) rattachées à cette carte.
-    const localHistory = async () => {
+    // Toujours servir l'historique conservé en BDD (disponible même si la carte est résiliée).
+    const fallbackFromDb = async () => {
       const { data: rows } = await admin.from("transactions")
-        .select("type,amount,currency,status,description,created_at,metadata,provider_ref")
-        .eq("user_id", ownerId)
-        .in("type", ["card_tx", "card_fund", "card_withdraw", "card_issue", "card_fee", "card_auto_freeze", "card_terminated"])
-        .order("created_at", { ascending: false }).limit(300);
-      return (rows || [])
-        .filter((r: any) => (r.metadata as any)?.card_id === data.card_id || r.provider_ref === data.card_id)
-        .map((r: any) => {
-          const raw = (r.metadata as any)?.raw;
-          if (r.type === "card_tx" && raw) {
-            return { date: r.created_at, amount: r.amount, currency: r.currency, status: r.status, description: r.description, ...raw };
-          }
-          return {
-            date: r.created_at, amount: r.amount, currency: r.currency,
-            status: r.status, description: r.description, type: r.type, source: "platform",
-          };
-        });
+        .select("amount,currency,status,description,created_at,metadata,provider_ref")
+        .eq("user_id", ownerId).eq("type", "card_tx")
+        .order("created_at", { ascending: false }).limit(200);
+      const items = (rows || [])
+        .filter((r: any) => (r.metadata as any)?.card_id === data.card_id)
+        .map((r: any) => ({
+          date: r.created_at, amount: r.amount, currency: r.currency, status: r.status,
+          description: r.description, ...(r.metadata as any)?.raw,
+        }));
+      return { ok: true, data: { response: items }, source: "cache" as const };
     };
-    const fallbackFromDb = async () => ({ ok: true, data: { response: await localHistory() }, source: "cache" as const });
     // Carte résiliée : l'API émetteur ne renvoie plus rien — on sert le cache.
     if (String(card?.status || "") === "terminated") return await fallbackFromDb();
     try {
@@ -833,10 +825,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
           metadata: { card_id: data.card_id, raw: t },
         });
       }
-      // Réponse : transactions émetteur + opérations plateforme, triées du plus récent au plus ancien.
-      const merged = await localHistory();
-      merged.sort((a: any, b: any) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
-      return { ok: true, data: { response: merged.length ? merged : items.map((t) => ({ ...t })) } };
+      // Réponse compatible avec le frontend actuel : { response: [...] } normalisé.
+      return { ok: true, data: { response: items.map((t) => ({ ...t })) } };
     } catch (_e) {
       // En cas d'échec côté émetteur, on sert le cache local.
       return await fallbackFromDb();
