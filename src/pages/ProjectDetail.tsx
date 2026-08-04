@@ -33,6 +33,7 @@ export default function ProjectDetailPage() {
   const [tab, setTab] = useState<"overview" | "products" | "links" | "finance" | "coach">("overview");
   const [qrLink, setQrLink] = useState<{ url: string; title: string } | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const [editing, setEditing] = useState<any | null>(null); // produit en cours de création/édition
   const chatRef = useRef<HTMLDivElement>(null);
 
   async function refresh() {
@@ -73,13 +74,44 @@ export default function ProjectDetailPage() {
     } catch (e: any) { toast.error(e.message, { id: "up" }); }
   }
 
-  async function onAddProduct() {
-    const name = prompt("Nom du produit"); if (!name) return;
-    const priceStr = prompt("Prix en " + project.currency); if (!priceStr) return;
+  function onAddProduct() {
+    setEditing({ name: "", description: "", price: "", sku: "", stock: "", status: "active" });
+  }
+
+  async function onSaveProduct(form: any, file?: File | null) {
+    const name = String(form.name || "").trim();
+    if (name.length < 2) { toast.error("Nom du produit requis"); return; }
     try {
-      const p = await createProduct({ project_id: projectId, name, price: Number(priceStr) || 0, currency: project.currency });
-      setProducts((prev) => [{ ...p, product_media: [] }, ...prev]);
-      toast.success("Produit ajouté ✅");
+      toast.loading("Enregistrement…", { id: "prod" });
+      const payload = {
+        name,
+        description: form.description || null,
+        price: Number(form.price) || 0,
+        currency: project.currency,
+        sku: form.sku || null,
+        stock: form.stock === "" || form.stock === null ? null : Number(form.stock),
+        status: form.status || "active",
+      };
+      let saved: any;
+      if (form.id) {
+        saved = await updateProduct({ id: form.id, ...payload });
+        setProducts((prev) => prev.map((p) => p.id === saved.id ? { ...saved, product_media: p.product_media || [] } : p));
+      } else {
+        saved = await createProduct({ project_id: projectId, ...payload });
+        setProducts((prev) => [{ ...saved, product_media: [] }, ...prev]);
+      }
+      if (file) await onAddMedia(saved.id, file);
+      setEditing(null);
+      toast.success("Produit enregistré ✅", { id: "prod" });
+    } catch (e: any) { toast.error(e.message, { id: "prod" }); }
+  }
+
+  async function onToggleProductStatus(prod: any) {
+    try {
+      const next = prod.status === "active" ? "draft" : "active";
+      const saved = await updateProduct({ id: prod.id, status: next });
+      setProducts((prev) => prev.map((p) => p.id === prod.id ? { ...saved, product_media: p.product_media || [] } : p));
+      toast.success(next === "active" ? "Produit publié en boutique ✅" : "Produit retiré de la boutique");
     } catch (e: any) { toast.error(e.message); }
   }
 
