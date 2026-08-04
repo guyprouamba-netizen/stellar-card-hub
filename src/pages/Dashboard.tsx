@@ -16,7 +16,6 @@ import { cardAction } from "@/lib/strowallet.functions";
 import { cardDetails } from "@/lib/strowallet.functions";
 import { requestWithdrawal } from "@/lib/withdrawal.functions";
 import { initRecharge, verifyRecharge, reconcileMyDeposits } from "@/lib/yengapay.functions";
-import { FALLBACK_OPERATORS, type DepositOperator, depositStatus, initDeposit, listDepositOperators, payDeposit, sendDepositOtp } from "@/lib/deposit.functions";
 import { updateMyProfile, updateMyPassword, createAvatarUploadUrl, getAvatarSignedUrl } from "@/lib/profile.functions";
 import { getMyReferralStats, getPublicConfig } from "@/lib/profile.functions";
 import { IssueCardSheet } from "@/components/issue-card-sheet";
@@ -380,135 +379,38 @@ function TxList({ items }: { items: any[] }) {
 
 function DepositTab({ onDone }: { onDone: () => void }) {
   const [amount, setAmount] = useState(5000);
-  const [operators, setOperators] = useState<DepositOperator[]>(FALLBACK_OPERATORS);
-  const [operator, setOperator] = useState(FALLBACK_OPERATORS[0].code);
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
-  const [reference, setReference] = useState<string | null>(null);
-  const [stage, setStage] = useState<"form" | "otp" | "waiting">("form");
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    listDepositOperators().then((r) => { if (r?.operators?.length) setOperators(r.operators); }).catch(() => { /* défaut */ });
-  }, []);
-
-  const finish = (status: string) => {
-    if (status === "success") { toast.success("Dépôt confirmé — solde crédité"); setStage("form"); setOtp(""); setReference(null); onDone(); }
-    else { setStage("waiting"); poll(); }
-  };
-
-  function poll() {
-    const ref = reference;
-    if (!ref) return;
-    let ticks = 0;
-    const id = window.setInterval(async () => {
-      ticks += 1;
-      try {
-        const r = await depositStatus({ reference: ref });
-        if (r.status === "success") { window.clearInterval(id); toast.success("Dépôt confirmé — solde crédité"); setStage("form"); onDone(); }
-        else if (r.status === "failed") { window.clearInterval(id); toast.error("Paiement refusé ou annulé"); setStage("form"); }
-      } catch { /* retry */ }
-      if (ticks > 40) window.clearInterval(id);
-    }, 4000);
-  }
-
-  async function start() {
+  const init = useServerFn(initRecharge);
+  async function pay() {
     setLoading(true);
     try {
-      const res = await initDeposit({ amount, operator, phone: phone.replace(/\s+/g, "") });
-      if (!res?.ok) throw new Error(res?.error || "Dépôt impossible pour le moment");
-      setReference(res.reference);
-      if (res.requiresOtp) {
-        try { await sendDepositOtp({ reference: res.reference }); } catch { /* déjà envoyé */ }
-        setStage("otp");
-        toast.info("Saisissez le code reçu par SMS de votre opérateur");
-      } else {
-        const pay = await payDeposit({ reference: res.reference });
-        if (pay.status === "failed") throw new Error(pay.message || "Paiement refusé");
-        if (pay.status === "success") { toast.success("Dépôt confirmé — solde crédité"); onDone(); }
-        else { setStage("waiting"); setTimeout(poll, 100); }
-      }
-    } catch (e) { toast.error((e as Error).message); } finally { setLoading(false); }
+      const returnUrl = `${window.location.origin}/dashboard`;
+      const res: any = await init({ data: { amount, currency: "XOF", returnUrl } });
+      if (res?.checkout_url) window.location.href = res.checkout_url;
+      else toast.error(res?.error ?? "Erreur Mobile Money");
+    } catch (e) { toast.error((e as Error).message); } finally { setLoading(false); onDone(); }
   }
-
-  async function confirm() {
-    if (!reference) return;
-    setLoading(true);
-    try {
-      const pay = await payDeposit({ reference, otp: otp.trim() });
-      if (pay.status === "failed") throw new Error(pay.message || "Code incorrect");
-      finish(pay.status);
-    } catch (e) { toast.error((e as Error).message); } finally { setLoading(false); }
-  }
-
-  const phoneOk = /^[0-9]{8,15}$/.test(phone.replace(/\s+/g, ""));
-
   return (
     <div className="max-w-lg space-y-6">
       <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Dépôt d'argent</h1>
-      <p className="text-sm text-muted-foreground">Rechargez votre compte XOF par Mobile Money, directement dans l'application.</p>
-
-      {stage === "form" && (
-        <>
-          <div className="rounded-2xl border border-border bg-card p-6">
-            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Montant à recharger</label>
-            <div className="mt-2 flex items-baseline gap-2">
-              <input type="number" min={500} step={500} value={amount} onChange={(e) => setAmount(Number(e.target.value) || 0)}
-                className="w-full bg-transparent font-[Space_Grotesk] text-4xl font-bold tabular-nums outline-none" />
-              <span className="text-sm text-muted-foreground">XOF</span>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {[2000, 5000, 10000, 25000, 50000].map((q) => (
-                <button key={q} onClick={() => setAmount(q)} className="rounded-full border border-border bg-surface-2 px-3 py-1.5 text-xs">{q.toLocaleString("fr-FR")}</button>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-border bg-card p-6">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Opérateur</p>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {operators.map((o) => (
-                <button key={o.code} onClick={() => setOperator(o.code)}
-                  className={`rounded-xl border p-3 text-left text-sm font-semibold transition-colors ${operator === o.code ? "border-primary bg-primary/5" : "border-border bg-surface-2 hover:bg-muted"}`}>
-                  {o.label}
-                </button>
-              ))}
-            </div>
-            <div className="mt-4">
-              <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Numéro Mobile Money</label>
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="70 00 00 00"
-                className="mt-2 w-full rounded-xl border border-border bg-surface-2 px-3 py-2 outline-none" />
-            </div>
-          </div>
-
-          <button onClick={start} disabled={loading || amount < 500 || !phoneOk}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Valider le dépôt"}
-          </button>
-        </>
-      )}
-
-      {stage === "otp" && (
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
-          <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Code de confirmation</label>
-          <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} inputMode="numeric" maxLength={8}
-            className="w-full rounded-xl border border-border bg-surface-2 px-3 py-3 text-center font-[Space_Grotesk] text-2xl font-bold tracking-[0.4em] outline-none" />
-          <button onClick={confirm} disabled={loading || otp.length < 4}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmer le dépôt"}
-          </button>
-          <button onClick={() => reference && sendDepositOtp({ reference }).then(() => toast.success("Nouveau code envoyé")).catch(() => toast.error("Envoi impossible"))}
-            className="w-full text-xs text-primary hover:underline">Renvoyer le code</button>
+      <p className="text-sm text-muted-foreground">Rechargez votre compte XOF via Mobile Money (Orange, Moov, Wave).</p>
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Montant à recharger</label>
+        <div className="mt-2 flex items-baseline gap-2">
+          <input type="number" min={500} step={500} value={amount} onChange={(e) => setAmount(Number(e.target.value) || 0)}
+            className="w-full bg-transparent font-[Space_Grotesk] text-4xl font-bold tabular-nums outline-none" />
+          <span className="text-sm text-muted-foreground">XOF</span>
         </div>
-      )}
-
-      {stage === "waiting" && (
-        <div className="rounded-2xl border border-border bg-card p-6 text-center">
-          <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
-          <p className="mt-3 text-sm font-semibold">Validez la demande sur votre téléphone</p>
-          <p className="mt-1 text-xs text-muted-foreground">Le crédit de votre portefeuille est automatique dès confirmation.</p>
+        <div className="mt-3 flex gap-2">
+          {[2000, 5000, 10000, 25000, 50000].map((q) => (
+            <button key={q} onClick={() => setAmount(q)} className="rounded-full border border-border bg-surface-2 px-3 py-1.5 text-xs">{q.toLocaleString("fr-FR")}</button>
+          ))}
         </div>
-      )}
+      </div>
+      <button onClick={pay} disabled={loading || amount < 500}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Payer en Mobile Money"}
+      </button>
     </div>
   );
 }
