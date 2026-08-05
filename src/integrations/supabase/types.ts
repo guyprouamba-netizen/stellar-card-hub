@@ -355,6 +355,153 @@ export type Database = {
           },
         ]
       }
+      admin_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: number
+          metadata: Json
+          target_user_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          id?: number
+          metadata?: Json
+          target_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: number
+          metadata?: Json
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
+      analytics_events: {
+        Row: {
+          action: string | null
+          created_at: string
+          duration_ms: number
+          funnel_step: string | null
+          id: number
+          kind: string
+          meta: Json
+          path: string | null
+          session_key: string
+          title: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action?: string | null
+          created_at?: string
+          duration_ms?: number
+          funnel_step?: string | null
+          id?: number
+          kind?: string
+          meta?: Json
+          path?: string | null
+          session_key: string
+          title?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string | null
+          created_at?: string
+          duration_ms?: number
+          funnel_step?: string | null
+          id?: number
+          kind?: string
+          meta?: Json
+          path?: string | null
+          session_key?: string
+          title?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      analytics_sessions: {
+        Row: {
+          browser: string | null
+          city: string | null
+          country: string | null
+          country_code: string | null
+          created_at: string
+          device_type: string | null
+          duration_ms: number
+          id: string
+          is_returning: boolean
+          landing_path: string | null
+          last_seen_at: string
+          os: string | null
+          page_views: number
+          referrer: string | null
+          session_key: string
+          source: string
+          started_at: string
+          updated_at: string
+          user_id: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          visitor_key: string | null
+        }
+        Insert: {
+          browser?: string | null
+          city?: string | null
+          country?: string | null
+          country_code?: string | null
+          created_at?: string
+          device_type?: string | null
+          duration_ms?: number
+          id?: string
+          is_returning?: boolean
+          landing_path?: string | null
+          last_seen_at?: string
+          os?: string | null
+          page_views?: number
+          referrer?: string | null
+          session_key: string
+          source?: string
+          started_at?: string
+          updated_at?: string
+          user_id?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          visitor_key?: string | null
+        }
+        Update: {
+          browser?: string | null
+          city?: string | null
+          country?: string | null
+          country_code?: string | null
+          created_at?: string
+          device_type?: string | null
+          duration_ms?: number
+          id?: string
+          is_returning?: boolean
+          landing_path?: string | null
+          last_seen_at?: string
+          os?: string | null
+          page_views?: number
+          referrer?: string | null
+          session_key?: string
+          source?: string
+          started_at?: string
+          updated_at?: string
+          user_id?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          visitor_key?: string | null
+        }
+        Relationships: []
+      }
       api_key_usage: {
         Row: {
           count: number
@@ -1336,6 +1483,65 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "contract_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dashboard_ai_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      dashboard_ai_messages: {
+        Row: {
+          chart: Json | null
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          role: string
+        }
+        Insert: {
+          chart?: Json | null
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          role: string
+        }
+        Update: {
+          chart?: Json | null
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_ai_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_ai_conversations"
             referencedColumns: ["id"]
           },
         ]
