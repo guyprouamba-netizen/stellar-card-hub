@@ -96,7 +96,3 @@ export function DataTable<T extends Record<string, any>>({ columns, rows, empty 
     </div>
   );
 }
-
-export function SortableTable<T extends Record<string, any>>(props: Parameters<typeof DataTable<T>>[0] & { defaultSort?: keyof T & string }) {
-  return <DataTable {...props} />;
-}
