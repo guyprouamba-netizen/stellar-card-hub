@@ -159,23 +159,26 @@ export async function startSession() {
 /** Enregistre une page vue et le temps passé sur la page précédente. */
 export async function trackPageview(path: string, title?: string) {
   if (typeof window === "undefined" || !navigator.onLine) return;
-  const key = getSessionKey();
-  const userId = await currentUserId();
-  await supabase.from("analytics_events").insert({
-    session_key: key, user_id: userId, kind: "pageview",
-    path, title: title ?? document.title, funnel_step: funnelStepFor(path),
-  });
-  await supabase.rpc as unknown as void; // no-op guard for typing
+  try {
+    const key = getSessionKey();
+    const userId = await currentUserId();
+    await supabase.from("analytics_events").insert({
+      session_key: key, user_id: userId, kind: "pageview",
+      path, title: title ?? document.title, funnel_step: funnelStepFor(path),
+    });
+  } catch { /* le tracking ne doit jamais casser l'UI */ }
 }
 
 /** Temps passé sur une page (envoyé quand on la quitte). */
 export async function trackPageDuration(path: string, durationMs: number) {
   if (typeof window === "undefined" || !navigator.onLine || durationMs < 300) return;
-  const userId = await currentUserId();
-  await supabase.from("analytics_events").insert({
-    session_key: getSessionKey(), user_id: userId, kind: "page_duration",
-    path, duration_ms: Math.min(durationMs, 30 * 60_000),
-  });
+  try {
+    const userId = await currentUserId();
+    await supabase.from("analytics_events").insert({
+      session_key: getSessionKey(), user_id: userId, kind: "page_duration",
+      path, duration_ms: Math.min(durationMs, 30 * 60_000),
+    });
+  } catch { /* silencieux */ }
 }
 
 /** Action clé (recharger, acheter une carte, retirer…). */
