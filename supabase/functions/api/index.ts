@@ -617,7 +617,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         amount: requiredXof, currency: "XOF", provider: "strowallet",
         description: "Émission carte échouée — remboursée", metadata: { error: (e as Error).message },
       });
-      return { ok: false, error: (e as Error).message };
+      return { ok: false, error: friendlyCardError((e as Error).message) };
     }
   },
 
