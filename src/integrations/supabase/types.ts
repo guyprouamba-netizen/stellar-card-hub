@@ -3196,6 +3196,8 @@ export type Database = {
         | "card_withdraw"
         | "card_terminated"
         | "referral_reward"
+        | "admin_credit"
+        | "admin_debit"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3352,6 +3354,8 @@ export const Constants = {
         "card_withdraw",
         "card_terminated",
         "referral_reward",
+        "admin_credit",
+        "admin_debit",
       ],
     },
   },
