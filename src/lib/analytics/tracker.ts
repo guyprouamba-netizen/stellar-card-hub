@@ -117,6 +117,7 @@ async function currentUserId(): Promise<string | null> {
 /** Crée (ou rafraîchit) la session analytique courante. */
 export async function startSession() {
   if (typeof window === "undefined" || !navigator.onLine) return;
+  try {
   const { key, isNew } = currentSessionKey();
   sessionKeyCache = key;
   const visitor = visitorKey();
@@ -154,6 +155,7 @@ export async function startSession() {
     country_code: geo.country_code ?? null,
     city: geo.city ?? null,
   });
+  } catch { /* le tracking ne doit jamais casser l'UI */ }
 }
 
 /** Enregistre une page vue et le temps passé sur la page précédente. */
