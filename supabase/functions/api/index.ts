@@ -134,6 +134,24 @@ function isIssuerFailed(details: { status: string | null; number: string | null 
 const CARD_DETAILS_UNLOCK_USD = 3;
 const REQUIRED_INITIAL_CARD_FUND_USD = 3;
 
+// Traduit les erreurs techniques de l'émetteur en messages clairs pour l'utilisateur.
+function friendlyCardError(raw: string): string {
+  const m = (raw || "").toLowerCase();
+  if (m.includes("not enabled for this account")) {
+    return "Le service d'émission de cartes est momentanément indisponible chez notre partenaire bancaire. Votre solde a été intégralement remboursé. Réessayez plus tard.";
+  }
+  if (m.includes("insufficient") || m.includes("balance")) {
+    return "Notre réserve d'émission est momentanément épuisée. Votre solde a été remboursé, réessayez dans quelques heures.";
+  }
+  if (m.includes("kyc") || m.includes("customer")) {
+    return "Vos informations d'identité n'ont pas été acceptées par l'émetteur. Vérifiez le nom, la date de naissance et le numéro de pièce, puis réessayez.";
+  }
+  if (m.includes("timeout") || m.includes("network") || m.includes("html")) {
+    return "Le service d'émission ne répond pas actuellement. Votre solde a été remboursé, réessayez dans quelques minutes.";
+  }
+  return `Émission impossible pour le moment (remboursement effectué). Détail : ${raw}`;
+}
+
 // Utilitaire historique de masquage conservé pour les réponses fournisseur incomplètes.
 // Le PAN complet, la date d'expiration et le titulaire restent visibles pour
 // que le client voit qu'il possède bien une vraie carte — seul le code de
@@ -617,7 +635,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         amount: requiredXof, currency: "XOF", provider: "strowallet",
         description: "Émission carte échouée — remboursée", metadata: { error: (e as Error).message },
       });
-      return { ok: false, error: (e as Error).message };
+      return { ok: false, error: friendlyCardError((e as Error).message) };
     }
   },
 
