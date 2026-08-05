@@ -24,6 +24,7 @@ import Download from "@/pages/Download";
 import NotFound from "@/pages/NotFound";
 import { AuthGate } from "@/components/auth-gate";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { AnalyticsTracker } from "@/components/analytics-tracker";
 
 const guarded = (el: ReactElement, label: string) => (
   <AuthGate><ErrorBoundary label={label}>{el}</ErrorBoundary></AuthGate>
@@ -31,7 +32,9 @@ const guarded = (el: ReactElement, label: string) => (
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <AnalyticsTracker />
+      <Routes>
       <Route path="/" element={<Index />} />
       <Route path="/download" element={<Download />} />
       <Route path="/telecharger" element={<Download />} />
@@ -55,6 +58,7 @@ export default function App() {
       <Route path="/shop/:slug" element={<Shop />} />
       <Route path="/order/:token" element={<OrderTracking />} />
       <Route path="*" element={<NotFound />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }
