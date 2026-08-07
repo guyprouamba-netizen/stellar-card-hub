@@ -15,6 +15,22 @@ import { Button } from "@/components/ui/button";
 
 const variantByIndex = ["primary", "teal", "sunset"] as const;
 
+type Billing = { line1?: string; city?: string; state?: string; postalCode?: string; country?: string };
+
+function pickBilling(raw: any): Billing | undefined {
+  const b = raw?.billing_address ?? raw?.billingAddress ?? raw?.billing ?? raw?.address;
+  const src = b && typeof b === "object" ? b : raw;
+  if (!src || typeof src !== "object") return undefined;
+  const out: Billing = {
+    line1: src.line1 || src.address || src.street || src.address_line1 || undefined,
+    city: src.city || undefined,
+    state: src.state || src.region || undefined,
+    postalCode: src.postal_code || src.postalCode || src.zip || src.zip_code || undefined,
+    country: src.country || undefined,
+  };
+  return Object.values(out).some(Boolean) ? out : undefined;
+}
+
 function statusLabel(s: string) {
   switch (s) {
     case "active": return "Active";
