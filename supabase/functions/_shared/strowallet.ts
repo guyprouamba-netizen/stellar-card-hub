@@ -52,6 +52,7 @@ export type NfcCardInput = {
   line1: string; city: string; state: string; postalCode: string; country: string; // 3-letter
   amountUsd: number; phone: string;
   nameOnCard?: string;
+  idImage?: string; // URL publique de l'image de la pièce d'identité (nouveau fournisseur)
 };
 
 function toMDY(dob: string): string {
@@ -71,6 +72,7 @@ export async function createNfcCard(p: NfcCardInput) {
     dob: toMDY(p.dob),
     id_type: p.idType,
     id_number: p.idNumber,
+    id_image: p.idImage,
     email: p.email,
     line1: p.line1,
     city: p.city,
