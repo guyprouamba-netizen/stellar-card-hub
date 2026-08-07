@@ -189,6 +189,8 @@ function CardsPage() {
             const liveBalance = det?.balance;
             const apiBalance = liveBalance != null ? Number(liveBalance) : (apiDetail?.balance != null ? Number(apiDetail.balance) : Number(c.balance));
             const isDummyPan = !det?.number || /^0+$/.test(String(det?.number || ""));
+            const secureNumberUrl = det?.numberUrl;
+            const secureCvvUrl = det?.cvvUrl;
             const number = locked
               ? (c.last4 && c.last4 !== "0000" ? `•••• •••• •••• ${c.last4}` : "•••• •••• •••• ••••")
               : (!isDummyPan ? det!.number! : (c.last4 && c.last4 !== "0000" ? `•••• •••• •••• ${c.last4}` : "•••• •••• •••• ••••"));
@@ -208,6 +210,8 @@ function CardsPage() {
                   holder={(det?.holder || "TITULAIRE").toUpperCase()}
                   expiry={expiryDisplay}
                   cvv={cvvDisplay}
+                  numberUrl={isTerminated ? undefined : secureNumberUrl}
+                  cvvUrl={isTerminated ? undefined : secureCvvUrl}
                   onFlip={(flipped) => { if (flipped && !locked && c.provider_card_id) loadDetails(c.provider_card_id); }}
                 />
                 </div>
@@ -233,9 +237,13 @@ function CardsPage() {
                   </div>
                 )}
                 {!locked && (
-                  <CardDetailsCopy det={{ number: !isDummyPan ? det?.number : undefined, cvv: cvvDisplay, expiry: det?.expiry && det.expiry !== "00/00" ? det.expiry : undefined, holder: det?.holder }} />
+                  <CardDetailsCopy
+                    det={{ number: !isDummyPan ? det?.number : undefined, cvv: cvvDisplay, expiry: det?.expiry && det.expiry !== "00/00" ? det.expiry : undefined, holder: det?.holder }}
+                    numberUrl={isTerminated ? undefined : secureNumberUrl}
+                    cvvUrl={isTerminated ? undefined : secureCvvUrl}
+                  />
                 )}
-                <BillingAddress />
+                <BillingAddress billing={det?.billing} />
                 <div className="mt-5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-semibold">{(c.brand || "Carte").toUpperCase()} {c.last4 ? `••${c.last4}` : ""}</p>
