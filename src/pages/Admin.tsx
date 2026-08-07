@@ -5,15 +5,17 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Users, TrendingUp, CreditCard, ShieldCheck, ArrowDownUp, LogOut, RefreshCw,
   Loader2, CheckCircle2, XCircle, Wallet, Server, Eye, SlidersHorizontal, Share2,
-  AlertTriangle,
+  AlertTriangle, BarChart3, Sparkles,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
 import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminYengapayVerifyBatch, adminCreditYengapayExternal, adminCreditPendingDeposit } from "@/lib/admin.functions";
 import { toast } from "sonner";
+import { AnalyticsSection } from "@/components/admin/analytics-section";
+import { DashboardAiAssistant } from "@/components/admin/ai-assistant";
 
-type Tab = "users" | "flow" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "businesses" | "settings";
+type Tab = "users" | "flow" | "analytics" | "assistant" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "businesses" | "settings";
 
 function AdminPage() {
   const navigate = useNavigate();
@@ -59,7 +61,9 @@ function AdminPage() {
       <div className="flex">
         <AdminSidebar tab={tab} setTab={setTab} />
         <main className="flex-1 px-4 py-8 sm:px-8">
-          {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : isError || !data ? <AdminLoadError error={error} onRetry={() => refetch()} busy={isFetching} /> : (
+          {tab === "analytics" ? <AnalyticsSection />
+            : tab === "assistant" ? <DashboardAiAssistant days={30} />
+            : isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : isError || !data ? <AdminLoadError error={error} onRetry={() => refetch()} busy={isFetching} /> : (
             <>
               {tab === "flow" && <FlowTab data={data} />}
               {tab === "users" && <UsersTab users={data.users} onAction={refetch} />}
@@ -99,6 +103,8 @@ function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   const navigate = useNavigate();
   const items: Array<{ id: Tab; label: string; Icon: any }> = [
     { id: "flow", label: "Flux financier", Icon: TrendingUp },
+    { id: "analytics", label: "Analytique", Icon: BarChart3 },
+    { id: "assistant", label: "Assistant IA", Icon: Sparkles },
     { id: "users", label: "Utilisateurs", Icon: Users },
     { id: "strowallet", label: "Cartes émises", Icon: CreditCard },
     { id: "payments", label: "Paiements entrants", Icon: Wallet },
