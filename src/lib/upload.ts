@@ -24,3 +24,23 @@ export async function refreshSignedUrl(path: string): Promise<string> {
   if (error) throw error;
   return data.signedUrl;
 }
+
+// Uploads an identity document image to the private `kyc` bucket and returns a
+// long-lived signed URL. The card issuer fetches this URL server-side when
+// creating the card (`id_image`).
+export async function uploadIdImage(file: File): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Non connecté");
+  if (!file.type.startsWith("image/")) throw new Error("Le fichier doit être une image (JPG ou PNG)");
+  if (file.size > 8 * 1024 * 1024) throw new Error("Image trop lourde (max 8 Mo)");
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const name = `${user.id}/id-cards/${crypto.randomUUID()}.${ext}`;
+  const { error: upErr } = await supabase.storage.from("kyc").upload(name, file, {
+    contentType: file.type, upsert: false,
+  });
+  if (upErr) throw upErr;
+  const { data: signed, error: sErr } = await supabase.storage.from("kyc")
+    .createSignedUrl(name, 60 * 60 * 24 * 365);
+  if (sErr) throw sErr;
+  return signed.signedUrl;
+}
