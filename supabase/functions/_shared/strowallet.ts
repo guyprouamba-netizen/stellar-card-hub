@@ -52,6 +52,7 @@ export type NfcCardInput = {
   line1: string; city: string; state: string; postalCode: string; country: string; // 3-letter
   amountUsd: number; phone: string;
   nameOnCard?: string;
+  idImage?: string; // URL publique de l'image de la pièce d'identité (nouveau fournisseur)
 };
 
 function toMDY(dob: string): string {
@@ -71,6 +72,7 @@ export async function createNfcCard(p: NfcCardInput) {
     dob: toMDY(p.dob),
     id_type: p.idType,
     id_number: p.idNumber,
+    id_image: p.idImage,
     email: p.email,
     line1: p.line1,
     city: p.city,
@@ -215,7 +217,35 @@ export function extractNfcCard(resp: any): { card_id: string | null; last4: stri
   return { card_id: card_id ? String(card_id) : null, last4, brand: brand ? String(brand) : null };
 }
 
-export function extractCardDetails(resp: any): { number: string | null; cvv: string | null; expiry: string | null; holder: string | null; status: string | null; balance: number | null; last4: string | null; brand: string | null } {
+export type BillingAddress = {
+  line1: string | null; city: string | null; state: string | null;
+  postalCode: string | null; country: string | null;
+};
+
+export function extractBillingAddress(resp: any): BillingAddress | null {
+  const r = cardNode(resp);
+  const b = r.billing_address || r.billingAddress || r.billing || r.address || {};
+  const src = typeof b === "object" && b !== null && Object.keys(b).length ? b : r;
+  const line1 = src.line1 || src.address || src.street || src.address_line1 || null;
+  const city = src.city || null;
+  const state = src.state || src.region || null;
+  const postalCode = src.postal_code || src.postalCode || src.zip || src.zip_code || null;
+  const country = src.country || null;
+  if (!line1 && !city && !state && !postalCode && !country) return null;
+  return {
+    line1: line1 ? String(line1) : null,
+    city: city ? String(city) : null,
+    state: state ? String(state) : null,
+    postalCode: postalCode ? String(postalCode) : null,
+    country: country ? String(country) : null,
+  };
+}
+
+export function extractCardDetails(resp: any): {
+  number: string | null; cvv: string | null; expiry: string | null; holder: string | null;
+  status: string | null; balance: number | null; last4: string | null; brand: string | null;
+  cardNumberUrl: string | null; cvvUrl: string | null; billingAddress: BillingAddress | null;
+} {
   const r = cardNode(resp);
   const number = r.card_number || r.cardNumber || r.pan || null;
   const cvv = r.cvv || r.cvv2 || r.card_cvv || null;
@@ -226,6 +256,10 @@ export function extractCardDetails(resp: any): { number: string | null; cvv: str
   const rawLast4 = r.last4 || r.lastFour || r.last_four || (number ? String(number).slice(-4) : null);
   const last4 = rawLast4 && /^\d{4}$/.test(String(rawLast4)) ? String(rawLast4) : null;
   const brand = r.cardBrand || r.brand || r.card_brand || null;
+  // Nouveau fournisseur : le PAN et le CVV peuvent n'être exposés que via des URL
+  // sécurisées à afficher dans une iframe.
+  const cardNumberUrl = r.card_number_url || r.cardNumberUrl || null;
+  const cvvUrl = r.cvv_url || r.cvvUrl || null;
   return {
     number: number ? String(number) : null,
     cvv: cvv ? String(cvv) : null,
@@ -235,6 +269,9 @@ export function extractCardDetails(resp: any): { number: string | null; cvv: str
     balance: bal !== null && Number.isFinite(Number(bal)) ? Number(bal) : null,
     last4,
     brand: brand ? String(brand) : null,
+    cardNumberUrl: cardNumberUrl ? String(cardNumberUrl) : null,
+    cvvUrl: cvvUrl ? String(cvvUrl) : null,
+    billingAddress: extractBillingAddress(resp),
   };
 }
 

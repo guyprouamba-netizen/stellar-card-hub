@@ -15,6 +15,22 @@ import { Button } from "@/components/ui/button";
 
 const variantByIndex = ["primary", "teal", "sunset"] as const;
 
+type Billing = { line1?: string; city?: string; state?: string; postalCode?: string; country?: string };
+
+function pickBilling(raw: any): Billing | undefined {
+  const b = raw?.billing_address ?? raw?.billingAddress ?? raw?.billing ?? raw?.address;
+  const src = b && typeof b === "object" ? b : raw;
+  if (!src || typeof src !== "object") return undefined;
+  const out: Billing = {
+    line1: src.line1 || src.address || src.street || src.address_line1 || undefined,
+    city: src.city || undefined,
+    state: src.state || src.region || undefined,
+    postalCode: src.postal_code || src.postalCode || src.zip || src.zip_code || undefined,
+    country: src.country || undefined,
+  };
+  return Object.values(out).some(Boolean) ? out : undefined;
+}
+
 function statusLabel(s: string) {
   switch (s) {
     case "active": return "Active";
@@ -64,9 +80,13 @@ function CardsPage() {
   }>;
 
   const fetchDetails = useServerFn(cardDetails);
-  const [details, setDetails] = useState<Record<string, { number?: string; cvv?: string; expiry?: string; holder?: string; balance?: number }>>({});
+  const [details, setDetails] = useState<Record<string, {
+    number?: string; cvv?: string; expiry?: string; holder?: string; balance?: number;
+    numberUrl?: string; cvvUrl?: string; billing?: Billing;
+  }>>({});
   async function loadDetails(provider_card_id: string) {
     const cur = details[provider_card_id];
+    if (cur?.numberUrl && cur?.cvvUrl) return;
     if (cur?.number && cur.number !== "0000000000000000" && cur?.cvv && cur?.expiry) return;
     try {
       const r: any = await fetchDetails({ data: { card_id: provider_card_id } });
@@ -76,12 +96,20 @@ function CardsPage() {
       const raw = root?.response?.card_detail ?? root?.data?.card_detail ?? root?.card_detail ?? root?.response ?? root?.data ?? root ?? {};
       const number = raw.card_number || raw.cardNumber || raw.pan || null;
       const cvv = raw.cvv || raw.cvv2 || raw.card_cvv || null;
+      const numberUrl = raw.card_number_url || raw.cardNumberUrl || null;
+      const cvvUrl = raw.cvv_url || raw.cvvUrl || null;
       const exp = raw.expiry || raw.expiry_date || raw.expiration || (raw.expiry_month && raw.expiry_year ? `${String(raw.expiry_month).padStart(2, "0")}/${String(raw.expiry_year).slice(-2)}` : null);
       const holder = raw.name_on_card || raw.card_holder_name || raw.holder || raw.card_holder || raw.card_name || raw.name || null;
       const bal = raw.balance ?? raw.card_balance;
-      setDetails((d) => ({ ...d, [provider_card_id]: { number: number ?? undefined, cvv: cvv ?? undefined, expiry: exp ?? undefined, holder: holder ?? undefined, balance: bal != null && Number.isFinite(Number(bal)) ? Number(bal) : undefined } }));
+      setDetails((d) => ({ ...d, [provider_card_id]: {
+        number: number ?? undefined, cvv: cvv ?? undefined, expiry: exp ?? undefined,
+        holder: holder ?? undefined,
+        balance: bal != null && Number.isFinite(Number(bal)) ? Number(bal) : undefined,
+        numberUrl: numberUrl ?? undefined, cvvUrl: cvvUrl ?? undefined,
+        billing: pickBilling(raw),
+      } }));
       // Si toujours rien après l'appel, on déclenche un refresh complet côté serveur (qui réessaie l'activation et met à jour la BDD).
-      if (!number || !cvv) {
+      if (!numberUrl && (!number || !cvv)) {
         try {
           await doRefresh({ data: { card_id: provider_card_id } });
           qc.invalidateQueries({ queryKey: ["my-cards"] });
@@ -109,7 +137,11 @@ function CardsPage() {
         const cvv = cached.cvv || cached.cvv2;
         const exp = cached.expiry || (cached.expiry_month && cached.expiry_year ? `${String(cached.expiry_month).padStart(2, "0")}/${String(cached.expiry_year).slice(-2)}` : null);
         const holder = cached.card_holder_name || cached.name_on_card || cached.card_name;
-        setDetails((d) => ({ ...d, [c.provider_card_id!]: { number: number ?? undefined, cvv: cvv ?? undefined, expiry: exp ?? undefined, holder: holder ?? undefined } }));
+        setDetails((d) => ({ ...d, [c.provider_card_id!]: {
+          number: number ?? undefined, cvv: cvv ?? undefined, expiry: exp ?? undefined, holder: holder ?? undefined,
+          numberUrl: cached.card_number_url ?? undefined, cvvUrl: cached.cvv_url ?? undefined,
+          billing: pickBilling(cached),
+        } }));
       }
       // Auto-load complete details from issuer so balance / CVV / holder / expiry
       // show up immediately without needing to flip the card.
@@ -161,6 +193,8 @@ function CardsPage() {
             const liveBalance = det?.balance;
             const apiBalance = liveBalance != null ? Number(liveBalance) : (apiDetail?.balance != null ? Number(apiDetail.balance) : Number(c.balance));
             const isDummyPan = !det?.number || /^0+$/.test(String(det?.number || ""));
+            const secureNumberUrl = det?.numberUrl;
+            const secureCvvUrl = det?.cvvUrl;
             const number = locked
               ? (c.last4 && c.last4 !== "0000" ? `•••• •••• •••• ${c.last4}` : "•••• •••• •••• ••••")
               : (!isDummyPan ? det!.number! : (c.last4 && c.last4 !== "0000" ? `•••• •••• •••• ${c.last4}` : "•••• •••• •••• ••••"));
@@ -180,6 +214,8 @@ function CardsPage() {
                   holder={(det?.holder || "TITULAIRE").toUpperCase()}
                   expiry={expiryDisplay}
                   cvv={cvvDisplay}
+                  numberUrl={isTerminated ? undefined : secureNumberUrl}
+                  cvvUrl={isTerminated ? undefined : secureCvvUrl}
                   onFlip={(flipped) => { if (flipped && !locked && c.provider_card_id) loadDetails(c.provider_card_id); }}
                 />
                 </div>
@@ -205,9 +241,13 @@ function CardsPage() {
                   </div>
                 )}
                 {!locked && (
-                  <CardDetailsCopy det={{ number: !isDummyPan ? det?.number : undefined, cvv: cvvDisplay, expiry: det?.expiry && det.expiry !== "00/00" ? det.expiry : undefined, holder: det?.holder }} />
+                  <CardDetailsCopy
+                    det={{ number: !isDummyPan ? det?.number : undefined, cvv: cvvDisplay, expiry: det?.expiry && det.expiry !== "00/00" ? det.expiry : undefined, holder: det?.holder }}
+                    numberUrl={isTerminated ? undefined : secureNumberUrl}
+                    cvvUrl={isTerminated ? undefined : secureCvvUrl}
+                  />
                 )}
-                <BillingAddress />
+                <BillingAddress billing={det?.billing} />
                 <div className="mt-5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-semibold">{(c.brand || "Carte").toUpperCase()} {c.last4 ? `••${c.last4}` : ""}</p>
@@ -420,30 +460,54 @@ function WithdrawDialog({ cardId, balance, onClose, onDone }: { cardId: string; 
   );
 }
 
-function BillingAddress() {
+function BillingAddress({ billing }: { billing?: Billing }) {
+  const line1 = billing?.line1 || "3401 N. Miami Ave, Ste 230";
+  const city = billing?.city || "Miami";
+  const state = billing?.state || "Floride (FL)";
+  const postalCode = billing?.postalCode || "33127";
+  const country = billing?.country || "États-Unis (USA)";
   return (
     <div className="mt-4 rounded-2xl border border-border bg-surface-2/60 p-3">
       <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         <MapPin className="h-3.5 w-3.5" /> Adresse de facturation
+        {billing && <span className="rounded-full bg-success/15 px-2 py-0.5 text-[9px] font-semibold text-success">Émetteur</span>}
       </div>
       <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-        <div><span className="text-muted-foreground">Adresse</span><p className="font-medium">3401 N. Miami Ave, Ste 230</p></div>
-        <div><span className="text-muted-foreground">Ville</span><p className="font-medium">Miami</p></div>
-        <div><span className="text-muted-foreground">État</span><p className="font-medium">Floride (FL)</p></div>
-        <div><span className="text-muted-foreground">Code postal</span><p className="font-medium">33127</p></div>
-        <div className="col-span-2"><span className="text-muted-foreground">Pays</span><p className="font-medium">États-Unis (USA)</p></div>
+        <div><span className="text-muted-foreground">Adresse</span><p className="font-medium">{line1}</p></div>
+        <div><span className="text-muted-foreground">Ville</span><p className="font-medium">{city}</p></div>
+        <div><span className="text-muted-foreground">État</span><p className="font-medium">{state}</p></div>
+        <div><span className="text-muted-foreground">Code postal</span><p className="font-medium">{postalCode}</p></div>
+        <div className="col-span-2"><span className="text-muted-foreground">Pays</span><p className="font-medium">{country}</p></div>
       </div>
     </div>
   );
 }
 
-function CardDetailsCopy({ det }: { det?: { number?: string; cvv?: string; expiry?: string; holder?: string } }) {
-  if (!det || (!det.number && !det.cvv && !det.expiry && !det.holder)) return null;
+function CardDetailsCopy({ det, numberUrl, cvvUrl }: {
+  det?: { number?: string; cvv?: string; expiry?: string; holder?: string };
+  numberUrl?: string; cvvUrl?: string;
+}) {
+  if (!det && !numberUrl && !cvvUrl) return null;
+  if (!numberUrl && !cvvUrl && det && !det.number && !det.cvv && !det.expiry && !det.holder) return null;
   const copy = async (val?: string, label?: string) => {
     if (!val) return;
     try { await navigator.clipboard.writeText(val); toast.success(`${label} copié`); }
     catch { toast.error("Copie impossible"); }
   };
+  const SecureRow = ({ label, src, height }: { label: string; src: string; height: number }) => (
+    <div className="rounded-lg bg-surface-2/60 px-3 py-2">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label} · affichage sécurisé</p>
+      <iframe
+        src={src}
+        title={label}
+        width="100%"
+        height={height}
+        frameBorder="0"
+        scrolling="no"
+        style={{ border: "none", overflow: "hidden" }}
+      />
+    </div>
+  );
   const Row = ({ label, value }: { label: string; value?: string }) => (
     <div className="flex items-center justify-between gap-2 rounded-lg bg-surface-2/60 px-3 py-2">
       <div className="min-w-0">
@@ -462,12 +526,17 @@ function CardDetailsCopy({ det }: { det?: { number?: string; cvv?: string; expir
   );
   return (
     <div className="mt-4 grid gap-2">
-      <Row label="Numéro" value={det.number} />
+      {numberUrl ? <SecureRow label="Numéro" src={numberUrl} height={35} /> : <Row label="Numéro" value={det?.number} />}
       <div className="grid grid-cols-2 gap-2">
-        <Row label="Expiration" value={det.expiry} />
-        <Row label="CVV" value={det.cvv} />
+        <Row label="Expiration" value={det?.expiry} />
+        {cvvUrl ? <SecureRow label="CVV" src={cvvUrl} height={35} /> : <Row label="CVV" value={det?.cvv} />}
       </div>
-      <Row label="Titulaire" value={det.holder} />
+      <Row label="Titulaire" value={det?.holder} />
+      {(numberUrl || cvvUrl) && (
+        <p className="text-[10px] text-muted-foreground">
+          Pour votre sécurité, le numéro et le CVV sont affichés directement par la banque émettrice dans un cadre sécurisé.
+        </p>
+      )}
     </div>
   );
 }

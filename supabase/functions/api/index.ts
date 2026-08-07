@@ -124,9 +124,12 @@ async function refundFailedCardIssuance(admin: any, userId: string, providerCard
 
 // Détecte si la réponse Strowallet indique un échec définitif de provisionnement
 // (status "failed" et aucun PAN). On ne traite PAS "pending"/"processing" comme un échec.
-function isIssuerFailed(details: { status: string | null; number: string | null }) {
+function isIssuerFailed(details: { status: string | null; number: string | null; cardNumberUrl?: string | null }) {
   const st = String(details.status || "").toLowerCase();
-  const noPan = !details.number || /^0+$/.test(String(details.number || ""));
+  // Le nouveau fournisseur peut ne renvoyer que `card_number_url` (affichage sécurisé) :
+  // la présence de cette URL signifie que la carte est bien provisionnée.
+  const hasSecureUrl = !!details.cardNumberUrl;
+  const noPan = !hasSecureUrl && (!details.number || /^0+$/.test(String(details.number || "")));
   return st === "failed" && noPan;
 }
 
@@ -566,9 +569,12 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const cost = computeCardCost(amountUsd, cfg);
     const requiredXof = cost.totalXof;
     // Validation des infos perso requises par l'API NFC
-    const required = ["firstName","lastName","dob","idType","idNumber","line1","city","state","postalCode","country","phone"] as const;
+    const required = ["firstName","lastName","dob","idType","idNumber","line1","city","state","postalCode","country","phone","idImage"] as const;
     for (const k of required) {
       if (!data?.[k] || String(data[k]).trim() === "") return { ok: false, error: `Champ requis manquant : ${k}` };
+    }
+    if (!/^https?:\/\//i.test(String(data.idImage))) {
+      return { ok: false, error: "La photo de la pièce d'identité est requise (téléversez-la avant d'émettre la carte)." };
     }
     const { data: wallet, error: wErr } = await userClient.from("wallets").select("balance,id").eq("user_id", userId).eq("currency", "XOF").maybeSingle();
     if (wErr) throw new Error(wErr.message);
@@ -583,6 +589,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         postalCode: data.postalCode, country: data.country,
         amountUsd, phone: data.phone,
         nameOnCard: data.nameOnCard,
+        idImage: data.idImage,
       });
       const { card_id, last4, brand } = SW.extractNfcCard(res);
       // La nouvelle API NFC ne demande aucune validation : la carte doit être livrée active.
@@ -647,7 +654,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     let res = await SW.getNfcCardDetails(data.card_id);
     let details = SW.extractCardDetails(res);
     const status = String(details.status || "").toLowerCase();
-    const missingPan = !details.number || /^0+$/.test(String(details.number || ""));
+    const missingPan = !details.cardNumberUrl && (!details.number || /^0+$/.test(String(details.number || "")));
     // Échec définitif côté émetteur : on rembourse l'émission et on marque la carte
     // comme résiliée pour que l'utilisateur puisse en créer une nouvelle.
     if (isIssuerFailed(details)) {
@@ -671,7 +678,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
           const ensured = await SW.ensureNfcCardActive(data.card_id);
           res = ensured.details;
           details = SW.extractCardDetails(res);
-          const finalStatus = String(details.status || "").toLowerCase() === "active" || (details.number && details.cvv) ? "active" : "pending";
+          const finalStatus = String(details.status || "").toLowerCase() === "active" || (details.number && details.cvv) || (details.cardNumberUrl && details.cvvUrl) ? "active" : "pending";
           await admin.from("cards").update({
             status: finalStatus,
             failed_attempts: 0,

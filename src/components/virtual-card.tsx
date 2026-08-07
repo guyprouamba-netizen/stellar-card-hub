@@ -18,6 +18,8 @@ export function VirtualCard({
   balance,
   brand = "Visa",
   cvv,
+  numberUrl,
+  cvvUrl,
   onFlip,
   floating = false,
   className = "",
@@ -29,6 +31,8 @@ export function VirtualCard({
   balance?: string;
   brand?: string;
   cvv?: string;
+  numberUrl?: string;
+  cvvUrl?: string;
   onFlip?: (flipped: boolean) => void;
   floating?: boolean;
   className?: string;
@@ -79,12 +83,26 @@ export function VirtualCard({
               <div className="mb-2 flex items-center gap-3">
                 <div className="h-7 w-10 rounded-md bg-gradient-to-br from-yellow-200 to-yellow-500 shadow-inner sm:h-8 sm:w-11" />
               </div>
-              <p
-                className="font-mono text-[15px] font-semibold tracking-[0.1em] leading-tight sm:text-2xl sm:tracking-[0.18em] select-all cursor-text"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {number ? formatPan(number) : "•••• •••• •••• ••••"}
-              </p>
+              {numberUrl ? (
+                <div className="w-full" onClick={(e) => e.stopPropagation()}>
+                  <iframe
+                    src={numberUrl}
+                    title="Numéro de carte sécurisé"
+                    width="100%"
+                    height="32"
+                    frameBorder="0"
+                    scrolling="no"
+                    style={{ border: "none", overflow: "hidden", colorScheme: "normal" }}
+                  />
+                </div>
+              ) : (
+                <p
+                  className="font-mono text-[15px] font-semibold tracking-[0.1em] leading-tight sm:text-2xl sm:tracking-[0.18em] select-all cursor-text"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {number ? formatPan(number) : "•••• •••• •••• ••••"}
+                </p>
+              )}
               <div className="mt-3 flex items-end justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-[9px] uppercase tracking-[0.16em] opacity-60 sm:text-[10px] sm:tracking-widest">Titulaire</p>
@@ -112,7 +130,19 @@ export function VirtualCard({
               className="grid h-9 min-w-[72px] place-items-center rounded bg-white px-2.5 text-right font-mono text-base font-bold tracking-[0.16em] text-black sm:h-10 sm:min-w-[80px] sm:px-3 sm:text-lg sm:tracking-widest select-all cursor-text"
               onClick={(e) => e.stopPropagation()}
             >
-              {cvv || "•••"}
+              {cvvUrl ? (
+                <iframe
+                  src={cvvUrl}
+                  title="CVV sécurisé"
+                  width="100%"
+                  height="30"
+                  frameBorder="0"
+                  scrolling="no"
+                  style={{ border: "none", overflow: "hidden" }}
+                />
+              ) : (
+                cvv || "•••"
+              )}
             </div>
           </div>
           <div className="absolute inset-x-4 top-32 sm:inset-x-6 sm:top-40">

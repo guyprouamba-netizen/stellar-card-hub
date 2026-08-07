@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Loader2, ArrowRight, Check, AlertTriangle, CreditCard, Wallet } from "lucide-react";
+import { X, Loader2, ArrowRight, Check, AlertTriangle, CreditCard, Wallet, Upload, Image as ImageIcon } from "lucide-react";
 import { cardApi, walletApi } from "@/lib/api";
+import { uploadIdImage } from "@/lib/upload";
 
 type Brand = "visa" | "mastercard";
 const MIN_INITIAL_FUND_USD = 3;
@@ -35,6 +36,10 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [idImage, setIdImage] = useState<string | null>(null);
+  const [idPreview, setIdPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -50,11 +55,27 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
 
   function setField<K extends keyof Form>(k: K, v: Form[K]) { setForm((f) => ({ ...f, [k]: v })); }
 
+  async function pickIdImage(file?: File | null) {
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const url = await uploadIdImage(file);
+      setIdImage(url);
+      setIdPreview(URL.createObjectURL(file));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Téléversement de la pièce impossible");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   function validate(): string | null {
     if (!form.firstName.trim() || !form.lastName.trim()) return "Prénom et nom requis";
     if (!Number.isFinite(amount) || amount < MIN_INITIAL_FUND_USD) return "La recharge initiale minimum est de 3 USD";
     if (!/^\d{4}-\d{2}-\d{2}$/.test(form.dob)) return "Date de naissance requise (AAAA-MM-JJ)";
     if (!form.idNumber.trim()) return "Numéro de pièce requis";
+    if (!idImage) return "Photo de la pièce d'identité requise (exigée par le nouvel émetteur)";
     if (!form.phone.trim()) return "Téléphone requis";
     if (!form.line1.trim() || !form.city.trim() || !form.state.trim() || !form.postalCode.trim()) return "Adresse complète requise";
     if (!/^[A-Z]{3}$/.test(form.country)) return "Code pays sur 3 lettres (ex: BFA, CIV, SEN)";
@@ -68,7 +89,7 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
     setSubmitting(true);
     setError(null);
     try {
-      const r = await cardApi.buy({ amount, currency: "USD", brand, ...form });
+      const r = await cardApi.buy({ amount, currency: "USD", brand, ...form, idImage: idImage ?? undefined });
       if ((r as any)?.ok === false) throw new Error((r as any).error || "Émission échouée");
       setSuccess(true);
       onIssued?.();
@@ -183,6 +204,37 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
                   <option value="drivers_license">Permis de conduire</option>
                 </select>
                 <Input ph="Numéro de pièce" v={form.idNumber} on={(v) => setField("idNumber", v)} colSpan />
+                <div className="col-span-2 rounded-xl border border-border bg-surface-2 p-3">
+                  <p className="text-xs font-semibold">Photo de la pièce d'identité <span className="text-destructive">*</span></p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">Obligatoire depuis le changement d'émetteur : photo nette, lisible, format JPG ou PNG.</p>
+                  <div className="mt-2 flex items-center gap-3">
+                    {idPreview ? (
+                      <img src={idPreview} alt="Aperçu de la pièce d'identité" className="h-14 w-20 rounded-lg object-cover ring-1 ring-border" />
+                    ) : (
+                      <div className="grid h-14 w-20 place-items-center rounded-lg border border-dashed border-border text-muted-foreground">
+                        <ImageIcon className="h-4 w-4" />
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => fileRef.current?.click()}
+                      disabled={uploading}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted disabled:opacity-50"
+                    >
+                      {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                      {idImage ? "Remplacer" : "Téléverser"}
+                    </button>
+                    {idImage && <span className="inline-flex items-center gap-1 text-[11px] font-medium text-success"><Check className="h-3.5 w-3.5" /> Envoyée</span>}
+                  </div>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => pickIdImage(e.target.files?.[0])}
+                  />
+                </div>
                 <Input ph="Téléphone (format local)" v={form.phone} on={(v) => setField("phone", v)} colSpan />
                 <Input ph="Adresse (ligne 1)" v={form.line1} on={(v) => setField("line1", v)} colSpan />
                 <Input ph="Ville" v={form.city} on={(v) => setField("city", v)} />
@@ -241,7 +293,7 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
 
             <button
               onClick={submit}
-              disabled={submitting || checking || !afford?.can_afford || amount < MIN_INITIAL_FUND_USD}
+              disabled={submitting || checking || uploading || !afford?.can_afford || amount < MIN_INITIAL_FUND_USD}
               className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? (

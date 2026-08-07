@@ -23,7 +23,7 @@ export const cardApi = {
     firstName: string; lastName: string; dob: string;
     idType: string; idNumber: string; phone: string;
     line1: string; city: string; state: string; postalCode: string; country: string;
-    nameOnCard?: string;
+    nameOnCard?: string; idImage?: string;
   }) => {
     return callApi("issueCard", {
       amountUsd: payload.amount,
@@ -33,6 +33,7 @@ export const cardApi = {
       dob: payload.dob,
       idType: payload.idType,
       idNumber: payload.idNumber,
+      idImage: payload.idImage,
       phone: payload.phone,
       line1: payload.line1,
       city: payload.city,
