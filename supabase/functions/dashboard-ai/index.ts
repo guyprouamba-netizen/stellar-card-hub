@@ -127,15 +127,6 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true });
     }
 
-    if (action === "__unused_history") {
-      const { data: conv } = await admin.from("dashboard_ai_conversations")
-        .select("id,title,updated_at").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(1).maybeSingle();
-      if (!conv) return jsonResponse({ ok: true, conversation: null, messages: [] });
-      const { data: msgs } = await admin.from("dashboard_ai_messages")
-        .select("id,role,content,created_at").eq("conversation_id", conv.id).order("created_at").limit(100);
-      return jsonResponse({ ok: true, conversation: conv, messages: msgs || [] });
-    }
-
     if (action !== "chat") return jsonResponse({ error: "Action inconnue" }, 400);
 
     const question = String(body.message || "").slice(0, 2000);
