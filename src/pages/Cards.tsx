@@ -456,30 +456,54 @@ function WithdrawDialog({ cardId, balance, onClose, onDone }: { cardId: string; 
   );
 }
 
-function BillingAddress() {
+function BillingAddress({ billing }: { billing?: Billing }) {
+  const line1 = billing?.line1 || "3401 N. Miami Ave, Ste 230";
+  const city = billing?.city || "Miami";
+  const state = billing?.state || "Floride (FL)";
+  const postalCode = billing?.postalCode || "33127";
+  const country = billing?.country || "États-Unis (USA)";
   return (
     <div className="mt-4 rounded-2xl border border-border bg-surface-2/60 p-3">
       <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         <MapPin className="h-3.5 w-3.5" /> Adresse de facturation
+        {billing && <span className="rounded-full bg-success/15 px-2 py-0.5 text-[9px] font-semibold text-success">Émetteur</span>}
       </div>
       <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-        <div><span className="text-muted-foreground">Adresse</span><p className="font-medium">3401 N. Miami Ave, Ste 230</p></div>
-        <div><span className="text-muted-foreground">Ville</span><p className="font-medium">Miami</p></div>
-        <div><span className="text-muted-foreground">État</span><p className="font-medium">Floride (FL)</p></div>
-        <div><span className="text-muted-foreground">Code postal</span><p className="font-medium">33127</p></div>
-        <div className="col-span-2"><span className="text-muted-foreground">Pays</span><p className="font-medium">États-Unis (USA)</p></div>
+        <div><span className="text-muted-foreground">Adresse</span><p className="font-medium">{line1}</p></div>
+        <div><span className="text-muted-foreground">Ville</span><p className="font-medium">{city}</p></div>
+        <div><span className="text-muted-foreground">État</span><p className="font-medium">{state}</p></div>
+        <div><span className="text-muted-foreground">Code postal</span><p className="font-medium">{postalCode}</p></div>
+        <div className="col-span-2"><span className="text-muted-foreground">Pays</span><p className="font-medium">{country}</p></div>
       </div>
     </div>
   );
 }
 
-function CardDetailsCopy({ det }: { det?: { number?: string; cvv?: string; expiry?: string; holder?: string } }) {
-  if (!det || (!det.number && !det.cvv && !det.expiry && !det.holder)) return null;
+function CardDetailsCopy({ det, numberUrl, cvvUrl }: {
+  det?: { number?: string; cvv?: string; expiry?: string; holder?: string };
+  numberUrl?: string; cvvUrl?: string;
+}) {
+  if (!det && !numberUrl && !cvvUrl) return null;
+  if (!numberUrl && !cvvUrl && det && !det.number && !det.cvv && !det.expiry && !det.holder) return null;
   const copy = async (val?: string, label?: string) => {
     if (!val) return;
     try { await navigator.clipboard.writeText(val); toast.success(`${label} copié`); }
     catch { toast.error("Copie impossible"); }
   };
+  const SecureRow = ({ label, src, height }: { label: string; src: string; height: number }) => (
+    <div className="rounded-lg bg-surface-2/60 px-3 py-2">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label} · affichage sécurisé</p>
+      <iframe
+        src={src}
+        title={label}
+        width="100%"
+        height={height}
+        frameBorder="0"
+        scrolling="no"
+        style={{ border: "none", overflow: "hidden" }}
+      />
+    </div>
+  );
   const Row = ({ label, value }: { label: string; value?: string }) => (
     <div className="flex items-center justify-between gap-2 rounded-lg bg-surface-2/60 px-3 py-2">
       <div className="min-w-0">
@@ -498,12 +522,17 @@ function CardDetailsCopy({ det }: { det?: { number?: string; cvv?: string; expir
   );
   return (
     <div className="mt-4 grid gap-2">
-      <Row label="Numéro" value={det.number} />
+      {numberUrl ? <SecureRow label="Numéro" src={numberUrl} height={35} /> : <Row label="Numéro" value={det?.number} />}
       <div className="grid grid-cols-2 gap-2">
-        <Row label="Expiration" value={det.expiry} />
-        <Row label="CVV" value={det.cvv} />
+        <Row label="Expiration" value={det?.expiry} />
+        {cvvUrl ? <SecureRow label="CVV" src={cvvUrl} height={35} /> : <Row label="CVV" value={det?.cvv} />}
       </div>
-      <Row label="Titulaire" value={det.holder} />
+      <Row label="Titulaire" value={det?.holder} />
+      {(numberUrl || cvvUrl) && (
+        <p className="text-[10px] text-muted-foreground">
+          Pour votre sécurité, le numéro et le CVV sont affichés directement par la banque émettrice dans un cadre sécurisé.
+        </p>
+      )}
     </div>
   );
 }
