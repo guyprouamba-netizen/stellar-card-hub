@@ -654,7 +654,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     let res = await SW.getNfcCardDetails(data.card_id);
     let details = SW.extractCardDetails(res);
     const status = String(details.status || "").toLowerCase();
-    const missingPan = !details.number || /^0+$/.test(String(details.number || ""));
+    const missingPan = !details.cardNumberUrl && (!details.number || /^0+$/.test(String(details.number || "")));
     // Échec définitif côté émetteur : on rembourse l'émission et on marque la carte
     // comme résiliée pour que l'utilisateur puisse en créer une nouvelle.
     if (isIssuerFailed(details)) {
@@ -678,7 +678,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
           const ensured = await SW.ensureNfcCardActive(data.card_id);
           res = ensured.details;
           details = SW.extractCardDetails(res);
-          const finalStatus = String(details.status || "").toLowerCase() === "active" || (details.number && details.cvv) ? "active" : "pending";
+          const finalStatus = String(details.status || "").toLowerCase() === "active" || (details.number && details.cvv) || (details.cardNumberUrl && details.cvvUrl) ? "active" : "pending";
           await admin.from("cards").update({
             status: finalStatus,
             failed_attempts: 0,
