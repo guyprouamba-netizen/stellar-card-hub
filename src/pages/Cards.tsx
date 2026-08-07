@@ -64,9 +64,13 @@ function CardsPage() {
   }>;
 
   const fetchDetails = useServerFn(cardDetails);
-  const [details, setDetails] = useState<Record<string, { number?: string; cvv?: string; expiry?: string; holder?: string; balance?: number }>>({});
+  const [details, setDetails] = useState<Record<string, {
+    number?: string; cvv?: string; expiry?: string; holder?: string; balance?: number;
+    numberUrl?: string; cvvUrl?: string; billing?: Billing;
+  }>>({});
   async function loadDetails(provider_card_id: string) {
     const cur = details[provider_card_id];
+    if (cur?.numberUrl && cur?.cvvUrl) return;
     if (cur?.number && cur.number !== "0000000000000000" && cur?.cvv && cur?.expiry) return;
     try {
       const r: any = await fetchDetails({ data: { card_id: provider_card_id } });
@@ -76,12 +80,20 @@ function CardsPage() {
       const raw = root?.response?.card_detail ?? root?.data?.card_detail ?? root?.card_detail ?? root?.response ?? root?.data ?? root ?? {};
       const number = raw.card_number || raw.cardNumber || raw.pan || null;
       const cvv = raw.cvv || raw.cvv2 || raw.card_cvv || null;
+      const numberUrl = raw.card_number_url || raw.cardNumberUrl || null;
+      const cvvUrl = raw.cvv_url || raw.cvvUrl || null;
       const exp = raw.expiry || raw.expiry_date || raw.expiration || (raw.expiry_month && raw.expiry_year ? `${String(raw.expiry_month).padStart(2, "0")}/${String(raw.expiry_year).slice(-2)}` : null);
       const holder = raw.name_on_card || raw.card_holder_name || raw.holder || raw.card_holder || raw.card_name || raw.name || null;
       const bal = raw.balance ?? raw.card_balance;
-      setDetails((d) => ({ ...d, [provider_card_id]: { number: number ?? undefined, cvv: cvv ?? undefined, expiry: exp ?? undefined, holder: holder ?? undefined, balance: bal != null && Number.isFinite(Number(bal)) ? Number(bal) : undefined } }));
+      setDetails((d) => ({ ...d, [provider_card_id]: {
+        number: number ?? undefined, cvv: cvv ?? undefined, expiry: exp ?? undefined,
+        holder: holder ?? undefined,
+        balance: bal != null && Number.isFinite(Number(bal)) ? Number(bal) : undefined,
+        numberUrl: numberUrl ?? undefined, cvvUrl: cvvUrl ?? undefined,
+        billing: pickBilling(raw),
+      } }));
       // Si toujours rien après l'appel, on déclenche un refresh complet côté serveur (qui réessaie l'activation et met à jour la BDD).
-      if (!number || !cvv) {
+      if (!numberUrl && (!number || !cvv)) {
         try {
           await doRefresh({ data: { card_id: provider_card_id } });
           qc.invalidateQueries({ queryKey: ["my-cards"] });
