@@ -137,7 +137,11 @@ function CardsPage() {
         const cvv = cached.cvv || cached.cvv2;
         const exp = cached.expiry || (cached.expiry_month && cached.expiry_year ? `${String(cached.expiry_month).padStart(2, "0")}/${String(cached.expiry_year).slice(-2)}` : null);
         const holder = cached.card_holder_name || cached.name_on_card || cached.card_name;
-        setDetails((d) => ({ ...d, [c.provider_card_id!]: { number: number ?? undefined, cvv: cvv ?? undefined, expiry: exp ?? undefined, holder: holder ?? undefined } }));
+        setDetails((d) => ({ ...d, [c.provider_card_id!]: {
+          number: number ?? undefined, cvv: cvv ?? undefined, expiry: exp ?? undefined, holder: holder ?? undefined,
+          numberUrl: cached.card_number_url ?? undefined, cvvUrl: cached.cvv_url ?? undefined,
+          billing: pickBilling(cached),
+        } }));
       }
       // Auto-load complete details from issuer so balance / CVV / holder / expiry
       // show up immediately without needing to flip the card.
