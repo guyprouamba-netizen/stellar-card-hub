@@ -569,9 +569,12 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const cost = computeCardCost(amountUsd, cfg);
     const requiredXof = cost.totalXof;
     // Validation des infos perso requises par l'API NFC
-    const required = ["firstName","lastName","dob","idType","idNumber","line1","city","state","postalCode","country","phone"] as const;
+    const required = ["firstName","lastName","dob","idType","idNumber","line1","city","state","postalCode","country","phone","idImage"] as const;
     for (const k of required) {
       if (!data?.[k] || String(data[k]).trim() === "") return { ok: false, error: `Champ requis manquant : ${k}` };
+    }
+    if (!/^https?:\/\//i.test(String(data.idImage))) {
+      return { ok: false, error: "La photo de la pièce d'identité est requise (téléversez-la avant d'émettre la carte)." };
     }
     const { data: wallet, error: wErr } = await userClient.from("wallets").select("balance,id").eq("user_id", userId).eq("currency", "XOF").maybeSingle();
     if (wErr) throw new Error(wErr.message);
@@ -586,6 +589,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         postalCode: data.postalCode, country: data.country,
         amountUsd, phone: data.phone,
         nameOnCard: data.nameOnCard,
+        idImage: data.idImage,
       });
       const { card_id, last4, brand } = SW.extractNfcCard(res);
       // La nouvelle API NFC ne demande aucune validation : la carte doit être livrée active.
