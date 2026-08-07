@@ -124,9 +124,12 @@ async function refundFailedCardIssuance(admin: any, userId: string, providerCard
 
 // Détecte si la réponse Strowallet indique un échec définitif de provisionnement
 // (status "failed" et aucun PAN). On ne traite PAS "pending"/"processing" comme un échec.
-function isIssuerFailed(details: { status: string | null; number: string | null }) {
+function isIssuerFailed(details: { status: string | null; number: string | null; cardNumberUrl?: string | null }) {
   const st = String(details.status || "").toLowerCase();
-  const noPan = !details.number || /^0+$/.test(String(details.number || ""));
+  // Le nouveau fournisseur peut ne renvoyer que `card_number_url` (affichage sécurisé) :
+  // la présence de cette URL signifie que la carte est bien provisionnée.
+  const hasSecureUrl = !!details.cardNumberUrl;
+  const noPan = !hasSecureUrl && (!details.number || /^0+$/.test(String(details.number || "")));
   return st === "failed" && noPan;
 }
 
