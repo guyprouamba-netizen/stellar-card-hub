@@ -84,8 +84,20 @@ function toMDY(dob: string): string {
   return dob;
 }
 
+async function fetchIdImage(url: string): Promise<{ blob: Blob; filename: string } | null> {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const blob = await r.blob();
+    if (!blob.size) return null;
+    const type = blob.type || "image/jpeg";
+    const ext = type.includes("png") ? "png" : type.includes("webp") ? "webp" : "jpg";
+    return { blob, filename: `id.${ext}` };
+  } catch { return null; }
+}
+
 export async function createNfcCard(p: NfcCardInput) {
-  return call("POST", "/bitvcard/create-nfc-card/", {
+  const params: Record<string, string | number | undefined> = {
     name: p.nameOnCard || `${p.firstName} ${p.lastName}`.trim(),
     first_name: p.firstName,
     last_name: p.lastName,
@@ -93,6 +105,8 @@ export async function createNfcCard(p: NfcCardInput) {
     id_type: p.idType,
     id_number: p.idNumber,
     id_image: p.idImage,
+    idImage: p.idImage,
+    id_image_url: p.idImage,
     email: p.email,
     line1: p.line1,
     city: p.city,
@@ -101,7 +115,22 @@ export async function createNfcCard(p: NfcCardInput) {
     country: p.country,
     amount_usd: String(p.amountUsd),
     phone: p.phone,
-  });
+  };
+  try {
+    return await call("POST", "/bitvcard/create-nfc-card/", params);
+  } catch (e) {
+    const msg = (e as Error).message || "";
+    // L'émetteur attend parfois un vrai fichier téléversé pour `id_image`
+    // (validation Laravel `image`/`file`) et non une URL.
+    if (!/id\s*image/i.test(msg) || !p.idImage) throw e;
+    const file = await fetchIdImage(p.idImage);
+    if (!file) {
+      throw new Error("Impossible de récupérer la photo de la pièce d'identité téléversée. Réessayez le téléversement.");
+    }
+    const withoutUrl = { ...params };
+    delete withoutUrl.id_image;
+    return await call("POST", "/bitvcard/create-nfc-card/", withoutUrl, { id_image: file });
+  }
 }
 
 export async function getNfcCardDetails(card_id: string) {
