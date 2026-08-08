@@ -19,13 +19,33 @@ function buildQuery(params: Record<string, string | number | undefined>) {
   return sp.toString();
 }
 
-async function call(method: "GET" | "POST", path: string, params: Record<string, string | number | undefined>): Promise<any> {
+async function call(
+  method: "GET" | "POST",
+  path: string,
+  params: Record<string, string | number | undefined>,
+  files?: Record<string, { blob: Blob; filename: string }>,
+): Promise<any> {
   // NOTE: l'API NFC (/bitvcard/...) n'accepte PAS le paramètre `mode`
   // (réservé à l'ancienne API USA virtual card). L'inclure provoque
   // 422 {"mode":["The selected mode is invalid."]}.
-  const qs = buildQuery({ public_key: pub(), ...params });
+  const all = { public_key: pub(), ...params };
+  const qs = buildQuery(all);
   const url = `${base()}${path}?${qs}`;
-  const res = await fetch(url, { method, headers: { Accept: "application/json" } });
+  const init: RequestInit = { method, headers: { Accept: "application/json" } };
+  if (method === "POST") {
+    // Certains endpoints (create-nfc-card) valident les champs depuis le CORPS
+    // de la requête et non la query string : on envoie les deux.
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(all)) {
+      if (v === undefined || v === null || v === "") continue;
+      fd.append(k, String(v));
+    }
+    for (const [k, f] of Object.entries(files ?? {})) {
+      fd.set(k, f.blob, f.filename);
+    }
+    init.body = fd;
+  }
+  const res = await fetch(url, init);
   const text = await res.text();
   let body: any = text;
   try { body = JSON.parse(text); } catch { /**/ }
