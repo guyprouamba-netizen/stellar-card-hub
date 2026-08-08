@@ -1,6 +1,6 @@
 const APP_SW_PATH = "/sw.js";
 const BUILD_KEY = "fasopay:build";
-const BUILD_ID = import.meta.env.VITE_BUILD_ID ?? String(__BUILD_ID__);
+const BUILD_ID = String(import.meta.env.VITE_BUILD_ID ?? "2026-08-08-analytics-nfc");
 
 function isPreviewHost(hostname: string) {
   return hostname.startsWith("id-preview--") || hostname.startsWith("preview--") ||
