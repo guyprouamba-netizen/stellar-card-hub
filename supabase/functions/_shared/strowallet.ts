@@ -19,13 +19,33 @@ function buildQuery(params: Record<string, string | number | undefined>) {
   return sp.toString();
 }
 
-async function call(method: "GET" | "POST", path: string, params: Record<string, string | number | undefined>): Promise<any> {
+async function call(
+  method: "GET" | "POST",
+  path: string,
+  params: Record<string, string | number | undefined>,
+  files?: Record<string, { blob: Blob; filename: string }>,
+): Promise<any> {
   // NOTE: l'API NFC (/bitvcard/...) n'accepte PAS le paramètre `mode`
   // (réservé à l'ancienne API USA virtual card). L'inclure provoque
   // 422 {"mode":["The selected mode is invalid."]}.
-  const qs = buildQuery({ public_key: pub(), ...params });
+  const all = { public_key: pub(), ...params };
+  const qs = buildQuery(all);
   const url = `${base()}${path}?${qs}`;
-  const res = await fetch(url, { method, headers: { Accept: "application/json" } });
+  const init: RequestInit = { method, headers: { Accept: "application/json" } };
+  if (method === "POST") {
+    // Certains endpoints (create-nfc-card) valident les champs depuis le CORPS
+    // de la requête et non la query string : on envoie les deux.
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(all)) {
+      if (v === undefined || v === null || v === "") continue;
+      fd.append(k, String(v));
+    }
+    for (const [k, f] of Object.entries(files ?? {})) {
+      fd.set(k, f.blob, f.filename);
+    }
+    init.body = fd;
+  }
+  const res = await fetch(url, init);
   const text = await res.text();
   let body: any = text;
   try { body = JSON.parse(text); } catch { /**/ }
@@ -64,8 +84,20 @@ function toMDY(dob: string): string {
   return dob;
 }
 
+async function fetchIdImage(url: string): Promise<{ blob: Blob; filename: string } | null> {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const blob = await r.blob();
+    if (!blob.size) return null;
+    const type = blob.type || "image/jpeg";
+    const ext = type.includes("png") ? "png" : type.includes("webp") ? "webp" : "jpg";
+    return { blob, filename: `id.${ext}` };
+  } catch { return null; }
+}
+
 export async function createNfcCard(p: NfcCardInput) {
-  return call("POST", "/bitvcard/create-nfc-card/", {
+  const params: Record<string, string | number | undefined> = {
     name: p.nameOnCard || `${p.firstName} ${p.lastName}`.trim(),
     first_name: p.firstName,
     last_name: p.lastName,
@@ -73,6 +105,8 @@ export async function createNfcCard(p: NfcCardInput) {
     id_type: p.idType,
     id_number: p.idNumber,
     id_image: p.idImage,
+    idImage: p.idImage,
+    id_image_url: p.idImage,
     email: p.email,
     line1: p.line1,
     city: p.city,
@@ -81,7 +115,22 @@ export async function createNfcCard(p: NfcCardInput) {
     country: p.country,
     amount_usd: String(p.amountUsd),
     phone: p.phone,
-  });
+  };
+  try {
+    return await call("POST", "/bitvcard/create-nfc-card/", params);
+  } catch (e) {
+    const msg = (e as Error).message || "";
+    // L'émetteur attend parfois un vrai fichier téléversé pour `id_image`
+    // (validation Laravel `image`/`file`) et non une URL.
+    if (!/id\s*image/i.test(msg) || !p.idImage) throw e;
+    const file = await fetchIdImage(p.idImage);
+    if (!file) {
+      throw new Error("Impossible de récupérer la photo de la pièce d'identité téléversée. Réessayez le téléversement.");
+    }
+    const withoutUrl = { ...params };
+    delete withoutUrl.id_image;
+    return await call("POST", "/bitvcard/create-nfc-card/", withoutUrl, { id_image: file });
+  }
 }
 
 export async function getNfcCardDetails(card_id: string) {
