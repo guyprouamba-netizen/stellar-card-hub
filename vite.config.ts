@@ -17,6 +17,9 @@ export default defineConfig({
     workbox: {
       navigateFallback: "/index.html",
       navigateFallbackDenylist: [/^\/~oauth/],
+      skipWaiting: true,
+      clientsClaim: true,
+      cleanupOutdatedCaches: true,
       runtimeCaching: [
         { urlPattern: ({ request }) => request.mode === "navigate", handler: "NetworkFirst", options: { cacheName: "fasopay-pages", networkTimeoutSeconds: 4 } },
         { urlPattern: ({ url }) => url.origin === self.location.origin && /\/assets\/.*\.[a-f0-9]+\./.test(url.pathname), handler: "CacheFirst", options: { cacheName: "fasopay-assets" } },
