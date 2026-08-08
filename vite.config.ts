@@ -15,6 +15,7 @@ export default defineConfig({
     filename: "sw.js",
     devOptions: { enabled: false },
     workbox: {
+      maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
       navigateFallback: "/index.html",
       navigateFallbackDenylist: [/^\/~oauth/],
       skipWaiting: true,
