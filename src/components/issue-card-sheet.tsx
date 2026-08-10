@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Loader2, ArrowRight, Check, AlertTriangle, CreditCard, Wallet, Upload, Image as ImageIcon } from "lucide-react";
 import { cardApi, walletApi } from "@/lib/api";
-import { uploadIdImage } from "@/lib/upload";
+import { prepareIdImageForIssuer } from "@/lib/upload";
 
 type Brand = "visa" | "mastercard";
 const MIN_INITIAL_FUND_USD = 3;
@@ -63,12 +63,12 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
     setUploading(true);
     setError(null);
     try {
-      const url = await uploadIdImage(file);
+      const imageData = await prepareIdImageForIssuer(file);
       if (side === "front") {
-        setIdImage(url);
+        setIdImage(imageData);
         setIdPreview(URL.createObjectURL(file));
       } else {
-        setIdImageBack(url);
+        setIdImageBack(imageData);
         setIdBackPreview(URL.createObjectURL(file));
       }
     } catch (e) {
@@ -247,7 +247,7 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
                       className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted disabled:opacity-50"
                     >
                       {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                      {idImage ? "Remplacer" : "Téléverser"}
+                       {idImage ? "Remplacer" : "Choisir"}
                     </button>
                     {idImage && <span className="inline-flex items-center gap-1 text-[11px] font-medium text-success"><Check className="h-3.5 w-3.5" /> Envoyée</span>}
                   </div>
@@ -272,7 +272,7 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
                       )}
                       <button type="button" onClick={() => backFileRef.current?.click()} disabled={uploading} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted disabled:opacity-50">
                         {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                        {idImageBack ? "Remplacer" : "Téléverser"}
+                         {idImageBack ? "Remplacer" : "Choisir"}
                       </button>
                       {idImageBack && <span className="inline-flex items-center gap-1 text-[11px] font-medium text-success"><Check className="h-3.5 w-3.5" /> Envoyée</span>}
                     </div>

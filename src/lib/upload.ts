@@ -46,6 +46,26 @@ export async function uploadIdImage(file: File): Promise<string> {
   return signed.signedUrl;
 }
 
+// Prépare la pièce localement et la retourne directement dans la requête
+// d'émission. Aucun stockage intermédiaire ni URL signée n'est utilisé.
+export async function prepareIdImageForIssuer(file: File): Promise<string> {
+  if (!['image/jpeg', 'image/png'].includes(file.type)) {
+    throw new Error('Le fichier doit être une image JPG ou PNG');
+  }
+  if (file.size > 12 * 1024 * 1024) {
+    throw new Error('Image source trop lourde (max 12 Mo)');
+  }
+  const prepared = await prepareIdentityImage(file);
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => typeof reader.result === 'string'
+      ? resolve(reader.result)
+      : reject(new Error('Impossible de préparer cette image'));
+    reader.onerror = () => reject(new Error('Impossible de lire cette image'));
+    reader.readAsDataURL(prepared);
+  });
+}
+
 async function prepareIdentityImage(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file);
   let width = bitmap.width;
