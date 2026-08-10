@@ -114,7 +114,7 @@ export async function createNfcCard(p: NfcCardInput) {
     country: p.country,
     amount_usd: String(p.amountUsd),
     phone: p.phone,
-    brand: p.brand || "visa",
+    brand: String(p.brand || "visa").toLowerCase() === "mastercard" ? "MasterCard" : "Visa",
   };
   if (!p.idImage) throw new Error("La photo recto de la pièce d'identité est requise");
   const front = await fetchIdImage(p.idImage);
