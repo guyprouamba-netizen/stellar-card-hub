@@ -573,10 +573,14 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     for (const k of required) {
       if (!data?.[k] || String(data[k]).trim() === "") return { ok: false, error: `Champ requis manquant : ${k}` };
     }
-    if (!/^https?:\/\//i.test(String(data.idImage))) {
-      return { ok: false, error: "La photo de la pièce d'identité est requise (téléversez-la avant d'émettre la carte)." };
+    const isAcceptedImageInput = (value: unknown) => {
+      const image = String(value || "");
+      return /^https?:\/\//i.test(image) || /^data:image\/(jpeg|png);base64,/i.test(image);
+    };
+    if (!isAcceptedImageInput(data.idImage)) {
+      return { ok: false, error: "La photo doit être une image JPG ou PNG valide." };
     }
-    if (String(data.brand || "visa").toLowerCase() === "mastercard" && !data.idImageBack) {
+    if (String(data.brand || "visa").toLowerCase() === "mastercard" && !isAcceptedImageInput(data.idImageBack)) {
       return { ok: false, error: "La photo verso de la pièce d'identité est requise pour une Mastercard." };
     }
     const { data: wallet, error: wErr } = await userClient.from("wallets").select("balance,id").eq("user_id", userId).eq("currency", "XOF").maybeSingle();

@@ -85,11 +85,19 @@ function toMDY(dob: string): string {
   return dob;
 }
 
-async function fetchIdImage(url: string): Promise<{ blob: Blob; filename: string } | null> {
+async function fetchIdImage(source: string): Promise<{ blob: Blob; filename: string } | null> {
   try {
-    const r = await fetch(url);
-    if (!r.ok) return null;
-    const bytes = new Uint8Array(await r.arrayBuffer());
+    let bytes: Uint8Array;
+    if (source.startsWith("data:")) {
+      const match = source.match(/^data:image\/(jpeg|png);base64,([A-Za-z0-9+/=]+)$/i);
+      if (!match) return null;
+      const binary = atob(match[2]);
+      bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    } else {
+      const response = await fetch(source);
+      if (!response.ok) return null;
+      bytes = new Uint8Array(await response.arrayBuffer());
+    }
     if (!bytes.length) return null;
 
     // Les URLs signées du stockage peuvent répondre avec application/octet-stream,
