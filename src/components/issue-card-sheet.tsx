@@ -16,7 +16,7 @@ type Form = {
 };
 
 const DEFAULT_FORM: Form = {
-  firstName: "", lastName: "", otherNames: "", email: "", dob: "", idType: "national_id",
+  firstName: "", lastName: "", otherNames: "", email: "", dob: "", idType: "NIN",
   idNumber: "", phone: "",
   // Adresse de facturation officielle Faso-Invest (Miami) — pré-remplie pour
   // accélérer l'émission. L'utilisateur peut toujours la modifier.
@@ -27,12 +27,12 @@ const DEFAULT_FORM: Form = {
   country: "USA",
 };
 
-// Le compte émetteur n'est pas encore provisionné pour Mastercard : passer à
-// `true` dès que l'émetteur active le réseau.
-const MASTERCARD_ENABLED = false;
+// Le compte émetteur n'émet que du Visa pour l'instant, mais c'est le
+// formulaire complet (ex-Mastercard) qui passe le mieux sa validation KYC.
+const ISSUED_BRAND: Brand = "visa";
 
 export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onClose: () => void; onIssued?: () => void }) {
-  const [brand, setBrand] = useState<Brand>("visa");
+  const brand: Brand = ISSUED_BRAND;
   const [amount, setAmount] = useState<number>(MIN_INITIAL_FUND_USD);
   const [form, setForm] = useState<Form>(DEFAULT_FORM);
   const [checking, setChecking] = useState(false);
@@ -91,8 +91,8 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
       return "Ce type de pièce exige un numéro de 11 chiffres (sinon choisissez Passeport)";
     }
     if (!idImage) return "Photo de la pièce d'identité requise (exigée par le nouvel émetteur)";
-    if (brand === "mastercard" && !form.email.trim()) return "Adresse email requise pour une Mastercard";
-    if (brand === "mastercard" && !idImageBack) return "Photo verso de la pièce d'identité requise pour une Mastercard";
+    if (!form.email.trim()) return "Adresse email requise";
+    if (!idImageBack) return "Photo verso de la pièce d'identité requise";
     if (!form.phone.trim()) return "Téléphone requis";
     if (!form.line1.trim() || !form.city.trim() || !form.state.trim() || !form.postalCode.trim()) return "Adresse complète requise";
     if (!/^[A-Z]{3}$/.test(form.country)) return "Code pays sur 3 lettres (ex: BFA, CIV, SEN)";
@@ -149,37 +149,15 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
             {/* Brand */}
             <div className="mt-6">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Réseau</p>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                {(["visa", "mastercard"] as Brand[]).map((b) => (
-                  <button
-                    key={b}
-                    disabled={b === "mastercard" && !MASTERCARD_ENABLED}
-                    onClick={() => {
-                      setBrand(b);
-                      setField("idType", b === "mastercard" ? "NIN" : "national_id");
-                    }}
-                    className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-semibold capitalize transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                      brand === b ? "border-primary bg-primary/10" : "border-border bg-surface-2 hover:bg-muted"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4" /> {b}
-                    </span>
-                    {b === "mastercard" && !MASTERCARD_ENABLED ? (
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        Bientôt
-                      </span>
-                    ) : (
-                      brand === b && <Check className="h-4 w-4 text-primary" />
-                    )}
-                  </button>
-                ))}
+              <div className="mt-2 flex items-center justify-between rounded-2xl border border-primary bg-primary/10 px-4 py-3 text-sm font-semibold">
+                <span className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" /> Visa
+                </span>
+                <Check className="h-4 w-4 text-primary" />
               </div>
-              {!MASTERCARD_ENABLED && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Le réseau Mastercard n’est pas encore activé sur votre compte émetteur : toutes les cartes sont émises en Visa.
-                </p>
-              )}
+              <p className="mt-2 text-xs text-muted-foreground">
+                Toutes les cartes sont émises sur le réseau Visa.
+              </p>
             </div>
 
             {/* Initial funding */}
@@ -225,27 +203,17 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <Input ph="Prénom" v={form.firstName} on={(v) => setField("firstName", v)} />
                 <Input ph="Nom" v={form.lastName} on={(v) => setField("lastName", v)} />
-                {brand === "mastercard" && <Input ph="Autres noms (facultatif)" v={form.otherNames} on={(v) => setField("otherNames", v)} colSpan />}
-                {brand === "mastercard" && <Input ph="Adresse email" type="email" v={form.email} on={(v) => setField("email", v)} colSpan />}
+                <Input ph="Autres noms (facultatif)" v={form.otherNames} on={(v) => setField("otherNames", v)} colSpan />
+                <Input ph="Adresse email" type="email" v={form.email} on={(v) => setField("email", v)} colSpan />
                 <Input ph="Date de naissance (AAAA-MM-JJ)" type="date" v={form.dob} on={(v) => setField("dob", v)} colSpan />
                 <select
                   value={form.idType}
                   onChange={(e) => setField("idType", e.target.value as Form["idType"])}
                   className="col-span-2 rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none"
                 >
-                  {brand === "mastercard" ? (
-                    <>
-                      <option value="NIN">NIN</option>
-                      <option value="BVN">BVN</option>
-                      <option value="passport">Passeport international</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="national_id">Pièce d'identité nationale</option>
-                      <option value="passport">Passeport</option>
-                      <option value="drivers_license">Permis de conduire</option>
-                    </>
-                  )}
+                  <option value="NIN">NIN</option>
+                  <option value="BVN">BVN</option>
+                  <option value="passport">Passeport international</option>
                 </select>
                 <Input ph="Numéro de pièce" v={form.idNumber} on={(v) => setField("idNumber", v)} colSpan />
                 <div className="col-span-2 rounded-xl border border-border bg-surface-2 p-3">
@@ -279,8 +247,7 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
                     onChange={(e) => pickIdImage(e.target.files?.[0])}
                   />
                 </div>
-                {brand === "mastercard" && (
-                  <div className="col-span-2 rounded-xl border border-border bg-surface-2 p-3">
+                <div className="col-span-2 rounded-xl border border-border bg-surface-2 p-3">
                     <p className="text-xs font-semibold">Verso de la pièce d'identité <span className="text-destructive">*</span></p>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">JPG ou PNG, compression automatique sous 1 Mo.</p>
                     <div className="mt-2 flex items-center gap-3">
@@ -296,8 +263,7 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
                       {idImageBack && <span className="inline-flex items-center gap-1 text-[11px] font-medium text-success"><Check className="h-3.5 w-3.5" /> Envoyée</span>}
                     </div>
                     <input ref={backFileRef} type="file" accept="image/jpeg,image/png" capture="environment" className="hidden" onChange={(e) => pickIdImage(e.target.files?.[0], "back")} />
-                  </div>
-                )}
+                </div>
                 <Input ph="Téléphone (format local)" v={form.phone} on={(v) => setField("phone", v)} colSpan />
                 <Input ph="Adresse (ligne 1)" v={form.line1} on={(v) => setField("line1", v)} colSpan />
                 <Input ph="Ville" v={form.city} on={(v) => setField("city", v)} />
