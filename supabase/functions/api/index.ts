@@ -576,6 +576,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!/^https?:\/\//i.test(String(data.idImage))) {
       return { ok: false, error: "La photo de la pièce d'identité est requise (téléversez-la avant d'émettre la carte)." };
     }
+    if (String(data.brand || "visa").toLowerCase() === "mastercard" && !data.idImageBack) {
+      return { ok: false, error: "La photo verso de la pièce d'identité est requise pour une Mastercard." };
+    }
     const { data: wallet, error: wErr } = await userClient.from("wallets").select("balance,id").eq("user_id", userId).eq("currency", "XOF").maybeSingle();
     if (wErr) throw new Error(wErr.message);
     if (!wallet || Number(wallet.balance) < requiredXof) return { ok: false, error: "Solde XOF insuffisant", required: requiredXof, available: Number(wallet?.balance ?? 0) };
@@ -583,13 +586,15 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (debErr) throw new Error(debErr.message);
     try {
       const res = await SW.createNfcCard({
-        firstName: data.firstName, lastName: data.lastName, dob: data.dob,
-        idType: data.idType, idNumber: data.idNumber, email,
+        firstName: data.firstName, lastName: data.lastName, otherNames: data.otherNames, dob: data.dob,
+        idType: data.idType, idNumber: data.idNumber, email: data.email || email,
         line1: data.line1, city: data.city, state: data.state,
         postalCode: data.postalCode, country: data.country,
         amountUsd, phone: data.phone,
         nameOnCard: data.nameOnCard,
+        brand: String(data.brand || "visa").toLowerCase(),
         idImage: data.idImage,
+        idImageBack: data.idImageBack,
       });
       const { card_id, last4, brand } = SW.extractNfcCard(res);
       // La nouvelle API NFC ne demande aucune validation : la carte doit être livrée active.

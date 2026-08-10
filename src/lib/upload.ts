@@ -31,16 +31,40 @@ export async function refreshSignedUrl(path: string): Promise<string> {
 export async function uploadIdImage(file: File): Promise<string> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Non connecté");
-  if (!file.type.startsWith("image/")) throw new Error("Le fichier doit être une image (JPG ou PNG)");
-  if (file.size > 8 * 1024 * 1024) throw new Error("Image trop lourde (max 8 Mo)");
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  if (!["image/jpeg", "image/png"].includes(file.type)) throw new Error("Le fichier doit être une image JPG ou PNG");
+  if (file.size > 12 * 1024 * 1024) throw new Error("Image source trop lourde (max 12 Mo)");
+  const prepared = await prepareIdentityImage(file);
+  const ext = prepared.type === "image/png" ? "png" : "jpg";
   const name = `${user.id}/id-cards/${crypto.randomUUID()}.${ext}`;
-  const { error: upErr } = await supabase.storage.from("kyc").upload(name, file, {
-    contentType: file.type, upsert: false,
+  const { error: upErr } = await supabase.storage.from("kyc").upload(name, prepared, {
+    contentType: prepared.type, upsert: false,
   });
   if (upErr) throw upErr;
   const { data: signed, error: sErr } = await supabase.storage.from("kyc")
     .createSignedUrl(name, 60 * 60 * 24 * 365);
   if (sErr) throw sErr;
   return signed.signedUrl;
+}
+
+async function prepareIdentityImage(file: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  let width = bitmap.width;
+  let height = bitmap.height;
+  if (Math.max(width, height) > 1800) {
+    const ratio = 1800 / Math.max(width, height);
+    width = Math.round(width * ratio);
+    height = Math.round(height * ratio);
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Impossible de préparer cette image");
+  context.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
+  for (const quality of [0.86, 0.76, 0.66, 0.56, 0.46]) {
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+    if (blob && blob.size <= 900 * 1024) return blob;
+  }
+  throw new Error("L’image reste trop lourde après compression. Recadrez-la puis réessayez.");
 }

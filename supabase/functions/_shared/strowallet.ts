@@ -72,7 +72,8 @@ export type NfcCardInput = {
   line1: string; city: string; state: string; postalCode: string; country: string; // 3-letter
   amountUsd: number; phone: string;
   nameOnCard?: string;
-  idImage?: string; // URL publique de l'image de la pièce d'identité (nouveau fournisseur)
+  brand?: string; otherNames?: string;
+  idImage?: string; idImageBack?: string;
 };
 
 function toMDY(dob: string): string {
@@ -101,12 +102,10 @@ export async function createNfcCard(p: NfcCardInput) {
     name: p.nameOnCard || `${p.firstName} ${p.lastName}`.trim(),
     first_name: p.firstName,
     last_name: p.lastName,
+    other_names: p.otherNames,
     dob: toMDY(p.dob),
     id_type: p.idType,
     id_number: p.idNumber,
-    id_image: p.idImage,
-    idImage: p.idImage,
-    id_image_url: p.idImage,
     email: p.email,
     line1: p.line1,
     city: p.city,
@@ -115,22 +114,20 @@ export async function createNfcCard(p: NfcCardInput) {
     country: p.country,
     amount_usd: String(p.amountUsd),
     phone: p.phone,
+    brand: p.brand || "visa",
   };
-  try {
-    return await call("POST", "/bitvcard/create-nfc-card/", params);
-  } catch (e) {
-    const msg = (e as Error).message || "";
-    // L'émetteur attend parfois un vrai fichier téléversé pour `id_image`
-    // (validation Laravel `image`/`file`) et non une URL.
-    if (!/id\s*image/i.test(msg) || !p.idImage) throw e;
-    const file = await fetchIdImage(p.idImage);
-    if (!file) {
-      throw new Error("Impossible de récupérer la photo de la pièce d'identité téléversée. Réessayez le téléversement.");
-    }
-    const withoutUrl = { ...params };
-    delete withoutUrl.id_image;
-    return await call("POST", "/bitvcard/create-nfc-card/", withoutUrl, { id_image: file });
+  if (!p.idImage) throw new Error("La photo recto de la pièce d'identité est requise");
+  const front = await fetchIdImage(p.idImage);
+  if (!front) throw new Error("Impossible de récupérer la photo recto téléversée. Réessayez le téléversement.");
+  if (front.blob.size > 1024 * 1024) throw new Error("La photo recto doit faire moins de 1 Mo");
+  const files: Record<string, { blob: Blob; filename: string }> = { id_image: front };
+  if (p.idImageBack) {
+    const back = await fetchIdImage(p.idImageBack);
+    if (!back) throw new Error("Impossible de récupérer la photo verso téléversée. Réessayez le téléversement.");
+    if (back.blob.size > 1024 * 1024) throw new Error("La photo verso doit faire moins de 1 Mo");
+    files.id_image_back = back;
   }
+  return call("POST", "/bitvcard/create-nfc-card/", params, files);
 }
 
 export async function getNfcCardDetails(card_id: string) {
