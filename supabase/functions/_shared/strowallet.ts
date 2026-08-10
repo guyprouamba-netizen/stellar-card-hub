@@ -89,11 +89,22 @@ async function fetchIdImage(url: string): Promise<{ blob: Blob; filename: string
   try {
     const r = await fetch(url);
     if (!r.ok) return null;
-    const blob = await r.blob();
-    if (!blob.size) return null;
-    const type = blob.type || "image/jpeg";
-    const ext = type.includes("png") ? "png" : type.includes("webp") ? "webp" : "jpg";
-    return { blob, filename: `id.${ext}` };
+    const bytes = new Uint8Array(await r.arrayBuffer());
+    if (!bytes.length) return null;
+
+    // Les URLs signées du stockage peuvent répondre avec application/octet-stream,
+    // même si le contenu est bien une image. StroWallet valide le MIME multipart :
+    // détecter le format depuis les octets puis recréer un Blob au type explicite.
+    const isJpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    const isPng = bytes.length >= 8
+      && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+      && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a;
+    if (!isJpeg && !isPng) {
+      throw new Error("Le fichier téléversé n'est pas une image JPEG ou PNG valide");
+    }
+    const type = isPng ? "image/png" : "image/jpeg";
+    const ext = isPng ? "png" : "jpg";
+    return { blob: new Blob([bytes], { type }), filename: `identity.${ext}` };
   } catch { return null; }
 }
 
