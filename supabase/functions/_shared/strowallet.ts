@@ -85,35 +85,14 @@ function toMDY(dob: string): string {
   return dob;
 }
 
-async function fetchIdImage(source: string): Promise<{ blob: Blob; filename: string } | null> {
-  try {
-    let bytes: Uint8Array;
-    if (source.startsWith("data:")) {
-      const match = source.match(/^data:image\/(jpeg|png);base64,([A-Za-z0-9+/=]+)$/i);
-      if (!match) return null;
-      const binary = atob(match[2]);
-      bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-    } else {
-      const response = await fetch(source);
-      if (!response.ok) return null;
-      bytes = new Uint8Array(await response.arrayBuffer());
-    }
-    if (!bytes.length) return null;
-
-    // Les URLs signées du stockage peuvent répondre avec application/octet-stream,
-    // même si le contenu est bien une image. StroWallet valide le MIME multipart :
-    // détecter le format depuis les octets puis recréer un Blob au type explicite.
-    const isJpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-    const isPng = bytes.length >= 8
-      && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
-      && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a;
-    if (!isJpeg && !isPng) {
-      throw new Error("Le fichier téléversé n'est pas une image JPEG ou PNG valide");
-    }
-    const type = isPng ? "image/png" : "image/jpeg";
-    const ext = isPng ? "png" : "jpg";
-    return { blob: new Blob([bytes], { type }), filename: `identity.${ext}` };
-  } catch { return null; }
+// L'API StroWallet attend `id_image` sous forme d'URL publique (une pièce jointe
+// multipart est rejetée avec "The id image format is invalid.").
+function assertIdNumber(idType: string, idNumber: string) {
+  const t = idType.toLowerCase();
+  if ((t === "nin" || t === "bvn" || t === "national_id") && !/^\d{11}$/.test(idNumber.trim())) {
+    return `Le numéro ${t.toUpperCase()} doit contenir exactement 11 chiffres`;
+  }
+  return null;
 }
 
 export async function createNfcCard(p: NfcCardInput) {
@@ -135,18 +114,14 @@ export async function createNfcCard(p: NfcCardInput) {
     phone: p.phone,
     brand: String(p.brand || "visa").toLowerCase() === "mastercard" ? "MasterCard" : "Visa",
   };
-  if (!p.idImage) throw new Error("La photo recto de la pièce d'identité est requise");
-  const front = await fetchIdImage(p.idImage);
-  if (!front) throw new Error("Impossible de récupérer la photo recto téléversée. Réessayez le téléversement.");
-  if (front.blob.size > 1024 * 1024) throw new Error("La photo recto doit faire moins de 1 Mo");
-  const files: Record<string, { blob: Blob; filename: string }> = { id_image: front };
-  if (p.idImageBack) {
-    const back = await fetchIdImage(p.idImageBack);
-    if (!back) throw new Error("Impossible de récupérer la photo verso téléversée. Réessayez le téléversement.");
-    if (back.blob.size > 1024 * 1024) throw new Error("La photo verso doit faire moins de 1 Mo");
-    files.id_image_back = back;
+  const idErr = assertIdNumber(String(p.idType), String(p.idNumber));
+  if (idErr) throw new Error(idErr);
+  if (!p.idImage || !/^https?:\/\//i.test(p.idImage)) {
+    throw new Error("La photo recto de la pièce d'identité doit être accessible par lien (téléversement requis)");
   }
-  return call("POST", "/bitvcard/create-nfc-card/", params, files);
+  params.id_image = p.idImage;
+  if (p.idImageBack && /^https?:\/\//i.test(p.idImageBack)) params.id_image_back = p.idImageBack;
+  return call("POST", "/bitvcard/create-nfc-card/", params);
 }
 
 export async function getNfcCardDetails(card_id: string) {

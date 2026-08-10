@@ -583,12 +583,33 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (String(data.brand || "visa").toLowerCase() === "mastercard" && !isAcceptedImageInput(data.idImageBack)) {
       return { ok: false, error: "La photo verso de la pièce d'identité est requise pour une Mastercard." };
     }
+    // StroWallet exige une URL téléchargeable pour id_image : on héberge l'image
+    // reçue en base64 dans le bucket privé `kyc` et on transmet une URL signée.
+    const hostIdImage = async (value: string, side: string): Promise<string> => {
+      const image = String(value || "");
+      if (/^https?:\/\//i.test(image)) return image;
+      const match = image.match(/^data:image\/(jpeg|png);base64,([A-Za-z0-9+/=]+)$/i);
+      if (!match) throw new Error("Image d'identité invalide (JPG ou PNG attendu)");
+      const ext = match[1].toLowerCase() === "png" ? "png" : "jpg";
+      const bytes = Uint8Array.from(atob(match[2]), (c) => c.charCodeAt(0));
+      if (bytes.byteLength > 2 * 1024 * 1024) throw new Error("La photo de la pièce doit faire moins de 2 Mo");
+      const path = `${userId}/issuer-${side}-${Date.now()}.${ext}`;
+      const { error: upErr } = await admin.storage.from("kyc").upload(path, bytes, {
+        contentType: ext === "png" ? "image/png" : "image/jpeg", upsert: true,
+      });
+      if (upErr) throw new Error(`Téléversement de la pièce impossible : ${upErr.message}`);
+      const { data: signed, error: sErr } = await admin.storage.from("kyc").createSignedUrl(path, 60 * 60 * 24 * 365);
+      if (sErr || !signed?.signedUrl) throw new Error("Lien de la pièce d'identité indisponible");
+      return signed.signedUrl;
+    };
     const { data: wallet, error: wErr } = await userClient.from("wallets").select("balance,id").eq("user_id", userId).eq("currency", "XOF").maybeSingle();
     if (wErr) throw new Error(wErr.message);
     if (!wallet || Number(wallet.balance) < requiredXof) return { ok: false, error: "Solde XOF insuffisant", required: requiredXof, available: Number(wallet?.balance ?? 0) };
     const { error: debErr } = await admin.from("wallets").update({ balance: Number(wallet.balance) - requiredXof }).eq("id", wallet.id);
     if (debErr) throw new Error(debErr.message);
     try {
+      const idImageUrl = await hostIdImage(data.idImage, "front");
+      const idImageBackUrl = data.idImageBack ? await hostIdImage(data.idImageBack, "back") : undefined;
       const res = await SW.createNfcCard({
         firstName: data.firstName, lastName: data.lastName, otherNames: data.otherNames, dob: data.dob,
         idType: data.idType, idNumber: data.idNumber, email: data.email || email,
@@ -597,8 +618,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         amountUsd, phone: data.phone,
         nameOnCard: data.nameOnCard,
         brand: String(data.brand || "visa").toLowerCase(),
-        idImage: data.idImage,
-        idImageBack: data.idImageBack,
+        idImage: idImageUrl,
+        idImageBack: idImageBackUrl,
       });
       const { card_id, last4, brand } = SW.extractNfcCard(res);
       // La nouvelle API NFC ne demande aucune validation : la carte doit être livrée active.

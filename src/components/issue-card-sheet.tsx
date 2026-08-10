@@ -83,6 +83,9 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
     if (!Number.isFinite(amount) || amount < MIN_INITIAL_FUND_USD) return "La recharge initiale minimum est de 3 USD";
     if (!/^\d{4}-\d{2}-\d{2}$/.test(form.dob)) return "Date de naissance requise (AAAA-MM-JJ)";
     if (!form.idNumber.trim()) return "Numéro de pièce requis";
+    if (["NIN", "BVN", "national_id"].includes(form.idType) && !/^\d{11}$/.test(form.idNumber.trim())) {
+      return "Ce type de pièce exige un numéro de 11 chiffres (sinon choisissez Passeport)";
+    }
     if (!idImage) return "Photo de la pièce d'identité requise (exigée par le nouvel émetteur)";
     if (brand === "mastercard" && !form.email.trim()) return "Adresse email requise pour une Mastercard";
     if (brand === "mastercard" && !idImageBack) return "Photo verso de la pièce d'identité requise pour une Mastercard";
