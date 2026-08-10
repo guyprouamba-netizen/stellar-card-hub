@@ -27,6 +27,10 @@ const DEFAULT_FORM: Form = {
   country: "USA",
 };
 
+// Le compte émetteur n'est pas encore provisionné pour Mastercard : passer à
+// `true` dès que l'émetteur active le réseau.
+const MASTERCARD_ENABLED = false;
+
 export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onClose: () => void; onIssued?: () => void }) {
   const [brand, setBrand] = useState<Brand>("visa");
   const [amount, setAmount] = useState<number>(MIN_INITIAL_FUND_USD);
@@ -149,21 +153,33 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
                 {(["visa", "mastercard"] as Brand[]).map((b) => (
                   <button
                     key={b}
+                    disabled={b === "mastercard" && !MASTERCARD_ENABLED}
                     onClick={() => {
                       setBrand(b);
                       setField("idType", b === "mastercard" ? "NIN" : "national_id");
                     }}
-                    className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-semibold capitalize transition-colors ${
+                    className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-semibold capitalize transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                       brand === b ? "border-primary bg-primary/10" : "border-border bg-surface-2 hover:bg-muted"
                     }`}
                   >
                     <span className="flex items-center gap-2">
                       <CreditCard className="h-4 w-4" /> {b}
                     </span>
-                    {brand === b && <Check className="h-4 w-4 text-primary" />}
+                    {b === "mastercard" && !MASTERCARD_ENABLED ? (
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Bientôt
+                      </span>
+                    ) : (
+                      brand === b && <Check className="h-4 w-4 text-primary" />
+                    )}
                   </button>
                 ))}
               </div>
+              {!MASTERCARD_ENABLED && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Le réseau Mastercard n’est pas encore activé sur votre compte émetteur : toutes les cartes sont émises en Visa.
+                </p>
+              )}
             </div>
 
             {/* Initial funding */}
