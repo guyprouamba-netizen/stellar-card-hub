@@ -27,6 +27,10 @@ const DEFAULT_FORM: Form = {
   country: "USA",
 };
 
+// Le compte émetteur n'est pas encore provisionné pour Mastercard : passer à
+// `true` dès que l'émetteur active le réseau.
+const MASTERCARD_ENABLED = false;
+
 export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onClose: () => void; onIssued?: () => void }) {
   const [brand, setBrand] = useState<Brand>("visa");
   const [amount, setAmount] = useState<number>(MIN_INITIAL_FUND_USD);
