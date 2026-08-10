@@ -9,14 +9,14 @@ const MIN_INITIAL_FUND_USD = 3;
 const FUND_PRESETS = [3, 5, 10, 25, 50, 100];
 
 type Form = {
-  firstName: string; lastName: string; dob: string;
-  idType: "national_id" | "passport" | "drivers_license";
+  firstName: string; lastName: string; otherNames: string; email: string; dob: string;
+  idType: "national_id" | "passport" | "drivers_license" | "NIN" | "BVN";
   idNumber: string; phone: string;
   line1: string; city: string; state: string; postalCode: string; country: string;
 };
 
 const DEFAULT_FORM: Form = {
-  firstName: "", lastName: "", dob: "", idType: "national_id",
+  firstName: "", lastName: "", otherNames: "", email: "", dob: "", idType: "national_id",
   idNumber: "", phone: "",
   // Adresse de facturation officielle Faso-Invest (Miami) — pré-remplie pour
   // accélérer l'émission. L'utilisateur peut toujours la modifier.
@@ -38,8 +38,11 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
   const [success, setSuccess] = useState(false);
   const [idImage, setIdImage] = useState<string | null>(null);
   const [idPreview, setIdPreview] = useState<string | null>(null);
+  const [idImageBack, setIdImageBack] = useState<string | null>(null);
+  const [idBackPreview, setIdBackPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const backFileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -55,14 +58,19 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
 
   function setField<K extends keyof Form>(k: K, v: Form[K]) { setForm((f) => ({ ...f, [k]: v })); }
 
-  async function pickIdImage(file?: File | null) {
+  async function pickIdImage(file?: File | null, side: "front" | "back" = "front") {
     if (!file) return;
     setUploading(true);
     setError(null);
     try {
       const url = await uploadIdImage(file);
-      setIdImage(url);
-      setIdPreview(URL.createObjectURL(file));
+      if (side === "front") {
+        setIdImage(url);
+        setIdPreview(URL.createObjectURL(file));
+      } else {
+        setIdImageBack(url);
+        setIdBackPreview(URL.createObjectURL(file));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Téléversement de la pièce impossible");
     } finally {
@@ -76,6 +84,8 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
     if (!/^\d{4}-\d{2}-\d{2}$/.test(form.dob)) return "Date de naissance requise (AAAA-MM-JJ)";
     if (!form.idNumber.trim()) return "Numéro de pièce requis";
     if (!idImage) return "Photo de la pièce d'identité requise (exigée par le nouvel émetteur)";
+    if (brand === "mastercard" && !form.email.trim()) return "Adresse email requise pour une Mastercard";
+    if (brand === "mastercard" && !idImageBack) return "Photo verso de la pièce d'identité requise pour une Mastercard";
     if (!form.phone.trim()) return "Téléphone requis";
     if (!form.line1.trim() || !form.city.trim() || !form.state.trim() || !form.postalCode.trim()) return "Adresse complète requise";
     if (!/^[A-Z]{3}$/.test(form.country)) return "Code pays sur 3 lettres (ex: BFA, CIV, SEN)";
@@ -89,7 +99,7 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
     setSubmitting(true);
     setError(null);
     try {
-      const r = await cardApi.buy({ amount, currency: "USD", brand, ...form, idImage: idImage ?? undefined });
+      const r = await cardApi.buy({ amount, currency: "USD", brand, ...form, idImage: idImage ?? undefined, idImageBack: idImageBack ?? undefined });
       if ((r as any)?.ok === false) throw new Error((r as any).error || "Émission échouée");
       setSuccess(true);
       onIssued?.();
@@ -136,7 +146,10 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
                 {(["visa", "mastercard"] as Brand[]).map((b) => (
                   <button
                     key={b}
-                    onClick={() => setBrand(b)}
+                    onClick={() => {
+                      setBrand(b);
+                      setField("idType", b === "mastercard" ? "NIN" : "national_id");
+                    }}
                     className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-semibold capitalize transition-colors ${
                       brand === b ? "border-primary bg-primary/10" : "border-border bg-surface-2 hover:bg-muted"
                     }`}
@@ -193,20 +206,32 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <Input ph="Prénom" v={form.firstName} on={(v) => setField("firstName", v)} />
                 <Input ph="Nom" v={form.lastName} on={(v) => setField("lastName", v)} />
+                {brand === "mastercard" && <Input ph="Autres noms (facultatif)" v={form.otherNames} on={(v) => setField("otherNames", v)} colSpan />}
+                {brand === "mastercard" && <Input ph="Adresse email" type="email" v={form.email} on={(v) => setField("email", v)} colSpan />}
                 <Input ph="Date de naissance (AAAA-MM-JJ)" type="date" v={form.dob} on={(v) => setField("dob", v)} colSpan />
                 <select
                   value={form.idType}
                   onChange={(e) => setField("idType", e.target.value as Form["idType"])}
                   className="col-span-2 rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none"
                 >
-                  <option value="national_id">Pièce d'identité nationale</option>
-                  <option value="passport">Passeport</option>
-                  <option value="drivers_license">Permis de conduire</option>
+                  {brand === "mastercard" ? (
+                    <>
+                      <option value="NIN">NIN</option>
+                      <option value="BVN">BVN</option>
+                      <option value="passport">Passeport international</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="national_id">Pièce d'identité nationale</option>
+                      <option value="passport">Passeport</option>
+                      <option value="drivers_license">Permis de conduire</option>
+                    </>
+                  )}
                 </select>
                 <Input ph="Numéro de pièce" v={form.idNumber} on={(v) => setField("idNumber", v)} colSpan />
                 <div className="col-span-2 rounded-xl border border-border bg-surface-2 p-3">
                   <p className="text-xs font-semibold">Photo de la pièce d'identité <span className="text-destructive">*</span></p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">Obligatoire depuis le changement d'émetteur : photo nette, lisible, format JPG ou PNG.</p>
+                   <p className="mt-0.5 text-[11px] text-muted-foreground">Recto net en JPG ou PNG. Compression automatique sous 1 Mo.</p>
                   <div className="mt-2 flex items-center gap-3">
                     {idPreview ? (
                       <img src={idPreview} alt="Aperçu de la pièce d'identité" className="h-14 w-20 rounded-lg object-cover ring-1 ring-border" />
@@ -229,12 +254,31 @@ export function IssueCardSheet({ open, onClose, onIssued }: { open: boolean; onC
                   <input
                     ref={fileRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png"
                     capture="environment"
                     className="hidden"
                     onChange={(e) => pickIdImage(e.target.files?.[0])}
                   />
                 </div>
+                {brand === "mastercard" && (
+                  <div className="col-span-2 rounded-xl border border-border bg-surface-2 p-3">
+                    <p className="text-xs font-semibold">Verso de la pièce d'identité <span className="text-destructive">*</span></p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">JPG ou PNG, compression automatique sous 1 Mo.</p>
+                    <div className="mt-2 flex items-center gap-3">
+                      {idBackPreview ? (
+                        <img src={idBackPreview} alt="Aperçu du verso de la pièce" className="h-14 w-20 rounded-lg object-cover ring-1 ring-border" />
+                      ) : (
+                        <div className="grid h-14 w-20 place-items-center rounded-lg border border-dashed border-border text-muted-foreground"><ImageIcon className="h-4 w-4" /></div>
+                      )}
+                      <button type="button" onClick={() => backFileRef.current?.click()} disabled={uploading} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted disabled:opacity-50">
+                        {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                        {idImageBack ? "Remplacer" : "Téléverser"}
+                      </button>
+                      {idImageBack && <span className="inline-flex items-center gap-1 text-[11px] font-medium text-success"><Check className="h-3.5 w-3.5" /> Envoyée</span>}
+                    </div>
+                    <input ref={backFileRef} type="file" accept="image/jpeg,image/png" capture="environment" className="hidden" onChange={(e) => pickIdImage(e.target.files?.[0], "back")} />
+                  </div>
+                )}
                 <Input ph="Téléphone (format local)" v={form.phone} on={(v) => setField("phone", v)} colSpan />
                 <Input ph="Adresse (ligne 1)" v={form.line1} on={(v) => setField("line1", v)} colSpan />
                 <Input ph="Ville" v={form.city} on={(v) => setField("city", v)} />

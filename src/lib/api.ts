@@ -20,20 +20,23 @@ export const walletApi = {
 export const cardApi = {
   buy: async (payload: {
     amount: number; currency?: string; brand?: string;
-    firstName: string; lastName: string; dob: string;
+    firstName: string; lastName: string; otherNames?: string; email?: string; dob: string;
     idType: string; idNumber: string; phone: string;
     line1: string; city: string; state: string; postalCode: string; country: string;
-    nameOnCard?: string; idImage?: string;
+    nameOnCard?: string; idImage?: string; idImageBack?: string;
   }) => {
     return callApi("issueCard", {
       amountUsd: payload.amount,
       brand: payload.brand || "Visa",
       firstName: payload.firstName,
       lastName: payload.lastName,
+      otherNames: payload.otherNames,
+      email: payload.email,
       dob: payload.dob,
       idType: payload.idType,
       idNumber: payload.idNumber,
       idImage: payload.idImage,
+      idImageBack: payload.idImageBack,
       phone: payload.phone,
       line1: payload.line1,
       city: payload.city,
