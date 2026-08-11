@@ -236,7 +236,7 @@ function CardsPage() {
                   number={number}
                   brand={(c.brand || "visa").toUpperCase()}
                   balance={`$ ${apiBalance.toFixed(2)}`}
-                  holder={(det?.holder || "TITULAIRE").toUpperCase()}
+                  holder={(det?.holder || profileHolder || "TITULAIRE").toUpperCase()}
                   expiry={expiryDisplay}
                   cvv={cvvDisplay}
                   numberUrl={isTerminated ? undefined : secureNumberUrl}
@@ -267,7 +267,7 @@ function CardsPage() {
                 )}
                 {!locked && (
                   <CardDetailsCopy
-                    det={{ number: !isDummyPan ? det?.number : undefined, cvv: cvvDisplay, expiry: det?.expiry && det.expiry !== "00/00" ? det.expiry : undefined, holder: det?.holder }}
+                    det={{ number: !isDummyPan ? det?.number : undefined, cvv: cvvDisplay, expiry: det?.expiry && det.expiry !== "00/00" ? det.expiry : undefined, holder: det?.holder || profileHolder }}
                     numberUrl={isTerminated ? undefined : secureNumberUrl}
                     cvvUrl={isTerminated ? undefined : secureCvvUrl}
                   />
@@ -522,15 +522,19 @@ function CardDetailsCopy({ det, numberUrl, cvvUrl }: {
   const SecureRow = ({ label, src, height }: { label: string; src: string; height: number }) => (
     <div className="rounded-lg bg-surface-2/60 px-3 py-2">
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label} · affichage sécurisé</p>
-      <iframe
-        src={src}
-        title={label}
-        width="100%"
-        height={height}
-        frameBorder="0"
-        scrolling="no"
-        style={{ border: "none", overflow: "hidden" }}
-      />
+      {/* Le contenu de l'iframe est rendu par l'émetteur en texte noir :
+          on garantit un fond clair pour qu'il reste lisible en thème sombre. */}
+      <div className="mt-1 rounded-md bg-white px-2 py-0.5">
+        <iframe
+          src={src}
+          title={label}
+          width="100%"
+          height={height}
+          frameBorder="0"
+          scrolling="no"
+          style={{ border: "none", overflow: "hidden", colorScheme: "normal" }}
+        />
+      </div>
     </div>
   );
   const Row = ({ label, value }: { label: string; value?: string }) => (
