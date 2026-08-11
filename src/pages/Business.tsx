@@ -15,6 +15,18 @@ import {
 } from "@/lib/orders.functions";
 import { uploadBusinessMedia } from "@/lib/upload";
 import { ArrowLeft, Building2, Copy, Key, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Send } from "lucide-react";
+import { LayoutDashboard, Receipt, CreditCard, Settings2, BarChart3 } from "lucide-react";
+
+const NAV = [
+  { id: "overview", label: "Tableau de bord", icon: LayoutDashboard },
+  { id: "projects", label: "Projets", icon: FolderKanban },
+  { id: "links", label: "Liens de paiement", icon: Link2 },
+  { id: "payments", label: "Paiements", icon: CreditCard },
+  { id: "orders", label: "Commandes", icon: Package },
+  { id: "posts", label: "Publications", icon: Megaphone },
+  { id: "settings", label: "Ma boutique", icon: Settings2 },
+] as const;
+type TabId = typeof NAV[number]["id"];
 
 type Biz = { id: string; name: string; slug: string; status: string; balance: number; fee_bps: number };
 type PLink = { id: string; slug: string; title: string; amount: number | null; currency: string; status: string };
