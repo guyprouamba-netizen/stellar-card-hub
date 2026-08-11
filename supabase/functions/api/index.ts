@@ -2211,30 +2211,41 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   // PRODUCTS
   // ===========================================================
   async listProducts({ data, user, admin }) {
-    const { data: p } = await admin.from("projects").select("business_id").eq("id", data.project_id).maybeSingle();
-    if (!p) throw new Error("Projet introuvable");
-    await assertBusinessOwner(admin, user.id, p.business_id);
-    const { data: rows, error } = await admin.from("products")
-      .select("*, product_media(id,type,url,position)").eq("project_id", data.project_id)
-      .order("created_at", { ascending: false });
+    let business_id = data?.business_id;
+    if (!business_id) {
+      const { data: p } = await admin.from("projects").select("business_id").eq("id", data.project_id).maybeSingle();
+      if (!p) throw new Error("Projet introuvable");
+      business_id = p.business_id;
+    }
+    await assertBusinessOwner(admin, user.id, business_id);
+    let q = admin.from("products")
+      .select("*, product_media(id,type,url,position)").eq("business_id", business_id);
+    if (data?.project_id) q = q.eq("project_id", data.project_id);
+    const { data: rows, error } = await q.order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return rows ?? [];
   },
   async createProduct({ data, user, admin }) {
-    const { data: p } = await admin.from("projects").select("business_id").eq("id", data.project_id).maybeSingle();
-    if (!p) throw new Error("Projet introuvable");
-    await assertBusinessOwner(admin, user.id, p.business_id);
+    let business_id = data?.business_id;
+    if (!business_id) {
+      const { data: p } = await admin.from("projects").select("business_id").eq("id", data.project_id).maybeSingle();
+      if (!p) throw new Error("Projet introuvable");
+      business_id = p.business_id;
+    }
+    await assertBusinessOwner(admin, user.id, business_id);
     const name = String(data?.name || "").trim();
     if (name.length < 2) throw new Error("Nom requis");
     const slug = slugify(name) + "-" + randomHex(2);
     const { data: row, error } = await admin.from("products").insert({
-      project_id: data.project_id, business_id: p.business_id,
+      project_id: data?.project_id || null, business_id,
       name, slug,
       description: data?.description || null,
       price: Number(data?.price || 0),
       currency: data?.currency || "XOF",
       sku: data?.sku || null,
       stock: data?.stock ?? null,
+      image_url: data?.image_url || null,
+      show_in_shop: data?.show_in_shop !== undefined ? Boolean(data.show_in_shop) : true,
     }).select("*").single();
     if (error) throw new Error(error.message);
     return row;
@@ -2244,7 +2255,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!prod) throw new Error("Produit introuvable");
     await assertBusinessOwner(admin, user.id, prod.business_id);
     const patch: Record<string, any> = {};
-    for (const k of ["name", "description", "price", "currency", "sku", "stock", "status"]) {
+    for (const k of ["name", "description", "price", "currency", "sku", "stock", "status", "show_in_shop", "image_url", "project_id"]) {
       if (data?.[k] !== undefined) patch[k] = data[k];
     }
     const { data: row, error } = await admin.from("products").update(patch).eq("id", data.id).select("*").single();
