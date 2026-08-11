@@ -53,6 +53,10 @@ export const simulateProjectWebhook = (data: { project_id: string; event?: strin
   callApi("simulateProjectWebhook", data);
 export const listProjectWebhookDeliveries = (project_id: string) =>
   callApi("listProjectWebhookDeliveries", { project_id });
+export const getProjectTransactions = (project_id: string) =>
+  callApi("getProjectTransactions", { project_id });
+export const listProductDownloads = (business_id: string) =>
+  callApi("listProductDownloads", { business_id });
 export const getGatewayFeeConfig = () => callApi("getGatewayFeeConfig");
 export const adminUpdateGatewayFeeConfig = (data: { fee_bps?: number; fee_flat_xof?: number; min_xof?: number; enabled?: boolean }) =>
   callApi("adminUpdateGatewayFeeConfig", data);
