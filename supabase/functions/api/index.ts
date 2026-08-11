@@ -334,6 +334,25 @@ function computeMomoTransferFees(amount: number, cfg: { fee_bps: number; fee_fla
   const pct = Math.ceil((amount * cfg.fee_bps) / 10000);
   return Math.max(0, pct + Math.max(0, Math.floor(cfg.fee_flat_xof)));
 }
+
+// ============ Retrait PayPal (frais paramétrables par l'admin) ============
+async function loadPaypalWithdrawConfig(admin: any) {
+  const keys = ["paypal_wd_fee_bps", "paypal_wd_fee_flat_xof", "paypal_wd_min_xof", "paypal_wd_max_xof", "paypal_wd_enabled"];
+  const { data } = await admin.from("platform_config").select("key,value").in("key", keys);
+  const m = new Map((data ?? []).map((r: any) => [r.key, r.value]));
+  const num = (k: string, d: number) => { const v = m.get(k); const n = Number(v); return Number.isFinite(n) ? n : d; };
+  return {
+    fee_bps: num("paypal_wd_fee_bps", 500),
+    fee_flat_xof: num("paypal_wd_fee_flat_xof", 250),
+    min: num("paypal_wd_min_xof", 1000),
+    max: num("paypal_wd_max_xof", 500000),
+    enabled: m.get("paypal_wd_enabled") !== false,
+  };
+}
+function computePaypalWithdrawFees(amount: number, cfg: { fee_bps: number; fee_flat_xof: number }) {
+  const pct = Math.ceil((amount * cfg.fee_bps) / 10000);
+  return Math.max(0, pct + Math.max(0, Math.floor(cfg.fee_flat_xof)));
+}
 async function triggerMomoTransferCashout(admin: any, t: any) {
   // UNIQUEMENT le projet YengaPay PAYOUT dédié — jamais de fallback vers le projet marchand
   // pour éviter que la requête soit rejetée (403 "opération réservée aux projets PAYOUT")
@@ -2999,6 +3018,100 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       await admin.from("platform_config").upsert({ key: k, value: v }, { onConflict: "key" });
     }
     return await loadMomoTransferConfig(admin);
+  },
+
+  // ============================================================
+  // RETRAIT PAYPAL (pay-in PayPal via YengaPay -> payout Mobile Money)
+  // ============================================================
+  async getPaypalWithdrawConfig({ admin }) {
+    return await loadPaypalWithdrawConfig(admin);
+  },
+  async quotePaypalWithdrawal({ data, admin }) {
+    const cfg = await loadPaypalWithdrawConfig(admin);
+    const amount = Math.floor(Number(data?.amount || 0));
+    if (!cfg.enabled) return { ok: false, error: "Retrait PayPal momentanément indisponible" };
+    if (!Number.isFinite(amount) || amount < cfg.min) return { ok: false, error: `Montant minimum ${cfg.min} XOF` };
+    if (amount > cfg.max) return { ok: false, error: `Montant maximum ${cfg.max} XOF` };
+    const fees = computePaypalWithdrawFees(amount, cfg);
+    return { ok: true, amount_send: amount, fees_xof: fees, total_charged_xof: amount + fees, currency: "XOF", cfg };
+  },
+  async initPaypalWithdrawal({ data, user, admin }) {
+    const userId = user.id;
+    await assertUserRateLimit(admin, userId, "initPaypalWithdrawal", 8);
+    const cfg = await loadPaypalWithdrawConfig(admin);
+    if (!cfg.enabled) return { ok: false, error: "Retrait PayPal momentanément indisponible" };
+    const amount = Math.floor(Number(data?.amount || 0));
+    if (!Number.isFinite(amount) || amount < cfg.min) return { ok: false, error: `Montant minimum ${cfg.min} XOF` };
+    if (amount > cfg.max) return { ok: false, error: `Montant maximum ${cfg.max} XOF` };
+    const destOperator = String(data?.dest_operator || "").trim().toUpperCase();
+    if (!["ORANGE_MONEY", "MOOV_MONEY"].includes(destOperator)) {
+      return { ok: false, error: "Seuls Orange Money et Moov Money sont autorisés" };
+    }
+    const destPhone = normalizeBfPhone(data?.dest_phone);
+    if (!destPhone || destPhone.replace(/\D/g, "").length < 11) return { ok: false, error: "Numéro destinataire invalide" };
+    const destHolder = String(data?.dest_holder || "").slice(0, 120);
+    if (!destHolder.trim()) return { ok: false, error: "Nom du bénéficiaire requis" };
+    const fees = computePaypalWithdrawFees(amount, cfg);
+    const total = amount + fees;
+
+    const apiKey = Deno.env.get("YENGAPAY_PAYPAL_API_KEY") || Deno.env.get("YENGAPAY_API_KEY");
+    const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
+    const projectId = Deno.env.get("YENGAPAY_PAYPAL_PROJECT_ID") || "94603";
+    if (!apiKey || !groupId) throw new Error("Passerelle PayPal non configurée");
+    const reference = `PPW-${Date.now()}-${userId.slice(0, 8)}`;
+    const callbackUrl = `${SUPABASE_URL}/functions/v1/yengapay-webhook`;
+    const baseReturn = String(data?.returnUrl || "");
+    const returnUrl = baseReturn
+      ? baseReturn + (baseReturn.includes("?") ? "&" : "?") + `ppw=${encodeURIComponent(reference)}`
+      : "";
+    const res = await fetch(`https://api.yengapay.com/api/v1/groups/${groupId}/payment-intent/${projectId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+      body: JSON.stringify({
+        paymentAmount: total, reference,
+        articles: [{ title: "Retrait PayPal", description: `Retrait vers ${destOperator} ${destPhone}`, pictures: [], price: total }],
+        callbackUrl,
+        ...(returnUrl ? { returnUrl, successUrl: returnUrl, cancelUrl: returnUrl } : {}),
+      }),
+    });
+    const txt = await res.text(); let body: any = txt; try { body = JSON.parse(txt); } catch { /**/ }
+    if (!res.ok) throw new Error(`Passerelle ${res.status}: ${typeof body === "string" ? body : JSON.stringify(body).slice(0, 300)}`);
+    const paymentIntentId = body?.id || body?.paymentIntentId || body?.paymentIntent?.id || body?.data?.id || null;
+    const checkoutUrl = body?.checkoutPageUrlWithPaymentToken || body?.checkout_url || body?.paymentUrl
+      || body?.data?.checkoutPageUrlWithPaymentToken || body?.data?.checkout_url || body?.data?.paymentUrl || null;
+    if (!checkoutUrl) throw new Error("Aucun lien de paiement retourné par la passerelle");
+    const { data: row, error } = await admin.from("momo_transfers").insert({
+      user_id: userId, source_operator: "PAYPAL", source_phone: null,
+      dest_operator: destOperator, dest_phone: destPhone, dest_holder: destHolder || null,
+      amount_send: amount, fees_xof: fees, total_charged_xof: total,
+      status: "awaiting_payment",
+      payment_reference: reference, payment_intent_id: paymentIntentId,
+      checkout_url: checkoutUrl,
+      metadata: { kind: "paypal_withdrawal", init: body },
+    }).select("*").single();
+    if (error) throw new Error(error.message);
+    return { ok: true, transfer: row, reference, checkout_url: checkoutUrl };
+  },
+  async listMyPaypalWithdrawals({ user, admin }) {
+    const { data } = await admin.from("momo_transfers").select("*")
+      .eq("user_id", user.id).eq("source_operator", "PAYPAL")
+      .order("created_at", { ascending: false }).limit(100);
+    return data ?? [];
+  },
+  async adminUpdatePaypalWithdrawConfig({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const map: Record<string, any> = {
+      paypal_wd_fee_bps: data?.fee_bps,
+      paypal_wd_fee_flat_xof: data?.fee_flat_xof,
+      paypal_wd_min_xof: data?.min_xof,
+      paypal_wd_max_xof: data?.max_xof,
+      paypal_wd_enabled: data?.enabled,
+    };
+    for (const [k, v] of Object.entries(map)) {
+      if (v === undefined || v === null) continue;
+      await admin.from("platform_config").upsert({ key: k, value: v }, { onConflict: "key" });
+    }
+    return await loadPaypalWithdrawConfig(admin);
   },
 
   // ============================================================
