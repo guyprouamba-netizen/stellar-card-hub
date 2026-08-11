@@ -325,12 +325,24 @@ export default function BusinessPage() {
 
             {current && (
               <>
+                {/* Barre de statistiques (style tableau de bord marchand) */}
+                <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {[
+                    { label: "Solde du business", value: `${Number(current.balance).toLocaleString("fr-FR")} XOF` },
+                    { label: "Nb projets", value: String(projects.length) },
+                    { label: "Collecté (30j)", value: `${Number(dash?.kpis.total30 || 0).toLocaleString("fr-FR")} XOF` },
+                    { label: "Paiements", value: String(payments.length) },
+                  ].map((s) => (
+                    <div key={s.label} className="rounded-2xl border border-border bg-card px-4 py-3">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</p>
+                      <p className="mt-1 font-[Space_Grotesk] text-base font-bold tabular-nums">{s.value}</p>
+                    </div>
+                  ))}
+                </div>
                 {/* Quick access to power tools */}
                 <div className="mb-4 flex flex-wrap gap-2">
-                  <Link to={`/business/${current.id}/bot`} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-muted">🤖 Bot WhatsApp</Link>
                   <Link to={`/business/${current.id}/accounting`} className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20">📊 Comptabilité</Link>
                   <Link to={`/business/${current.id}/contracts`} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-muted">📄 Contrats & Factures</Link>
-                  <Link to={`/business/${current.id}/marketing`} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-muted">📣 Publicité Facebook</Link>
                 </div>
                 {/* Header card */}
                 <div className="rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
