@@ -2482,6 +2482,42 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     return rows ?? [];
   },
 
+  // Suivi des transactions d'un projet (soldes, encaissements, retraits, statuts)
+  async getProjectTransactions({ data, user, admin }) {
+    const { data: p } = await admin.from("projects")
+      .select("id,business_id,name,balance,currency").eq("id", data.project_id).maybeSingle();
+    if (!p) throw new Error("Projet introuvable");
+    await assertBusinessOwner(admin, user.id, p.business_id);
+    const { data: rows } = await admin.from("payment_link_payments")
+      .select("id,reference,amount,fee_amount,net_amount,currency,status,customer_name,customer_email,customer_phone,paid_at,created_at,metadata")
+      .eq("project_id", p.id).order("created_at", { ascending: false }).limit(200);
+    const list = rows ?? [];
+    const sum = (s: string) => list.filter((r: any) => r.status === s).reduce((a: number, r: any) => a + Number(r.amount || 0), 0);
+    const stats = {
+      balance: Number(p.balance || 0),
+      currency: p.currency || "XOF",
+      collected: list.filter((r: any) => r.status === "success").reduce((a: number, r: any) => a + Number(r.net_amount || r.amount || 0), 0),
+      fees: list.filter((r: any) => r.status === "success").reduce((a: number, r: any) => a + Number(r.fee_amount || 0), 0),
+      success_amount: sum("success"), pending_amount: sum("pending"), failed_amount: sum("failed"),
+      success_count: list.filter((r: any) => r.status === "success").length,
+      pending_count: list.filter((r: any) => r.status === "pending").length,
+      failed_count: list.filter((r: any) => r.status === "failed").length,
+    };
+    // Retraits (sorties comptables liées au projet)
+    const { data: outs } = await admin.from("accounting_entries")
+      .select("amount").eq("business_id", p.business_id).eq("kind", "expense");
+    const withdrawn = (outs ?? []).reduce((a: number, r: any) => a + Number(r.amount || 0), 0);
+    return { project: p, stats: { ...stats, withdrawn }, transactions: list };
+  },
+
+  // Accès numériques délivrés aux clients
+  async listProductDownloads({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: rows } = await admin.from("product_downloads")
+      .select("*").eq("business_id", data.business_id).order("created_at", { ascending: false }).limit(100);
+    return rows ?? [];
+  },
+
   async getGatewayFeeConfig({ admin }) {
     return await loadGatewayFeeConfig(admin);
   },
