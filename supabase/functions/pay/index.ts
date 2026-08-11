@@ -660,6 +660,12 @@ async function apiCreateSession(auth: ApiAuth, body: any) {
   return { reference, amount, currency, status: "pending", checkout_url: yp.checkoutUrl };
 }
 
+// Notifie le marchand dès l'ouverture de la page de paiement (transaction lisible en temps réel).
+async function notifyPending(db: any, projectId: string | null | undefined, data: Record<string, unknown>) {
+  if (!projectId) return;
+  await deliverProjectWebhook(db, projectId, "payment.pending", data).catch((e) => console.error("pending webhook", e));
+}
+
 // --- Dispatcher ---
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
@@ -669,6 +675,13 @@ Deno.serve(async (req) => {
     const segments = url.pathname.split("/").filter(Boolean);
     // Last segment after function name "pay"
     const tail = segments.slice(segments.indexOf("pay") + 1);
+
+    // ===== Téléchargement de produit numérique : GET /pay/download/:token =====
+    if (tail[0] === "download" && tail[1] && req.method === "GET") {
+      const r = await consumeDownload(String(tail[1]));
+      if ((r as any).error) return jsonResponse({ error: (r as any).error }, (r as any).status || 400);
+      return new Response(null, { status: 302, headers: { ...corsHeaders, Location: (r as any).url } });
+    }
 
     // ===== REST API style (LigdiCash-like) =====
     if (tail[0] === "v1") {
@@ -685,6 +698,7 @@ Deno.serve(async (req) => {
       if (isSession && req.method === "POST") {
         const body = await req.json().catch(() => ({}));
         const s = await apiCreateSession(auth, body);
+        await notifyPending(admin(), auth.project_id, { ...s, project_id: auth.project_id });
         return jsonResponse({ ok: true, data: s });
       }
       if (tail[1] === "payment-links" && req.method === "POST") {
