@@ -641,6 +641,13 @@ export default function BusinessPage() {
           </div>
         )}
       </main>
+      {configProject && (
+        <ProjectConfigSheet
+          project={configProject}
+          onClose={() => setConfigProject(null)}
+          onSaved={() => { if (current) refreshCurrent(current.id); }}
+        />
+      )}
     </div>
   );
 }
