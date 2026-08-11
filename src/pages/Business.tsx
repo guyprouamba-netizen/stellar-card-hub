@@ -244,15 +244,28 @@ export default function BusinessPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border bg-surface-1/60 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6 sm:py-4">
-          <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Dashboard</span>
-          </Link>
-          <h1 className="order-3 w-full text-center font-[Space_Grotesk] text-lg font-bold tracking-tight sm:order-none sm:w-auto sm:text-xl">Espace Business</h1>
-          <button onClick={onCreateBusiness} className="inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-glow sm:px-4 sm:py-2 sm:text-xs">
-            <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Nouveau business</span>
-          </button>
+      <header className="sticky top-0 z-30 border-b border-border bg-surface-1/80 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <div className="flex items-center gap-3">
+            <Link to="/dashboard" className="grid h-9 w-9 place-items-center rounded-xl border border-border hover:bg-muted">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+            <div className="flex items-center gap-2">
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-primary text-sm font-black text-primary-foreground">B</span>
+              <h1 className="font-[Space_Grotesk] text-base font-bold tracking-tight sm:text-lg">Espace Business</h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {businesses.length > 1 && (
+              <select value={current?.id || ""} onChange={(e) => setCurrent(businesses.find((b) => b.id === e.target.value) || null)}
+                className="rounded-xl border border-border bg-surface-2 px-3 py-2 text-xs font-semibold outline-none">
+                {businesses.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            )}
+            <button onClick={onCreateBusiness} className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-primary px-3 py-2 text-[11px] font-semibold text-primary-foreground shadow-glow sm:text-xs">
+              <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Nouveau business</span>
+            </button>
+          </div>
         </div>
       </header>
 
