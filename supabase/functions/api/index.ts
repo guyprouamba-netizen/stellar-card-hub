@@ -2324,6 +2324,19 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       stock: data?.stock ?? null,
       image_url: data?.image_url || null,
       show_in_shop: data?.show_in_shop !== undefined ? Boolean(data.show_in_shop) : true,
+      type: data?.type || "physical",
+      short_description: data?.short_description || null,
+      sale_price: data?.sale_price ?? null,
+      purchase_note: data?.purchase_note || null,
+      access_instructions: data?.access_instructions || null,
+      downloadable: Boolean(data?.downloadable),
+      download_url: data?.download_url || null,
+      download_name: data?.download_name || null,
+      download_limit: data?.download_limit ?? null,
+      download_expiry_days: data?.download_expiry_days ?? null,
+      manage_stock: Boolean(data?.manage_stock),
+      tax_rate: Number(data?.tax_rate || 0),
+      weight: data?.weight ?? null,
     }).select("*").single();
     if (error) throw new Error(error.message);
     return row;
@@ -2333,7 +2346,11 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!prod) throw new Error("Produit introuvable");
     await assertBusinessOwner(admin, user.id, prod.business_id);
     const patch: Record<string, any> = {};
-    for (const k of ["name", "description", "price", "currency", "sku", "stock", "status", "show_in_shop", "image_url", "project_id"]) {
+    for (const k of [
+      "name", "description", "price", "currency", "sku", "stock", "status", "show_in_shop", "image_url", "project_id",
+      "type", "short_description", "sale_price", "purchase_note", "access_instructions", "downloadable",
+      "download_url", "download_name", "download_limit", "download_expiry_days", "manage_stock", "tax_rate", "weight",
+    ]) {
       if (data?.[k] !== undefined) patch[k] = data[k];
     }
     const { data: row, error } = await admin.from("products").update(patch).eq("id", data.id).select("*").single();
@@ -2462,6 +2479,42 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     await assertBusinessOwner(admin, user.id, p.business_id);
     const { data: rows } = await admin.from("project_webhook_deliveries")
       .select("*").eq("project_id", data.project_id).order("created_at", { ascending: false }).limit(30);
+    return rows ?? [];
+  },
+
+  // Suivi des transactions d'un projet (soldes, encaissements, retraits, statuts)
+  async getProjectTransactions({ data, user, admin }) {
+    const { data: p } = await admin.from("projects")
+      .select("id,business_id,name,balance,currency").eq("id", data.project_id).maybeSingle();
+    if (!p) throw new Error("Projet introuvable");
+    await assertBusinessOwner(admin, user.id, p.business_id);
+    const { data: rows } = await admin.from("payment_link_payments")
+      .select("id,reference,amount,fee_amount,net_amount,currency,status,customer_name,customer_email,customer_phone,paid_at,created_at,metadata")
+      .eq("project_id", p.id).order("created_at", { ascending: false }).limit(200);
+    const list = rows ?? [];
+    const sum = (s: string) => list.filter((r: any) => r.status === s).reduce((a: number, r: any) => a + Number(r.amount || 0), 0);
+    const stats = {
+      balance: Number(p.balance || 0),
+      currency: p.currency || "XOF",
+      collected: list.filter((r: any) => r.status === "success").reduce((a: number, r: any) => a + Number(r.net_amount || r.amount || 0), 0),
+      fees: list.filter((r: any) => r.status === "success").reduce((a: number, r: any) => a + Number(r.fee_amount || 0), 0),
+      success_amount: sum("success"), pending_amount: sum("pending"), failed_amount: sum("failed"),
+      success_count: list.filter((r: any) => r.status === "success").length,
+      pending_count: list.filter((r: any) => r.status === "pending").length,
+      failed_count: list.filter((r: any) => r.status === "failed").length,
+    };
+    // Retraits (sorties comptables liées au projet)
+    const { data: outs } = await admin.from("accounting_entries")
+      .select("amount").eq("business_id", p.business_id).eq("kind", "expense");
+    const withdrawn = (outs ?? []).reduce((a: number, r: any) => a + Number(r.amount || 0), 0);
+    return { project: p, stats: { ...stats, withdrawn }, transactions: list };
+  },
+
+  // Accès numériques délivrés aux clients
+  async listProductDownloads({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: rows } = await admin.from("product_downloads")
+      .select("*").eq("business_id", data.business_id).order("created_at", { ascending: false }).limit(100);
     return rows ?? [];
   },
 

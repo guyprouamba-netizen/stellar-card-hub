@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   X, KeyRound, Loader2, Copy, RefreshCw, Webhook, PlayCircle, Image as ImageIcon, Settings2, ShieldCheck, CheckCircle2, XCircle,
+  Activity, Clock, TrendingUp, ArrowDownToLine,
 } from "lucide-react";
 import {
   updateProject, getProjectIntegration, createProjectApiKeys, updateProjectWebhook,
-  simulateProjectWebhook,
+  simulateProjectWebhook, getProjectTransactions,
 } from "@/lib/business.functions";
 import { uploadBusinessMedia } from "@/lib/upload";
 
@@ -15,11 +16,21 @@ type KeyRow = {
   webhook_url: string | null; webhook_secret: string; created_at: string;
 };
 type Delivery = { id: string; event: string; status_code: number | null; success: boolean; simulated: boolean; error: string | null; created_at: string; response_body: string | null };
+type Txn = {
+  id: string; reference: string; amount: number; net_amount: number | null; fee_amount: number | null;
+  currency: string; status: string; customer_name: string | null; customer_email: string | null;
+  paid_at: string | null; created_at: string;
+};
+type Stats = {
+  balance: number; currency: string; collected: number; fees: number; withdrawn: number;
+  success_amount: number; pending_amount: number; failed_amount: number;
+  success_count: number; pending_count: number; failed_count: number;
+};
 
 export default function ProjectConfigSheet({ project, onClose, onSaved }: {
   project: Project; onClose: () => void; onSaved: () => void;
 }) {
-  const [tab, setTab] = useState<"settings" | "api">("settings");
+  const [tab, setTab] = useState<"settings" | "api" | "txns">("settings");
   const [form, setForm] = useState({
     name: project.name, description: project.description || "",
     logo_url: project.logo_url || "", cover_url: project.cover_url || "", currency: project.currency || "XOF",
@@ -35,6 +46,9 @@ export default function ProjectConfigSheet({ project, onClose, onSaved }: {
   const [fee, setFee] = useState<{ fee_bps: number; fee_flat_xof: number; min_xof: number; enabled: boolean } | null>(null);
   const [webhookUrl, setWebhookUrl] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [txns, setTxns] = useState<Txn[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loadingTx, setLoadingTx] = useState(false);
 
   async function loadApi() {
     try {
@@ -45,6 +59,22 @@ export default function ProjectConfigSheet({ project, onClose, onSaved }: {
     finally { setLoadingApi(false); }
   }
   useEffect(() => { loadApi(); /* eslint-disable-next-line */ }, [project.id]);
+
+  async function loadTxns() {
+    setLoadingTx(true);
+    try {
+      const r: any = await getProjectTransactions(project.id);
+      setTxns(r.transactions || []); setStats(r.stats || null);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setLoadingTx(false); }
+  }
+  useEffect(() => {
+    if (tab !== "txns") return;
+    loadTxns();
+    const t = setInterval(loadTxns, 15000); // lecture temps réel des transactions
+    return () => clearInterval(t);
+    /* eslint-disable-next-line */
+  }, [tab, project.id]);
 
   function copy(v: string) { navigator.clipboard.writeText(v); toast.success("Copié ✅"); }
 
@@ -115,7 +145,7 @@ export default function ProjectConfigSheet({ project, onClose, onSaved }: {
         </div>
 
         <div className="mt-4 flex gap-2">
-          {([["settings", "Réglages", Settings2], ["api", "Clés API & Webhook", KeyRound]] as const).map(([id, label, Icon]) => (
+          {([["settings", "Réglages", Settings2], ["api", "Clés API & Webhook", KeyRound], ["txns", "Transactions", Activity]] as const).map(([id, label, Icon]) => (
             <button key={id} onClick={() => setTab(id)}
               className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${tab === id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>
               <Icon className="h-3.5 w-3.5" /> {label}
@@ -245,6 +275,74 @@ Content-Type: application/json
             </div>
           </div>
           )
+        )}
+
+        {tab === "txns" && (
+          <div className="mt-5 space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: "Solde du projet", value: stats?.balance ?? 0, icon: TrendingUp },
+                { label: "Encaissé (net)", value: stats?.collected ?? 0, icon: CheckCircle2 },
+                { label: "Retiré", value: stats?.withdrawn ?? 0, icon: ArrowDownToLine },
+                { label: "En attente", value: stats?.pending_amount ?? 0, icon: Clock },
+              ].map((s) => (
+                <div key={s.label} className="rounded-2xl border border-border bg-surface-2 px-4 py-3">
+                  <p className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <s.icon className="h-3 w-3" /> {s.label}
+                  </p>
+                  <p className="mt-1 font-[Space_Grotesk] text-base font-bold tabular-nums">
+                    {Number(s.value).toLocaleString("fr-FR")} <span className="text-[10px] text-muted-foreground">{stats?.currency || "XOF"}</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-2 text-emerald-500">
+                <p className="font-bold">{stats?.success_count ?? 0}</p><p>Réussis</p>
+              </div>
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 py-2 text-amber-500">
+                <p className="font-bold">{stats?.pending_count ?? 0}</p><p>En attente</p>
+              </div>
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 py-2 text-destructive">
+                <p className="font-bold">{stats?.failed_count ?? 0}</p><p>Échoués</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">Transactions</p>
+                <button onClick={loadTxns} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-[11px] font-semibold hover:bg-muted">
+                  {loadingTx ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Actualiser
+                </button>
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">Chaque transaction apparaît dès l'ouverture de la page de paiement, puis se met à jour automatiquement.</p>
+              {txns.length === 0 ? (
+                <p className="mt-3 text-xs text-muted-foreground">Aucune transaction pour ce projet.</p>
+              ) : (
+                <ul className="mt-3 space-y-2">
+                  {txns.map((t) => (
+                    <li key={t.id} className="rounded-xl border border-border bg-surface-2 p-3 text-[11px]">
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-full px-2 py-0.5 font-semibold ${
+                          t.status === "success" ? "bg-emerald-500/15 text-emerald-500"
+                          : t.status === "failed" ? "bg-destructive/15 text-destructive"
+                          : "bg-amber-500/15 text-amber-500"}`}>
+                          {t.status === "success" ? "Réussi" : t.status === "failed" ? "Échoué" : "En attente"}
+                        </span>
+                        <span className="font-mono">{t.reference}</span>
+                        <span className="ml-auto font-bold tabular-nums">{Number(t.amount).toLocaleString("fr-FR")} {t.currency}</span>
+                      </div>
+                      <p className="mt-1 text-muted-foreground">
+                        {t.customer_name || t.customer_email || "Client"} · {new Date(t.created_at).toLocaleString("fr-FR")}
+                        {t.status === "success" && t.net_amount != null && ` · net ${Number(t.net_amount).toLocaleString("fr-FR")} ${t.currency}`}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>
