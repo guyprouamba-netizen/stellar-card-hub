@@ -719,119 +719,57 @@ function ShopBrandingPanel({ biz, onUpdated }: { biz: Biz & { logo_url?: string;
 }
 
 // ============================================================
-// Panneau : Sender ID SMS + achat de crédits
+// Panneau : Projets affichés dans la boutique
 // ============================================================
-function SmsSenderPanel({ biz }: { biz: Biz }) {
-  const [requests, setRequests] = useState<any[]>([]);
-  const [credits, setCredits] = useState<any[]>([]);
-  const [form, setForm] = useState({ company_name: biz.name || "", sender_id: "", usage_note: "" });
-  const [buyForm, setBuyForm] = useState({ sender_id: "", quantity: 100 });
-  const [busy, setBusy] = useState(false);
+function ShopProjectsPanel({ projects, onChanged, onGoProjects }: { projects: Project[]; onChanged: () => void; onGoProjects: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
 
-  const reload = async () => {
+  async function toggle(p: Project) {
+    setBusy(p.id);
     try {
-      const [r, c] = await Promise.all([
-        listMySenderIdRequests(biz.id).catch(() => []),
-        listSmsCredits(biz.id).catch(() => []),
-      ]);
-      setRequests(r); setCredits(c);
-    } catch { /* ignore */ }
-  };
-  useEffect(() => { reload(); }, [biz.id]);
-
-  const approved = requests.filter((r) => r.status === "approved");
-
-  async function submitRequest() {
-    if (!form.company_name.trim() || !form.sender_id.trim()) { toast.error("Nom entreprise + Sender ID requis"); return; }
-    if (form.sender_id.length > 11) { toast.error("Sender ID : 11 caractères max"); return; }
-    setBusy(true);
-    try {
-      await createSenderIdRequest({ business_id: biz.id, ...form });
-      toast.success("Demande envoyée à l'administrateur ✅");
-      setForm({ ...form, sender_id: "", usage_note: "" });
-      await reload();
+      await updateProject({ id: p.id, show_in_shop: !(p as any).show_in_shop });
+      toast.success(!(p as any).show_in_shop ? "Projet ajouté à la boutique ✅" : "Projet retiré de la boutique");
+      onChanged();
     } catch (e: any) { toast.error(e.message); }
-    finally { setBusy(false); }
-  }
-
-  async function buy() {
-    if (!buyForm.sender_id || !buyForm.quantity) { toast.error("Choisir un Sender ID approuvé et une quantité"); return; }
-    if (!confirm(`Acheter ${buyForm.quantity} SMS ? Débit : ${buyForm.quantity * 20} XOF depuis votre portefeuille.`)) return;
-    setBusy(true);
-    try {
-      const r = await purchaseSmsCredits({ business_id: biz.id, ...buyForm });
-      toast.success(`+${r.added} SMS ajoutés (débit ${r.cost_xof} XOF)`);
-      await reload();
-    } catch (e: any) { toast.error(e.message); }
-    finally { setBusy(false); }
+    finally { setBusy(null); }
   }
 
   return (
     <section className="mt-6 rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
-      <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><Send className="h-5 w-5" /> SMS — Sender ID & crédits</h3>
-      <p className="mt-1 text-xs text-muted-foreground">Envoyez des SMS à vos clients avec le nom de votre entreprise en expéditeur (Sender ID). L'admin valide chaque demande auprès de BBG SMS. Tarif : <b>20 XOF / SMS</b>.</p>
-
-      {/* Formulaire de demande */}
-      <div className="mt-4 rounded-2xl border border-border bg-surface-2 p-4">
-        <p className="text-xs font-semibold uppercase text-muted-foreground">Demander un Sender ID</p>
-        <div className="mt-2 grid gap-2 md:grid-cols-3">
-          <input value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} placeholder="Nom de l'entreprise" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-          <input value={form.sender_id} maxLength={11} onChange={(e) => setForm({ ...form, sender_id: e.target.value })} placeholder="Sender ID (max 11)" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-          <button onClick={submitRequest} disabled={busy} className="rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow disabled:opacity-50">Soumettre</button>
-          <textarea value={form.usage_note} onChange={(e) => setForm({ ...form, usage_note: e.target.value })} placeholder="Usage prévu (ex : notifications de commande)" rows={2} className="md:col-span-3 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-        </div>
-      </div>
-
-      {/* Liste des demandes */}
-      {requests.length > 0 && (
-        <div className="mt-4">
-          <p className="text-xs font-semibold uppercase text-muted-foreground">Vos demandes</p>
-          <div className="mt-2 space-y-1.5">
-            {requests.map((r) => (
-              <div key={r.id} className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-xs">
-                <span className="font-mono font-semibold">{r.sender_id}</span>
-                <span className="text-muted-foreground">{r.company_name}</span>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${r.status === "approved" ? "bg-emerald-500/10 text-emerald-600" : r.status === "rejected" ? "bg-red-500/10 text-red-600" : "bg-amber-500/10 text-amber-600"}`}>
-                  {r.status === "approved" ? "Approuvé" : r.status === "rejected" ? "Refusé" : "En attente"}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Achat de crédits */}
-      {approved.length > 0 && (
-        <div className="mt-4 rounded-2xl border border-primary/40 bg-primary/5 p-4">
-          <p className="text-xs font-semibold uppercase text-primary">Acheter des crédits SMS</p>
-          <div className="mt-2 grid gap-2 md:grid-cols-3">
-            <select value={buyForm.sender_id} onChange={(e) => setBuyForm({ ...buyForm, sender_id: e.target.value })} className="rounded-lg border border-border bg-background px-3 py-2 text-sm">
-              <option value="">— Sender ID —</option>
-              {approved.map((r) => <option key={r.id} value={r.sender_id}>{r.sender_id}</option>)}
-            </select>
-            <input type="number" min={1} value={buyForm.quantity} onChange={(e) => setBuyForm({ ...buyForm, quantity: Number(e.target.value) })} placeholder="Quantité" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-            <button onClick={buy} disabled={busy || !buyForm.sender_id} className="rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
-              Acheter ({buyForm.quantity * 20} XOF)
-            </button>
-          </div>
-
-          {credits.length > 0 && (
-            <div className="mt-3 space-y-1.5">
-              {credits.map((c) => (
-                <div key={c.id} className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-xs">
-                  <span className="font-mono font-semibold">{c.sender_id}</span>
-                  <span>Solde : <b className="tabular-nums">{c.balance}</b> SMS</span>
-                  <span className="text-muted-foreground">Achetés {c.total_purchased} · Utilisés {c.total_used}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      <p className="mt-3 text-[10px] text-muted-foreground">
-        Règles BBG SMS : pas de contenu illicite, chaque SMS = 160 caractères GSM. Au-delà, le message est facturé en plusieurs SMS.
+      <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><FolderKanban className="h-5 w-5" /> Ajouter des projets / produits à la boutique</h3>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Seuls les projets déjà créés et configurés (paiements) peuvent être affichés. Créez d'abord le projet dans l'onglet « Projets », ajoutez-y vos produits, puis activez-le ici.
       </p>
+      {projects.length === 0 ? (
+        <div className="mt-4 rounded-2xl border border-dashed border-border bg-surface-2 p-6 text-center">
+          <p className="text-sm text-muted-foreground">Aucun projet disponible. Créez d'abord un projet et configurez ses paiements.</p>
+          <button onClick={onGoProjects} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow">
+            <Plus className="h-3.5 w-3.5" /> Créer un projet
+          </button>
+        </div>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {projects.map((p) => {
+            const on = Boolean((p as any).show_in_shop);
+            return (
+              <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface-2 px-4 py-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  {p.logo_url ? <img src={p.logo_url} alt="" className="h-9 w-9 rounded-xl object-cover" />
+                    : <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-primary text-xs font-bold text-primary-foreground">{p.name[0]}</div>}
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{p.name}</p>
+                    <p className="text-[11px] text-muted-foreground">{p.currency} · {p.status === "active" ? "actif" : p.status}</p>
+                  </div>
+                </div>
+                <button onClick={() => toggle(p)} disabled={busy === p.id}
+                  className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${on ? "bg-emerald-500/15 text-emerald-500" : "border border-border hover:bg-muted"}`}>
+                  {busy === p.id ? "…" : on ? "Affiché dans la boutique ✓" : "Ajouter à la boutique"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }
