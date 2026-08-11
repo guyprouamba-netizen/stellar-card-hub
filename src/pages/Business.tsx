@@ -269,7 +269,7 @@ export default function BusinessPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-3 py-4 sm:px-6 sm:py-8">
+      <main className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-6">
         {businesses.length === 0 ? (
           <div className="rounded-3xl border border-border bg-card p-12 text-center">
             <Building2 className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -280,19 +280,47 @@ export default function BusinessPage() {
             </button>
           </div>
         ) : (
-          <>
-            {/* Selector */}
-            <div className="mb-6 flex flex-wrap gap-2">
-              {businesses.map((b) => (
-                <button key={b.id} onClick={() => setCurrent(b)}
-                  className={`rounded-full border px-4 py-2 text-sm font-medium ${current?.id === b.id ? "border-primary bg-primary/10" : "border-border bg-surface-2 hover:bg-muted"}`}>
-                  {b.name}
+          <div className="flex gap-6">
+            {/* Menu vertical */}
+            <aside className="hidden w-60 shrink-0 lg:block">
+              <nav className="sticky top-20 space-y-1 rounded-2xl border border-border bg-card p-3">
+                {NAV.map((n) => {
+                  const Icon = n.icon;
+                  const active = tab === n.id;
+                  return (
+                    <button key={n.id} onClick={() => setTab(n.id)}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+                      <Icon className="h-4 w-4" /> {n.label}
+                    </button>
+                  );
+                })}
+                {current && (
+                  <div className="mt-3 space-y-1 border-t border-border pt-3">
+                    <Link to={`/business/${current.id}/accounting`} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
+                      <BarChart3 className="h-4 w-4" /> Comptabilité
+                    </Link>
+                    <Link to={`/business/${current.id}/contracts`} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
+                      <Receipt className="h-4 w-4" /> Contrats & Factures
+                    </Link>
+                  </div>
+                )}
+              </nav>
+            </aside>
+
+            <div className="min-w-0 flex-1">
+            {/* Menu horizontal (mobile) */}
+            <div className="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-1 lg:hidden">
+              {NAV.map((n) => (
+                <button key={n.id} onClick={() => setTab(n.id)}
+                  className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${tab === n.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-surface-2 text-muted-foreground"}`}>
+                  {n.label}
                 </button>
               ))}
             </div>
 
             {current && (
               <>
+              {tab === "overview" && (<>
                 {/* Barre de statistiques (style tableau de bord marchand) */}
                 <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {[
