@@ -1204,6 +1204,8 @@ export type Database = {
           owner_id: string
           slug: string
           status: Database["public"]["Enums"]["business_status"]
+          tagline: string | null
+          theme: Json
           updated_at: string
         }
         Insert: {
@@ -1221,6 +1223,8 @@ export type Database = {
           owner_id: string
           slug: string
           status?: Database["public"]["Enums"]["business_status"]
+          tagline?: string | null
+          theme?: Json
           updated_at?: string
         }
         Update: {
@@ -1238,6 +1242,8 @@ export type Database = {
           owner_id?: string
           slug?: string
           status?: Database["public"]["Enums"]["business_status"]
+          tagline?: string | null
+          theme?: Json
           updated_at?: string
         }
         Relationships: []
@@ -2513,6 +2519,7 @@ export type Database = {
           id: string
           logo_url: string | null
           name: string
+          show_in_shop: boolean
           slug: string
           status: string
           updated_at: string
@@ -2529,6 +2536,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name: string
+          show_in_shop?: boolean
           slug: string
           status?: string
           updated_at?: string
@@ -2545,6 +2553,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name?: string
+          show_in_shop?: boolean
           slug?: string
           status?: string
           updated_at?: string
