@@ -6,15 +6,14 @@ import {
   listMyBusinesses, createBusiness, listPaymentLinks, createPaymentLink,
   updatePaymentLink, listLinkPayments, listApiKeys, createApiKey, revokeApiKey,
   cashoutBusinessBalance, listProjects, createProject, getBusinessDashboard,
-  updateBusiness,
-  createSenderIdRequest, listMySenderIdRequests, listSmsCredits, purchaseSmsCredits,
+  updateBusiness, updateProject,
 } from "@/lib/business.functions";
 import {
   listOrders, updateOrderStatus,
   listBusinessPosts, createBusinessPost, updateBusinessPost, deleteBusinessPost,
 } from "@/lib/orders.functions";
 import { uploadBusinessMedia } from "@/lib/upload";
-import { ArrowLeft, Building2, Copy, Key, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Send } from "lucide-react";
+import { ArrowLeft, Building2, Copy, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Palette } from "lucide-react";
 import { LayoutDashboard, Receipt, CreditCard, Settings2, BarChart3 } from "lucide-react";
 
 const NAV = [
@@ -398,7 +397,7 @@ export default function BusinessPage() {
 
                 {tab === "settings" && (<>
                 <ShopBrandingPanel biz={current} onUpdated={refreshAll} />
-                <SmsSenderPanel biz={current} />
+                <ShopProjectsPanel projects={projects} onChanged={() => refreshCurrent(current.id)} onGoProjects={() => setTab("projects")} />
                 </>)}
 
                 {/* Projects */}
@@ -637,9 +636,28 @@ export default function BusinessPage() {
 // ============================================================
 // Panneau : Personnalisation boutique (logo, couverture, description)
 // ============================================================
+const SHOP_THEME_DEFAULT = { bg: "#0b0b0f", surface: "#15151c", text: "#f5f5f7", muted: "#a1a1aa", primary: "#f97316", primary_text: "#ffffff" };
+const SHOP_PRESETS: Array<{ label: string; theme: typeof SHOP_THEME_DEFAULT }> = [
+  { label: "Nuit orange", theme: SHOP_THEME_DEFAULT },
+  { label: "Clair épuré", theme: { bg: "#ffffff", surface: "#f6f6f8", text: "#111827", muted: "#6b7280", primary: "#111827", primary_text: "#ffffff" } },
+  { label: "Crème & vert", theme: { bg: "#fbf8f1", surface: "#ffffff", text: "#1f2a24", muted: "#6b7f74", primary: "#1f7a53", primary_text: "#ffffff" } },
+  { label: "Bleu confiance", theme: { bg: "#f4f7fb", surface: "#ffffff", text: "#0f1b3d", muted: "#5c6a8a", primary: "#2563eb", primary_text: "#ffffff" } },
+  { label: "Sable Faso", theme: { bg: "#fff8ef", surface: "#ffffff", text: "#3b2314", muted: "#8b7355", primary: "#c2410c", primary_text: "#ffffff" } },
+];
+const THEME_FIELDS: Array<{ key: keyof typeof SHOP_THEME_DEFAULT; label: string }> = [
+  { key: "bg", label: "Couleur de fond" },
+  { key: "surface", label: "Cartes" },
+  { key: "text", label: "Texte" },
+  { key: "muted", label: "Texte secondaire" },
+  { key: "primary", label: "Couleur principale" },
+  { key: "primary_text", label: "Texte sur boutons" },
+];
+
 function ShopBrandingPanel({ biz, onUpdated }: { biz: Biz & { logo_url?: string; cover_url?: string; description?: string }; onUpdated: () => void }) {
   const [name, setName] = useState(biz.name || "");
   const [description, setDescription] = useState((biz as any).description || "");
+  const [tagline, setTagline] = useState((biz as any).tagline || "");
+  const [theme, setTheme] = useState<typeof SHOP_THEME_DEFAULT>({ ...SHOP_THEME_DEFAULT, ...((biz as any).theme || {}) });
   const [logoUrl, setLogoUrl] = useState((biz as any).logo_url || "");
   const [coverUrl, setCoverUrl] = useState((biz as any).cover_url || "");
   const [saving, setSaving] = useState(false);
@@ -648,6 +666,8 @@ function ShopBrandingPanel({ biz, onUpdated }: { biz: Biz & { logo_url?: string;
   useEffect(() => {
     setName(biz.name || "");
     setDescription((biz as any).description || "");
+    setTagline((biz as any).tagline || "");
+    setTheme({ ...SHOP_THEME_DEFAULT, ...((biz as any).theme || {}) });
     setLogoUrl((biz as any).logo_url || "");
     setCoverUrl((biz as any).cover_url || "");
   }, [biz.id]);
@@ -667,7 +687,7 @@ function ShopBrandingPanel({ biz, onUpdated }: { biz: Biz & { logo_url?: string;
   async function saveText() {
     setSaving(true);
     try {
-      await updateBusiness({ id: biz.id, name, description });
+      await updateBusiness({ id: biz.id, name, description, tagline, theme } as any);
       toast.success("Boutique enregistrée ✅");
       onUpdated();
     } catch (e: any) { toast.error(e.message); }
@@ -682,157 +702,139 @@ function ShopBrandingPanel({ biz, onUpdated }: { biz: Biz & { logo_url?: string;
         <div>
           <p className="text-xs font-semibold uppercase text-muted-foreground">Logo</p>
           <div className="mt-2 flex items-center gap-3">
-            {logoUrl ? <img src={logoUrl} alt="Logo" className="h-16 w-16 rounded-xl object-cover border border-border" />
-              : <div className="grid h-16 w-16 place-items-center rounded-xl border border-dashed border-border text-xs text-muted-foreground">Aucun</div>}
+            {logoUrl ? <img src={logoUrl} alt="Logo" className="h-32 w-32 rounded-2xl object-cover border border-border" />
+              : <div className="grid h-32 w-32 place-items-center rounded-2xl border border-dashed border-border text-xs text-muted-foreground">Aucun</div>}
             <label className="cursor-pointer rounded-full border border-border bg-surface-2 px-3 py-1.5 text-xs font-semibold hover:bg-muted">
               {uploading === "logo" ? "Envoi…" : "Choisir un fichier"}
               <input type="file" accept="image/*" className="hidden" disabled={uploading === "logo"}
                 onChange={(e) => e.target.files?.[0] && onFile("logo", e.target.files[0])} />
             </label>
           </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">Format carré recommandé (512×512), il s'affiche en grand sur la boutique.</p>
         </div>
         <div>
           <p className="text-xs font-semibold uppercase text-muted-foreground">Photo de couverture</p>
           <div className="mt-2 flex items-center gap-3">
-            {coverUrl ? <img src={coverUrl} alt="Couverture" className="h-16 w-28 rounded-xl object-cover border border-border" />
-              : <div className="grid h-16 w-28 place-items-center rounded-xl border border-dashed border-border text-xs text-muted-foreground">Aucune</div>}
+            {coverUrl ? <img src={coverUrl} alt="Couverture" className="h-32 w-full max-w-xs rounded-2xl object-cover border border-border" />
+              : <div className="grid h-32 w-full max-w-xs place-items-center rounded-2xl border border-dashed border-border text-xs text-muted-foreground">Aucune</div>}
             <label className="cursor-pointer rounded-full border border-border bg-surface-2 px-3 py-1.5 text-xs font-semibold hover:bg-muted">
               {uploading === "cover" ? "Envoi…" : "Choisir un fichier"}
               <input type="file" accept="image/*" className="hidden" disabled={uploading === "cover"}
                 onChange={(e) => e.target.files?.[0] && onFile("cover", e.target.files[0])} />
             </label>
           </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">Bannière large (1600×600) affichée en haut de la boutique.</p>
         </div>
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom de la boutique"
           className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-        <button onClick={saveText} disabled={saving}
-          className="rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
-          {saving ? "Enregistrement…" : "Enregistrer"}
-        </button>
+        <input value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="Slogan (affiché sur la couverture)"
+          className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
         <textarea value={description} onChange={(e) => setDescription(e.target.value)}
           placeholder="Description courte (affichée sur la vitrine et les reçus)" rows={3}
           className="md:col-span-2 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
       </div>
+
+      {/* Couleurs */}
+      <div className="mt-6 border-t border-border pt-5">
+        <p className="inline-flex items-center gap-2 text-sm font-bold"><Palette className="h-4 w-4" /> Couleurs de la boutique</p>
+        <p className="mt-1 text-xs text-muted-foreground">Choisissez un thème prêt à l'emploi ou définissez vos propres couleurs.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {SHOP_PRESETS.map((p) => (
+            <button key={p.label} onClick={() => setTheme(p.theme)}
+              className="flex items-center gap-2 rounded-full border border-border bg-surface-2 px-3 py-1.5 text-xs font-semibold hover:bg-muted">
+              <span className="flex">
+                {[p.theme.bg, p.theme.surface, p.theme.primary].map((c) => (
+                  <span key={c} className="h-4 w-4 rounded-full border border-border -ml-1 first:ml-0" style={{ background: c }} />
+                ))}
+              </span>
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {THEME_FIELDS.map((f) => (
+            <label key={f.key} className="flex items-center gap-3 rounded-xl border border-border bg-surface-2 px-3 py-2">
+              <input type="color" value={theme[f.key]} onChange={(e) => setTheme((t) => ({ ...t, [f.key]: e.target.value }))}
+                className="h-8 w-10 cursor-pointer rounded border border-border bg-transparent" />
+              <span className="text-xs font-semibold">{f.label}</span>
+            </label>
+          ))}
+        </div>
+        <div className="mt-4 overflow-hidden rounded-2xl border border-border">
+          <div className="p-5" style={{ background: theme.bg, color: theme.text }}>
+            <p className="text-xs uppercase tracking-wider" style={{ color: theme.muted }}>Aperçu</p>
+            <p className="mt-1 text-lg font-bold">{name || "Ma boutique"}</p>
+            <div className="mt-3 rounded-xl p-3" style={{ background: theme.surface }}>
+              <p className="text-sm font-semibold">Produit exemple</p>
+              <p className="text-xs" style={{ color: theme.muted }}>10 000 XOF</p>
+              <span className="mt-2 inline-block rounded-full px-3 py-1 text-xs font-semibold" style={{ background: theme.primary, color: theme.primary_text }}>Ajouter</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button onClick={saveText} disabled={saving}
+        className="mt-5 w-full rounded-full bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50 sm:w-auto sm:px-8">
+        {saving ? "Enregistrement…" : "Enregistrer la boutique"}
+      </button>
     </section>
   );
 }
 
 // ============================================================
-// Panneau : Sender ID SMS + achat de crédits
+// Panneau : Projets affichés dans la boutique
 // ============================================================
-function SmsSenderPanel({ biz }: { biz: Biz }) {
-  const [requests, setRequests] = useState<any[]>([]);
-  const [credits, setCredits] = useState<any[]>([]);
-  const [form, setForm] = useState({ company_name: biz.name || "", sender_id: "", usage_note: "" });
-  const [buyForm, setBuyForm] = useState({ sender_id: "", quantity: 100 });
-  const [busy, setBusy] = useState(false);
+function ShopProjectsPanel({ projects, onChanged, onGoProjects }: { projects: Project[]; onChanged: () => void; onGoProjects: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
 
-  const reload = async () => {
+  async function toggle(p: Project) {
+    setBusy(p.id);
     try {
-      const [r, c] = await Promise.all([
-        listMySenderIdRequests(biz.id).catch(() => []),
-        listSmsCredits(biz.id).catch(() => []),
-      ]);
-      setRequests(r); setCredits(c);
-    } catch { /* ignore */ }
-  };
-  useEffect(() => { reload(); }, [biz.id]);
-
-  const approved = requests.filter((r) => r.status === "approved");
-
-  async function submitRequest() {
-    if (!form.company_name.trim() || !form.sender_id.trim()) { toast.error("Nom entreprise + Sender ID requis"); return; }
-    if (form.sender_id.length > 11) { toast.error("Sender ID : 11 caractères max"); return; }
-    setBusy(true);
-    try {
-      await createSenderIdRequest({ business_id: biz.id, ...form });
-      toast.success("Demande envoyée à l'administrateur ✅");
-      setForm({ ...form, sender_id: "", usage_note: "" });
-      await reload();
+      await updateProject({ id: p.id, show_in_shop: !(p as any).show_in_shop });
+      toast.success(!(p as any).show_in_shop ? "Projet ajouté à la boutique ✅" : "Projet retiré de la boutique");
+      onChanged();
     } catch (e: any) { toast.error(e.message); }
-    finally { setBusy(false); }
-  }
-
-  async function buy() {
-    if (!buyForm.sender_id || !buyForm.quantity) { toast.error("Choisir un Sender ID approuvé et une quantité"); return; }
-    if (!confirm(`Acheter ${buyForm.quantity} SMS ? Débit : ${buyForm.quantity * 20} XOF depuis votre portefeuille.`)) return;
-    setBusy(true);
-    try {
-      const r = await purchaseSmsCredits({ business_id: biz.id, ...buyForm });
-      toast.success(`+${r.added} SMS ajoutés (débit ${r.cost_xof} XOF)`);
-      await reload();
-    } catch (e: any) { toast.error(e.message); }
-    finally { setBusy(false); }
+    finally { setBusy(null); }
   }
 
   return (
     <section className="mt-6 rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
-      <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><Send className="h-5 w-5" /> SMS — Sender ID & crédits</h3>
-      <p className="mt-1 text-xs text-muted-foreground">Envoyez des SMS à vos clients avec le nom de votre entreprise en expéditeur (Sender ID). L'admin valide chaque demande auprès de BBG SMS. Tarif : <b>20 XOF / SMS</b>.</p>
-
-      {/* Formulaire de demande */}
-      <div className="mt-4 rounded-2xl border border-border bg-surface-2 p-4">
-        <p className="text-xs font-semibold uppercase text-muted-foreground">Demander un Sender ID</p>
-        <div className="mt-2 grid gap-2 md:grid-cols-3">
-          <input value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} placeholder="Nom de l'entreprise" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-          <input value={form.sender_id} maxLength={11} onChange={(e) => setForm({ ...form, sender_id: e.target.value })} placeholder="Sender ID (max 11)" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-          <button onClick={submitRequest} disabled={busy} className="rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow disabled:opacity-50">Soumettre</button>
-          <textarea value={form.usage_note} onChange={(e) => setForm({ ...form, usage_note: e.target.value })} placeholder="Usage prévu (ex : notifications de commande)" rows={2} className="md:col-span-3 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-        </div>
-      </div>
-
-      {/* Liste des demandes */}
-      {requests.length > 0 && (
-        <div className="mt-4">
-          <p className="text-xs font-semibold uppercase text-muted-foreground">Vos demandes</p>
-          <div className="mt-2 space-y-1.5">
-            {requests.map((r) => (
-              <div key={r.id} className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-xs">
-                <span className="font-mono font-semibold">{r.sender_id}</span>
-                <span className="text-muted-foreground">{r.company_name}</span>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${r.status === "approved" ? "bg-emerald-500/10 text-emerald-600" : r.status === "rejected" ? "bg-red-500/10 text-red-600" : "bg-amber-500/10 text-amber-600"}`}>
-                  {r.status === "approved" ? "Approuvé" : r.status === "rejected" ? "Refusé" : "En attente"}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Achat de crédits */}
-      {approved.length > 0 && (
-        <div className="mt-4 rounded-2xl border border-primary/40 bg-primary/5 p-4">
-          <p className="text-xs font-semibold uppercase text-primary">Acheter des crédits SMS</p>
-          <div className="mt-2 grid gap-2 md:grid-cols-3">
-            <select value={buyForm.sender_id} onChange={(e) => setBuyForm({ ...buyForm, sender_id: e.target.value })} className="rounded-lg border border-border bg-background px-3 py-2 text-sm">
-              <option value="">— Sender ID —</option>
-              {approved.map((r) => <option key={r.id} value={r.sender_id}>{r.sender_id}</option>)}
-            </select>
-            <input type="number" min={1} value={buyForm.quantity} onChange={(e) => setBuyForm({ ...buyForm, quantity: Number(e.target.value) })} placeholder="Quantité" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-            <button onClick={buy} disabled={busy || !buyForm.sender_id} className="rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
-              Acheter ({buyForm.quantity * 20} XOF)
-            </button>
-          </div>
-
-          {credits.length > 0 && (
-            <div className="mt-3 space-y-1.5">
-              {credits.map((c) => (
-                <div key={c.id} className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-xs">
-                  <span className="font-mono font-semibold">{c.sender_id}</span>
-                  <span>Solde : <b className="tabular-nums">{c.balance}</b> SMS</span>
-                  <span className="text-muted-foreground">Achetés {c.total_purchased} · Utilisés {c.total_used}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      <p className="mt-3 text-[10px] text-muted-foreground">
-        Règles BBG SMS : pas de contenu illicite, chaque SMS = 160 caractères GSM. Au-delà, le message est facturé en plusieurs SMS.
+      <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><FolderKanban className="h-5 w-5" /> Ajouter des projets / produits à la boutique</h3>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Seuls les projets déjà créés et configurés (paiements) peuvent être affichés. Créez d'abord le projet dans l'onglet « Projets », ajoutez-y vos produits, puis activez-le ici.
       </p>
+      {projects.length === 0 ? (
+        <div className="mt-4 rounded-2xl border border-dashed border-border bg-surface-2 p-6 text-center">
+          <p className="text-sm text-muted-foreground">Aucun projet disponible. Créez d'abord un projet et configurez ses paiements.</p>
+          <button onClick={onGoProjects} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow">
+            <Plus className="h-3.5 w-3.5" /> Créer un projet
+          </button>
+        </div>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {projects.map((p) => {
+            const on = Boolean((p as any).show_in_shop);
+            return (
+              <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface-2 px-4 py-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  {p.logo_url ? <img src={p.logo_url} alt="" className="h-9 w-9 rounded-xl object-cover" />
+                    : <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-primary text-xs font-bold text-primary-foreground">{p.name[0]}</div>}
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{p.name}</p>
+                    <p className="text-[11px] text-muted-foreground">{p.currency} · {p.status === "active" ? "actif" : p.status}</p>
+                  </div>
+                </div>
+                <button onClick={() => toggle(p)} disabled={busy === p.id}
+                  className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${on ? "bg-emerald-500/15 text-emerald-500" : "border border-border hover:bg-muted"}`}>
+                  {busy === p.id ? "…" : on ? "Affiché dans la boutique ✓" : "Ajouter à la boutique"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }

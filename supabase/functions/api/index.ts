@@ -2033,7 +2033,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async updateBusiness({ data, user, admin }) {
     await assertBusinessOwner(admin, user.id, data.id);
     const patch: Record<string, any> = {};
-    for (const k of ["name", "description", "contact_email", "contact_phone", "logo_url", "cover_url"]) {
+    for (const k of ["name", "description", "tagline", "theme", "contact_email", "contact_phone", "logo_url", "cover_url"]) {
       if (data?.[k] !== undefined) patch[k] = data[k];
     }
     const { data: row, error } = await admin.from("businesses").update(patch).eq("id", data.id).select("*").single();
@@ -2142,6 +2142,15 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       description: `Transfert solde business → wallet`,
       metadata: { business_id: biz.id },
     });
+    // Comptabilité : tout retrait depuis la boutique est enregistré automatiquement
+    await admin.from("accounting_entries").insert({
+      business_id: biz.id, kind: "expense",
+      label: "Retrait vers portefeuille",
+      amount, currency: "XOF",
+      entry_date: new Date().toISOString().slice(0, 10),
+      auto_generated: true,
+      notes: "Retrait automatique du solde boutique",
+    });
     return { ok: true, transferred: amount };
   },
 
@@ -2183,7 +2192,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!p) throw new Error("Projet introuvable");
     await assertBusinessOwner(admin, user.id, p.business_id);
     const patch: Record<string, any> = {};
-    for (const k of ["name", "description", "logo_url", "cover_url", "currency", "financial_goal", "goal_deadline", "status"]) {
+    for (const k of ["name", "description", "logo_url", "cover_url", "currency", "financial_goal", "goal_deadline", "status", "show_in_shop"]) {
       if (data?.[k] !== undefined) patch[k] = data[k];
     }
     const { data: row, error } = await admin.from("projects").update(patch).eq("id", data.id).select("*").single();

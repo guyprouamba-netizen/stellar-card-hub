@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.autolog_link_payment() FROM PUBLIC, anon, authenticated;

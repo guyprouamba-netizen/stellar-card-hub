@@ -3,9 +3,16 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getShop, initShopCheckout } from "@/lib/pay.functions";
 import { Loader2, ShoppingCart, Plus, Minus, X, ShieldCheck, Store, Mail, Phone } from "lucide-react";
 
-type Product = { id: string; name: string; slug: string; description: string | null; price: number; currency: string; media?: Array<{ url: string; type: string }> };
+type Product = { id: string; name: string; slug: string; description: string | null; price: number; currency: string; project_id?: string | null; media?: Array<{ url: string; type: string }> };
 type Post = { id: string; title: string; body: string | null; image_url: string | null; product_id: string | null; published_at: string };
-type Biz = { id: string; name: string; slug: string; description: string | null; logo_url: string | null; contact_email: string | null; contact_phone: string | null };
+type Biz = {
+  id: string; name: string; slug: string; description: string | null; tagline?: string | null;
+  logo_url: string | null; cover_url?: string | null; contact_email: string | null; contact_phone: string | null;
+  theme?: { bg?: string; surface?: string; text?: string; muted?: string; primary?: string; primary_text?: string };
+};
+type ShopProject = { id: string; name: string; description: string | null; cover_url: string | null; logo_url: string | null; products: Product[] };
+
+const DEFAULT_THEME = { bg: "#0b0b0f", surface: "#15151c", text: "#f5f5f7", muted: "#a1a1aa", primary: "#f97316", primary_text: "#ffffff" };
 
 export default function Shop() {
   const { slug = "" } = useParams();
@@ -14,6 +21,7 @@ export default function Shop() {
   const [error, setError] = useState<string | null>(null);
   const [biz, setBiz] = useState<Biz | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [projects, setProjects] = useState<ShopProject[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [cart, setCart] = useState<Record<string, number>>({});
   const [cartOpen, setCartOpen] = useState(false);
@@ -30,7 +38,7 @@ export default function Shop() {
       return;
     }
     getShop(slug).then((r: any) => {
-      setBiz(r.business); setProducts(r.products); setPosts(r.posts); setLoading(false);
+      setBiz(r.business); setProducts(r.products); setProjects(r.projects || []); setPosts(r.posts); setLoading(false);
     }).catch((e) => { setError(e.message); setLoading(false); });
   }, [slug, navigate]);
 
@@ -78,50 +86,91 @@ export default function Shop() {
   );
   if (!biz) return null;
 
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Merchant header */}
-      <header className="border-b border-border bg-surface-1/70 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-3 min-w-0">
-            {biz.logo_url ? (
-              <img src={biz.logo_url} alt={biz.name} className="h-12 w-12 shrink-0 rounded-2xl object-cover" />
+  const th = { ...DEFAULT_THEME, ...(biz.theme || {}) };
+  const grouped: ShopProject[] = projects.length
+    ? projects
+    : [{ id: "_all", name: "Produits", description: null, cover_url: null, logo_url: null, products }];
+
+  const card = (p: Product) => {
+    const img = p.media?.[0]?.url;
+    const qty = cart[p.id] || 0;
+    return (
+      <div key={p.id} id={`product-${p.id}`} className="overflow-hidden rounded-2xl transition hover:-translate-y-1"
+        style={{ background: th.surface, border: `1px solid ${th.primary}22` }}>
+        {img ? <img src={img} alt={p.name} className="h-56 w-full object-cover" loading="lazy" />
+          : <div className="grid h-56 w-full place-items-center" style={{ background: `${th.primary}12` }}><Store className="h-10 w-10" style={{ color: th.muted }} /></div>}
+        <div className="p-4">
+          <h3 className="font-bold">{p.name}</h3>
+          {p.description && <p className="mt-1 text-sm line-clamp-2" style={{ color: th.muted }}>{p.description}</p>}
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <p className="text-lg font-bold tabular-nums">{Number(p.price).toLocaleString("fr-FR")} <span className="text-xs" style={{ color: th.muted }}>{p.currency}</span></p>
+            {qty === 0 ? (
+              <button onClick={() => addToCart(p.id)} className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold"
+                style={{ background: th.primary, color: th.primary_text }}>
+                <Plus className="h-3.5 w-3.5" /> Ajouter
+              </button>
             ) : (
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-primary font-bold text-primary-foreground">{biz.name[0]}</div>
+              <div className="inline-flex items-center gap-2 rounded-full px-1 py-0.5" style={{ border: `1px solid ${th.primary}55` }}>
+                <button onClick={() => setQty(p.id, qty - 1)} className="grid h-7 w-7 place-items-center rounded-full"><Minus className="h-3 w-3" /></button>
+                <span className="w-4 text-center text-sm font-bold tabular-nums">{qty}</span>
+                <button onClick={() => setQty(p.id, qty + 1)} className="grid h-7 w-7 place-items-center rounded-full"><Plus className="h-3 w-3" /></button>
+              </div>
             )}
-            <div className="min-w-0">
-              <h1 className="truncate font-[Space_Grotesk] text-lg font-bold sm:text-xl">{biz.name}</h1>
-              {biz.description && <p className="truncate text-xs text-muted-foreground">{biz.description}</p>}
-            </div>
           </div>
-          <button onClick={() => setCartOpen(true)} className="relative inline-flex items-center gap-2 rounded-full bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-glow">
-            <ShoppingCart className="h-4 w-4" />
-            <span className="hidden sm:inline">Panier</span>
-            {cartCount > 0 && <span className="grid h-5 min-w-[20px] place-items-center rounded-full bg-background px-1 text-xs font-bold text-foreground">{cartCount}</span>}
-          </button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen" style={{ background: th.bg, color: th.text }}>
+      {/* Hero couverture large */}
+      <header className="relative">
+        <div className="relative h-[42vh] min-h-[280px] w-full overflow-hidden sm:h-[52vh]">
+          {biz.cover_url
+            ? <img src={biz.cover_url} alt={`Couverture ${biz.name}`} className="h-full w-full object-cover" />
+            : <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${th.primary}, ${th.surface})` }} />}
+          <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, ${th.bg}22, ${th.bg}cc)` }} />
+          <div className="absolute inset-x-0 top-0 flex items-center justify-end gap-3 px-4 py-4 sm:px-8">
+            <button onClick={() => setCartOpen(true)} className="relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow-lg"
+              style={{ background: th.primary, color: th.primary_text }}>
+              <ShoppingCart className="h-4 w-4" />
+              <span className="hidden sm:inline">Panier</span>
+              {cartCount > 0 && <span className="grid h-5 min-w-[20px] place-items-center rounded-full px-1 text-xs font-bold" style={{ background: th.bg, color: th.text }}>{cartCount}</span>}
+            </button>
+          </div>
+          <div className="absolute inset-x-0 bottom-0 px-4 pb-8 text-center sm:px-8">
+            <h1 className="text-3xl font-black tracking-tight drop-shadow sm:text-5xl">{biz.name}</h1>
+            {(biz.tagline || biz.description) && (
+              <p className="mx-auto mt-2 max-w-2xl text-sm sm:text-base" style={{ color: th.muted }}>{biz.tagline || biz.description}</p>
+            )}
+          </div>
+        </div>
+        {/* Logo large chevauchant la couverture */}
+        <div className="mx-auto -mt-14 flex max-w-6xl justify-center px-4 sm:-mt-16">
+          {biz.logo_url ? (
+            <img src={biz.logo_url} alt={`Logo ${biz.name}`} className="h-28 w-28 rounded-3xl object-cover shadow-xl sm:h-36 sm:w-36"
+              style={{ border: `4px solid ${th.bg}`, background: th.surface }} />
+          ) : (
+            <div className="grid h-28 w-28 place-items-center rounded-3xl text-4xl font-black shadow-xl sm:h-36 sm:w-36"
+              style={{ background: th.primary, color: th.primary_text, border: `4px solid ${th.bg}` }}>{biz.name[0]}</div>
+          )}
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
-        {/* Publications feed */}
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+        {/* Publications */}
         {posts.length > 0 && (
-          <section className="mb-10">
-            <h2 className="mb-4 font-[Space_Grotesk] text-xl font-bold">Actualités</h2>
+          <section className="mb-12">
+            <h2 className="mb-4 text-xl font-bold">Actualités</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               {posts.slice(0, 4).map((p) => (
-                <article key={p.id} className="overflow-hidden rounded-2xl border border-border bg-card">
-                  {p.image_url && <img src={p.image_url} alt="" className="h-40 w-full object-cover" />}
+                <article key={p.id} className="overflow-hidden rounded-2xl" style={{ background: th.surface, border: `1px solid ${th.primary}22` }}>
+                  {p.image_url && <img src={p.image_url} alt={p.title} className="h-40 w-full object-cover" loading="lazy" />}
                   <div className="p-4">
                     <h3 className="font-bold">{p.title}</h3>
-                    {p.body && <p className="mt-1 text-sm text-muted-foreground line-clamp-3">{p.body}</p>}
-                    {p.product_id && (
-                      <button
-                        onClick={() => { const el = document.getElementById(`product-${p.product_id}`); el?.scrollIntoView({ behavior: "smooth" }); }}
-                        className="mt-3 text-xs font-semibold text-primary hover:underline">
-                        Voir le produit →
-                      </button>
-                    )}
-                    <p className="mt-2 text-[10px] text-muted-foreground">{new Date(p.published_at).toLocaleDateString("fr-FR")}</p>
+                    {p.body && <p className="mt-1 text-sm line-clamp-3" style={{ color: th.muted }}>{p.body}</p>}
+                    <p className="mt-2 text-[10px]" style={{ color: th.muted }}>{new Date(p.published_at).toLocaleDateString("fr-FR")}</p>
                   </div>
                 </article>
               ))}
@@ -129,55 +178,34 @@ export default function Shop() {
           </section>
         )}
 
-        {/* Products */}
-        <section>
-          <h2 className="mb-4 font-[Space_Grotesk] text-xl font-bold">Produits</h2>
-          {products.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border bg-surface-2 p-12 text-center">
-              <Store className="mx-auto h-10 w-10 text-muted-foreground" />
-              <p className="mt-3 text-sm text-muted-foreground">Aucun produit disponible pour l'instant.</p>
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {products.map((p) => {
-                const img = p.media?.[0]?.url;
-                const qty = cart[p.id] || 0;
-                return (
-                  <div key={p.id} id={`product-${p.id}`} className="overflow-hidden rounded-2xl border border-border bg-card transition hover:border-primary/40 hover:shadow-glow">
-                    {img ? <img src={img} alt={p.name} className="h-48 w-full object-cover" />
-                      : <div className="grid h-48 w-full place-items-center bg-gradient-to-br from-muted to-surface-2"><Store className="h-10 w-10 text-muted-foreground" /></div>}
-                    <div className="p-4">
-                      <h3 className="font-bold">{p.name}</h3>
-                      {p.description && <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{p.description}</p>}
-                      <div className="mt-3 flex items-center justify-between gap-2">
-                        <p className="font-[Space_Grotesk] text-lg font-bold tabular-nums">{Number(p.price).toLocaleString("fr-FR")} <span className="text-xs text-muted-foreground">{p.currency}</span></p>
-                        {qty === 0 ? (
-                          <button onClick={() => addToCart(p.id)} className="inline-flex items-center gap-1 rounded-full bg-gradient-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow">
-                            <Plus className="h-3.5 w-3.5" /> Ajouter
-                          </button>
-                        ) : (
-                          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-1 py-0.5">
-                            <button onClick={() => setQty(p.id, qty - 1)} className="grid h-7 w-7 place-items-center rounded-full hover:bg-muted"><Minus className="h-3 w-3" /></button>
-                            <span className="w-4 text-center text-sm font-bold tabular-nums">{qty}</span>
-                            <button onClick={() => setQty(p.id, qty + 1)} className="grid h-7 w-7 place-items-center rounded-full hover:bg-muted"><Plus className="h-3 w-3" /></button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
+        {/* Produits regroupés par projet */}
+        {products.length === 0 ? (
+          <div className="rounded-2xl p-12 text-center" style={{ border: `1px dashed ${th.primary}44` }}>
+            <Store className="mx-auto h-10 w-10" style={{ color: th.muted }} />
+            <p className="mt-3 text-sm" style={{ color: th.muted }}>Aucun produit disponible pour l'instant.</p>
+          </div>
+        ) : (
+          grouped.filter((g) => g.products.length > 0).map((g) => (
+            <section key={g.id} className="mb-12">
+              <div className="mb-5 flex items-center gap-3 border-b pb-3" style={{ borderColor: `${th.primary}33` }}>
+                {g.logo_url && <img src={g.logo_url} alt={g.name} className="h-10 w-10 rounded-xl object-cover" />}
+                <div>
+                  <h2 className="text-2xl font-bold">{g.name}</h2>
+                  {g.description && <p className="text-sm" style={{ color: th.muted }}>{g.description}</p>}
+                </div>
+                <span className="ml-auto text-xs" style={{ color: th.muted }}>{g.products.length} produit(s)</span>
+              </div>
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{g.products.map(card)}</div>
+            </section>
+          ))
+        )}
 
         {/* Contact */}
         {(biz.contact_email || biz.contact_phone) && (
-          <footer className="mt-16 border-t border-border pt-8 text-center text-sm text-muted-foreground">
-            <p>Contact : </p>
-            <div className="mt-2 flex flex-wrap items-center justify-center gap-4">
-              {biz.contact_email && <a href={`mailto:${biz.contact_email}`} className="inline-flex items-center gap-1 hover:text-foreground"><Mail className="h-3.5 w-3.5" /> {biz.contact_email}</a>}
-              {biz.contact_phone && <a href={`tel:${biz.contact_phone}`} className="inline-flex items-center gap-1 hover:text-foreground"><Phone className="h-3.5 w-3.5" /> {biz.contact_phone}</a>}
+          <footer className="mt-16 border-t pt-8 text-center text-sm" style={{ borderColor: `${th.primary}33`, color: th.muted }}>
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              {biz.contact_email && <a href={`mailto:${biz.contact_email}`} className="inline-flex items-center gap-1"><Mail className="h-3.5 w-3.5" /> {biz.contact_email}</a>}
+              {biz.contact_phone && <a href={`tel:${biz.contact_phone}`} className="inline-flex items-center gap-1"><Phone className="h-3.5 w-3.5" /> {biz.contact_phone}</a>}
             </div>
             <p className="mt-6 inline-flex items-center gap-1 text-[11px]"><ShieldCheck className="h-3 w-3" /> Boutique propulsée par FASO-INVEST PAY</p>
           </footer>
