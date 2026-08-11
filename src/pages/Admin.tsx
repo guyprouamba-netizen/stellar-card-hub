@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
 import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminYengapayVerifyBatch, adminCreditYengapayExternal, adminCreditPendingDeposit } from "@/lib/admin.functions";
+import { getPaypalWithdrawConfig, adminUpdatePaypalWithdrawConfig } from "@/lib/paypal.functions";
 import { toast } from "sonner";
 import { AnalyticsSection } from "@/components/admin/analytics-section";
 import { DashboardAiAssistant } from "@/components/admin/ai-assistant";
@@ -854,7 +855,7 @@ function PaypalWithdrawSettings() {
   useEffect(() => {
     getPaypalWithdrawConfig()
       .then((c: any) => setCfg({ fee_bps: c.fee_bps, fee_flat_xof: c.fee_flat_xof, min_xof: c.min, max_xof: c.max, enabled: c.enabled }))
-      .catch((e) => toast.error((e as Error).message));
+      .catch((e: any) => toast.error(e?.message || "Erreur"));
   }, []);
 
   async function save() {
