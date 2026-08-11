@@ -15,6 +15,7 @@ import {
 import { uploadBusinessMedia } from "@/lib/upload";
 import ProductsPanel from "@/components/business/products-panel";
 import ProjectConfigSheet from "@/components/business/project-config-sheet";
+import DocsPanel from "@/components/business/docs-panel";
 import { ArrowLeft, Building2, Copy, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Palette } from "lucide-react";
 import { LayoutDashboard, Receipt, CreditCard, Settings2, BarChart3 } from "lucide-react";
 
@@ -26,6 +27,7 @@ const NAV = [
   { id: "payments", label: "Paiements", icon: CreditCard },
   { id: "orders", label: "Commandes", icon: Package },
   { id: "posts", label: "Publications", icon: Megaphone },
+  { id: "docs", label: "Documentation API", icon: BookOpen },
   { id: "settings", label: "Ma boutique", icon: Settings2 },
 ] as const;
 type TabId = typeof NAV[number]["id"];
