@@ -22,10 +22,40 @@ async function sha256Hex(input: string) {
   return Array.from(new Uint8Array(buf)).map((x) => x.toString(16).padStart(2, "0")).join("");
 }
 
-async function authenticateApiKey(req: Request): Promise<{ business_id: string; mode: string; key_id: string } | null> {
-  const h = req.headers.get("Authorization") || req.headers.get("X-API-Key") || "";
-  const token = h.toLowerCase().startsWith("bearer ") ? h.slice(7) : h;
-  if (!token || !token.startsWith("fip_")) return null;
+type ApiAuth = { business_id: string; project_id?: string | null; mode: string; key_id: string; webhook_secret?: string | null };
+
+function extractApiToken(req: Request): string {
+  const raw =
+    req.headers.get("Authorization") ||
+    req.headers.get("X-API-Key") ||
+    req.headers.get("x-secret-key") ||
+    req.headers.get("X-Api-Secret") ||
+    "";
+  let token = raw.trim();
+  if (/^bearer\s+/i.test(token)) token = token.replace(/^bearer\s+/i, "").trim();
+  // `apikey` header is used by Supabase itself (anon key) — only accept it when it looks like ours
+  if (!/^(fip_|sk_)/.test(token)) {
+    const alt = (req.headers.get("apikey") || "").trim();
+    if (/^(fip_|sk_)/.test(alt)) token = alt;
+  }
+  return token;
+}
+
+async function authenticateApiKey(req: Request): Promise<ApiAuth | null> {
+  const token = extractApiToken(req);
+  if (!token) return null;
+  const db0 = admin();
+  // --- Project secret keys (sk_live_… / sk_test_…) ---
+  if (token.startsWith("sk_")) {
+    const secret_hash = await sha256Hex(token);
+    const { data: k } = await db0.from("project_api_keys")
+      .select("id,project_id,business_id,mode,webhook_secret,revoked_at")
+      .eq("secret_hash", secret_hash).maybeSingle();
+    if (!k || k.revoked_at) return null;
+    await db0.from("project_api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", k.id);
+    return { business_id: k.business_id, project_id: k.project_id, mode: k.mode, key_id: k.id, webhook_secret: k.webhook_secret };
+  }
+  if (!token.startsWith("fip_")) return null;
   const db = admin();
   const key_hash = await sha256Hex(token);
   const { data } = await db.from("business_api_keys")
@@ -53,6 +83,39 @@ async function authenticateApiKey(req: Request): Promise<{ business_id: string; 
   await db.from("rate_limit_hits").insert({ bucket: `api_key:${data.id}`, ip });
   await db.from("business_api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", data.id);
   return { business_id: data.business_id, mode: data.mode, key_id: data.id, scopes: (data as any).scopes || [] } as any;
+}
+
+// --- Signed webhook delivery to the merchant's server ---
+async function hmacHex(secret: string, message: string) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
+  return Array.from(new Uint8Array(sig)).map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+async function deliverProjectWebhook(db: any, projectId: string, event: string, payload: Record<string, unknown>) {
+  const { data: k } = await db.from("project_api_keys")
+    .select("id,business_id,project_id,webhook_url,webhook_secret")
+    .eq("project_id", projectId).is("revoked_at", null)
+    .order("created_at", { ascending: false }).maybeSingle();
+  if (!k?.webhook_url) return;
+  const body = JSON.stringify({ event, data: payload, created_at: new Date().toISOString() });
+  const t = Math.floor(Date.now() / 1000);
+  const signature = await hmacHex(k.webhook_secret, `${t}.${body}`);
+  let status_code: number | null = null, response_body: string | null = null, error: string | null = null, success = false;
+  try {
+    const res = await fetch(k.webhook_url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-FIP-Signature": `t=${t},v1=${signature}`, "X-FIP-Event": event },
+      body,
+    });
+    status_code = res.status;
+    response_body = (await res.text()).slice(0, 500);
+    success = res.ok;
+  } catch (e) { error = (e as Error).message; }
+  await db.from("project_webhook_deliveries").insert({
+    project_id: k.project_id, business_id: k.business_id, event, url: k.webhook_url,
+    payload: JSON.parse(body), status_code, response_body, error, success, simulated: false,
+  });
 }
 
 function getClientIp(req: Request): string {
@@ -184,6 +247,13 @@ async function settlePayment(db: any, paymentId: string, providerBody: any) {
       await db.from("payment_link_payments").update({ receipt_sent_at: new Date().toISOString() }).eq("id", tx.id);
     }
   } catch (e) { console.error("invoice/email pipeline", e); }
+  if ((tx as any).project_id) {
+    await deliverProjectWebhook(db, (tx as any).project_id, "payment.succeeded", {
+      reference: (tx as any).reference, amount: Number(tx.amount), fee, net,
+      currency: tx.currency, status: "success",
+      customer_email: (tx as any).customer_email, customer_name: (tx as any).customer_name,
+    }).catch((e) => console.error("project webhook", e));
+  }
   return { credited: true, fee, net };
 }
 
@@ -469,6 +539,45 @@ async function apiGetPayment(business_id: string, reference: string) {
   return data;
 }
 
+// Crée une session de paiement pour un projet marchand (API passerelle).
+async function apiCreateSession(auth: ApiAuth, body: any) {
+  const db = admin();
+  const amount = Number(body?.amount);
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error("amount requis (entier > 0)");
+  const currency = String(body?.currency || "XOF").toUpperCase();
+  const description = String(body?.description || body?.title || "Paiement").slice(0, 200);
+  const customer_email = String(body?.customer_email || "").trim().toLowerCase() || null;
+  const reference = String(body?.reference || "").trim() || ref("API");
+  if (!/^[A-Za-z0-9\-_]{6,40}$/.test(reference)) throw new Error("reference invalide");
+  const { data: dup } = await db.from("payment_link_payments").select("id").eq("reference", reference).maybeSingle();
+  if (dup) throw new Error("reference déjà utilisée");
+
+  const { data: biz } = await db.from("businesses").select("id,name,status").eq("id", auth.business_id).maybeSingle();
+  if (!biz || ["suspended", "terminated", "banned"].includes(String(biz.status || "").toLowerCase())) {
+    throw new Error("Compte marchand indisponible");
+  }
+  const baseReturn = String(body?.return_url || body?.returnUrl || "");
+  const returnUrl = baseReturn
+    ? baseReturn + (baseReturn.includes("?") ? "&" : "?") + `pay_ref=${encodeURIComponent(reference)}`
+    : "";
+  const yp = await createYengaPayIntent({
+    amount, reference, title: description, description: `${biz.name} — ${description}`,
+    callbackUrl: `${SUPABASE_URL}/functions/v1/yengapay-webhook`, returnUrl,
+  });
+  const { error } = await db.from("payment_link_payments").insert({
+    business_id: auth.business_id, project_id: auth.project_id || null,
+    reference, amount, currency,
+    customer_name: body?.customer_name || null,
+    customer_phone: body?.customer_phone || null,
+    customer_email,
+    provider: "yengapay",
+    payment_intent_id: yp.paymentIntentId,
+    metadata: { source: "api", key_id: auth.key_id, metadata: body?.metadata ?? null, init: yp.raw },
+  });
+  if (error) throw new Error(error.message);
+  return { reference, amount, currency, status: "pending", checkout_url: yp.checkoutUrl };
+}
+
 // --- Dispatcher ---
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
@@ -483,6 +592,19 @@ Deno.serve(async (req) => {
     if (tail[0] === "v1") {
       const auth = await authenticateApiKey(req);
       if (!auth) return jsonResponse({ error: "Invalid or missing API key" }, 401);
+      // Test de clé : GET /v1/ping
+      if ((tail[1] === "ping" || tail[1] === "me") && req.method === "GET") {
+        return jsonResponse({ ok: true, data: { business_id: auth.business_id, project_id: auth.project_id ?? null, mode: auth.mode } });
+      }
+      // Session de paiement : POST /v1/checkout/sessions | /v1/payments | /v1/charges
+      const isSession =
+        (tail[1] === "checkout" && (tail[2] === "sessions" || tail[2] === "session")) ||
+        ((tail[1] === "payments" || tail[1] === "charges" || tail[1] === "payment-intents") && !tail[2]);
+      if (isSession && req.method === "POST") {
+        const body = await req.json().catch(() => ({}));
+        const s = await apiCreateSession(auth, body);
+        return jsonResponse({ ok: true, data: s });
+      }
       if (tail[1] === "payment-links" && req.method === "POST") {
         const body = await req.json().catch(() => ({}));
         const link = await apiCreateLink(auth.business_id, body);

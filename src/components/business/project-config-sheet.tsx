@@ -187,6 +187,14 @@ export default function ProjectConfigSheet({ project, onClose, onSaved }: {
                   {secretOnce && <p className="text-[11px] text-amber-500">⚠️ Copiez la clé secrète maintenant : elle ne sera plus jamais affichée.</p>}
                   <Row label="Secret de signature" value={keyRow.webhook_secret} onCopy={copy} />
                   <Row label="Endpoint API" value={endpoint} onCopy={copy} />
+                  <div className="rounded-xl border border-border bg-surface-2 p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Créer une session de paiement</p>
+                    <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all font-mono text-[10px] leading-relaxed">{`POST ${endpoint}/checkout/sessions
+Authorization: Bearer VOTRE_CLE_SECRETE
+Content-Type: application/json
+{"amount":1000,"currency":"XOF","description":"Commande #123","customer_email":"client@mail.com","return_url":"https://votre-site.com/merci"}`}</pre>
+                    <p className="mt-2 text-[10px] text-muted-foreground">Test de la clé : <code>GET {endpoint}/ping</code> · Statut : <code>GET {endpoint}/payments/&#123;reference&#125;</code></p>
+                  </div>
                 </div>
               )}
             </div>

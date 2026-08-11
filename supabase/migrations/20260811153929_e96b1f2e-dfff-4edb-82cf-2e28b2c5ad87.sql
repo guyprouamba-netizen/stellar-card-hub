@@ -1,0 +1,2 @@
+delete from public.payment_link_payments where metadata->>'source' = 'api' and reference like 'API-%' and status = 'pending' and created_at > now() - interval '15 minutes';
+delete from public.project_api_keys where public_key = 'pk_test_probe';
