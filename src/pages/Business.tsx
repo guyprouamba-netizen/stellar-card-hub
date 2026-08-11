@@ -15,6 +15,18 @@ import {
 } from "@/lib/orders.functions";
 import { uploadBusinessMedia } from "@/lib/upload";
 import { ArrowLeft, Building2, Copy, Key, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Send } from "lucide-react";
+import { LayoutDashboard, Receipt, CreditCard, Settings2, BarChart3 } from "lucide-react";
+
+const NAV = [
+  { id: "overview", label: "Tableau de bord", icon: LayoutDashboard },
+  { id: "projects", label: "Projets", icon: FolderKanban },
+  { id: "links", label: "Liens de paiement", icon: Link2 },
+  { id: "payments", label: "Paiements", icon: CreditCard },
+  { id: "orders", label: "Commandes", icon: Package },
+  { id: "posts", label: "Publications", icon: Megaphone },
+  { id: "settings", label: "Ma boutique", icon: Settings2 },
+] as const;
+type TabId = typeof NAV[number]["id"];
 
 type Biz = { id: string; name: string; slug: string; status: string; balance: number; fee_bps: number };
 type PLink = { id: string; slug: string; title: string; amount: number | null; currency: string; status: string };
@@ -41,6 +53,7 @@ export default function BusinessPage() {
   const [postDraft, setPostDraft] = useState<{ title: string; body: string; image_url: string }>({ title: "", body: "", image_url: "" });
   const [uploadingImg, setUploadingImg] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<TabId>("overview");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -231,19 +244,32 @@ export default function BusinessPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border bg-surface-1/60 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6 sm:py-4">
-          <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Dashboard</span>
-          </Link>
-          <h1 className="order-3 w-full text-center font-[Space_Grotesk] text-lg font-bold tracking-tight sm:order-none sm:w-auto sm:text-xl">Espace Business</h1>
-          <button onClick={onCreateBusiness} className="inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-glow sm:px-4 sm:py-2 sm:text-xs">
-            <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Nouveau business</span>
-          </button>
+      <header className="sticky top-0 z-30 border-b border-border bg-surface-1/80 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <div className="flex items-center gap-3">
+            <Link to="/dashboard" className="grid h-9 w-9 place-items-center rounded-xl border border-border hover:bg-muted">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+            <div className="flex items-center gap-2">
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-primary text-sm font-black text-primary-foreground">B</span>
+              <h1 className="font-[Space_Grotesk] text-base font-bold tracking-tight sm:text-lg">Espace Business</h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {businesses.length > 1 && (
+              <select value={current?.id || ""} onChange={(e) => setCurrent(businesses.find((b) => b.id === e.target.value) || null)}
+                className="rounded-xl border border-border bg-surface-2 px-3 py-2 text-xs font-semibold outline-none">
+                {businesses.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            )}
+            <button onClick={onCreateBusiness} className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-primary px-3 py-2 text-[11px] font-semibold text-primary-foreground shadow-glow sm:text-xs">
+              <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Nouveau business</span>
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-3 py-4 sm:px-6 sm:py-8">
+      <main className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-6">
         {businesses.length === 0 ? (
           <div className="rounded-3xl border border-border bg-card p-12 text-center">
             <Building2 className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -254,19 +280,47 @@ export default function BusinessPage() {
             </button>
           </div>
         ) : (
-          <>
-            {/* Selector */}
-            <div className="mb-6 flex flex-wrap gap-2">
-              {businesses.map((b) => (
-                <button key={b.id} onClick={() => setCurrent(b)}
-                  className={`rounded-full border px-4 py-2 text-sm font-medium ${current?.id === b.id ? "border-primary bg-primary/10" : "border-border bg-surface-2 hover:bg-muted"}`}>
-                  {b.name}
+          <div className="flex gap-6">
+            {/* Menu vertical */}
+            <aside className="hidden w-60 shrink-0 lg:block">
+              <nav className="sticky top-20 space-y-1 rounded-2xl border border-border bg-card p-3">
+                {NAV.map((n) => {
+                  const Icon = n.icon;
+                  const active = tab === n.id;
+                  return (
+                    <button key={n.id} onClick={() => setTab(n.id)}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+                      <Icon className="h-4 w-4" /> {n.label}
+                    </button>
+                  );
+                })}
+                {current && (
+                  <div className="mt-3 space-y-1 border-t border-border pt-3">
+                    <Link to={`/business/${current.id}/accounting`} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
+                      <BarChart3 className="h-4 w-4" /> Comptabilité
+                    </Link>
+                    <Link to={`/business/${current.id}/contracts`} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
+                      <Receipt className="h-4 w-4" /> Contrats & Factures
+                    </Link>
+                  </div>
+                )}
+              </nav>
+            </aside>
+
+            <div className="min-w-0 flex-1">
+            {/* Menu horizontal (mobile) */}
+            <div className="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-1 lg:hidden">
+              {NAV.map((n) => (
+                <button key={n.id} onClick={() => setTab(n.id)}
+                  className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${tab === n.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-surface-2 text-muted-foreground"}`}>
+                  {n.label}
                 </button>
               ))}
             </div>
 
             {current && (
               <>
+              {tab === "overview" && (<>
                 {/* Barre de statistiques (style tableau de bord marchand) */}
                 <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {[
@@ -282,7 +336,7 @@ export default function BusinessPage() {
                   ))}
                 </div>
                 {/* Quick access to power tools */}
-                <div className="mb-4 flex flex-wrap gap-2">
+                <div className="mb-4 flex flex-wrap gap-2 lg:hidden">
                   <Link to={`/business/${current.id}/accounting`} className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20">📊 Comptabilité</Link>
                   <Link to={`/business/${current.id}/contracts`} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-muted">📄 Contrats & Factures</Link>
                 </div>
@@ -340,12 +394,16 @@ export default function BusinessPage() {
                   </div>
                 </div>
 
-                {/* Personnalisation boutique + SMS Sender ID */}
+                </>)}
+
+                {tab === "settings" && (<>
                 <ShopBrandingPanel biz={current} onUpdated={refreshAll} />
                 <SmsSenderPanel biz={current} />
+                </>)}
 
                 {/* Projects */}
-                <section className="mt-8">
+                {tab === "projects" && (
+                <section>
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="font-[Space_Grotesk] text-xl font-bold inline-flex items-center gap-2"><FolderKanban className="h-5 w-5" /> Mes projets</h3>
                     <button onClick={onCreateProject} className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow">
@@ -403,8 +461,11 @@ export default function BusinessPage() {
                   )}
                 </section>
 
+                )}
+
                 {/* Payment links */}
-                <section className="mt-8">
+                {tab === "links" && (
+                <section>
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="font-[Space_Grotesk] text-xl font-bold">Liens de paiement</h3>
                     <button onClick={onCreateLink} className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted">
@@ -437,8 +498,11 @@ export default function BusinessPage() {
                   </div>
                 </section>
 
+                )}
+
                 {/* Payments */}
-                <section className="mt-8">
+                {tab === "payments" && (
+                <section>
                   <h3 className="mb-3 font-[Space_Grotesk] text-xl font-bold">Paiements reçus</h3>
                   <div className="-mx-3 overflow-x-auto rounded-2xl border border-border bg-surface-2 sm:mx-0">
                     <table className="w-full min-w-[640px] text-sm">
@@ -463,8 +527,11 @@ export default function BusinessPage() {
                   </div>
                 </section>
 
+                )}
+
                 {/* ORDERS */}
-                <section className="mt-8">
+                {tab === "orders" && (
+                <section>
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="font-[Space_Grotesk] text-xl font-bold inline-flex items-center gap-2"><Package className="h-5 w-5" /> Commandes ({orders.length})</h3>
                   </div>
@@ -505,8 +572,11 @@ export default function BusinessPage() {
                   )}
                 </section>
 
+                )}
+
                 {/* PUBLICATIONS / POSTS */}
-                <section className="mt-8">
+                {tab === "posts" && (
+                <section>
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="font-[Space_Grotesk] text-xl font-bold inline-flex items-center gap-2"><Megaphone className="h-5 w-5" /> Publications</h3>
                   </div>
@@ -551,10 +621,13 @@ export default function BusinessPage() {
                   </div>
                 </section>
 
+                )}
+
                 {/* Section « Clés API » masquée volontairement — accès interne uniquement */}
               </>
             )}
-          </>
+            </div>
+          </div>
         )}
       </main>
     </div>
