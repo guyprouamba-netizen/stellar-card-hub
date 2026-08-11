@@ -34,7 +34,6 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
   const [uploading, setUploading] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [advanced, setAdvanced] = useState(false);
-  const [editing, setEditing] = useState<Product | null>(null);
 
   async function refresh() {
     try { setItems(await listBusinessProducts(businessId)); }
