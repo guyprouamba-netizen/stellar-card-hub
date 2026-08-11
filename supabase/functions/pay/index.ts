@@ -247,6 +247,13 @@ async function settlePayment(db: any, paymentId: string, providerBody: any) {
       await db.from("payment_link_payments").update({ receipt_sent_at: new Date().toISOString() }).eq("id", tx.id);
     }
   } catch (e) { console.error("invoice/email pipeline", e); }
+  if ((tx as any).project_id) {
+    await deliverProjectWebhook(db, (tx as any).project_id, "payment.succeeded", {
+      reference: (tx as any).reference, amount: Number(tx.amount), fee, net,
+      currency: tx.currency, status: "success",
+      customer_email: (tx as any).customer_email, customer_name: (tx as any).customer_name,
+    }).catch((e) => console.error("project webhook", e));
+  }
   return { credited: true, fee, net };
 }
 
