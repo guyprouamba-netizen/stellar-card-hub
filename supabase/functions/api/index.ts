@@ -523,6 +523,84 @@ async function assertBusinessOwner(admin: any, userId: string, businessId: strin
   return data;
 }
 
+// ===== Passerelle de paiement projet : frais + webhooks signés =====
+async function loadGatewayFeeConfig(admin: any) {
+  const keys = ["gateway_fee_bps", "gateway_fee_flat_xof", "gateway_min_xof", "gateway_enabled"];
+  const { data } = await admin.from("platform_config").select("key,value").in("key", keys);
+  const map = new Map((data ?? []).map((r: any) => [r.key, r.value]));
+  const num = (k: string, d: number) => {
+    const v = map.get(k);
+    const n = Number(typeof v === "object" && v !== null ? (v as any).value : v);
+    return Number.isFinite(n) ? n : d;
+  };
+  const enabledRaw = map.get("gateway_enabled");
+  return {
+    fee_bps: num("gateway_fee_bps", 200),
+    fee_flat_xof: num("gateway_fee_flat_xof", 0),
+    min_xof: num("gateway_min_xof", 100),
+    enabled: enabledRaw === undefined || enabledRaw === null ? true : Boolean(enabledRaw),
+  };
+}
+
+async function hmacSha256Hex(secret: string, message: string) {
+  const key = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
+  return Array.from(new Uint8Array(sig)).map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+async function dispatchProjectWebhook(admin: any, opts: {
+  project: any; key: any; payload: any; event: string; simulated?: boolean;
+}) {
+  const { project, key, payload, event } = opts;
+  const url = key.webhook_url as string | null;
+  const body = JSON.stringify(payload);
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const signature = await hmacSha256Hex(key.webhook_secret, `${timestamp}.${body}`);
+  let status_code: number | null = null;
+  let response_body = "";
+  let success = false;
+  let error: string | null = null;
+
+  if (!url) {
+    error = "Aucune URL de webhook configurée";
+  } else {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 10_000);
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-FIP-Event": event,
+          "X-FIP-Timestamp": timestamp,
+          "X-FIP-Signature": `t=${timestamp},v1=${signature}`,
+          "X-FIP-Public-Key": key.public_key,
+        },
+        body,
+        signal: ctrl.signal,
+      });
+      clearTimeout(t);
+      status_code = res.status;
+      response_body = (await res.text().catch(() => "")).slice(0, 800);
+      success = res.ok;
+      if (!success) error = `HTTP ${res.status}`;
+    } catch (e) {
+      error = (e as Error).message || "Échec de la connexion au webhook";
+    }
+  }
+
+  await admin.from("project_webhook_deliveries").insert({
+    project_id: project.id, business_id: project.business_id,
+    event, url, payload, status_code, response_body,
+    success, simulated: Boolean(opts.simulated), error,
+  });
+
+  return { ok: success, status_code, response_body, error, signature: `t=${timestamp},v1=${signature}`, payload };
+}
+
 // ============= Handlers =============
 // v: internal-transfer-1
 const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userClient: any }) => Promise<any>> = {
