@@ -336,7 +336,7 @@ export default function BusinessPage() {
                   ))}
                 </div>
                 {/* Quick access to power tools */}
-                <div className="mb-4 flex flex-wrap gap-2">
+                <div className="mb-4 flex flex-wrap gap-2 lg:hidden">
                   <Link to={`/business/${current.id}/accounting`} className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20">📊 Comptabilité</Link>
                   <Link to={`/business/${current.id}/contracts`} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-muted">📄 Contrats & Factures</Link>
                 </div>
@@ -394,12 +394,16 @@ export default function BusinessPage() {
                   </div>
                 </div>
 
-                {/* Personnalisation boutique + SMS Sender ID */}
+                </>)}
+
+                {tab === "settings" && (<>
                 <ShopBrandingPanel biz={current} onUpdated={refreshAll} />
                 <SmsSenderPanel biz={current} />
+                </>)}
 
                 {/* Projects */}
-                <section className="mt-8">
+                {tab === "projects" && (
+                <section>
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="font-[Space_Grotesk] text-xl font-bold inline-flex items-center gap-2"><FolderKanban className="h-5 w-5" /> Mes projets</h3>
                     <button onClick={onCreateProject} className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow">
@@ -457,8 +461,11 @@ export default function BusinessPage() {
                   )}
                 </section>
 
+                )}
+
                 {/* Payment links */}
-                <section className="mt-8">
+                {tab === "links" && (
+                <section>
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="font-[Space_Grotesk] text-xl font-bold">Liens de paiement</h3>
                     <button onClick={onCreateLink} className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted">
@@ -491,8 +498,11 @@ export default function BusinessPage() {
                   </div>
                 </section>
 
+                )}
+
                 {/* Payments */}
-                <section className="mt-8">
+                {tab === "payments" && (
+                <section>
                   <h3 className="mb-3 font-[Space_Grotesk] text-xl font-bold">Paiements reçus</h3>
                   <div className="-mx-3 overflow-x-auto rounded-2xl border border-border bg-surface-2 sm:mx-0">
                     <table className="w-full min-w-[640px] text-sm">
@@ -517,8 +527,11 @@ export default function BusinessPage() {
                   </div>
                 </section>
 
+                )}
+
                 {/* ORDERS */}
-                <section className="mt-8">
+                {tab === "orders" && (
+                <section>
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="font-[Space_Grotesk] text-xl font-bold inline-flex items-center gap-2"><Package className="h-5 w-5" /> Commandes ({orders.length})</h3>
                   </div>
@@ -559,8 +572,11 @@ export default function BusinessPage() {
                   )}
                 </section>
 
+                )}
+
                 {/* PUBLICATIONS / POSTS */}
-                <section className="mt-8">
+                {tab === "posts" && (
+                <section>
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="font-[Space_Grotesk] text-xl font-bold inline-flex items-center gap-2"><Megaphone className="h-5 w-5" /> Publications</h3>
                   </div>
@@ -605,10 +621,13 @@ export default function BusinessPage() {
                   </div>
                 </section>
 
+                )}
+
                 {/* Section « Clés API » masquée volontairement — accès interne uniquement */}
               </>
             )}
-          </>
+            </div>
+          </div>
         )}
       </main>
     </div>
