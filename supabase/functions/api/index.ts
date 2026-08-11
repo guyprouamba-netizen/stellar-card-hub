@@ -523,6 +523,84 @@ async function assertBusinessOwner(admin: any, userId: string, businessId: strin
   return data;
 }
 
+// ===== Passerelle de paiement projet : frais + webhooks signés =====
+async function loadGatewayFeeConfig(admin: any) {
+  const keys = ["gateway_fee_bps", "gateway_fee_flat_xof", "gateway_min_xof", "gateway_enabled"];
+  const { data } = await admin.from("platform_config").select("key,value").in("key", keys);
+  const map = new Map((data ?? []).map((r: any) => [r.key, r.value]));
+  const num = (k: string, d: number) => {
+    const v = map.get(k);
+    const n = Number(typeof v === "object" && v !== null ? (v as any).value : v);
+    return Number.isFinite(n) ? n : d;
+  };
+  const enabledRaw = map.get("gateway_enabled");
+  return {
+    fee_bps: num("gateway_fee_bps", 200),
+    fee_flat_xof: num("gateway_fee_flat_xof", 0),
+    min_xof: num("gateway_min_xof", 100),
+    enabled: enabledRaw === undefined || enabledRaw === null ? true : Boolean(enabledRaw),
+  };
+}
+
+async function hmacSha256Hex(secret: string, message: string) {
+  const key = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
+  return Array.from(new Uint8Array(sig)).map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+async function dispatchProjectWebhook(admin: any, opts: {
+  project: any; key: any; payload: any; event: string; simulated?: boolean;
+}) {
+  const { project, key, payload, event } = opts;
+  const url = key.webhook_url as string | null;
+  const body = JSON.stringify(payload);
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const signature = await hmacSha256Hex(key.webhook_secret, `${timestamp}.${body}`);
+  let status_code: number | null = null;
+  let response_body = "";
+  let success = false;
+  let error: string | null = null;
+
+  if (!url) {
+    error = "Aucune URL de webhook configurée";
+  } else {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 10_000);
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-FIP-Event": event,
+          "X-FIP-Timestamp": timestamp,
+          "X-FIP-Signature": `t=${timestamp},v1=${signature}`,
+          "X-FIP-Public-Key": key.public_key,
+        },
+        body,
+        signal: ctrl.signal,
+      });
+      clearTimeout(t);
+      status_code = res.status;
+      response_body = (await res.text().catch(() => "")).slice(0, 800);
+      success = res.ok;
+      if (!success) error = `HTTP ${res.status}`;
+    } catch (e) {
+      error = (e as Error).message || "Échec de la connexion au webhook";
+    }
+  }
+
+  await admin.from("project_webhook_deliveries").insert({
+    project_id: project.id, business_id: project.business_id,
+    event, url, payload, status_code, response_body,
+    success, simulated: Boolean(opts.simulated), error,
+  });
+
+  return { ok: success, status_code, response_body, error, signature: `t=${timestamp},v1=${signature}`, payload };
+}
+
 // ============= Handlers =============
 // v: internal-transfer-1
 const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userClient: any }) => Promise<any>> = {
@@ -2211,30 +2289,41 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   // PRODUCTS
   // ===========================================================
   async listProducts({ data, user, admin }) {
-    const { data: p } = await admin.from("projects").select("business_id").eq("id", data.project_id).maybeSingle();
-    if (!p) throw new Error("Projet introuvable");
-    await assertBusinessOwner(admin, user.id, p.business_id);
-    const { data: rows, error } = await admin.from("products")
-      .select("*, product_media(id,type,url,position)").eq("project_id", data.project_id)
-      .order("created_at", { ascending: false });
+    let business_id = data?.business_id;
+    if (!business_id) {
+      const { data: p } = await admin.from("projects").select("business_id").eq("id", data.project_id).maybeSingle();
+      if (!p) throw new Error("Projet introuvable");
+      business_id = p.business_id;
+    }
+    await assertBusinessOwner(admin, user.id, business_id);
+    let q = admin.from("products")
+      .select("*, product_media(id,type,url,position)").eq("business_id", business_id);
+    if (data?.project_id) q = q.eq("project_id", data.project_id);
+    const { data: rows, error } = await q.order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return rows ?? [];
   },
   async createProduct({ data, user, admin }) {
-    const { data: p } = await admin.from("projects").select("business_id").eq("id", data.project_id).maybeSingle();
-    if (!p) throw new Error("Projet introuvable");
-    await assertBusinessOwner(admin, user.id, p.business_id);
+    let business_id = data?.business_id;
+    if (!business_id) {
+      const { data: p } = await admin.from("projects").select("business_id").eq("id", data.project_id).maybeSingle();
+      if (!p) throw new Error("Projet introuvable");
+      business_id = p.business_id;
+    }
+    await assertBusinessOwner(admin, user.id, business_id);
     const name = String(data?.name || "").trim();
     if (name.length < 2) throw new Error("Nom requis");
     const slug = slugify(name) + "-" + randomHex(2);
     const { data: row, error } = await admin.from("products").insert({
-      project_id: data.project_id, business_id: p.business_id,
+      project_id: data?.project_id || null, business_id,
       name, slug,
       description: data?.description || null,
       price: Number(data?.price || 0),
       currency: data?.currency || "XOF",
       sku: data?.sku || null,
       stock: data?.stock ?? null,
+      image_url: data?.image_url || null,
+      show_in_shop: data?.show_in_shop !== undefined ? Boolean(data.show_in_shop) : true,
     }).select("*").single();
     if (error) throw new Error(error.message);
     return row;
@@ -2244,7 +2333,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!prod) throw new Error("Produit introuvable");
     await assertBusinessOwner(admin, user.id, prod.business_id);
     const patch: Record<string, any> = {};
-    for (const k of ["name", "description", "price", "currency", "sku", "stock", "status"]) {
+    for (const k of ["name", "description", "price", "currency", "sku", "stock", "status", "show_in_shop", "image_url", "project_id"]) {
       if (data?.[k] !== undefined) patch[k] = data[k];
     }
     const { data: row, error } = await admin.from("products").update(patch).eq("id", data.id).select("*").single();
@@ -2274,6 +2363,124 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     await assertBusinessOwner(admin, user.id, (m as any).products.business_id);
     await admin.from("product_media").delete().eq("id", data.id);
     return { ok: true };
+  },
+
+  // ===========================================================
+  // PROJECT API KEYS / WEBHOOKS (passerelle de paiement)
+  // ===========================================================
+  async getProjectIntegration({ data, user, admin }) {
+    const { data: p } = await admin.from("projects").select("business_id").eq("id", data.project_id).maybeSingle();
+    if (!p) throw new Error("Projet introuvable");
+    await assertBusinessOwner(admin, user.id, p.business_id);
+    const { data: key } = await admin.from("project_api_keys")
+      .select("id,mode,public_key,secret_prefix,webhook_url,webhook_secret,last_used_at,revoked_at,created_at")
+      .eq("project_id", data.project_id).is("revoked_at", null)
+      .order("created_at", { ascending: false }).maybeSingle();
+    const { data: deliveries } = await admin.from("project_webhook_deliveries")
+      .select("*").eq("project_id", data.project_id).order("created_at", { ascending: false }).limit(20);
+    const fee = await loadGatewayFeeConfig(admin);
+    return { key: key || null, deliveries: deliveries ?? [], fee, endpoint: `${SUPABASE_URL}/functions/v1/pay/v1` };
+  },
+
+  async createProjectApiKeys({ data, user, admin }) {
+    const { data: p } = await admin.from("projects").select("id,business_id").eq("id", data.project_id).maybeSingle();
+    if (!p) throw new Error("Projet introuvable");
+    await assertBusinessOwner(admin, user.id, p.business_id);
+    const mode = data?.mode === "test" ? "test" : "live";
+    // révoque les clés existantes (rotation)
+    await admin.from("project_api_keys").update({ revoked_at: new Date().toISOString() })
+      .eq("project_id", p.id).is("revoked_at", null);
+    const public_key = `pk_${mode}_${randomHex(16)}`;
+    const secret = `sk_${mode}_${randomHex(24)}`;
+    const secret_hash = await sha256Hex(secret);
+    const webhook_secret = `whsec_${randomHex(24)}`;
+    const { data: row, error } = await admin.from("project_api_keys").insert({
+      project_id: p.id, business_id: p.business_id, mode,
+      public_key, secret_prefix: secret.slice(0, 14), secret_hash,
+      webhook_url: data?.webhook_url || null, webhook_secret,
+    }).select("id,mode,public_key,secret_prefix,webhook_url,webhook_secret,created_at").single();
+    if (error) throw new Error(error.message);
+    return { ...row, secret_key: secret };
+  },
+
+  async updateProjectWebhook({ data, user, admin }) {
+    const { data: key } = await admin.from("project_api_keys").select("id,business_id").eq("id", data.id).maybeSingle();
+    if (!key) throw new Error("Clé introuvable");
+    await assertBusinessOwner(admin, user.id, key.business_id);
+    const url = data?.webhook_url ? String(data.webhook_url).trim() : null;
+    if (url && !/^https?:\/\//i.test(url)) throw new Error("URL de webhook invalide");
+    const { data: row, error } = await admin.from("project_api_keys")
+      .update({ webhook_url: url }).eq("id", data.id)
+      .select("id,mode,public_key,secret_prefix,webhook_url,webhook_secret,created_at").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+
+  async revokeProjectApiKeys({ data, user, admin }) {
+    const { data: key } = await admin.from("project_api_keys").select("id,business_id").eq("id", data.id).maybeSingle();
+    if (!key) throw new Error("Clé introuvable");
+    await assertBusinessOwner(admin, user.id, key.business_id);
+    await admin.from("project_api_keys").update({ revoked_at: new Date().toISOString() }).eq("id", data.id);
+    return { ok: true };
+  },
+
+  // Simulation interne : envoie un webhook signé de test et journalise le résultat
+  async simulateProjectWebhook({ data, user, admin }) {
+    const { data: p } = await admin.from("projects").select("id,business_id,name,currency").eq("id", data.project_id).maybeSingle();
+    if (!p) throw new Error("Projet introuvable");
+    await assertBusinessOwner(admin, user.id, p.business_id);
+    const { data: key } = await admin.from("project_api_keys")
+      .select("*").eq("project_id", p.id).is("revoked_at", null)
+      .order("created_at", { ascending: false }).maybeSingle();
+    if (!key) throw new Error("Générez d'abord les clés API du projet");
+    const event = String(data?.event || "payment.succeeded");
+    const amount = Math.max(1, Math.floor(Number(data?.amount || 1000)));
+    const fee = await loadGatewayFeeConfig(admin);
+    const feeAmount = Math.round((amount * fee.fee_bps) / 10000) + fee.fee_flat_xof;
+    const payload = {
+      event,
+      test: true,
+      data: {
+        reference: `SIMU-${Date.now().toString(36).toUpperCase()}`,
+        project_id: p.id,
+        amount,
+        fee_amount: feeAmount,
+        net_amount: Math.max(0, amount - feeAmount),
+        currency: p.currency || "XOF",
+        status: event === "payment.failed" ? "failed" : "success",
+        customer: { name: "Client Test", phone: "22670000000", email: "test@example.com" },
+        paid_at: new Date().toISOString(),
+      },
+      created_at: new Date().toISOString(),
+    };
+    return await dispatchProjectWebhook(admin, { project: p, key, payload, event, simulated: true });
+  },
+
+  async listProjectWebhookDeliveries({ data, user, admin }) {
+    const { data: p } = await admin.from("projects").select("business_id").eq("id", data.project_id).maybeSingle();
+    if (!p) throw new Error("Projet introuvable");
+    await assertBusinessOwner(admin, user.id, p.business_id);
+    const { data: rows } = await admin.from("project_webhook_deliveries")
+      .select("*").eq("project_id", data.project_id).order("created_at", { ascending: false }).limit(30);
+    return rows ?? [];
+  },
+
+  async getGatewayFeeConfig({ admin }) {
+    return await loadGatewayFeeConfig(admin);
+  },
+  async adminUpdateGatewayFeeConfig({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const map: Record<string, any> = {
+      gateway_fee_bps: data?.fee_bps,
+      gateway_fee_flat_xof: data?.fee_flat_xof,
+      gateway_min_xof: data?.min_xof,
+      gateway_enabled: data?.enabled,
+    };
+    for (const [k, v] of Object.entries(map)) {
+      if (v === undefined || v === null) continue;
+      await admin.from("platform_config").upsert({ key: k, value: v }, { onConflict: "key" });
+    }
+    return await loadGatewayFeeConfig(admin);
   },
 
   // ===========================================================

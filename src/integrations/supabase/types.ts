@@ -2392,9 +2392,11 @@ export type Database = {
           currency: string
           description: string | null
           id: string
+          image_url: string | null
           name: string
           price: number
-          project_id: string
+          project_id: string | null
+          show_in_shop: boolean
           sku: string | null
           slug: string
           status: string
@@ -2407,9 +2409,11 @@ export type Database = {
           currency?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           name: string
           price?: number
-          project_id: string
+          project_id?: string | null
+          show_in_shop?: boolean
           sku?: string | null
           slug: string
           status?: string
@@ -2422,9 +2426,11 @@ export type Database = {
           currency?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           name?: string
           price?: number
-          project_id?: string
+          project_id?: string | null
+          show_in_shop?: boolean
           sku?: string | null
           slug?: string
           status?: string
@@ -2505,6 +2511,143 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      project_api_keys: {
+        Row: {
+          business_id: string
+          created_at: string
+          id: string
+          last_used_at: string | null
+          mode: string
+          project_id: string
+          public_key: string
+          revoked_at: string | null
+          secret_hash: string
+          secret_prefix: string
+          updated_at: string
+          webhook_secret: string
+          webhook_url: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          mode?: string
+          project_id: string
+          public_key: string
+          revoked_at?: string | null
+          secret_hash: string
+          secret_prefix: string
+          updated_at?: string
+          webhook_secret: string
+          webhook_url?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          mode?: string
+          project_id?: string
+          public_key?: string
+          revoked_at?: string | null
+          secret_hash?: string
+          secret_prefix?: string
+          updated_at?: string
+          webhook_secret?: string
+          webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_api_keys_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_api_keys_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_api_keys_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_webhook_deliveries: {
+        Row: {
+          business_id: string
+          created_at: string
+          error: string | null
+          event: string
+          id: string
+          payload: Json
+          project_id: string
+          response_body: string | null
+          simulated: boolean
+          status_code: number | null
+          success: boolean
+          url: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          error?: string | null
+          event: string
+          id?: string
+          payload?: Json
+          project_id: string
+          response_body?: string | null
+          simulated?: boolean
+          status_code?: number | null
+          success?: boolean
+          url?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          error?: string | null
+          event?: string
+          id?: string
+          payload?: Json
+          project_id?: string
+          response_body?: string | null
+          simulated?: boolean
+          status_code?: number | null
+          success?: boolean
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_webhook_deliveries_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_webhook_deliveries_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_webhook_deliveries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       projects: {
         Row: {

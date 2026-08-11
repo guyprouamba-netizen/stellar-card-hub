@@ -126,6 +126,16 @@ export default function Shop() {
     <div className="min-h-screen" style={{ background: th.bg, color: th.text }}>
       {/* Hero couverture large */}
       <header className="relative">
+        {/* Logo au-dessus de la photo de couverture */}
+        <div className="mx-auto flex max-w-6xl justify-center px-4 pb-5 pt-8">
+          {biz.logo_url ? (
+            <img src={biz.logo_url} alt={`Logo ${biz.name}`} className="h-28 w-28 rounded-3xl object-cover shadow-xl sm:h-36 sm:w-36"
+              style={{ border: `4px solid ${th.surface}`, background: th.surface }} />
+          ) : (
+            <div className="grid h-28 w-28 place-items-center rounded-3xl text-4xl font-black shadow-xl sm:h-36 sm:w-36"
+              style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
+          )}
+        </div>
         <div className="relative h-[42vh] min-h-[280px] w-full overflow-hidden sm:h-[52vh]">
           {biz.cover_url
             ? <img src={biz.cover_url} alt={`Couverture ${biz.name}`} className="h-full w-full object-cover" />
@@ -145,16 +155,6 @@ export default function Shop() {
               <p className="mx-auto mt-2 max-w-2xl text-sm sm:text-base" style={{ color: th.muted }}>{biz.tagline || biz.description}</p>
             )}
           </div>
-        </div>
-        {/* Logo large chevauchant la couverture */}
-        <div className="mx-auto -mt-14 flex max-w-6xl justify-center px-4 sm:-mt-16">
-          {biz.logo_url ? (
-            <img src={biz.logo_url} alt={`Logo ${biz.name}`} className="h-28 w-28 rounded-3xl object-cover shadow-xl sm:h-36 sm:w-36"
-              style={{ border: `4px solid ${th.bg}`, background: th.surface }} />
-          ) : (
-            <div className="grid h-28 w-28 place-items-center rounded-3xl text-4xl font-black shadow-xl sm:h-36 sm:w-36"
-              style={{ background: th.primary, color: th.primary_text, border: `4px solid ${th.bg}` }}>{biz.name[0]}</div>
-          )}
         </div>
       </header>
 

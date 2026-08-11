@@ -284,8 +284,9 @@ async function getPublicShop(slug: string) {
     .eq("slug", slug).maybeSingle();
   if (!biz || ["suspended", "terminated", "banned"].includes(String(biz.status || "").toLowerCase())) return null;
   const [{ data: products }, { data: posts }, { data: media }, { data: projects }] = await Promise.all([
-    db.from("products").select("id,name,slug,description,price,currency,status,project_id")
-      .eq("business_id", biz.id).eq("status", "active").order("created_at", { ascending: false }),
+    db.from("products").select("id,name,slug,description,price,currency,status,project_id,image_url,show_in_shop")
+      .eq("business_id", biz.id).eq("status", "active").eq("show_in_shop", true)
+      .order("created_at", { ascending: false }),
     db.from("business_posts").select("id,title,body,image_url,product_id,published_at")
       .eq("business_id", biz.id).eq("published", true).order("published_at", { ascending: false }).limit(20),
     db.from("product_media").select("product_id,type,url,position").order("position", { ascending: true }),
@@ -296,8 +297,10 @@ async function getPublicShop(slug: string) {
   for (const m of (media || [])) {
     (mediaByProduct[(m as any).product_id] ||= []).push(m);
   }
-  const productsWithMedia = (products || []).map((p: any) => ({ ...p, media: mediaByProduct[p.id] || [] }));
-  const shownProjectIds = new Set((projects || []).map((p: any) => p.id));
+  const productsWithMedia = (products || []).map((p: any) => ({
+    ...p,
+    media: mediaByProduct[p.id] || (p.image_url ? [{ product_id: p.id, type: "image", url: p.image_url, position: 0 }] : []),
+  }));
   return {
     business: {
       id: biz.id, name: biz.name, slug: biz.slug, description: biz.description,
@@ -305,13 +308,18 @@ async function getPublicShop(slug: string) {
       logo_url: biz.logo_url, cover_url: (biz as any).cover_url || null,
       contact_email: biz.contact_email, contact_phone: biz.contact_phone,
     },
-    projects: (projects || []).map((pr: any) => ({
-      ...pr,
-      products: productsWithMedia.filter((p: any) => p.project_id === pr.id),
-    })),
-    products: shownProjectIds.size
-      ? productsWithMedia.filter((p: any) => shownProjectIds.has(p.project_id))
-      : productsWithMedia,
+    projects: [
+      ...(productsWithMedia.some((p: any) => !p.project_id)
+        ? [{
+            id: "_shop", name: "Produits", description: null, cover_url: null, logo_url: null,
+            products: productsWithMedia.filter((p: any) => !p.project_id),
+          }]
+        : []),
+      ...(projects || [])
+        .map((pr: any) => ({ ...pr, products: productsWithMedia.filter((p: any) => p.project_id === pr.id) }))
+        .filter((pr: any) => pr.products.length > 0),
+    ],
+    products: productsWithMedia,
     posts: posts || [],
   };
 }
