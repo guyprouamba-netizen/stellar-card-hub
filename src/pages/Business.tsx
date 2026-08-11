@@ -362,9 +362,10 @@ export default function BusinessPage() {
                       {projects.map((p) => {
                         const pct = p.financial_goal > 0 ? Math.min(100, (Number(p.balance) / Number(p.financial_goal)) * 100) : 0;
                         const status = pct >= 100 ? "green" : pct >= 50 ? "yellow" : Number(p.balance) === 0 ? "red" : "yellow";
-                        return (
-                          <Link key={p.id} to={`/business/${current.id}/projects/${p.id}`}
-                            className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition hover:border-primary/40 hover:shadow-glow">
+                         const vitrineUrl = `${window.location.origin}/vitrine/${p.id}`;
+                         return (
+                           <div key={p.id} className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition hover:border-primary/40 hover:shadow-glow">
+                           <Link to={`/business/${current.id}/projects/${p.id}`} className="block">
                             {p.cover_url && <div className="absolute inset-0 opacity-10" style={{ backgroundImage: `url(${p.cover_url})`, backgroundSize: "cover" }} />}
                             <div className="relative">
                               <div className="flex items-center gap-3">
@@ -380,12 +381,23 @@ export default function BusinessPage() {
                               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
                                 <div className="h-full rounded-full bg-gradient-primary" style={{ width: `${pct}%` }} />
                               </div>
-                              <div className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary opacity-0 transition group-hover:opacity-100">
-                                Ouvrir <ChevronRight className="h-3 w-3" />
-                              </div>
-                            </div>
-                          </Link>
-                        );
+                               <div className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary">
+                                 Gérer les produits <ChevronRight className="h-3 w-3" />
+                               </div>
+                             </div>
+                           </Link>
+                           <div className="relative mt-3 flex items-center gap-2 border-t border-border pt-3">
+                             <a href={vitrineUrl} target="_blank" rel="noreferrer"
+                               className="inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-glow">
+                               <ExternalLink className="h-3 w-3" /> Voir la vitrine
+                             </a>
+                             <button onClick={() => copy(vitrineUrl)}
+                               className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold hover:bg-muted">
+                               <Copy className="h-3 w-3" /> Copier le lien
+                             </button>
+                           </div>
+                           </div>
+                         );
                       })}
                     </div>
                   )}
