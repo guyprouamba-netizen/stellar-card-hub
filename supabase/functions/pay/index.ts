@@ -280,24 +280,38 @@ async function verifyPayment(reference: string) {
 async function getPublicShop(slug: string) {
   const db = admin();
   const { data: biz } = await db.from("businesses")
-    .select("id,name,slug,description,logo_url,contact_email,contact_phone,status")
+    .select("id,name,slug,description,tagline,theme,logo_url,cover_url,contact_email,contact_phone,status")
     .eq("slug", slug).maybeSingle();
   if (!biz || ["suspended", "terminated", "banned"].includes(String(biz.status || "").toLowerCase())) return null;
-  const [{ data: products }, { data: posts }, { data: media }] = await Promise.all([
-    db.from("products").select("id,name,slug,description,price,currency,status")
+  const [{ data: products }, { data: posts }, { data: media }, { data: projects }] = await Promise.all([
+    db.from("products").select("id,name,slug,description,price,currency,status,project_id")
       .eq("business_id", biz.id).eq("status", "active").order("created_at", { ascending: false }),
     db.from("business_posts").select("id,title,body,image_url,product_id,published_at")
       .eq("business_id", biz.id).eq("published", true).order("published_at", { ascending: false }).limit(20),
     db.from("product_media").select("product_id,type,url,position").order("position", { ascending: true }),
+    db.from("projects").select("id,name,slug,description,logo_url,cover_url,currency")
+      .eq("business_id", biz.id).eq("show_in_shop", true).order("created_at", { ascending: false }),
   ]);
   const mediaByProduct: Record<string, any[]> = {};
   for (const m of (media || [])) {
     (mediaByProduct[(m as any).product_id] ||= []).push(m);
   }
   const productsWithMedia = (products || []).map((p: any) => ({ ...p, media: mediaByProduct[p.id] || [] }));
+  const shownProjectIds = new Set((projects || []).map((p: any) => p.id));
   return {
-    business: { id: biz.id, name: biz.name, slug: biz.slug, description: biz.description, logo_url: biz.logo_url, contact_email: biz.contact_email, contact_phone: biz.contact_phone },
-    products: productsWithMedia,
+    business: {
+      id: biz.id, name: biz.name, slug: biz.slug, description: biz.description,
+      tagline: (biz as any).tagline || null, theme: (biz as any).theme || {},
+      logo_url: biz.logo_url, cover_url: (biz as any).cover_url || null,
+      contact_email: biz.contact_email, contact_phone: biz.contact_phone,
+    },
+    projects: (projects || []).map((pr: any) => ({
+      ...pr,
+      products: productsWithMedia.filter((p: any) => p.project_id === pr.id),
+    })),
+    products: shownProjectIds.size
+      ? productsWithMedia.filter((p: any) => shownProjectIds.has(p.project_id))
+      : productsWithMedia,
     posts: posts || [],
   };
 }
