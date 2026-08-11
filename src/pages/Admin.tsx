@@ -844,6 +844,7 @@ function SettingsTab() {
         </button>
       </div>
       <PaypalWithdrawSettings />
+      <GatewayFeeSettings />
     </div>
   );
 }
@@ -894,6 +895,59 @@ function PaypalWithdrawSettings() {
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={!!cfg.enabled} onChange={(e) => setCfg((d: any) => ({ ...d, enabled: e.target.checked }))} />
         Activer les retraits PayPal
+      </label>
+      <div className="flex justify-end">
+        <button onClick={save} disabled={busy} className="rounded-full bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GatewayFeeSettings() {
+  const [cfg, setCfg] = useState<any>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    getGatewayFeeConfig().then((c: any) => setCfg(c)).catch((e: any) => toast.error(e?.message || "Erreur"));
+  }, []);
+
+  async function save() {
+    setBusy(true);
+    try {
+      const c: any = await adminUpdateGatewayFeeConfig({
+        fee_bps: Number(cfg.fee_bps), fee_flat_xof: Number(cfg.fee_flat_xof),
+        min_xof: Number(cfg.min_xof), enabled: !!cfg.enabled,
+      });
+      setCfg(c);
+      toast.success("Frais de la passerelle mis à jour");
+    } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+  }
+
+  if (!cfg) return null;
+  const num = (k: string, label: string, hint: string) => (
+    <label className="block">
+      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+      <input type="number" value={cfg[k] ?? ""} onChange={(e) => setCfg((d: any) => ({ ...d, [k]: e.target.value }))}
+        className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none" />
+      <span className="mt-1 block text-[11px] text-muted-foreground">{hint}</span>
+    </label>
+  );
+  return (
+    <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
+      <div>
+        <h2 className="font-[Space_Grotesk] text-xl font-bold">Passerelle de paiement (API projets)</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Frais prélevés sur les paiements encaissés par les marchands via leurs clés API projet.</p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {num("fee_bps", "Commission (points de base)", "200 = 2% du montant encaissé")}
+        {num("fee_flat_xof", "Frais fixe (XOF)", "Ajouté à chaque transaction")}
+        {num("min_xof", "Montant minimum (XOF)", "Ex: 100")}
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={!!cfg.enabled} onChange={(e) => setCfg((d: any) => ({ ...d, enabled: e.target.checked }))} />
+        Activer la passerelle API
       </label>
       <div className="flex justify-end">
         <button onClick={save} disabled={busy} className="rounded-full bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
