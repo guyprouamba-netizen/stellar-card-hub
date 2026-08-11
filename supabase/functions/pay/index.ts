@@ -367,9 +367,38 @@ async function initShopCheckout(body: any) {
   return { ok: true, reference, checkout_url: yp.checkoutUrl, order_token: order.public_token, order_number: orderNumber };
 }
 
-async function getPublicOrder(token: string) {
+// Vitrine publique d'un projet (catalogue produits)
+async function getPublicVitrine(projectId: string) {
   const db = admin();
-  const { data: order } = await db.from("orders")
+  const { data: project } = await db.from("projects")
+    .select("id,name,slug,description,logo_url,cover_url,currency,status,business_id")
+    .eq("id", projectId).maybeSingle();
+  if (!project) return null;
+  const { data: biz } = await db.from("businesses")
+    .select("id,name,slug,description,logo_url,contact_email,contact_phone,status")
+    .eq("id", project.business_id).maybeSingle();
+  if (!biz || ["suspended", "terminated", "banned"].includes(String(biz.status || "").toLowerCase())) return null;
+  const { data: products } = await db.from("products")
+    .select("id,name,slug,description,price,currency,status")
+    .eq("project_id", project.id).eq("status", "active")
+    .order("created_at", { ascending: false });
+  const ids = (products || []).map((p: any) => p.id);
+  const { data: media } = ids.length
+    ? await db.from("product_media").select("product_id,type,url,position").in("product_id", ids).order("position", { ascending: true })
+    : { data: [] as any[] };
+  const byProduct: Record<string, any[]> = {};
+  for (const m of (media || [])) (byProduct[(m as any).product_id] ||= []).push(m);
+  return {
+    project: {
+      id: project.id, name: project.name, slug: project.slug, description: project.description,
+      logo_url: project.logo_url, cover_url: project.cover_url, currency: project.currency || "XOF",
+    },
+    business: { id: biz.id, name: biz.name, slug: biz.slug, logo_url: biz.logo_url, contact_email: biz.contact_email, contact_phone: biz.contact_phone },
+    products: (products || []).map((p: any) => ({ ...p, media: byProduct[p.id] || [] })),
+  };
+}
+
+async function getPublicOrder(token: string) {
   const db = admin();
   const { data: order } = await db.from("orders")
     .select("id,order_number,status,customer_name,customer_email,total_amount,currency,paid_at,created_at,updated_at,merchant_note,shipping_address,business_id")
