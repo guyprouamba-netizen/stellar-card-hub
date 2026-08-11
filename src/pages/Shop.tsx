@@ -3,9 +3,16 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getShop, initShopCheckout } from "@/lib/pay.functions";
 import { Loader2, ShoppingCart, Plus, Minus, X, ShieldCheck, Store, Mail, Phone } from "lucide-react";
 
-type Product = { id: string; name: string; slug: string; description: string | null; price: number; currency: string; media?: Array<{ url: string; type: string }> };
+type Product = { id: string; name: string; slug: string; description: string | null; price: number; currency: string; project_id?: string | null; media?: Array<{ url: string; type: string }> };
 type Post = { id: string; title: string; body: string | null; image_url: string | null; product_id: string | null; published_at: string };
-type Biz = { id: string; name: string; slug: string; description: string | null; logo_url: string | null; contact_email: string | null; contact_phone: string | null };
+type Biz = {
+  id: string; name: string; slug: string; description: string | null; tagline?: string | null;
+  logo_url: string | null; cover_url?: string | null; contact_email: string | null; contact_phone: string | null;
+  theme?: { bg?: string; surface?: string; text?: string; muted?: string; primary?: string; primary_text?: string };
+};
+type ShopProject = { id: string; name: string; description: string | null; cover_url: string | null; logo_url: string | null; products: Product[] };
+
+const DEFAULT_THEME = { bg: "#0b0b0f", surface: "#15151c", text: "#f5f5f7", muted: "#a1a1aa", primary: "#f97316", primary_text: "#ffffff" };
 
 export default function Shop() {
   const { slug = "" } = useParams();
@@ -14,6 +21,7 @@ export default function Shop() {
   const [error, setError] = useState<string | null>(null);
   const [biz, setBiz] = useState<Biz | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [projects, setProjects] = useState<ShopProject[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [cart, setCart] = useState<Record<string, number>>({});
   const [cartOpen, setCartOpen] = useState(false);
@@ -30,7 +38,7 @@ export default function Shop() {
       return;
     }
     getShop(slug).then((r: any) => {
-      setBiz(r.business); setProducts(r.products); setPosts(r.posts); setLoading(false);
+      setBiz(r.business); setProducts(r.products); setProjects(r.projects || []); setPosts(r.posts); setLoading(false);
     }).catch((e) => { setError(e.message); setLoading(false); });
   }, [slug, navigate]);
 
