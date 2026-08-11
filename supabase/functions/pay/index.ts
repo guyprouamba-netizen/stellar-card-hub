@@ -539,6 +539,45 @@ async function apiGetPayment(business_id: string, reference: string) {
   return data;
 }
 
+// Crée une session de paiement pour un projet marchand (API passerelle).
+async function apiCreateSession(auth: ApiAuth, body: any) {
+  const db = admin();
+  const amount = Number(body?.amount);
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error("amount requis (entier > 0)");
+  const currency = String(body?.currency || "XOF").toUpperCase();
+  const description = String(body?.description || body?.title || "Paiement").slice(0, 200);
+  const customer_email = String(body?.customer_email || "").trim().toLowerCase() || null;
+  const reference = String(body?.reference || "").trim() || ref("API");
+  if (!/^[A-Za-z0-9\-_]{6,40}$/.test(reference)) throw new Error("reference invalide");
+  const { data: dup } = await db.from("payment_link_payments").select("id").eq("reference", reference).maybeSingle();
+  if (dup) throw new Error("reference déjà utilisée");
+
+  const { data: biz } = await db.from("businesses").select("id,name,status").eq("id", auth.business_id).maybeSingle();
+  if (!biz || ["suspended", "terminated", "banned"].includes(String(biz.status || "").toLowerCase())) {
+    throw new Error("Compte marchand indisponible");
+  }
+  const baseReturn = String(body?.return_url || body?.returnUrl || "");
+  const returnUrl = baseReturn
+    ? baseReturn + (baseReturn.includes("?") ? "&" : "?") + `pay_ref=${encodeURIComponent(reference)}`
+    : "";
+  const yp = await createYengaPayIntent({
+    amount, reference, title: description, description: `${biz.name} — ${description}`,
+    callbackUrl: `${SUPABASE_URL}/functions/v1/yengapay-webhook`, returnUrl,
+  });
+  const { error } = await db.from("payment_link_payments").insert({
+    business_id: auth.business_id, project_id: auth.project_id || null,
+    reference, amount, currency,
+    customer_name: body?.customer_name || null,
+    customer_phone: body?.customer_phone || null,
+    customer_email,
+    provider: "yengapay",
+    payment_intent_id: yp.paymentIntentId,
+    metadata: { source: "api", key_id: auth.key_id, metadata: body?.metadata ?? null, init: yp.raw },
+  });
+  if (error) throw new Error(error.message);
+  return { reference, amount, currency, status: "pending", checkout_url: yp.checkoutUrl };
+}
+
 // --- Dispatcher ---
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
@@ -553,6 +592,19 @@ Deno.serve(async (req) => {
     if (tail[0] === "v1") {
       const auth = await authenticateApiKey(req);
       if (!auth) return jsonResponse({ error: "Invalid or missing API key" }, 401);
+      // Test de clé : GET /v1/ping
+      if ((tail[1] === "ping" || tail[1] === "me") && req.method === "GET") {
+        return jsonResponse({ ok: true, data: { business_id: auth.business_id, project_id: auth.project_id ?? null, mode: auth.mode } });
+      }
+      // Session de paiement : POST /v1/checkout/sessions | /v1/payments | /v1/charges
+      const isSession =
+        (tail[1] === "checkout" && (tail[2] === "sessions" || tail[2] === "session")) ||
+        ((tail[1] === "payments" || tail[1] === "charges" || tail[1] === "payment-intents") && !tail[2]);
+      if (isSession && req.method === "POST") {
+        const body = await req.json().catch(() => ({}));
+        const s = await apiCreateSession(auth, body);
+        return jsonResponse({ ok: true, data: s });
+      }
       if (tail[1] === "payment-links" && req.method === "POST") {
         const body = await req.json().catch(() => ({}));
         const link = await apiCreateLink(auth.business_id, body);
