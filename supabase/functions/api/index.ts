@@ -729,6 +729,15 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         }
       }
     }
+    // Persiste les infos non sensibles renvoyées par l'émetteur (last4, marque, solde)
+    // pour que la liste des cartes reste correcte même hors ligne.
+    try {
+      const patch: any = {};
+      if (details.last4) patch.last4 = String(details.last4);
+      if (details.brand) patch.brand = String(details.brand).toLowerCase();
+      if (details.balance !== null && Number.isFinite(Number(details.balance))) patch.balance = Number(details.balance);
+      if (Object.keys(patch).length) await admin.from("cards").update(patch).eq("provider_card_id", data.card_id);
+    } catch { /* silencieux */ }
     return res;
   },
 
