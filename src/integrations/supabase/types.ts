@@ -2350,6 +2350,102 @@ export type Database = {
         }
         Relationships: []
       }
+      product_downloads: {
+        Row: {
+          access_token: string
+          business_id: string
+          created_at: string
+          customer_email: string | null
+          customer_name: string | null
+          download_limit: number | null
+          downloads_used: number
+          expires_at: string | null
+          file_name: string | null
+          file_url: string
+          id: string
+          last_downloaded_at: string | null
+          order_id: string | null
+          payment_id: string | null
+          product_id: string | null
+          product_name: string
+          updated_at: string
+        }
+        Insert: {
+          access_token: string
+          business_id: string
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          download_limit?: number | null
+          downloads_used?: number
+          expires_at?: string | null
+          file_name?: string | null
+          file_url: string
+          id?: string
+          last_downloaded_at?: string | null
+          order_id?: string | null
+          payment_id?: string | null
+          product_id?: string | null
+          product_name: string
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          business_id?: string
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          download_limit?: number | null
+          downloads_used?: number
+          expires_at?: string | null
+          file_name?: string | null
+          file_url?: string
+          id?: string
+          last_downloaded_at?: string | null
+          order_id?: string | null
+          payment_id?: string | null
+          product_id?: string | null
+          product_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_downloads_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_downloads_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_downloads_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_downloads_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payment_link_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_downloads_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_media: {
         Row: {
           created_at: string
@@ -2387,55 +2483,94 @@ export type Database = {
       }
       products: {
         Row: {
+          access_instructions: string | null
           business_id: string
           created_at: string
           currency: string
           description: string | null
+          download_expiry_days: number | null
+          download_limit: number | null
+          download_name: string | null
+          download_url: string | null
+          downloadable: boolean
           id: string
           image_url: string | null
+          manage_stock: boolean
           name: string
           price: number
           project_id: string | null
+          purchase_note: string | null
+          sale_price: number | null
+          short_description: string | null
           show_in_shop: boolean
           sku: string | null
           slug: string
           status: string
           stock: number | null
+          tax_rate: number
+          type: string
           updated_at: string
+          weight: number | null
         }
         Insert: {
+          access_instructions?: string | null
           business_id: string
           created_at?: string
           currency?: string
           description?: string | null
+          download_expiry_days?: number | null
+          download_limit?: number | null
+          download_name?: string | null
+          download_url?: string | null
+          downloadable?: boolean
           id?: string
           image_url?: string | null
+          manage_stock?: boolean
           name: string
           price?: number
           project_id?: string | null
+          purchase_note?: string | null
+          sale_price?: number | null
+          short_description?: string | null
           show_in_shop?: boolean
           sku?: string | null
           slug: string
           status?: string
           stock?: number | null
+          tax_rate?: number
+          type?: string
           updated_at?: string
+          weight?: number | null
         }
         Update: {
+          access_instructions?: string | null
           business_id?: string
           created_at?: string
           currency?: string
           description?: string | null
+          download_expiry_days?: number | null
+          download_limit?: number | null
+          download_name?: string | null
+          download_url?: string | null
+          downloadable?: boolean
           id?: string
           image_url?: string | null
+          manage_stock?: boolean
           name?: string
           price?: number
           project_id?: string | null
+          purchase_note?: string | null
+          sale_price?: number | null
+          short_description?: string | null
           show_in_shop?: boolean
           sku?: string | null
           slug?: string
           status?: string
           stock?: number | null
+          tax_rate?: number
+          type?: string
           updated_at?: string
+          weight?: number | null
         }
         Relationships: [
           {
