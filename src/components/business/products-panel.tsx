@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Package, Plus, Trash2, Eye, EyeOff, Image as ImageIcon, Loader2, ExternalLink } from "lucide-react";
+import { Package, Plus, Trash2, Eye, EyeOff, Image as ImageIcon, Loader2, ExternalLink, Download, Settings2, FileUp } from "lucide-react";
 import {
   listBusinessProducts, createProduct, updateProduct, deleteProduct,
 } from "@/lib/business.functions";
@@ -9,10 +9,20 @@ import { uploadBusinessMedia } from "@/lib/upload";
 type Product = {
   id: string; name: string; description: string | null; price: number; currency: string;
   image_url: string | null; show_in_shop: boolean; status: string;
+  type?: string; short_description?: string | null; sale_price?: number | null;
+  sku?: string | null; stock?: number | null; manage_stock?: boolean; tax_rate?: number;
+  downloadable?: boolean; download_url?: string | null; download_name?: string | null;
+  download_limit?: number | null; download_expiry_days?: number | null;
+  access_instructions?: string | null; purchase_note?: string | null;
   product_media?: Array<{ url: string; type: string }>;
 };
 
-const EMPTY = { name: "", description: "", price: "", currency: "XOF", image_url: "" };
+const EMPTY = {
+  name: "", description: "", short_description: "", price: "", sale_price: "", currency: "XOF", image_url: "",
+  type: "physical", sku: "", stock: "", manage_stock: false, tax_rate: "",
+  downloadable: false, download_url: "", download_name: "", download_limit: "", download_expiry_days: "",
+  access_instructions: "", purchase_note: "",
+};
 
 export default function ProductsPanel({ businessId, shopSlug }: { businessId: string; shopSlug?: string }) {
   const [items, setItems] = useState<Product[]>([]);
@@ -20,6 +30,9 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
   const [draft, setDraft] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [advanced, setAdvanced] = useState(false);
+  const [editing, setEditing] = useState<Product | null>(null);
 
   async function refresh() {
     try { setItems(await listBusinessProducts(businessId)); }
@@ -37,6 +50,18 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
     finally { setUploading(false); }
   }
 
+  async function onUploadFile(file: File) {
+    setUploadingFile(true);
+    try {
+      const url = await uploadBusinessMedia(file, "downloads");
+      setDraft((d) => ({ ...d, download_url: url, download_name: d.download_name || file.name, downloadable: true, type: "digital" }));
+      toast.success("Fichier prêt à être livré ✅");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setUploadingFile(false); }
+  }
+
+  function num(v: string) { const n = Number(v); return v.trim() === "" || !Number.isFinite(n) ? null : n; }
+
   async function onCreate() {
     if (draft.name.trim().length < 2) { toast.error("Nom du produit requis"); return; }
     const price = Number(draft.price);
@@ -45,8 +70,16 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
     try {
       await createProduct({
         business_id: businessId, name: draft.name.trim(),
-        description: draft.description || null, price,
+        description: draft.description || null, short_description: draft.short_description || null,
+        price, sale_price: num(draft.sale_price),
         currency: draft.currency, image_url: draft.image_url || null, show_in_shop: true,
+        type: draft.type, sku: draft.sku || null,
+        stock: num(draft.stock), manage_stock: draft.manage_stock,
+        tax_rate: num(draft.tax_rate) ?? 0,
+        downloadable: draft.downloadable || draft.type === "digital",
+        download_url: draft.download_url || null, download_name: draft.download_name || null,
+        download_limit: num(draft.download_limit), download_expiry_days: num(draft.download_expiry_days),
+        access_instructions: draft.access_instructions || null, purchase_note: draft.purchase_note || null,
       });
       toast.success("Produit ajouté à la boutique ✅");
       setDraft({ ...EMPTY });
