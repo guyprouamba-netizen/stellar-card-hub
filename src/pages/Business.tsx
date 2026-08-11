@@ -588,6 +588,8 @@ export default function BusinessPage() {
                 )}
 
                 {/* PUBLICATIONS / POSTS */}
+                {tab === "docs" && <DocsPanel />}
+
                 {tab === "posts" && (
                 <section>
                   <div className="mb-3 flex items-center justify-between">
