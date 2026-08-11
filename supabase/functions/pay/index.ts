@@ -22,10 +22,40 @@ async function sha256Hex(input: string) {
   return Array.from(new Uint8Array(buf)).map((x) => x.toString(16).padStart(2, "0")).join("");
 }
 
-async function authenticateApiKey(req: Request): Promise<{ business_id: string; mode: string; key_id: string } | null> {
-  const h = req.headers.get("Authorization") || req.headers.get("X-API-Key") || "";
-  const token = h.toLowerCase().startsWith("bearer ") ? h.slice(7) : h;
-  if (!token || !token.startsWith("fip_")) return null;
+type ApiAuth = { business_id: string; project_id?: string | null; mode: string; key_id: string; webhook_secret?: string | null };
+
+function extractApiToken(req: Request): string {
+  const raw =
+    req.headers.get("Authorization") ||
+    req.headers.get("X-API-Key") ||
+    req.headers.get("x-secret-key") ||
+    req.headers.get("X-Api-Secret") ||
+    "";
+  let token = raw.trim();
+  if (/^bearer\s+/i.test(token)) token = token.replace(/^bearer\s+/i, "").trim();
+  // `apikey` header is used by Supabase itself (anon key) — only accept it when it looks like ours
+  if (!/^(fip_|sk_)/.test(token)) {
+    const alt = (req.headers.get("apikey") || "").trim();
+    if (/^(fip_|sk_)/.test(alt)) token = alt;
+  }
+  return token;
+}
+
+async function authenticateApiKey(req: Request): Promise<ApiAuth | null> {
+  const token = extractApiToken(req);
+  if (!token) return null;
+  const db0 = admin();
+  // --- Project secret keys (sk_live_… / sk_test_…) ---
+  if (token.startsWith("sk_")) {
+    const secret_hash = await sha256Hex(token);
+    const { data: k } = await db0.from("project_api_keys")
+      .select("id,project_id,business_id,mode,webhook_secret,revoked_at")
+      .eq("secret_hash", secret_hash).maybeSingle();
+    if (!k || k.revoked_at) return null;
+    await db0.from("project_api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", k.id);
+    return { business_id: k.business_id, project_id: k.project_id, mode: k.mode, key_id: k.id, webhook_secret: k.webhook_secret };
+  }
+  if (!token.startsWith("fip_")) return null;
   const db = admin();
   const key_hash = await sha256Hex(token);
   const { data } = await db.from("business_api_keys")
@@ -53,6 +83,39 @@ async function authenticateApiKey(req: Request): Promise<{ business_id: string; 
   await db.from("rate_limit_hits").insert({ bucket: `api_key:${data.id}`, ip });
   await db.from("business_api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", data.id);
   return { business_id: data.business_id, mode: data.mode, key_id: data.id, scopes: (data as any).scopes || [] } as any;
+}
+
+// --- Signed webhook delivery to the merchant's server ---
+async function hmacHex(secret: string, message: string) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
+  return Array.from(new Uint8Array(sig)).map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+async function deliverProjectWebhook(db: any, projectId: string, event: string, payload: Record<string, unknown>) {
+  const { data: k } = await db.from("project_api_keys")
+    .select("id,business_id,project_id,webhook_url,webhook_secret")
+    .eq("project_id", projectId).is("revoked_at", null)
+    .order("created_at", { ascending: false }).maybeSingle();
+  if (!k?.webhook_url) return;
+  const body = JSON.stringify({ event, data: payload, created_at: new Date().toISOString() });
+  const t = Math.floor(Date.now() / 1000);
+  const signature = await hmacHex(k.webhook_secret, `${t}.${body}`);
+  let status_code: number | null = null, response_body: string | null = null, error: string | null = null, success = false;
+  try {
+    const res = await fetch(k.webhook_url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-FIP-Signature": `t=${t},v1=${signature}`, "X-FIP-Event": event },
+      body,
+    });
+    status_code = res.status;
+    response_body = (await res.text()).slice(0, 500);
+    success = res.ok;
+  } catch (e) { error = (e as Error).message; }
+  await db.from("project_webhook_deliveries").insert({
+    project_id: k.project_id, business_id: k.business_id, event, url: k.webhook_url,
+    payload: JSON.parse(body), status_code, response_body, error, success, simulated: false,
+  });
 }
 
 function getClientIp(req: Request): string {
