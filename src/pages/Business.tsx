@@ -6,15 +6,14 @@ import {
   listMyBusinesses, createBusiness, listPaymentLinks, createPaymentLink,
   updatePaymentLink, listLinkPayments, listApiKeys, createApiKey, revokeApiKey,
   cashoutBusinessBalance, listProjects, createProject, getBusinessDashboard,
-  updateBusiness,
-  createSenderIdRequest, listMySenderIdRequests, listSmsCredits, purchaseSmsCredits,
+  updateBusiness, updateProject,
 } from "@/lib/business.functions";
 import {
   listOrders, updateOrderStatus,
   listBusinessPosts, createBusinessPost, updateBusinessPost, deleteBusinessPost,
 } from "@/lib/orders.functions";
 import { uploadBusinessMedia } from "@/lib/upload";
-import { ArrowLeft, Building2, Copy, Key, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Send } from "lucide-react";
+import { ArrowLeft, Building2, Copy, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Palette } from "lucide-react";
 import { LayoutDashboard, Receipt, CreditCard, Settings2, BarChart3 } from "lucide-react";
 
 const NAV = [
@@ -398,7 +397,7 @@ export default function BusinessPage() {
 
                 {tab === "settings" && (<>
                 <ShopBrandingPanel biz={current} onUpdated={refreshAll} />
-                <SmsSenderPanel biz={current} />
+                <ShopProjectsPanel projects={projects} onChanged={() => refreshCurrent(current.id)} onGoProjects={() => setTab("projects")} />
                 </>)}
 
                 {/* Projects */}
