@@ -26,8 +26,6 @@ type Project = { id: string; name: string; slug: string; logo_url: string | null
 type Dashboard = { business: any; projects: Project[]; kpis: { total30: number; totalPrev: number; trend: number; count30: number; light: "red" | "yellow" | "green" }; series: Array<{ date: string; value: number }> };
 type Order = { id: string; order_number: string; public_token: string; status: string; customer_name: string | null; customer_email: string | null; total_amount: number; currency: string; created_at: string; items: Array<{ name: string; quantity: number; unit_price: number }> };
 type Post = { id: string; title: string; body: string | null; image_url: string | null; product_id: string | null; published: boolean; published_at: string | null; created_at: string };
-type WaSession = { id: string; status: string; qr_data_url: string | null; phone_number: string | null; worker_version: string | null; last_seen_at: string | null; connection_secret: string; worker_online: boolean } | null;
-type WaEvent = { id: string; kind: string; payload: any; created_at: string };
 
 export default function BusinessPage() {
   const navigate = useNavigate();
@@ -44,10 +42,6 @@ export default function BusinessPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [postDraft, setPostDraft] = useState<{ title: string; body: string; image_url: string }>({ title: "", body: "", image_url: "" });
   const [uploadingImg, setUploadingImg] = useState(false);
-  const [wa, setWa] = useState<WaSession>(null);
-  const [waEvents, setWaEvents] = useState<WaEvent[]>([]);
-  const [waDraft, setWaDraft] = useState<{ to: string; body: string }>({ to: "", body: "" });
-  const [waSending, setWaSending] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -73,7 +67,7 @@ export default function BusinessPage() {
   async function refreshCurrent(bizId: string) {
     // Un onglet en erreur ne doit pas casser les autres — chaque appel a son propre fallback.
     const safe = <T,>(p: Promise<T>, fb: T): Promise<T> => p.catch((e) => { console.warn("[business fetch]", e?.message); return fb; });
-    const [l, p, k, pr, d, o, po, ws, we] = await Promise.all([
+    const [l, p, k, pr, d, o, po] = await Promise.all([
       safe(listPaymentLinks(bizId), [] as any),
       safe(listLinkPayments(bizId), [] as any),
       safe(listApiKeys(bizId), [] as any),
@@ -81,27 +75,11 @@ export default function BusinessPage() {
       safe(getBusinessDashboard(bizId), null as any),
       safe(listOrders(bizId), [] as any),
       safe(listBusinessPosts(bizId), [] as any),
-      safe(getWhatsappSession(bizId), null as any),
-      safe(listWhatsappEvents(bizId), [] as any),
     ]);
     setLinks(l); setPayments(p); setKeys(k); setProjects(pr); setDash(d); setOrders(o); setPosts(po);
-    setWa(ws); setWaEvents(we);
   }
   useEffect(() => { if (session) refreshAll(); /* eslint-disable-next-line */ }, [session]);
   useEffect(() => { if (current) refreshCurrent(current.id); }, [current?.id]);
-
-  // Polling léger tant qu'on attend le QR / la connexion
-  useEffect(() => {
-    if (!current) return;
-    if (!wa || wa.status === "connected") return;
-    const t = setInterval(async () => {
-      try {
-        const s = await getWhatsappSession(current.id);
-        setWa(s);
-      } catch { /* ignore */ }
-    }, 3500);
-    return () => clearInterval(t);
-  }, [current?.id, wa?.status]);
 
   async function onCreateBusiness() {
     const name = prompt("Nom de votre business / boutique");
@@ -229,40 +207,6 @@ export default function BusinessPage() {
     catch (e: any) { toast.error(e.message); }
   }
 
-  async function onWaCreate() {
-    if (!current) return;
-    if (wa && !confirm("Régénérer un nouveau worker ? L'ancien secret sera invalidé.")) return;
-    try {
-      const s: any = await createWhatsappSession(current.id);
-      setWa({ ...s, worker_online: false });
-      toast.success("Worker généré. Copie le secret et déploie.");
-    } catch (e: any) { toast.error(e.message); }
-  }
-  async function onWaReset() {
-    if (!current) return;
-    if (!confirm("Redemander un QR (déconnecte la session actuelle) ?")) return;
-    try { await resetWhatsappSession(current.id); const s: any = await getWhatsappSession(current.id); setWa(s); }
-    catch (e: any) { toast.error(e.message); }
-  }
-  async function onWaSend() {
-    if (!current) return;
-    setWaSending(true);
-    try {
-      await sendWhatsappMessage({ business_id: current.id, to: waDraft.to, body: waDraft.body });
-      toast.success("Message en file d'envoi");
-      setWaDraft({ to: "", body: "" });
-      const we = await listWhatsappEvents(current.id); setWaEvents(we);
-    } catch (e: any) { toast.error(e.message); }
-    finally { setWaSending(false); }
-  }
-
-  const WA_STATUS: Record<string, { label: string; color: string }> = {
-    disconnected: { label: "Non connecté", color: "bg-muted text-muted-foreground" },
-    qr: { label: "QR en attente de scan", color: "bg-amber-500/15 text-amber-500" },
-    connecting: { label: "Reconnexion…", color: "bg-blue-500/15 text-blue-500" },
-    connected: { label: "🟢 Connecté", color: "bg-emerald-500/15 text-emerald-500" },
-    logged_out: { label: "Session expirée", color: "bg-red-500/15 text-red-500" },
-  };
 
   const ORDER_STATUS_LABEL: Record<string, string> = {
     pending_payment: "En attente paiement", paid: "Payée", preparing: "En préparation",
