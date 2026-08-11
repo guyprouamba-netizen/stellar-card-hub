@@ -2324,6 +2324,19 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       stock: data?.stock ?? null,
       image_url: data?.image_url || null,
       show_in_shop: data?.show_in_shop !== undefined ? Boolean(data.show_in_shop) : true,
+      type: data?.type || "physical",
+      short_description: data?.short_description || null,
+      sale_price: data?.sale_price ?? null,
+      purchase_note: data?.purchase_note || null,
+      access_instructions: data?.access_instructions || null,
+      downloadable: Boolean(data?.downloadable),
+      download_url: data?.download_url || null,
+      download_name: data?.download_name || null,
+      download_limit: data?.download_limit ?? null,
+      download_expiry_days: data?.download_expiry_days ?? null,
+      manage_stock: Boolean(data?.manage_stock),
+      tax_rate: Number(data?.tax_rate || 0),
+      weight: data?.weight ?? null,
     }).select("*").single();
     if (error) throw new Error(error.message);
     return row;
@@ -2333,7 +2346,11 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!prod) throw new Error("Produit introuvable");
     await assertBusinessOwner(admin, user.id, prod.business_id);
     const patch: Record<string, any> = {};
-    for (const k of ["name", "description", "price", "currency", "sku", "stock", "status", "show_in_shop", "image_url", "project_id"]) {
+    for (const k of [
+      "name", "description", "price", "currency", "sku", "stock", "status", "show_in_shop", "image_url", "project_id",
+      "type", "short_description", "sale_price", "purchase_note", "access_instructions", "downloadable",
+      "download_url", "download_name", "download_limit", "download_expiry_days", "manage_stock", "tax_rate", "weight",
+    ]) {
       if (data?.[k] !== undefined) patch[k] = data[k];
     }
     const { data: row, error } = await admin.from("products").update(patch).eq("id", data.id).select("*").single();
