@@ -2288,6 +2288,124 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   },
 
   // ===========================================================
+  // PROJECT API KEYS / WEBHOOKS (passerelle de paiement)
+  // ===========================================================
+  async getProjectIntegration({ data, user, admin }) {
+    const { data: p } = await admin.from("projects").select("business_id").eq("id", data.project_id).maybeSingle();
+    if (!p) throw new Error("Projet introuvable");
+    await assertBusinessOwner(admin, user.id, p.business_id);
+    const { data: key } = await admin.from("project_api_keys")
+      .select("id,mode,public_key,secret_prefix,webhook_url,webhook_secret,last_used_at,revoked_at,created_at")
+      .eq("project_id", data.project_id).is("revoked_at", null)
+      .order("created_at", { ascending: false }).maybeSingle();
+    const { data: deliveries } = await admin.from("project_webhook_deliveries")
+      .select("*").eq("project_id", data.project_id).order("created_at", { ascending: false }).limit(20);
+    const fee = await loadGatewayFeeConfig(admin);
+    return { key: key || null, deliveries: deliveries ?? [], fee, endpoint: `${SUPABASE_URL}/functions/v1/pay/v1` };
+  },
+
+  async createProjectApiKeys({ data, user, admin }) {
+    const { data: p } = await admin.from("projects").select("id,business_id").eq("id", data.project_id).maybeSingle();
+    if (!p) throw new Error("Projet introuvable");
+    await assertBusinessOwner(admin, user.id, p.business_id);
+    const mode = data?.mode === "test" ? "test" : "live";
+    // révoque les clés existantes (rotation)
+    await admin.from("project_api_keys").update({ revoked_at: new Date().toISOString() })
+      .eq("project_id", p.id).is("revoked_at", null);
+    const public_key = `pk_${mode}_${randomHex(16)}`;
+    const secret = `sk_${mode}_${randomHex(24)}`;
+    const secret_hash = await sha256Hex(secret);
+    const webhook_secret = `whsec_${randomHex(24)}`;
+    const { data: row, error } = await admin.from("project_api_keys").insert({
+      project_id: p.id, business_id: p.business_id, mode,
+      public_key, secret_prefix: secret.slice(0, 14), secret_hash,
+      webhook_url: data?.webhook_url || null, webhook_secret,
+    }).select("id,mode,public_key,secret_prefix,webhook_url,webhook_secret,created_at").single();
+    if (error) throw new Error(error.message);
+    return { ...row, secret_key: secret };
+  },
+
+  async updateProjectWebhook({ data, user, admin }) {
+    const { data: key } = await admin.from("project_api_keys").select("id,business_id").eq("id", data.id).maybeSingle();
+    if (!key) throw new Error("Clé introuvable");
+    await assertBusinessOwner(admin, user.id, key.business_id);
+    const url = data?.webhook_url ? String(data.webhook_url).trim() : null;
+    if (url && !/^https?:\/\//i.test(url)) throw new Error("URL de webhook invalide");
+    const { data: row, error } = await admin.from("project_api_keys")
+      .update({ webhook_url: url }).eq("id", data.id)
+      .select("id,mode,public_key,secret_prefix,webhook_url,webhook_secret,created_at").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+
+  async revokeProjectApiKeys({ data, user, admin }) {
+    const { data: key } = await admin.from("project_api_keys").select("id,business_id").eq("id", data.id).maybeSingle();
+    if (!key) throw new Error("Clé introuvable");
+    await assertBusinessOwner(admin, user.id, key.business_id);
+    await admin.from("project_api_keys").update({ revoked_at: new Date().toISOString() }).eq("id", data.id);
+    return { ok: true };
+  },
+
+  // Simulation interne : envoie un webhook signé de test et journalise le résultat
+  async simulateProjectWebhook({ data, user, admin }) {
+    const { data: p } = await admin.from("projects").select("id,business_id,name,currency").eq("id", data.project_id).maybeSingle();
+    if (!p) throw new Error("Projet introuvable");
+    await assertBusinessOwner(admin, user.id, p.business_id);
+    const { data: key } = await admin.from("project_api_keys")
+      .select("*").eq("project_id", p.id).is("revoked_at", null)
+      .order("created_at", { ascending: false }).maybeSingle();
+    if (!key) throw new Error("Générez d'abord les clés API du projet");
+    const event = String(data?.event || "payment.succeeded");
+    const amount = Math.max(1, Math.floor(Number(data?.amount || 1000)));
+    const fee = await loadGatewayFeeConfig(admin);
+    const feeAmount = Math.round((amount * fee.fee_bps) / 10000) + fee.fee_flat_xof;
+    const payload = {
+      event,
+      test: true,
+      data: {
+        reference: `SIMU-${Date.now().toString(36).toUpperCase()}`,
+        project_id: p.id,
+        amount,
+        fee_amount: feeAmount,
+        net_amount: Math.max(0, amount - feeAmount),
+        currency: p.currency || "XOF",
+        status: event === "payment.failed" ? "failed" : "success",
+        customer: { name: "Client Test", phone: "22670000000", email: "test@example.com" },
+        paid_at: new Date().toISOString(),
+      },
+      created_at: new Date().toISOString(),
+    };
+    return await dispatchProjectWebhook(admin, { project: p, key, payload, event, simulated: true });
+  },
+
+  async listProjectWebhookDeliveries({ data, user, admin }) {
+    const { data: p } = await admin.from("projects").select("business_id").eq("id", data.project_id).maybeSingle();
+    if (!p) throw new Error("Projet introuvable");
+    await assertBusinessOwner(admin, user.id, p.business_id);
+    const { data: rows } = await admin.from("project_webhook_deliveries")
+      .select("*").eq("project_id", data.project_id).order("created_at", { ascending: false }).limit(30);
+    return rows ?? [];
+  },
+
+  async getGatewayFeeConfig({ admin }) {
+    return await loadGatewayFeeConfig(admin);
+  },
+  async adminUpdateGatewayFeeConfig({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const map: Record<string, any> = {
+      gateway_fee_bps: data?.fee_bps,
+      gateway_fee_flat_xof: data?.fee_flat_xof,
+      gateway_min_xof: data?.min_xof,
+      gateway_enabled: data?.enabled,
+    };
+    for (const [k, v] of Object.entries(map)) {
+      if (v === undefined || v === null) continue;
+      await admin.from("platform_config").upsert({ key: k, value: v }, { onConflict: "key" });
+    }
+    return await loadGatewayFeeConfig(admin);
+  },
+
+  // ===========================================================
   // INVOICES / RECEIPTS
   // ===========================================================
   async listInvoices({ data, user, admin }) {
