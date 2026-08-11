@@ -6,8 +6,6 @@ import {
   listMyBusinesses, createBusiness, listPaymentLinks, createPaymentLink,
   updatePaymentLink, listLinkPayments, listApiKeys, createApiKey, revokeApiKey,
   cashoutBusinessBalance, listProjects, createProject, getBusinessDashboard,
-  getWhatsappSession, createWhatsappSession, resetWhatsappSession,
-  sendWhatsappMessage, listWhatsappEvents,
   updateBusiness,
   createSenderIdRequest, listMySenderIdRequests, listSmsCredits, purchaseSmsCredits,
 } from "@/lib/business.functions";
@@ -16,7 +14,7 @@ import {
   listBusinessPosts, createBusinessPost, updateBusinessPost, deleteBusinessPost,
 } from "@/lib/orders.functions";
 import { uploadBusinessMedia } from "@/lib/upload";
-import { ArrowLeft, Building2, Copy, Key, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, MessageCircle, QrCode, RefreshCw, Send, Smartphone } from "lucide-react";
+import { ArrowLeft, Building2, Copy, Key, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Send } from "lucide-react";
 
 type Biz = { id: string; name: string; slug: string; status: string; balance: number; fee_bps: number };
 type PLink = { id: string; slug: string; title: string; amount: number | null; currency: string; status: string };
