@@ -13,12 +13,15 @@ import {
   listBusinessPosts, createBusinessPost, updateBusinessPost, deleteBusinessPost,
 } from "@/lib/orders.functions";
 import { uploadBusinessMedia } from "@/lib/upload";
+import ProductsPanel from "@/components/business/products-panel";
+import ProjectConfigSheet from "@/components/business/project-config-sheet";
 import { ArrowLeft, Building2, Copy, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Palette } from "lucide-react";
 import { LayoutDashboard, Receipt, CreditCard, Settings2, BarChart3 } from "lucide-react";
 
 const NAV = [
   { id: "overview", label: "Tableau de bord", icon: LayoutDashboard },
   { id: "projects", label: "Projets", icon: FolderKanban },
+  { id: "products", label: "Produits", icon: Package },
   { id: "links", label: "Liens de paiement", icon: Link2 },
   { id: "payments", label: "Paiements", icon: CreditCard },
   { id: "orders", label: "Commandes", icon: Package },
@@ -31,7 +34,7 @@ type Biz = { id: string; name: string; slug: string; status: string; balance: nu
 type PLink = { id: string; slug: string; title: string; amount: number | null; currency: string; status: string };
 type Payment = { id: string; reference: string; amount: number; status: string; net_amount: number; created_at: string };
 type ApiKey = { id: string; label: string; key_prefix: string; mode: string; revoked_at: string | null; last_used_at: string | null };
-type Project = { id: string; name: string; slug: string; logo_url: string | null; cover_url: string | null; balance: number; financial_goal: number; currency: string; status: string };
+type Project = { id: string; name: string; slug: string; description?: string | null; logo_url: string | null; cover_url: string | null; balance: number; financial_goal: number; currency: string; status: string };
 type Dashboard = { business: any; projects: Project[]; kpis: { total30: number; totalPrev: number; trend: number; count30: number; light: "red" | "yellow" | "green" }; series: Array<{ date: string; value: number }> };
 type Order = { id: string; order_number: string; public_token: string; status: string; customer_name: string | null; customer_email: string | null; total_amount: number; currency: string; created_at: string; items: Array<{ name: string; quantity: number; unit_price: number }> };
 type Post = { id: string; title: string; body: string | null; image_url: string | null; product_id: string | null; published: boolean; published_at: string | null; created_at: string };
@@ -53,6 +56,7 @@ export default function BusinessPage() {
   const [uploadingImg, setUploadingImg] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabId>("overview");
+  const [configProject, setConfigProject] = useState<Project | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
