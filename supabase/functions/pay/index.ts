@@ -142,6 +142,83 @@ function ref(prefix = "LP") {
   return `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 }
 
+function randomToken(bytes = 24) {
+  const a = new Uint8Array(bytes);
+  crypto.getRandomValues(a);
+  return Array.from(a).map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+const PUBLIC_APP_URL = Deno.env.get("PUBLIC_APP_URL") || "";
+
+// Délivrance automatique des produits digitaux après paiement réussi.
+async function grantDigitalDeliveries(db: any, tx: any, bizName: string) {
+  const lines: Array<{ product_id: string; quantity: number }> = [];
+  if (tx.order_id) {
+    const { data: items } = await db.from("order_items").select("product_id,quantity").eq("order_id", tx.order_id);
+    for (const it of items || []) if (it.product_id) lines.push({ product_id: it.product_id, quantity: it.quantity || 1 });
+  } else if (tx.product_id) {
+    lines.push({ product_id: tx.product_id, quantity: 1 });
+  }
+  if (lines.length === 0) return [];
+  const { data: products } = await db.from("products")
+    .select("id,name,type,downloadable,download_url,download_name,download_limit,download_expiry_days,access_instructions,purchase_note")
+    .in("id", lines.map((l) => l.product_id));
+  const grants: Array<{ name: string; url: string; instructions: string | null }> = [];
+  for (const p of products || []) {
+    const digital = p.downloadable || p.type === "digital";
+    if (!digital) continue;
+    if (!p.download_url && !p.access_instructions) continue;
+    const token = randomToken(24);
+    const expires = p.download_expiry_days
+      ? new Date(Date.now() + Number(p.download_expiry_days) * 86400000).toISOString()
+      : null;
+    await db.from("product_downloads").insert({
+      business_id: tx.business_id, product_id: p.id, order_id: tx.order_id || null,
+      payment_id: tx.id, customer_email: tx.customer_email, customer_name: tx.customer_name,
+      product_name: p.name, file_url: p.download_url || "", file_name: p.download_name || null,
+      access_token: token, download_limit: p.download_limit ?? null, expires_at: expires,
+    });
+    grants.push({
+      name: p.name,
+      url: `${SUPABASE_URL}/functions/v1/pay/download/${token}`,
+      instructions: p.access_instructions || p.purchase_note || null,
+    });
+  }
+  if (grants.length && tx.customer_email) {
+    const html = `<div style="font-family:system-ui,sans-serif;max-width:560px;margin:auto">
+      <h2>Votre achat est prêt 🎉</h2>
+      <p>Merci pour votre paiement chez <b>${bizName}</b> (référence <b>${tx.reference}</b>).</p>
+      <p>Voici l'accès à vos produits numériques :</p>
+      <ul>${grants.map((g) => `<li style="margin:10px 0"><b>${g.name}</b><br/>${g.url ? `<a href="${g.url}">Télécharger le fichier</a>` : ""}${g.instructions ? `<br/><span>${g.instructions}</span>` : ""}</li>`).join("")}</ul>
+      <p style="color:#666;font-size:12px">Ces liens sont personnels. Conservez cet email comme preuve de paiement.</p>
+    </div>`;
+    await sendEmail({
+      to: tx.customer_email,
+      subject: `Accès à votre achat — ${bizName}`,
+      html,
+      text: grants.map((g) => `${g.name}: ${g.url}`).join("\n"),
+      fromName: bizName,
+    }).catch((e) => console.error("digital delivery email", e));
+  }
+  return grants;
+}
+
+// Consommation d'un lien de téléchargement (contrôle limite + expiration).
+async function consumeDownload(token: string) {
+  const db = admin();
+  const { data: d } = await db.from("product_downloads").select("*").eq("access_token", token).maybeSingle();
+  if (!d) return { error: "Lien de téléchargement introuvable", status: 404 };
+  if (d.expires_at && new Date(d.expires_at).getTime() < Date.now()) return { error: "Lien expiré", status: 410 };
+  if (d.download_limit !== null && Number(d.downloads_used) >= Number(d.download_limit)) {
+    return { error: "Nombre de téléchargements atteint", status: 429 };
+  }
+  if (!d.file_url) return { error: "Aucun fichier associé", status: 404 };
+  await db.from("product_downloads").update({
+    downloads_used: Number(d.downloads_used) + 1, last_downloaded_at: new Date().toISOString(),
+  }).eq("id", d.id);
+  return { url: d.file_url as string };
+}
+
 async function createYengaPayIntent(opts: {
   amount: number; reference: string; title: string; description: string;
   callbackUrl: string; returnUrl?: string;
@@ -247,6 +324,11 @@ async function settlePayment(db: any, paymentId: string, providerBody: any) {
       await db.from("payment_link_payments").update({ receipt_sent_at: new Date().toISOString() }).eq("id", tx.id);
     }
   } catch (e) { console.error("invoice/email pipeline", e); }
+  // Produits numériques : génération des accès + email de livraison
+  try {
+    const { data: bizName } = await db.from("businesses").select("name").eq("id", tx.business_id).single();
+    await grantDigitalDeliveries(db, tx, bizName?.name || "Votre marchand");
+  } catch (e) { console.error("digital delivery", e); }
   if ((tx as any).project_id) {
     await deliverProjectWebhook(db, (tx as any).project_id, "payment.succeeded", {
       reference: (tx as any).reference, amount: Number(tx.amount), fee, net,
