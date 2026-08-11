@@ -479,7 +479,7 @@ Deno.serve(async (req) => {
       const payload = await req.json().catch(() => ({}));
       const action = String(payload?.action || "");
       // Anti-abuse: rate-limit by IP for public actions
-      const limits: Record<string, number> = { getLink: 60, initCheckout: 10, verifyPayment: 30, getShop: 60, initShopCheckout: 10, getOrder: 30 };
+      const limits: Record<string, number> = { getLink: 60, initCheckout: 10, verifyPayment: 30, getShop: 60, getVitrine: 60, initShopCheckout: 10, getOrder: 30 };
       if (limits[action]) {
         const ok = await checkPublicRateLimit(`pay:${action}`, req, limits[action]);
         if (!ok) return jsonResponse({ error: "Trop de requêtes, réessayez dans une minute." }, 429);
@@ -511,6 +511,13 @@ Deno.serve(async (req) => {
       if (action === "initShopCheckout") {
         const r = await initShopCheckout(payload);
         return jsonResponse(r);
+      }
+      if (action === "getVitrine") {
+        const pid = String(payload?.project_id || "");
+        if (!/^[0-9a-f-]{36}$/i.test(pid)) return jsonResponse({ error: "Projet invalide" }, 400);
+        const ctx = await getPublicVitrine(pid);
+        if (!ctx) return jsonResponse({ error: "Vitrine introuvable" }, 404);
+        return jsonResponse({ ok: true, ...ctx });
       }
       if (action === "getOrder") {
         const tok = String(payload?.token || "");
