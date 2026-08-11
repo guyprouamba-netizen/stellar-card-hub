@@ -12,6 +12,7 @@ import { listMyCards, cardAction, fundCard, withdrawCard, listCardTransactions, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 const variantByIndex = ["primary", "teal", "sunset"] as const;
 
@@ -80,14 +81,28 @@ function CardsPage() {
   }>;
 
   const fetchDetails = useServerFn(cardDetails);
+  // Nom du titulaire : l'émetteur renvoie parfois `card_holder_name: null`.
+  // On complète alors avec le nom du profil du client.
+  const profileQ = useQuery({
+    queryKey: ["profile-holder"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      const { data } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+      return (data?.full_name as string | null) ?? null;
+    },
+  });
+  const profileHolder = profileQ.data || undefined;
   const [details, setDetails] = useState<Record<string, {
     number?: string; cvv?: string; expiry?: string; holder?: string; balance?: number;
     numberUrl?: string; cvvUrl?: string; billing?: Billing;
   }>>({});
-  async function loadDetails(provider_card_id: string) {
+  async function loadDetails(provider_card_id: string, force = false) {
     const cur = details[provider_card_id];
-    if (cur?.numberUrl && cur?.cvvUrl) return;
-    if (cur?.number && cur.number !== "0000000000000000" && cur?.cvv && cur?.expiry) return;
+    if (!force) {
+      if (cur?.numberUrl && cur?.cvvUrl) return;
+      if (cur?.number && cur.number !== "0000000000000000" && cur?.cvv && cur?.expiry) return;
+    }
     try {
       const r: any = await fetchDetails({ data: { card_id: provider_card_id } });
       // Lorsque la carte était gelée et le dégel a échoué, l'API renvoie {ok:false, data:...}.
@@ -147,6 +162,16 @@ function CardsPage() {
       // show up immediately without needing to flip the card.
       void loadDetails(c.provider_card_id);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cards.length]);
+
+  // Les URL d'affichage sécurisé (numéro / CVV) sont signées avec un jeton de courte
+  // durée : on les renouvelle régulièrement pour qu'elles restent lisibles.
+  useEffect(() => {
+    const ids = cards.map((c) => c.provider_card_id).filter(Boolean) as string[];
+    if (ids.length === 0) return;
+    const t = setInterval(() => { ids.forEach((id) => void loadDetails(id, true)); }, 90_000);
+    return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cards.length]);
 
@@ -211,7 +236,7 @@ function CardsPage() {
                   number={number}
                   brand={(c.brand || "visa").toUpperCase()}
                   balance={`$ ${apiBalance.toFixed(2)}`}
-                  holder={(det?.holder || "TITULAIRE").toUpperCase()}
+                  holder={(det?.holder || profileHolder || "TITULAIRE").toUpperCase()}
                   expiry={expiryDisplay}
                   cvv={cvvDisplay}
                   numberUrl={isTerminated ? undefined : secureNumberUrl}
@@ -242,7 +267,7 @@ function CardsPage() {
                 )}
                 {!locked && (
                   <CardDetailsCopy
-                    det={{ number: !isDummyPan ? det?.number : undefined, cvv: cvvDisplay, expiry: det?.expiry && det.expiry !== "00/00" ? det.expiry : undefined, holder: det?.holder }}
+                    det={{ number: !isDummyPan ? det?.number : undefined, cvv: cvvDisplay, expiry: det?.expiry && det.expiry !== "00/00" ? det.expiry : undefined, holder: det?.holder || profileHolder }}
                     numberUrl={isTerminated ? undefined : secureNumberUrl}
                     cvvUrl={isTerminated ? undefined : secureCvvUrl}
                   />
@@ -497,15 +522,19 @@ function CardDetailsCopy({ det, numberUrl, cvvUrl }: {
   const SecureRow = ({ label, src, height }: { label: string; src: string; height: number }) => (
     <div className="rounded-lg bg-surface-2/60 px-3 py-2">
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label} · affichage sécurisé</p>
-      <iframe
-        src={src}
-        title={label}
-        width="100%"
-        height={height}
-        frameBorder="0"
-        scrolling="no"
-        style={{ border: "none", overflow: "hidden" }}
-      />
+      {/* Le contenu de l'iframe est rendu par l'émetteur en texte noir :
+          on garantit un fond clair pour qu'il reste lisible en thème sombre. */}
+      <div className="mt-1 rounded-md bg-white px-2 py-0.5">
+        <iframe
+          src={src}
+          title={label}
+          width="100%"
+          height={height}
+          frameBorder="0"
+          scrolling="no"
+          style={{ border: "none", overflow: "hidden", colorScheme: "normal" }}
+        />
+      </div>
     </div>
   );
   const Row = ({ label, value }: { label: string; value?: string }) => (

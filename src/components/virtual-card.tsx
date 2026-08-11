@@ -84,12 +84,12 @@ export function VirtualCard({
                 <div className="h-7 w-10 rounded-md bg-gradient-to-br from-yellow-200 to-yellow-500 shadow-inner sm:h-8 sm:w-11" />
               </div>
               {numberUrl ? (
-                <div className="w-full" onClick={(e) => e.stopPropagation()}>
+                <div className="w-full rounded-lg bg-white/95 px-2 py-1" onClick={(e) => e.stopPropagation()}>
                   <iframe
                     src={numberUrl}
                     title="Numéro de carte sécurisé"
                     width="100%"
-                    height="32"
+                    height="34"
                     frameBorder="0"
                     scrolling="no"
                     style={{ border: "none", overflow: "hidden", colorScheme: "normal" }}

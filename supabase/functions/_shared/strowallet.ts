@@ -159,6 +159,8 @@ export function extractCardTransactions(resp: any): Array<{
   const raw: any = resp?.response ?? resp?.data ?? resp;
   let list: any[] = [];
   if (Array.isArray(raw)) list = raw;
+  else if (Array.isArray(raw?.card_transactions)) list = raw.card_transactions;
+  else if (Array.isArray(resp?.card_transactions)) list = resp.card_transactions;
   else if (Array.isArray(raw?.response)) list = raw.response;
   else if (Array.isArray(raw?.data)) list = raw.data;
   else if (Array.isArray(raw?.transactions)) list = raw.transactions;
@@ -167,14 +169,17 @@ export function extractCardTransactions(resp: any): Array<{
 
   return list.map((t: any) => {
     const statusRaw = String(t.status || t.transaction_status || "success").toLowerCase();
+    const kind = String(t.type || t.transaction_type || "").toLowerCase();
+    const rawAmount = t.amount != null ? Number(t.amount) : (t.centAmount != null ? Number(t.centAmount) / 100 : 0);
+    const signed = kind === "debit" ? -Math.abs(rawAmount) : Math.abs(rawAmount);
     return {
       id: t.id ? String(t.id) : (t.transaction_id ? String(t.transaction_id) : (t.reference ? String(t.reference) : null)),
       date: t.date || t.created_at || t.createdAt || t.transaction_date || null,
-      amount: Number(t.amount || 0),
-      currency: String(t.currency || "USD"),
+      amount: Number.isFinite(signed) ? signed : 0,
+      currency: String(t.currency || "USD").toUpperCase(),
       status: statusRaw.includes("fail") ? "failed" : statusRaw.includes("pending") ? "pending" : "success",
-      description: t.description || t.narration || t.type || t.transaction_type || "Transaction carte",
-      type: t.type || t.transaction_type || null,
+      description: t.narrative || t.description || t.narration || t.merchant_name || t.method || t.type || t.transaction_type || "Transaction carte",
+      type: t.type || t.transaction_type || t.method || null,
     };
   });
 }
