@@ -589,7 +589,6 @@ export default function BusinessPage() {
 
                 {/* PUBLICATIONS / POSTS */}
                 {tab === "posts" && (
-                <>
                 <section>
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="font-[Space_Grotesk] text-xl font-bold inline-flex items-center gap-2"><Megaphone className="h-5 w-5" /> Publications</h3>
