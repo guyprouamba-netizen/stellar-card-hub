@@ -34,12 +34,28 @@ export const deleteProject = (id: string) => callApi("deleteProject", { id });
 
 // --- Products ---
 export const listProducts = (project_id: string) => callApi("listProducts", { project_id });
+export const listBusinessProducts = (business_id: string) => callApi("listProducts", { business_id });
 export const createProduct = (data: any) => callApi("createProduct", data);
 export const updateProduct = (data: any) => callApi("updateProduct", data);
 export const deleteProduct = (id: string) => callApi("deleteProduct", { id });
 export const addProductMedia = (data: { product_id: string; type: "image" | "video"; url: string; position?: number }) =>
   callApi("addProductMedia", data);
 export const deleteProductMedia = (id: string) => callApi("deleteProductMedia", { id });
+
+// --- Project API keys / webhooks (passerelle) ---
+export const getProjectIntegration = (project_id: string) => callApi("getProjectIntegration", { project_id });
+export const createProjectApiKeys = (data: { project_id: string; mode?: "live" | "test"; webhook_url?: string }) =>
+  callApi("createProjectApiKeys", data);
+export const updateProjectWebhook = (data: { id: string; webhook_url: string | null }) =>
+  callApi("updateProjectWebhook", data);
+export const revokeProjectApiKeys = (id: string) => callApi("revokeProjectApiKeys", { id });
+export const simulateProjectWebhook = (data: { project_id: string; event?: string; amount?: number }) =>
+  callApi("simulateProjectWebhook", data);
+export const listProjectWebhookDeliveries = (project_id: string) =>
+  callApi("listProjectWebhookDeliveries", { project_id });
+export const getGatewayFeeConfig = () => callApi("getGatewayFeeConfig");
+export const adminUpdateGatewayFeeConfig = (data: { fee_bps?: number; fee_flat_xof?: number; min_xof?: number; enabled?: boolean }) =>
+  callApi("adminUpdateGatewayFeeConfig", data);
 
 // --- Invoices ---
 export const listInvoices = (business_id: string, project_id?: string) =>
