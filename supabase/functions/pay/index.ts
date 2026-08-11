@@ -370,6 +370,8 @@ async function initShopCheckout(body: any) {
 async function getPublicOrder(token: string) {
   const db = admin();
   const { data: order } = await db.from("orders")
+  const db = admin();
+  const { data: order } = await db.from("orders")
     .select("id,order_number,status,customer_name,customer_email,total_amount,currency,paid_at,created_at,updated_at,merchant_note,shipping_address,business_id")
     .eq("public_token", token).maybeSingle();
   if (!order) return null;
