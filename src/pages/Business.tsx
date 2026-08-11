@@ -404,6 +404,10 @@ export default function BusinessPage() {
                 <ShopProjectsPanel projects={projects} onChanged={() => refreshCurrent(current.id)} onGoProjects={() => setTab("projects")} />
                 </>)}
 
+                {tab === "products" && (
+                  <ProductsPanel businessId={current.id} shopSlug={current.slug} />
+                )}
+
                 {/* Projects */}
                 {tab === "projects" && (
                 <section>
@@ -454,7 +458,11 @@ export default function BusinessPage() {
                              </a>
                              <button onClick={() => copy(vitrineUrl)}
                                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold hover:bg-muted">
-                               <Copy className="h-3 w-3" /> Copier le lien
+                               <Copy className="h-3 w-3" /> Copier
+                             </button>
+                             <button onClick={() => setConfigProject(p)}
+                               className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold hover:bg-muted">
+                               <Settings2 className="h-3 w-3" /> Réglages & API
                              </button>
                            </div>
                            </div>
