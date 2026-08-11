@@ -6,8 +6,6 @@ import {
   listMyBusinesses, createBusiness, listPaymentLinks, createPaymentLink,
   updatePaymentLink, listLinkPayments, listApiKeys, createApiKey, revokeApiKey,
   cashoutBusinessBalance, listProjects, createProject, getBusinessDashboard,
-  getWhatsappSession, createWhatsappSession, resetWhatsappSession,
-  sendWhatsappMessage, listWhatsappEvents,
   updateBusiness,
   createSenderIdRequest, listMySenderIdRequests, listSmsCredits, purchaseSmsCredits,
 } from "@/lib/business.functions";
@@ -16,7 +14,7 @@ import {
   listBusinessPosts, createBusinessPost, updateBusinessPost, deleteBusinessPost,
 } from "@/lib/orders.functions";
 import { uploadBusinessMedia } from "@/lib/upload";
-import { ArrowLeft, Building2, Copy, Key, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, MessageCircle, QrCode, RefreshCw, Send, Smartphone } from "lucide-react";
+import { ArrowLeft, Building2, Copy, Key, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Send } from "lucide-react";
 
 type Biz = { id: string; name: string; slug: string; status: string; balance: number; fee_bps: number };
 type PLink = { id: string; slug: string; title: string; amount: number | null; currency: string; status: string };
@@ -26,8 +24,6 @@ type Project = { id: string; name: string; slug: string; logo_url: string | null
 type Dashboard = { business: any; projects: Project[]; kpis: { total30: number; totalPrev: number; trend: number; count30: number; light: "red" | "yellow" | "green" }; series: Array<{ date: string; value: number }> };
 type Order = { id: string; order_number: string; public_token: string; status: string; customer_name: string | null; customer_email: string | null; total_amount: number; currency: string; created_at: string; items: Array<{ name: string; quantity: number; unit_price: number }> };
 type Post = { id: string; title: string; body: string | null; image_url: string | null; product_id: string | null; published: boolean; published_at: string | null; created_at: string };
-type WaSession = { id: string; status: string; qr_data_url: string | null; phone_number: string | null; worker_version: string | null; last_seen_at: string | null; connection_secret: string; worker_online: boolean } | null;
-type WaEvent = { id: string; kind: string; payload: any; created_at: string };
 
 export default function BusinessPage() {
   const navigate = useNavigate();
@@ -44,10 +40,6 @@ export default function BusinessPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [postDraft, setPostDraft] = useState<{ title: string; body: string; image_url: string }>({ title: "", body: "", image_url: "" });
   const [uploadingImg, setUploadingImg] = useState(false);
-  const [wa, setWa] = useState<WaSession>(null);
-  const [waEvents, setWaEvents] = useState<WaEvent[]>([]);
-  const [waDraft, setWaDraft] = useState<{ to: string; body: string }>({ to: "", body: "" });
-  const [waSending, setWaSending] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -73,7 +65,7 @@ export default function BusinessPage() {
   async function refreshCurrent(bizId: string) {
     // Un onglet en erreur ne doit pas casser les autres — chaque appel a son propre fallback.
     const safe = <T,>(p: Promise<T>, fb: T): Promise<T> => p.catch((e) => { console.warn("[business fetch]", e?.message); return fb; });
-    const [l, p, k, pr, d, o, po, ws, we] = await Promise.all([
+    const [l, p, k, pr, d, o, po] = await Promise.all([
       safe(listPaymentLinks(bizId), [] as any),
       safe(listLinkPayments(bizId), [] as any),
       safe(listApiKeys(bizId), [] as any),
@@ -81,27 +73,11 @@ export default function BusinessPage() {
       safe(getBusinessDashboard(bizId), null as any),
       safe(listOrders(bizId), [] as any),
       safe(listBusinessPosts(bizId), [] as any),
-      safe(getWhatsappSession(bizId), null as any),
-      safe(listWhatsappEvents(bizId), [] as any),
     ]);
     setLinks(l); setPayments(p); setKeys(k); setProjects(pr); setDash(d); setOrders(o); setPosts(po);
-    setWa(ws); setWaEvents(we);
   }
   useEffect(() => { if (session) refreshAll(); /* eslint-disable-next-line */ }, [session]);
   useEffect(() => { if (current) refreshCurrent(current.id); }, [current?.id]);
-
-  // Polling léger tant qu'on attend le QR / la connexion
-  useEffect(() => {
-    if (!current) return;
-    if (!wa || wa.status === "connected") return;
-    const t = setInterval(async () => {
-      try {
-        const s = await getWhatsappSession(current.id);
-        setWa(s);
-      } catch { /* ignore */ }
-    }, 3500);
-    return () => clearInterval(t);
-  }, [current?.id, wa?.status]);
 
   async function onCreateBusiness() {
     const name = prompt("Nom de votre business / boutique");
@@ -229,40 +205,6 @@ export default function BusinessPage() {
     catch (e: any) { toast.error(e.message); }
   }
 
-  async function onWaCreate() {
-    if (!current) return;
-    if (wa && !confirm("Régénérer un nouveau worker ? L'ancien secret sera invalidé.")) return;
-    try {
-      const s: any = await createWhatsappSession(current.id);
-      setWa({ ...s, worker_online: false });
-      toast.success("Worker généré. Copie le secret et déploie.");
-    } catch (e: any) { toast.error(e.message); }
-  }
-  async function onWaReset() {
-    if (!current) return;
-    if (!confirm("Redemander un QR (déconnecte la session actuelle) ?")) return;
-    try { await resetWhatsappSession(current.id); const s: any = await getWhatsappSession(current.id); setWa(s); }
-    catch (e: any) { toast.error(e.message); }
-  }
-  async function onWaSend() {
-    if (!current) return;
-    setWaSending(true);
-    try {
-      await sendWhatsappMessage({ business_id: current.id, to: waDraft.to, body: waDraft.body });
-      toast.success("Message en file d'envoi");
-      setWaDraft({ to: "", body: "" });
-      const we = await listWhatsappEvents(current.id); setWaEvents(we);
-    } catch (e: any) { toast.error(e.message); }
-    finally { setWaSending(false); }
-  }
-
-  const WA_STATUS: Record<string, { label: string; color: string }> = {
-    disconnected: { label: "Non connecté", color: "bg-muted text-muted-foreground" },
-    qr: { label: "QR en attente de scan", color: "bg-amber-500/15 text-amber-500" },
-    connecting: { label: "Reconnexion…", color: "bg-blue-500/15 text-blue-500" },
-    connected: { label: "🟢 Connecté", color: "bg-emerald-500/15 text-emerald-500" },
-    logged_out: { label: "Session expirée", color: "bg-red-500/15 text-red-500" },
-  };
 
   const ORDER_STATUS_LABEL: Record<string, string> = {
     pending_payment: "En attente paiement", paid: "Payée", preparing: "En préparation",
@@ -325,12 +267,24 @@ export default function BusinessPage() {
 
             {current && (
               <>
+                {/* Barre de statistiques (style tableau de bord marchand) */}
+                <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {[
+                    { label: "Solde du business", value: `${Number(current.balance).toLocaleString("fr-FR")} XOF` },
+                    { label: "Nb projets", value: String(projects.length) },
+                    { label: "Collecté (30j)", value: `${Number(dash?.kpis.total30 || 0).toLocaleString("fr-FR")} XOF` },
+                    { label: "Paiements", value: String(payments.length) },
+                  ].map((s) => (
+                    <div key={s.label} className="rounded-2xl border border-border bg-card px-4 py-3">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</p>
+                      <p className="mt-1 font-[Space_Grotesk] text-base font-bold tabular-nums">{s.value}</p>
+                    </div>
+                  ))}
+                </div>
                 {/* Quick access to power tools */}
                 <div className="mb-4 flex flex-wrap gap-2">
-                  <Link to={`/business/${current.id}/bot`} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-muted">🤖 Bot WhatsApp</Link>
                   <Link to={`/business/${current.id}/accounting`} className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20">📊 Comptabilité</Link>
                   <Link to={`/business/${current.id}/contracts`} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-muted">📄 Contrats & Factures</Link>
-                  <Link to={`/business/${current.id}/marketing`} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-muted">📣 Publicité Facebook</Link>
                 </div>
                 {/* Header card */}
                 <div className="rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
@@ -408,9 +362,10 @@ export default function BusinessPage() {
                       {projects.map((p) => {
                         const pct = p.financial_goal > 0 ? Math.min(100, (Number(p.balance) / Number(p.financial_goal)) * 100) : 0;
                         const status = pct >= 100 ? "green" : pct >= 50 ? "yellow" : Number(p.balance) === 0 ? "red" : "yellow";
-                        return (
-                          <Link key={p.id} to={`/business/${current.id}/projects/${p.id}`}
-                            className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition hover:border-primary/40 hover:shadow-glow">
+                         const vitrineUrl = `${window.location.origin}/vitrine/${p.id}`;
+                         return (
+                           <div key={p.id} className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition hover:border-primary/40 hover:shadow-glow">
+                           <Link to={`/business/${current.id}/projects/${p.id}`} className="block">
                             {p.cover_url && <div className="absolute inset-0 opacity-10" style={{ backgroundImage: `url(${p.cover_url})`, backgroundSize: "cover" }} />}
                             <div className="relative">
                               <div className="flex items-center gap-3">
@@ -426,12 +381,23 @@ export default function BusinessPage() {
                               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
                                 <div className="h-full rounded-full bg-gradient-primary" style={{ width: `${pct}%` }} />
                               </div>
-                              <div className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary opacity-0 transition group-hover:opacity-100">
-                                Ouvrir <ChevronRight className="h-3 w-3" />
-                              </div>
-                            </div>
-                          </Link>
-                        );
+                               <div className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary">
+                                 Gérer les produits <ChevronRight className="h-3 w-3" />
+                               </div>
+                             </div>
+                           </Link>
+                           <div className="relative mt-3 flex items-center gap-2 border-t border-border pt-3">
+                             <a href={vitrineUrl} target="_blank" rel="noreferrer"
+                               className="inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-glow">
+                               <ExternalLink className="h-3 w-3" /> Voir la vitrine
+                             </a>
+                             <button onClick={() => copy(vitrineUrl)}
+                               className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold hover:bg-muted">
+                               <Copy className="h-3 w-3" /> Copier le lien
+                             </button>
+                           </div>
+                           </div>
+                         );
                       })}
                     </div>
                   )}
@@ -583,105 +549,6 @@ export default function BusinessPage() {
                       </div>
                     ))}
                   </div>
-                </section>
-
-                {/* CHAT PAY (WhatsApp) */}
-                <section className="mt-8">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h3 className="font-[Space_Grotesk] text-xl font-bold inline-flex items-center gap-2">
-                      <MessageCircle className="h-5 w-5" /> Chat PAY <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-500">WhatsApp</span>
-                    </h3>
-                    {wa && (
-                      <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${WA_STATUS[wa.status]?.color || "bg-muted"}`}>
-                        {WA_STATUS[wa.status]?.label || wa.status}
-                        {wa.worker_online ? " · worker en ligne" : wa.status !== "disconnected" ? " · worker hors ligne" : ""}
-                      </span>
-                    )}
-                  </div>
-
-                  {!wa ? (
-                    <div className="rounded-2xl border border-border bg-card p-6 text-center">
-                      <Smartphone className="mx-auto h-10 w-10 text-muted-foreground" />
-                      <p className="mt-3 text-sm text-muted-foreground">Connecte ton WhatsApp perso pour envoyer des liens de paiement, recevoir des notifications d'encaissement et modérer tes groupes.</p>
-                      <button onClick={onWaCreate} className="mt-4 inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2 text-xs font-semibold text-primary-foreground shadow-glow">
-                        <Plus className="h-3.5 w-3.5" /> Générer un worker Chat PAY
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      {/* Panel connexion / QR */}
-                      <div className="rounded-2xl border border-border bg-card p-4">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Étape 1 · Déploiement du worker</p>
-                        <p className="mt-2 text-xs text-muted-foreground">Colle ce secret dans la variable <code className="rounded bg-muted px-1">SESSION_SECRET</code> lors du déploiement (Railway, Fly.io, VPS — voir <code className="rounded bg-muted px-1">worker/README.md</code>).</p>
-                        <div className="mt-2 flex items-center gap-2 rounded-xl bg-background p-2">
-                          <code className="flex-1 truncate font-mono text-[11px]">{wa.connection_secret}</code>
-                          <button onClick={() => copy(wa.connection_secret)} className="rounded-full bg-foreground px-3 py-1 text-[11px] font-semibold text-background"><Copy className="h-3 w-3" /></button>
-                        </div>
-                        <div className="mt-2 flex items-center gap-2 rounded-xl bg-background p-2">
-                          <code className="flex-1 truncate font-mono text-[11px]">BRIDGE_URL={import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-bridge</code>
-                          <button onClick={() => copy(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-bridge`)} className="rounded-full bg-foreground px-3 py-1 text-[11px] font-semibold text-background"><Copy className="h-3 w-3" /></button>
-                        </div>
-
-                        <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Étape 2 · Scanne le QR</p>
-                        <div className="mt-2 grid min-h-[220px] place-items-center rounded-2xl border border-dashed border-border bg-surface-2 p-4">
-                          {wa.status === "connected" ? (
-                            <div className="text-center">
-                              <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-500/15 text-emerald-500"><MessageCircle className="h-7 w-7" /></div>
-                              <p className="mt-3 text-sm font-semibold">Connecté</p>
-                              {wa.phone_number && <p className="text-xs text-muted-foreground">+{wa.phone_number}</p>}
-                            </div>
-                          ) : wa.qr_data_url ? (
-                            <img src={wa.qr_data_url} alt="QR WhatsApp" className="h-52 w-52 rounded-xl bg-white p-2" />
-                          ) : (
-                            <div className="text-center text-xs text-muted-foreground">
-                              <QrCode className="mx-auto h-10 w-10 opacity-50" />
-                              <p className="mt-2">{wa.worker_online ? "En attente du QR…" : "Démarre le worker pour recevoir le QR"}</p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <button onClick={onWaCreate} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold hover:bg-muted"><RefreshCw className="h-3 w-3" /> Régénérer secret</button>
-                          <button onClick={onWaReset} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold hover:bg-muted"><QrCode className="h-3 w-3" /> Redemander un QR</button>
-                          <Link to={`/business/${current?.id}/bot`} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-glow">
-                            <MessageCircle className="h-3 w-3" /> Ouvrir le panel du bot
-                          </Link>
-                        </div>
-                      </div>
-
-                      {/* Envoi + activité */}
-                      <div className="space-y-4">
-                        <div className="rounded-2xl border border-border bg-card p-4">
-                          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Envoyer un message</p>
-                          <input value={waDraft.to} onChange={(e) => setWaDraft((d) => ({ ...d, to: e.target.value }))} placeholder="Numéro (ex: 22670000000)"
-                            className="mt-2 w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
-                          <textarea value={waDraft.body} onChange={(e) => setWaDraft((d) => ({ ...d, body: e.target.value }))} rows={4} placeholder="Ton message… (tu peux coller un lien /pay/xxx)"
-                            className="mt-2 w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
-                          <button onClick={onWaSend} disabled={waSending || wa.status !== "connected" || !waDraft.to || !waDraft.body}
-                            className="mt-2 inline-flex items-center gap-2 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
-                            <Send className="h-3.5 w-3.5" /> {waSending ? "Envoi…" : "Envoyer"}
-                          </button>
-                        </div>
-
-                        <div className="rounded-2xl border border-border bg-card p-4">
-                          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Activité récente</p>
-                          <div className="mt-2 max-h-64 space-y-2 overflow-y-auto">
-                            {waEvents.length === 0 && <p className="text-xs text-muted-foreground">Aucun événement pour le moment.</p>}
-                            {waEvents.map((ev) => (
-                              <div key={ev.id} className="rounded-xl bg-surface-2 p-2 text-[11px]">
-                                <div className="flex items-center justify-between">
-                                  <span className="font-semibold">{ev.kind}</span>
-                                  <span className="text-muted-foreground">{new Date(ev.created_at).toLocaleString("fr-FR")}</span>
-                                </div>
-                                {ev.payload?.text && <p className="mt-1 text-muted-foreground line-clamp-2">{ev.payload.text}</p>}
-                                {ev.payload?.from && <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">{ev.payload.from}</p>}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </section>
 
                 {/* Section « Clés API » masquée volontairement — accès interne uniquement */}

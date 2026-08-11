@@ -22,6 +22,7 @@ export const verifyPayment = (reference: string) => call("verifyPayment", { refe
 
 // --- Shop (vitrine publique) ---
 export const getShop = (slug: string) => call("getShop", { slug });
+export const getVitrine = (projectId: string) => call("getVitrine", { project_id: projectId });
 export const initShopCheckout = (data: {
   business_slug: string;
   items: Array<{ product_id: string; quantity: number }>;

@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
 import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminYengapayVerifyBatch, adminCreditYengapayExternal, adminCreditPendingDeposit } from "@/lib/admin.functions";
+import { getPaypalWithdrawConfig, adminUpdatePaypalWithdrawConfig } from "@/lib/paypal.functions";
 import { toast } from "sonner";
 import { AnalyticsSection } from "@/components/admin/analytics-section";
 import { DashboardAiAssistant } from "@/components/admin/ai-assistant";
@@ -838,6 +839,63 @@ function SettingsTab() {
       </div>
       <div className="flex justify-end gap-2">
         <button onClick={() => setDraft(cfg)} className="rounded-full border border-border bg-surface-2 px-4 py-2 text-sm">Réinitialiser</button>
+        <button onClick={save} disabled={busy} className="rounded-full bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
+        </button>
+      </div>
+      <PaypalWithdrawSettings />
+    </div>
+  );
+}
+
+function PaypalWithdrawSettings() {
+  const [cfg, setCfg] = useState<any>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    getPaypalWithdrawConfig()
+      .then((c: any) => setCfg({ fee_bps: c.fee_bps, fee_flat_xof: c.fee_flat_xof, min_xof: c.min, max_xof: c.max, enabled: c.enabled }))
+      .catch((e: any) => toast.error(e?.message || "Erreur"));
+  }, []);
+
+  async function save() {
+    setBusy(true);
+    try {
+      const c: any = await adminUpdatePaypalWithdrawConfig({
+        fee_bps: Number(cfg.fee_bps), fee_flat_xof: Number(cfg.fee_flat_xof),
+        min_xof: Number(cfg.min_xof), max_xof: Number(cfg.max_xof), enabled: !!cfg.enabled,
+      });
+      setCfg({ fee_bps: c.fee_bps, fee_flat_xof: c.fee_flat_xof, min_xof: c.min, max_xof: c.max, enabled: c.enabled });
+      toast.success("Frais de retrait PayPal mis à jour");
+    } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+  }
+
+  if (!cfg) return null;
+  const num = (k: string, label: string, hint: string) => (
+    <label className="block">
+      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+      <input type="number" value={cfg[k] ?? ""} onChange={(e) => setCfg((d: any) => ({ ...d, [k]: e.target.value }))}
+        className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none" />
+      <span className="mt-1 block text-[11px] text-muted-foreground">{hint}</span>
+    </label>
+  );
+  return (
+    <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
+      <div>
+        <h2 className="font-[Space_Grotesk] text-xl font-bold">Retrait PayPal</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Frais et limites appliqués aux retraits PayPal vers Orange Money / Moov Money.</p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        {num("fee_bps", "Commission (points de base)", "500 = 5% du montant retiré")}
+        {num("fee_flat_xof", "Frais fixe (XOF)", "Ajouté à chaque retrait (ex: 250)")}
+        {num("min_xof", "Montant minimum (XOF)", "Ex: 1000")}
+        {num("max_xof", "Montant maximum (XOF)", "Ex: 500000")}
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={!!cfg.enabled} onChange={(e) => setCfg((d: any) => ({ ...d, enabled: e.target.checked }))} />
+        Activer les retraits PayPal
+      </label>
+      <div className="flex justify-end">
         <button onClick={save} disabled={busy} className="rounded-full bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
         </button>

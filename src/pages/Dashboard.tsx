@@ -299,6 +299,9 @@ function Sidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
         <Link to="/transfer" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
           <Repeat className="h-4 w-4" /> Transfert
         </Link>
+        <Link to="/paypal-withdraw" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+          <ArrowUpRight className="h-4 w-4" /> Retrait PayPal
+        </Link>
       </nav>
       <button onClick={logout} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
         <LogOut className="h-4 w-4" /> Déconnexion

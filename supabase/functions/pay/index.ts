@@ -367,6 +367,37 @@ async function initShopCheckout(body: any) {
   return { ok: true, reference, checkout_url: yp.checkoutUrl, order_token: order.public_token, order_number: orderNumber };
 }
 
+// Vitrine publique d'un projet (catalogue produits)
+async function getPublicVitrine(projectId: string) {
+  const db = admin();
+  const { data: project } = await db.from("projects")
+    .select("id,name,slug,description,logo_url,cover_url,currency,status,business_id")
+    .eq("id", projectId).maybeSingle();
+  if (!project) return null;
+  const { data: biz } = await db.from("businesses")
+    .select("id,name,slug,description,logo_url,contact_email,contact_phone,status")
+    .eq("id", project.business_id).maybeSingle();
+  if (!biz || ["suspended", "terminated", "banned"].includes(String(biz.status || "").toLowerCase())) return null;
+  const { data: products } = await db.from("products")
+    .select("id,name,slug,description,price,currency,status")
+    .eq("project_id", project.id).eq("status", "active")
+    .order("created_at", { ascending: false });
+  const ids = (products || []).map((p: any) => p.id);
+  const { data: media } = ids.length
+    ? await db.from("product_media").select("product_id,type,url,position").in("product_id", ids).order("position", { ascending: true })
+    : { data: [] as any[] };
+  const byProduct: Record<string, any[]> = {};
+  for (const m of (media || [])) (byProduct[(m as any).product_id] ||= []).push(m);
+  return {
+    project: {
+      id: project.id, name: project.name, slug: project.slug, description: project.description,
+      logo_url: project.logo_url, cover_url: project.cover_url, currency: project.currency || "XOF",
+    },
+    business: { id: biz.id, name: biz.name, slug: biz.slug, logo_url: biz.logo_url, contact_email: biz.contact_email, contact_phone: biz.contact_phone },
+    products: (products || []).map((p: any) => ({ ...p, media: byProduct[p.id] || [] })),
+  };
+}
+
 async function getPublicOrder(token: string) {
   const db = admin();
   const { data: order } = await db.from("orders")
@@ -448,7 +479,7 @@ Deno.serve(async (req) => {
       const payload = await req.json().catch(() => ({}));
       const action = String(payload?.action || "");
       // Anti-abuse: rate-limit by IP for public actions
-      const limits: Record<string, number> = { getLink: 60, initCheckout: 10, verifyPayment: 30, getShop: 60, initShopCheckout: 10, getOrder: 30 };
+      const limits: Record<string, number> = { getLink: 60, initCheckout: 10, verifyPayment: 30, getShop: 60, getVitrine: 60, initShopCheckout: 10, getOrder: 30 };
       if (limits[action]) {
         const ok = await checkPublicRateLimit(`pay:${action}`, req, limits[action]);
         if (!ok) return jsonResponse({ error: "Trop de requêtes, réessayez dans une minute." }, 429);
@@ -480,6 +511,13 @@ Deno.serve(async (req) => {
       if (action === "initShopCheckout") {
         const r = await initShopCheckout(payload);
         return jsonResponse(r);
+      }
+      if (action === "getVitrine") {
+        const pid = String(payload?.project_id || "");
+        if (!/^[0-9a-f-]{36}$/i.test(pid)) return jsonResponse({ error: "Projet invalide" }, 400);
+        const ctx = await getPublicVitrine(pid);
+        if (!ctx) return jsonResponse({ error: "Vitrine introuvable" }, 404);
+        return jsonResponse({ ok: true, ...ctx });
       }
       if (action === "getOrder") {
         const tok = String(payload?.token || "");
