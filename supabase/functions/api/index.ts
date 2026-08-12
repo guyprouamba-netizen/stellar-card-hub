@@ -780,6 +780,14 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     }
     let res = await SW.getNfcCardDetails(data.card_id);
     let details = SW.extractCardDetails(res);
+    // Sur le domaine public, les pages sécurisées de l'émetteur peuvent refuser
+    // l'iframe. Résolution serveur éphémère : aucune donnée sensible n'est stockée.
+    if ((!details.number || /^0+$/.test(details.number)) && details.cardNumberUrl) {
+      details.number = await SW.readSecureCardField(details.cardNumberUrl, "number");
+    }
+    if (!details.cvv && details.cvvUrl) {
+      details.cvv = await SW.readSecureCardField(details.cvvUrl, "cvv");
+    }
     const status = String(details.status || "").toLowerCase();
     const missingPan = !details.cardNumberUrl && (!details.number || /^0+$/.test(String(details.number || "")));
     // Échec définitif côté émetteur : on rembourse l'émission et on marque la carte
@@ -805,6 +813,12 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
           const ensured = await SW.ensureNfcCardActive(data.card_id);
           res = ensured.details;
           details = SW.extractCardDetails(res);
+          if ((!details.number || /^0+$/.test(details.number)) && details.cardNumberUrl) {
+            details.number = await SW.readSecureCardField(details.cardNumberUrl, "number");
+          }
+          if (!details.cvv && details.cvvUrl) {
+            details.cvv = await SW.readSecureCardField(details.cvvUrl, "cvv");
+          }
           const finalStatus = String(details.status || "").toLowerCase() === "active" || (details.number && details.cvv) || (details.cardNumberUrl && details.cvvUrl) ? "active" : "pending";
           await admin.from("cards").update({
             status: finalStatus,
@@ -835,7 +849,23 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (details.balance !== null && Number.isFinite(Number(details.balance))) patch.balance = Number(details.balance);
       if (Object.keys(patch).length) await admin.from("cards").update(patch).eq("provider_card_id", data.card_id);
     } catch { /* silencieux */ }
-    return res;
+    // Forme normalisée prioritaire pour le client. Les URL restent disponibles
+    // comme repli, mais PAN/CVV résolus sont renvoyés seulement à cet utilisateur.
+    return {
+      card_detail: {
+        card_number: details.number,
+        cvv: details.cvv,
+        expiry: details.expiry,
+        card_holder_name: details.holder,
+        card_status: details.status,
+        balance: details.balance,
+        last4: details.last4,
+        brand: details.brand,
+        card_number_url: details.cardNumberUrl,
+        cvv_url: details.cvvUrl,
+        billing_address: details.billingAddress,
+      },
+    };
   },
 
   // Rafraîchit la carte depuis Strowallet et met à jour la BDD (utile si webhook non reçu)

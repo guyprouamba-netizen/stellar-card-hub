@@ -128,6 +128,43 @@ export async function getNfcCardDetails(card_id: string) {
   return call("GET", "/bitvcard/fetch-nfccard-detail/", { card_id });
 }
 
+// Les champs sensibles sont parfois fournis sous forme d'une page HTML signée.
+// Cette page refuse l'affichage dans une iframe sur un autre domaine. On la lit
+// donc côté serveur, uniquement pendant la requête authentifiée du propriétaire.
+export async function readSecureCardField(url: string | null, kind: "number" | "cvv"): Promise<string | null> {
+  if (!url) return null;
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return null; }
+  if (parsed.protocol !== "https:" || !/(^|\.)strowallet\.com$/i.test(parsed.hostname)) return null;
+  try {
+    const res = await fetch(parsed.toString(), { headers: { Accept: "text/html,application/json,text/plain" } });
+    if (!res.ok) return null;
+    const text = await res.text();
+    let candidate = text;
+    try {
+      const json = JSON.parse(text);
+      candidate = String(json?.card_number || json?.cardNumber || json?.pan || json?.cvv || json?.cvv2 || json?.data || json?.value || "");
+    } catch { /* La réponse normale est une petite page HTML. */ }
+    candidate = candidate
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;|&#160;/gi, " ")
+      .replace(/&#x2F;|&#47;/gi, "/")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (kind === "number") {
+      const compact = candidate.replace(/[^0-9]/g, "");
+      const match = compact.match(/\d{13,19}/);
+      return match?.[0] || null;
+    }
+    const match = candidate.match(/(?:^|\D)(\d{3,4})(?:\D|$)/);
+    return match?.[1] || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getNfcCardHistory(card_id: string) {
   const paths = [
     "/bitvcard/nfc-card-transactions/",
