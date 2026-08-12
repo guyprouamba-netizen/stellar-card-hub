@@ -524,15 +524,15 @@ function CardDetailsCopy({ det, numberUrl, cvvUrl }: {
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label} · affichage sécurisé</p>
       {/* Le contenu de l'iframe est rendu par l'émetteur en texte noir :
           on garantit un fond clair pour qu'il reste lisible en thème sombre. */}
-      <div className="mt-1 rounded-md bg-white px-2 py-0.5">
+      <div className="mt-1 rounded-md bg-white px-2 py-1 [color-scheme:light]">
         <iframe
           src={src}
           title={label}
           width="100%"
-          height={height}
+          height={height + 8}
           frameBorder="0"
           scrolling="no"
-          style={{ border: "none", overflow: "hidden", colorScheme: "normal" }}
+          style={{ border: "none", overflow: "hidden", colorScheme: "light", background: "#fff" }}
         />
       </div>
     </div>
@@ -555,13 +555,13 @@ function CardDetailsCopy({ det, numberUrl, cvvUrl }: {
   );
   return (
     <div className="mt-4 grid gap-2">
-      {numberUrl ? <SecureRow label="Numéro" src={numberUrl} height={35} /> : <Row label="Numéro" value={det?.number} />}
+      {det?.number ? <Row label="Numéro" value={det.number} /> : numberUrl ? <SecureRow label="Numéro" src={numberUrl} height={35} /> : <Row label="Numéro" value={det?.number} />}
       <div className="grid grid-cols-2 gap-2">
         <Row label="Expiration" value={det?.expiry} />
-        {cvvUrl ? <SecureRow label="CVV" src={cvvUrl} height={35} /> : <Row label="CVV" value={det?.cvv} />}
+        {det?.cvv ? <Row label="CVV" value={det.cvv} /> : cvvUrl ? <SecureRow label="CVV" src={cvvUrl} height={35} /> : <Row label="CVV" value={det?.cvv} />}
       </div>
       <Row label="Titulaire" value={det?.holder} />
-      {(numberUrl || cvvUrl) && (
+      {((numberUrl && !det?.number) || (cvvUrl && !det?.cvv)) && (
         <p className="text-[10px] text-muted-foreground">
           Pour votre sécurité, le numéro et le CVV sont affichés directement par la banque émettrice dans un cadre sécurisé.
         </p>
