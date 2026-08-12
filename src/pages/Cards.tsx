@@ -93,6 +93,13 @@ function CardsPage() {
     },
   });
   const profileHolder = profileQ.data || undefined;
+  const displayHolder = (issuerHolder?: string) => {
+    const normalized = String(issuerHolder || "").trim();
+    if (!normalized || /^(test user|card holder|cardholder|customer)$/i.test(normalized)) {
+      return profileHolder;
+    }
+    return normalized;
+  };
   const [details, setDetails] = useState<Record<string, {
     number?: string; cvv?: string; expiry?: string; holder?: string; balance?: number;
     numberUrl?: string; cvvUrl?: string; billing?: Billing;
@@ -236,7 +243,7 @@ function CardsPage() {
                   number={number}
                   brand={(c.brand || "visa").toUpperCase()}
                   balance={`$ ${apiBalance.toFixed(2)}`}
-                  holder={(det?.holder || profileHolder || "TITULAIRE").toUpperCase()}
+                  holder={(displayHolder(det?.holder) || "TITULAIRE").toUpperCase()}
                   expiry={expiryDisplay}
                   cvv={cvvDisplay}
                   numberUrl={isTerminated ? undefined : secureNumberUrl}
@@ -267,7 +274,7 @@ function CardsPage() {
                 )}
                 {!locked && (
                   <CardDetailsCopy
-                    det={{ number: !isDummyPan ? det?.number : undefined, cvv: cvvDisplay, expiry: det?.expiry && det.expiry !== "00/00" ? det.expiry : undefined, holder: det?.holder || profileHolder }}
+                    det={{ number: !isDummyPan ? det?.number : undefined, cvv: cvvDisplay, expiry: det?.expiry && det.expiry !== "00/00" ? det.expiry : undefined, holder: displayHolder(det?.holder) }}
                     numberUrl={isTerminated ? undefined : secureNumberUrl}
                     cvvUrl={isTerminated ? undefined : secureCvvUrl}
                   />
