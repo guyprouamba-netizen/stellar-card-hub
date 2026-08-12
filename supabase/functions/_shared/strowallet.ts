@@ -145,9 +145,14 @@ export async function readSecureCardField(url: string | null, kind: "number" | "
     // jeton éphémère. Résoudre cet appel côté serveur évite les iframes cassées
     // sur les domaines clients et fonctionne aussi avec une CSP restrictive.
     if (/SecureProxy\.create/i.test(text)) {
-      const vaultId = text.match(/SecureProxy\.create\(["']([^"']+)["']\)/i)?.[1];
-      const path = text.match(/\bpath\s*:\s*["']([^"']+)["']/i)?.[1];
-      const token = text.match(/\bAuthorization\s*:\s*["']Bearer\s+([^"']+)["']/i)?.[1];
+      const vaultId = text.match(/SecureProxy\.create\(["']([^"']+)["']\)/i)?.[1]
+        ?? text.match(/\b(?:const|let|var)\s+vaultId\s*=\s*["']([^"']+)["']/i)?.[1];
+      const cardId = text.match(/\b(?:const|let|var)\s+cardId\s*=\s*["']([^"']+)["']/i)?.[1];
+      const literalPath = text.match(/\bpath\s*:\s*["']([^"']+)["']/i)?.[1];
+      const templatePath = text.match(/\bpath\s*:\s*`([^`]+)`/i)?.[1];
+      const path = literalPath ?? (templatePath && cardId ? templatePath.replace(/\$\{cardId\}/g, cardId) : undefined);
+      const token = text.match(/\bAuthorization\s*:\s*["']Bearer\s+([^"']+)["']/i)?.[1]
+        ?? text.match(/\b(?:const|let|var)\s+secureToken\s*=\s*["']([^"']+)["']/i)?.[1];
       if (vaultId && /^[a-z0-9-]+$/i.test(vaultId) && path?.startsWith("/cards/") && token) {
         const secureUrl = new URL(path, `https://${vaultId}.forward.securepro.xyz`);
         const secureRes = await fetch(secureUrl, {
@@ -157,7 +162,7 @@ export async function readSecureCardField(url: string | null, kind: "number" | "
           const secureBody = await secureRes.json().catch(() => null);
           const value = kind === "number"
             ? secureBody?.data?.number ?? secureBody?.number
-            : secureBody?.data?.cvv ?? secureBody?.cvv;
+            : secureBody?.data?.cvv ?? secureBody?.data?.cvv2 ?? secureBody?.cvv ?? secureBody?.cvv2;
           const digits = String(value ?? "").replace(/\D/g, "");
           if (kind === "number" && /^\d{13,19}$/.test(digits)) return digits;
           if (kind === "cvv" && /^\d{3,4}$/.test(digits)) return digits;
