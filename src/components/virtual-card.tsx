@@ -83,21 +83,28 @@ export function VirtualCard({
               <div className="mb-2 flex items-center gap-3">
                 <div className="h-7 w-10 rounded-md bg-gradient-to-br from-yellow-200 to-yellow-500 shadow-inner sm:h-8 sm:w-11" />
               </div>
-              {numberUrl ? (
-                <div className="w-full rounded-lg bg-white/95 px-2 py-1" onClick={(e) => e.stopPropagation()}>
+              {number && !/[•]/.test(number) ? (
+                <p
+                  className="font-mono text-[15px] font-semibold tracking-[0.1em] leading-tight text-white drop-shadow sm:text-2xl sm:tracking-[0.18em] select-all cursor-text"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {formatPan(number)}
+                </p>
+              ) : numberUrl ? (
+                <div className="w-full rounded-lg bg-white px-2 py-1 [color-scheme:light]" onClick={(e) => e.stopPropagation()}>
                   <iframe
                     src={numberUrl}
                     title="Numéro de carte sécurisé"
                     width="100%"
-                    height="34"
+                    height="38"
                     frameBorder="0"
                     scrolling="no"
-                    style={{ border: "none", overflow: "hidden", colorScheme: "normal" }}
+                    style={{ border: "none", overflow: "hidden", colorScheme: "light", background: "#fff" }}
                   />
                 </div>
               ) : (
                 <p
-                  className="font-mono text-[15px] font-semibold tracking-[0.1em] leading-tight sm:text-2xl sm:tracking-[0.18em] select-all cursor-text"
+                  className="font-mono text-[15px] font-semibold tracking-[0.1em] leading-tight text-white sm:text-2xl sm:tracking-[0.18em] select-all cursor-text"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {number ? formatPan(number) : "•••• •••• •••• ••••"}
@@ -130,18 +137,20 @@ export function VirtualCard({
               className="grid h-9 min-w-[72px] place-items-center rounded bg-white px-2.5 text-right font-mono text-base font-bold tracking-[0.16em] text-black sm:h-10 sm:min-w-[80px] sm:px-3 sm:text-lg sm:tracking-widest select-all cursor-text"
               onClick={(e) => e.stopPropagation()}
             >
-              {cvvUrl ? (
+              {cvv ? (
+                cvv
+              ) : cvvUrl ? (
                 <iframe
                   src={cvvUrl}
                   title="CVV sécurisé"
                   width="100%"
-                  height="30"
+                  height="34"
                   frameBorder="0"
                   scrolling="no"
-                  style={{ border: "none", overflow: "hidden" }}
+                  style={{ border: "none", overflow: "hidden", colorScheme: "light", background: "#fff" }}
                 />
               ) : (
-                cvv || "•••"
+                "•••"
               )}
             </div>
           </div>
