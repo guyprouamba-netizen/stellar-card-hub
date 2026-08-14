@@ -15,3 +15,5 @@ export const adminYengapayInspect = (args: { data: { id: string } }) => callApi(
 export const adminYengapayVerifyBatch = (args: { data: { ids: string[] } }) => callApi("adminYengapayVerifyBatch", args.data);
 export const adminCreditYengapayExternal = (args: { data: { yengaId: string; userId?: string; note?: string } }) => callApi("adminCreditYengapayExternal", args.data);
 export const adminCreditPendingDeposit = (args: { data: { txId: string; note?: string } }) => callApi("adminCreditPendingDeposit", args.data);
+export const adminSyncCards = (args?: { data?: { card_id?: string } }) => callApi("adminSyncCards", args?.data ?? {});
+export const adminCardTransactions = (args: { data: { card_id: string } }) => callApi("adminCardTransactions", args.data);

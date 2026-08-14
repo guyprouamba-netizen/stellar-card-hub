@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useServerFn } from "@/lib/server-fn";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -10,7 +10,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
-import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminYengapayVerifyBatch, adminCreditYengapayExternal, adminCreditPendingDeposit } from "@/lib/admin.functions";
+import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminYengapayVerifyBatch, adminCreditYengapayExternal, adminCreditPendingDeposit, adminSyncCards, adminCardTransactions } from "@/lib/admin.functions";
 import { getPaypalWithdrawConfig, adminUpdatePaypalWithdrawConfig } from "@/lib/paypal.functions";
 import { getGatewayFeeConfig, adminUpdateGatewayFeeConfig } from "@/lib/business.functions";
 import { toast } from "sonner";
@@ -69,7 +69,7 @@ function AdminPage() {
             <>
               {tab === "flow" && <FlowTab data={data} />}
               {tab === "users" && <UsersTab users={data.users} onAction={refetch} />}
-              {tab === "strowallet" && <StrowalletTab cards={data.cards} />}
+              {tab === "strowallet" && <StrowalletTab cards={data.cards} onAction={refetch} />}
               {tab === "payments" && <PaymentsTab tx={data.transactions} />}
               {tab === "kyc" && <KycTab kyc={data.kyc} onAction={refetch} />}
               {tab === "withdrawals" && <WithdrawalsTab withdrawals={data.withdrawals} onAction={refetch} />}
@@ -394,16 +394,57 @@ function AdjustWalletModal({ user, onClose, onDone, adjust }: { user: any; onClo
   );
 }
 
-function StrowalletTab({ cards }: { cards: any[] }) {
+function StrowalletTab({ cards, onAction }: { cards: any[]; onAction?: () => void }) {
+  const syncFn = useServerFn(adminSyncCards);
+  const txFn = useServerFn(adminCardTransactions);
+  const [syncing, setSyncing] = useState(false);
+  const [syncSummary, setSyncSummary] = useState<string | null>(null);
+  const [openTx, setOpenTx] = useState<string | null>(null);
+  const [txItems, setTxItems] = useState<any[] | null>(null);
+  const [txLoading, setTxLoading] = useState(false);
+
+  async function sync(card_id?: string) {
+    setSyncing(true); setSyncSummary(null);
+    try {
+      const r: any = await syncFn({ data: card_id ? { card_id } : {} });
+      const changed = (r?.results ?? []).filter((x: any) => x.changed);
+      setSyncSummary(
+        `${r?.count ?? 0} carte(s) vérifiée(s) · ${changed.length} mise(s) à jour` +
+        (changed.length ? ` : ${changed.map((c: any) => `••••${c.last4 || "????"} ${c.before.status}→${c.after.status}`).join(", ")}` : "")
+      );
+      toast.success("Synchronisation terminée");
+      onAction?.();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setSyncing(false); }
+  }
+
+  async function showTx(provider_card_id: string) {
+    if (openTx === provider_card_id) { setOpenTx(null); return; }
+    setOpenTx(provider_card_id); setTxItems(null); setTxLoading(true);
+    try {
+      const r: any = await txFn({ data: { card_id: provider_card_id } });
+      setTxItems(r?.items ?? []);
+    } catch (e) { toast.error((e as Error).message); setTxItems([]); }
+    finally { setTxLoading(false); }
+  }
+
   return (
     <div className="space-y-6">
-      <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Cartes émises — Historique</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Cartes émises — Historique</h1>
+        <button onClick={() => sync()} disabled={syncing}
+          className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+          {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Synchroniser statuts & soldes
+        </button>
+      </div>
+      {syncSummary && <p className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-xs text-muted-foreground">{syncSummary}</p>}
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-left text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Titulaire</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Marque</th><th className="px-4 py-3">PAN</th><th className="px-4 py-3">Solde carte</th><th className="px-4 py-3">Dépôts cumulés</th><th className="px-4 py-3">Statut</th></tr></thead>
+          <thead className="bg-surface-2 text-left text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Titulaire</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Marque</th><th className="px-4 py-3">PAN</th><th className="px-4 py-3">Solde carte</th><th className="px-4 py-3">Dépôts cumulés</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3">Actions</th></tr></thead>
           <tbody className="divide-y divide-border">
             {cards.map((c) => (
-              <tr key={c.id}>
+              <Fragment key={c.id}>
+              <tr>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(c.created_at).toLocaleString("fr-FR")}</td>
                 <td className="px-4 py-3 text-xs font-medium">{c.owner?.full_name || <span className="text-muted-foreground">—</span>}</td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{c.owner?.email || <span className="text-muted-foreground">—</span>}</td>
@@ -411,8 +452,42 @@ function StrowalletTab({ cards }: { cards: any[] }) {
                 <td className="px-4 py-3 tabular-nums">•••• {c.last4 ?? "????"}</td>
                 <td className="px-4 py-3 tabular-nums">{Number(c.balance).toFixed(2)} {c.currency}</td>
                 <td className="px-4 py-3 tabular-nums">${Number(c.total_funded_usd || 0).toFixed(2)}</td>
-                <td className="px-4 py-3">{c.status}</td>
+                <td className="px-4 py-3">
+                  <span className={`rounded-full px-2 py-1 text-xs ${
+                    c.status === "active" ? "bg-success/10 text-success"
+                    : String(c.status).startsWith("frozen") ? "bg-amber-500/10 text-amber-500"
+                    : "bg-destructive/10 text-destructive"}`}>{c.status}</span>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex gap-2">
+                    <button onClick={() => sync(c.provider_card_id)} disabled={syncing || !c.provider_card_id}
+                      className="rounded-full border border-border px-3 py-1 text-xs disabled:opacity-40">Actualiser</button>
+                    <button onClick={() => showTx(c.provider_card_id)} disabled={!c.provider_card_id}
+                      className="rounded-full border border-border px-3 py-1 text-xs disabled:opacity-40">Historique</button>
+                  </div>
+                </td>
               </tr>
+              {openTx === c.provider_card_id && (
+                <tr>
+                  <td colSpan={9} className="bg-surface-2 px-4 py-3">
+                    {txLoading ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : !txItems?.length ? <p className="text-xs text-muted-foreground">Aucun paiement enregistré pour cette carte.</p>
+                      : (
+                        <ul className="space-y-1 text-xs">
+                          {txItems.map((t, i) => (
+                            <li key={i} className="flex justify-between gap-3">
+                              <span className="text-muted-foreground">{new Date(t.date).toLocaleString("fr-FR")}</span>
+                              <span className="flex-1 truncate">{t.description || "—"}</span>
+                              <span className="tabular-nums">{Number(t.amount || 0).toFixed(2)} {t.currency || "USD"}</span>
+                              <span className={t.status === "failed" ? "text-destructive" : "text-success"}>{t.status}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>
