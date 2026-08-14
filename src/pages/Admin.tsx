@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useServerFn } from "@/lib/server-fn";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -443,8 +443,8 @@ function StrowalletTab({ cards, onAction }: { cards: any[]; onAction?: () => voi
           <thead className="bg-surface-2 text-left text-xs uppercase text-muted-foreground"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Titulaire</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Marque</th><th className="px-4 py-3">PAN</th><th className="px-4 py-3">Solde carte</th><th className="px-4 py-3">Dépôts cumulés</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3">Actions</th></tr></thead>
           <tbody className="divide-y divide-border">
             {cards.map((c) => (
-              <>
-              <tr key={c.id}>
+              <Fragment key={c.id}>
+              <tr>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(c.created_at).toLocaleString("fr-FR")}</td>
                 <td className="px-4 py-3 text-xs font-medium">{c.owner?.full_name || <span className="text-muted-foreground">—</span>}</td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{c.owner?.email || <span className="text-muted-foreground">—</span>}</td>
@@ -468,7 +468,7 @@ function StrowalletTab({ cards, onAction }: { cards: any[]; onAction?: () => voi
                 </td>
               </tr>
               {openTx === c.provider_card_id && (
-                <tr key={`${c.id}-tx`}>
+                <tr>
                   <td colSpan={9} className="bg-surface-2 px-4 py-3">
                     {txLoading ? <Loader2 className="h-4 w-4 animate-spin" />
                       : !txItems?.length ? <p className="text-xs text-muted-foreground">Aucun paiement enregistré pour cette carte.</p>
@@ -487,7 +487,7 @@ function StrowalletTab({ cards, onAction }: { cards: any[]; onAction?: () => voi
                   </td>
                 </tr>
               )}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>
