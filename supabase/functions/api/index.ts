@@ -1651,6 +1651,93 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     catch (e) { return { ok: false, error: (e as Error).message }; }
   },
 
+  // Synchronise le statut réel + le solde réel des cartes depuis l'émetteur,
+  // et journalise l'historique des paiements carte dans `transactions`.
+  async adminSyncCards({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    let q = admin.from("cards").select("id,user_id,provider_card_id,status,balance,last4,brand,metadata").not("provider_card_id", "is", null);
+    if (data?.card_id) q = q.eq("provider_card_id", data.card_id);
+    const { data: rows, error } = await q.order("created_at", { ascending: false }).limit(200);
+    if (error) throw new Error(error.message);
+
+    const results: any[] = [];
+    for (const c of rows ?? []) {
+      const pid = c.provider_card_id as string;
+      const before = { status: c.status, balance: Number(c.balance || 0) };
+      try {
+        const res = await SW.getNfcCardDetails(pid);
+        const d = SW.extractCardDetails(res);
+        const upd: any = { metadata: res };
+        const st = String(d.status || "").toLowerCase();
+        if (d.last4) upd.last4 = String(d.last4);
+        if (d.brand) upd.brand = String(d.brand).toLowerCase();
+        if (d.balance !== null && Number.isFinite(Number(d.balance))) upd.balance = Number(d.balance);
+
+        if (isIssuerFailed(d) || ["terminated", "deleted", "cancelled", "canceled", "closed"].includes(st)) {
+          upd.status = "terminated";
+          upd.metadata = { ...(c.metadata as any || {}), provider_status: st || "failed", details: res };
+          if (String(c.status) !== "terminated") {
+            await refundCardBalanceToWallet(admin, c.user_id as string, pid, Number(c.balance || 0));
+          }
+          upd.balance = 0;
+        } else if (st === "active") {
+          upd.status = "active";
+        } else if (st === "frozen") {
+          upd.status = String(c.status) === "frozen_auto" ? "frozen_auto" : "frozen";
+        }
+
+        await admin.from("cards").update(upd).eq("provider_card_id", pid);
+
+        // Historique des paiements carte (dédupliqué).
+        let synced = 0;
+        if (upd.status !== "terminated") {
+          try {
+            const items = SW.extractCardTransactions(await SW.getNfcCardHistory(pid));
+            for (const t of items) {
+              const sig = `cardtx:${pid}:${t.id || `${t.date || ""}-${t.amount || ""}`}`;
+              const { data: existing } = await admin.from("transactions").select("id").eq("provider_ref", sig).maybeSingle();
+              if (existing) continue;
+              await admin.from("transactions").insert({
+                user_id: c.user_id, type: "card_tx",
+                status: t.status === "failed" ? "failed" : "success",
+                amount: t.amount, currency: t.currency,
+                provider: "issuer", provider_ref: sig,
+                description: t.description,
+                metadata: { card_id: pid, raw: t },
+              });
+              synced += 1;
+            }
+          } catch { /* historique indisponible */ }
+        }
+
+        results.push({
+          card_id: c.id, provider_card_id: pid, last4: upd.last4 ?? c.last4,
+          before, after: { status: upd.status ?? c.status, balance: upd.balance ?? before.balance },
+          changed: (upd.status ?? c.status) !== before.status || Number(upd.balance ?? before.balance) !== before.balance,
+          transactions_synced: synced, ok: true,
+        });
+      } catch (e) {
+        results.push({ card_id: c.id, provider_card_id: pid, last4: c.last4, before, ok: false, error: (e as Error).message });
+      }
+    }
+    return { ok: true, count: results.length, changed: results.filter((r) => r.changed).length, results };
+  },
+
+  // Historique des paiements d'une carte, pour l'administrateur.
+  async adminCardTransactions({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const { data: card } = await admin.from("cards").select("user_id,status").eq("provider_card_id", data.card_id).maybeSingle();
+    if (!card) return { ok: false, error: "Carte introuvable" };
+    const { data: rows } = await admin.from("transactions")
+      .select("amount,currency,status,description,created_at,metadata")
+      .eq("user_id", card.user_id).eq("type", "card_tx")
+      .order("created_at", { ascending: false }).limit(200);
+    const items = (rows || [])
+      .filter((r: any) => (r.metadata as any)?.card_id === data.card_id)
+      .map((r: any) => ({ date: r.created_at, amount: r.amount, currency: r.currency, status: r.status, description: r.description }));
+    return { ok: true, items };
+  },
+
   async adminToggleUser({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const { error } = await admin.from("profiles").update({ is_active: !!data.is_active }).eq("id", data.user_id);
