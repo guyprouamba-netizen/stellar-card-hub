@@ -156,7 +156,12 @@ export async function readSecureCardField(url: string | null, kind: "number" | "
       if (vaultId && /^[a-z0-9-]+$/i.test(vaultId) && path?.startsWith("/cards/") && token) {
         const secureUrl = new URL(path, `https://${vaultId}.forward.securepro.xyz`);
         const secureRes = await fetch(secureUrl, {
-          headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+          headers: {
+            Accept: "application/json",
+            // Sans ce Content-Type le coffre renvoie une valeur masquée (************6576).
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         });
         if (secureRes.ok) {
           const secureBody = await secureRes.json().catch(() => null);
