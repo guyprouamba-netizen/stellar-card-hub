@@ -10,7 +10,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
-import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminYengapayVerifyBatch, adminCreditYengapayExternal, adminCreditPendingDeposit } from "@/lib/admin.functions";
+import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminYengapayVerifyBatch, adminCreditYengapayExternal, adminCreditPendingDeposit, adminSyncCards, adminCardTransactions } from "@/lib/admin.functions";
 import { getPaypalWithdrawConfig, adminUpdatePaypalWithdrawConfig } from "@/lib/paypal.functions";
 import { getGatewayFeeConfig, adminUpdateGatewayFeeConfig } from "@/lib/business.functions";
 import { toast } from "sonner";
@@ -69,7 +69,7 @@ function AdminPage() {
             <>
               {tab === "flow" && <FlowTab data={data} />}
               {tab === "users" && <UsersTab users={data.users} onAction={refetch} />}
-              {tab === "strowallet" && <StrowalletTab cards={data.cards} />}
+              {tab === "strowallet" && <StrowalletTab cards={data.cards} onAction={refetch} />}
               {tab === "payments" && <PaymentsTab tx={data.transactions} />}
               {tab === "kyc" && <KycTab kyc={data.kyc} onAction={refetch} />}
               {tab === "withdrawals" && <WithdrawalsTab withdrawals={data.withdrawals} onAction={refetch} />}
