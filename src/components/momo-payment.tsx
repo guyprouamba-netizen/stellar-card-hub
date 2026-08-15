@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, ShieldCheck, Smartphone, Check, X, ArrowLeft } from "lucide-react";
+import { Loader2, ShieldCheck, Smartphone, Check, X, ArrowLeft, Copy, Phone } from "lucide-react";
 import {
   FALLBACK_MOMO_OPERATORS, confirmDirect, listOperators, payDirect, verifyPayment,
+  ussdFor,
   type MomoOperator, type PayStatus,
 } from "@/lib/pay.functions";
 
@@ -27,6 +28,8 @@ export function MomoPayment({ reference, amount, currency = "XOF", defaultPhone 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [ussd, setUssd] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const poll = useRef<number | null>(null);
 
   useEffect(() => {
@@ -36,7 +39,9 @@ export function MomoPayment({ reference, amount, currency = "XOF", defaultPhone 
     return () => { if (poll.current) window.clearInterval(poll.current); };
   }, []);
 
-  const flow = operators.find((o) => o.code === operator)?.flow || "push";
+  const current = operators.find((o) => o.code === operator);
+  const flow = current?.flow || "push";
+  const previewUssd = ussdFor(current, amount);
 
   function startPolling() {
     if (poll.current) window.clearInterval(poll.current);
@@ -68,7 +73,11 @@ export function MomoPayment({ reference, amount, currency = "XOF", defaultPhone 
       const r = await payDirect({ reference, operator, phone });
       if (r.status === "success") { finish("done"); return; }
       if (r.status === "failed") { finish("failed"); return; }
-      if (r.requiresOtp) { setStep("otp"); setInfo(r.message || "Un code de confirmation vous a été envoyé par SMS."); }
+      if (r.requiresOtp) {
+        setUssd(r.ussd ?? previewUssd ?? null);
+        setStep("otp");
+        setInfo(r.message || "Saisissez le code de confirmation.");
+      }
       else { setStep("waiting"); setInfo(r.message || "Confirmez le paiement sur votre téléphone."); startPolling(); }
     } catch (e: any) { setError(e.message); }
     finally { setBusy(false); }
@@ -126,8 +135,15 @@ export function MomoPayment({ reference, amount, currency = "XOF", defaultPhone 
           <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="Numéro Mobile Money (ex : 70000000)"
             className="mt-4 w-full rounded-2xl border border-border bg-surface-2 px-4 py-3 text-sm outline-none focus:border-primary" />
           <p className="mt-2 text-[11px] text-muted-foreground">
-            {flow === "otp" ? "Un code de confirmation vous sera envoyé par SMS." : "Vous validerez le paiement directement sur votre téléphone."}
+            {current?.hint || (flow === "otp"
+              ? "Un code de confirmation vous sera demandé à l'étape suivante."
+              : "Vous validerez le paiement directement sur votre téléphone.")}
           </p>
+          {previewUssd && (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Code à composer à l'étape suivante : <b className="text-foreground">{previewUssd}</b>
+            </p>
+          )}
           {error && <p className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
           <button onClick={start} disabled={busy || phone.replace(/\D/g, "").length < 8}
             className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
@@ -143,14 +159,39 @@ export function MomoPayment({ reference, amount, currency = "XOF", defaultPhone 
 
       {step === "otp" && (
         <>
-          {info && <p className="mt-5 rounded-xl border border-primary/40 bg-primary/5 p-3 text-xs text-muted-foreground">{info}</p>}
+          {ussd && (
+            <div className="mt-5 rounded-2xl border border-primary/40 bg-primary/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary">Étape 1 : générez votre code</p>
+              <p className="mt-2 text-center font-[Space_Grotesk] text-2xl font-black tracking-wide">{ussd}</p>
+              <p className="mt-1 text-center text-[11px] text-muted-foreground">Composez ce code sur votre téléphone pour obtenir votre code de paiement.</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <a href={`tel:${encodeURIComponent(ussd)}`}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-full border border-primary/50 py-2 text-xs font-semibold text-primary">
+                  <Phone className="h-3.5 w-3.5" /> Composer
+                </a>
+                <button type="button"
+                  onClick={() => { navigator.clipboard?.writeText(ussd); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border py-2 text-xs font-semibold">
+                  <Copy className="h-3.5 w-3.5" /> {copied ? "Copié" : "Copier"}
+                </button>
+              </div>
+            </div>
+          )}
+          {info && <p className="mt-3 rounded-xl border border-border bg-surface-2 p-3 text-xs text-muted-foreground">{info}</p>}
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {ussd ? "Étape 2 : saisissez le code obtenu" : "Code de confirmation"}
+          </p>
           <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric"
             placeholder="Code de confirmation"
-            className="mt-4 w-full rounded-2xl border border-border bg-surface-2 px-4 py-3 text-center font-[Space_Grotesk] text-xl font-bold tracking-[0.4em] outline-none focus:border-primary" />
+            className="mt-2 w-full rounded-2xl border border-border bg-surface-2 px-4 py-3 text-center font-[Space_Grotesk] text-xl font-bold tracking-[0.4em] outline-none focus:border-primary" />
+          <div className="mt-3 flex items-baseline justify-between text-xs text-muted-foreground">
+            <span>Montant à débiter</span>
+            <b className="font-[Space_Grotesk] text-base text-foreground tabular-nums">{money}</b>
+          </div>
           {error && <p className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
           <button onClick={confirm} disabled={busy || otp.length < 4}
             className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmer le paiement"}
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : `Payer ${money}`}
           </button>
           <button onClick={() => setStep("form")} className="mt-3 w-full text-xs text-muted-foreground">Modifier le numéro</button>
         </>

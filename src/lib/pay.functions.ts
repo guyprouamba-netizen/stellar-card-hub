@@ -33,20 +33,30 @@ export const initShopCheckout = (data: {
 }) => call("initShopCheckout", data);
 export const getOrder = (token: string) => call("getOrder", { token });
 // --- Paiement Mobile Money intégré (aucune redirection) ---
-export type MomoOperator = { code: string; label: string; flow: "otp" | "push" };
+export type MomoOperator = {
+  code: string; label: string; flow: "otp" | "push";
+  prefixes?: string[]; ussdPrefix?: string | null; otpBySms?: boolean; hint?: string | null;
+};
 export type PayStatus = "pending" | "success" | "failed";
 
 export const listOperators = () => call("listOperators") as Promise<{ ok: boolean; operators: MomoOperator[] }>;
 export const getCheckout = (reference: string) => call("getCheckout", { reference });
 export const payDirect = (data: { reference: string; operator: string; phone: string }) =>
-  call("payDirect", data) as Promise<{ ok: boolean; requiresOtp?: boolean; status: PayStatus; message?: string }>;
+  call("payDirect", data) as Promise<{ ok: boolean; requiresOtp?: boolean; status: PayStatus; message?: string; ussd?: string | null }>;
 export const confirmDirect = (data: { reference: string; otp: string }) =>
   call("confirmDirect", data) as Promise<{ ok: boolean; status: PayStatus }>;
 
 export const FALLBACK_MOMO_OPERATORS: MomoOperator[] = [
-  { code: "ORANGE_MONEY_BF", label: "Orange Money", flow: "otp" },
-  { code: "MOOV_MONEY_BF", label: "Moov Money", flow: "push" },
-  { code: "TELECEL_BF", label: "Telecel Money", flow: "push" },
-  { code: "SANK_MONEY", label: "Sank Money", flow: "push" },
-  { code: "CORIS_MONEY", label: "Coris Money", flow: "push" },
+  { code: "ORANGE_MONEY_BF", label: "Orange Money", flow: "otp", prefixes: ["07", "05"], ussdPrefix: "*144*4*6*", otpBySms: false,
+    hint: "Composez le code USSD affiché pour générer votre code de paiement Orange Money." },
+  { code: "MOOV_MONEY_BF", label: "Moov Money", flow: "push", prefixes: ["06", "01"], hint: "Validez la demande de paiement sur votre téléphone." },
+  { code: "TELECEL_BF", label: "Telecel Money", flow: "push", prefixes: ["05"], hint: "Validez la demande de paiement reçue sur votre téléphone." },
+  { code: "SANK_MONEY", label: "Sank Money", flow: "push", hint: "Validez la demande dans l'application Sank Money." },
+  { code: "CORIS_MONEY", label: "Coris Money", flow: "push", hint: "Validez la demande dans Coris Money." },
 ];
+
+/** Code USSD complet à composer (Orange Money) pour un montant donné. */
+export function ussdFor(op: MomoOperator | undefined, amount: number): string | null {
+  if (!op?.ussdPrefix) return null;
+  return `${op.ussdPrefix}${Math.round(Number(amount))}#`;
+}

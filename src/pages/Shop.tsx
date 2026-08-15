@@ -124,6 +124,29 @@ export default function Shop() {
 
   return (
     <div className="min-h-screen" style={{ background: th.bg, color: th.text }}>
+      {/* Barre de navigation fixe : logo + panier */}
+      <nav className="sticky top-0 z-40 backdrop-blur"
+        style={{ background: `${th.bg}e6`, borderBottom: `1px solid ${th.primary}22` }}>
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
+          {biz.logo_url ? (
+            <img src={biz.logo_url} alt={`Logo ${biz.name}`} className="h-10 w-10 rounded-xl object-cover" />
+          ) : (
+            <div className="grid h-10 w-10 place-items-center rounded-xl text-base font-black"
+              style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold leading-tight sm:text-base">{biz.name}</p>
+            {biz.tagline && <p className="truncate text-[11px]" style={{ color: th.muted }}>{biz.tagline}</p>}
+          </div>
+          <button onClick={() => setCartOpen(true)} className="relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold"
+            style={{ background: th.primary, color: th.primary_text }}>
+            <ShoppingCart className="h-4 w-4" />
+            <span className="hidden sm:inline">Panier</span>
+            {cartCount > 0 && <span className="grid h-5 min-w-[20px] place-items-center rounded-full px-1 text-xs font-bold" style={{ background: th.bg, color: th.text }}>{cartCount}</span>}
+          </button>
+        </div>
+      </nav>
+
       {/* Hero couverture large */}
       <header className="relative">
         {/* Logo au-dessus de la photo de couverture */}
@@ -141,14 +164,6 @@ export default function Shop() {
             ? <img src={biz.cover_url} alt={`Couverture ${biz.name}`} className="h-full w-full object-cover" />
             : <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${th.primary}, ${th.surface})` }} />}
           <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, ${th.bg}22, ${th.bg}cc)` }} />
-          <div className="absolute inset-x-0 top-0 flex items-center justify-end gap-3 px-4 py-4 sm:px-8">
-            <button onClick={() => setCartOpen(true)} className="relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow-lg"
-              style={{ background: th.primary, color: th.primary_text }}>
-              <ShoppingCart className="h-4 w-4" />
-              <span className="hidden sm:inline">Panier</span>
-              {cartCount > 0 && <span className="grid h-5 min-w-[20px] place-items-center rounded-full px-1 text-xs font-bold" style={{ background: th.bg, color: th.text }}>{cartCount}</span>}
-            </button>
-          </div>
           <div className="absolute inset-x-0 bottom-0 px-4 pb-8 text-center sm:px-8">
             <h1 className="text-3xl font-black tracking-tight drop-shadow sm:text-5xl">{biz.name}</h1>
             {(biz.tagline || biz.description) && (
