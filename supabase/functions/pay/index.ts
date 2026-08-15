@@ -6,6 +6,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { sendEmail, receiptHtml } from "../_shared/email.ts";
+import * as YP from "../_shared/yengapay.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -376,16 +377,6 @@ async function initCheckout(body: any) {
     if (link.max_amount && amount > Number(link.max_amount)) throw new Error(`Montant maximum ${link.max_amount}`);
   }
   const reference = ref("LP");
-  const callbackUrl = `${SUPABASE_URL}/functions/v1/yengapay-webhook`;
-  const baseReturn = String(body?.returnUrl || link.redirect_url || "");
-  const returnUrl = baseReturn
-    ? baseReturn + (baseReturn.includes("?") ? "&" : "?") + `pay_ref=${encodeURIComponent(reference)}`
-    : "";
-  const yp = await createYengaPayIntent({
-    amount, reference,
-    title: link.title, description: `${business.name} — ${link.title}`,
-    callbackUrl, returnUrl,
-  });
   const { error } = await db.from("payment_link_payments").insert({
     link_id: link.id, business_id: business.id,
     project_id: (link as any).project_id || null,
@@ -394,12 +385,11 @@ async function initCheckout(body: any) {
     customer_name: body?.customer_name || null,
     customer_phone: body?.customer_phone || null,
     customer_email: customerEmail,
-    provider: "yengapay",
-    payment_intent_id: yp.paymentIntentId,
-    metadata: { init: yp.raw },
+    provider: "mobile_money",
+    metadata: { direct: true },
   });
   if (error) throw new Error(error.message);
-  return { ok: true, reference, checkout_url: yp.checkoutUrl };
+  return { ok: true, reference, amount, currency: link.currency };
 }
 
 async function verifyPayment(reference: string) {
@@ -515,30 +505,18 @@ async function initShopCheckout(body: any) {
   }).select("id,order_number,public_token").single();
   if (oErr) throw new Error(oErr.message);
   await db.from("order_items").insert(orderItems.map((it) => ({ ...it, order_id: order.id })));
-  // Créer paiement YengaPay
+  // Paiement in-app (Mobile Money direct, aucune redirection)
   const reference = ref("SHOP");
-  const callbackUrl = `${SUPABASE_URL}/functions/v1/yengapay-webhook`;
-  const baseReturn = String(body?.returnUrl || "");
-  const returnUrl = baseReturn
-    ? baseReturn + (baseReturn.includes("?") ? "&" : "?") + `pay_ref=${encodeURIComponent(reference)}&order=${encodeURIComponent(order.public_token)}`
-    : "";
-  const yp = await createYengaPayIntent({
-    amount: total, reference,
-    title: `Commande ${orderNumber}`,
-    description: `${biz.name} — ${orderItems.length} article(s)`,
-    callbackUrl, returnUrl,
-  });
   await db.from("payment_link_payments").insert({
     link_id: null as any, business_id: biz.id, order_id: order.id,
     reference, amount: total, currency,
     customer_name: body?.customer_name || null,
     customer_phone: body?.customer_phone || null,
     customer_email: customerEmail,
-    provider: "yengapay",
-    payment_intent_id: yp.paymentIntentId,
-    metadata: { init: yp.raw, order_id: order.id },
+    provider: "mobile_money",
+    metadata: { direct: true, order_id: order.id },
   } as any);
-  return { ok: true, reference, checkout_url: yp.checkoutUrl, order_token: order.public_token, order_number: orderNumber };
+  return { ok: true, reference, amount: total, currency, order_token: order.public_token, order_number: orderNumber };
 }
 
 // Vitrine publique d'un projet (catalogue produits)
@@ -638,26 +616,18 @@ async function apiCreateSession(auth: ApiAuth, body: any) {
   if (!biz || ["suspended", "terminated", "banned"].includes(String(biz.status || "").toLowerCase())) {
     throw new Error("Compte marchand indisponible");
   }
-  const baseReturn = String(body?.return_url || body?.returnUrl || "");
-  const returnUrl = baseReturn
-    ? baseReturn + (baseReturn.includes("?") ? "&" : "?") + `pay_ref=${encodeURIComponent(reference)}`
-    : "";
-  const yp = await createYengaPayIntent({
-    amount, reference, title: description, description: `${biz.name} — ${description}`,
-    callbackUrl: `${SUPABASE_URL}/functions/v1/yengapay-webhook`, returnUrl,
-  });
+  const returnUrl = String(body?.return_url || body?.returnUrl || "");
   const { error } = await db.from("payment_link_payments").insert({
     business_id: auth.business_id, project_id: auth.project_id || null,
     reference, amount, currency,
     customer_name: body?.customer_name || null,
     customer_phone: body?.customer_phone || null,
     customer_email,
-    provider: "yengapay",
-    payment_intent_id: yp.paymentIntentId,
-    metadata: { source: "api", key_id: auth.key_id, metadata: body?.metadata ?? null, init: yp.raw },
+    provider: "mobile_money",
+    metadata: { source: "api", key_id: auth.key_id, metadata: body?.metadata ?? null, direct: true, return_url: returnUrl, description },
   });
   if (error) throw new Error(error.message);
-  return { reference, amount, currency, status: "pending", checkout_url: yp.checkoutUrl };
+  return { reference, amount, currency, status: "pending", checkout_url: `${appBaseUrl()}/checkout/${reference}` };
 }
 
 // Notifie le marchand dès l'ouverture de la page de paiement (transaction lisible en temps réel).
