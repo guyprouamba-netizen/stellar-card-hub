@@ -414,14 +414,20 @@ async function payDirect(payload: any) {
         description: meta.description || "Paiement",
       });
     } catch { throw new Error("Service de paiement momentanément indisponible. Réessayez."); }
-      if (!init.ok) { console.error("[direct init]", reference, init.status, JSON.stringify(init.body).slice(0, 500)); throw new Error("Le paiement n'a pas pu être initié. Vérifiez le montant et réessayez."); }
-    const b = init.body;
-    intent = b?.id || b?.paymentIntentId || b?.paymentIntent?.id || b?.data?.id || null;
+      if (!init.ok) { console.error("[direct init]", reference, init.status, JSON.stringify(init.body).slice(0, 800)); throw new Error("Le paiement n'a pas pu être initié. Vérifiez le montant et réessayez."); }
+    intent = YP.extractIntentId(init.body);
+    const avail = YP.extractAvailableOperators(init.body);
+    if (avail.length) meta.available = avail;
+    if (!intent) { console.error("[direct init] no intent", reference, JSON.stringify(init.body).slice(0, 800)); throw new Error("Le paiement n'a pas pu être initié. Réessayez."); }
   }
+  // Frais et total réels renvoyés par la passerelle pour cet opérateur.
+  const availOp = (meta.available || []).find((a: any) => String(a?.code).toUpperCase() === op.ypCode);
+  const fees = availOp ? Number(availOp.fees || 0) : 0;
+  const total = availOp ? Number(availOp.totalAmount || tx.amount) : Number(tx.amount);
   await db.from("payment_link_payments").update({
     payment_intent_id: intent,
     customer_phone: phone,
-    metadata: { ...meta, direct: true, operator: op.code, phone, intent },
+    metadata: { ...meta, direct: true, operator: op.code, phone, intent, fees, total },
   }).eq("id", tx.id);
 
   if (op.flow === "otp") {
@@ -429,25 +435,34 @@ async function payDirect(payload: any) {
     // Orange Money : le client génère lui-même son code via USSD (aucun SMS à envoyer).
     if (op.otpBySms === false) {
       return {
-        ok: true, requiresOtp: true, status: "pending", ussd,
+        ok: true, requiresOtp: true, status: "pending", ussd, fees, total,
         message: op.hint || "Composez le code USSD pour générer votre code de paiement.",
       };
     }
     let r: any;
-    try { r = await YP.sendDirectPaymentOtp({ reference, phone, operator: op.code, paymentIntentId: intent }); }
+    try { r = await YP.sendDirectPaymentOtp({ reference, phone, operator: op.code, paymentIntentId: intent! }); }
     catch { throw new Error("Impossible d'envoyer le code de confirmation. Réessayez."); }
-    if (!r.ok) { console.error("[direct otp]", reference, r.status, JSON.stringify(r.body).slice(0, 500)); throw new Error("L'envoi du code de confirmation a échoué. Vérifiez votre numéro."); }
-    return { ok: true, requiresOtp: true, status: "pending", ussd, message: "Un code de confirmation vous a été envoyé par SMS." };
+    if (!r.ok) { console.error("[direct otp]", reference, r.status, JSON.stringify(r.body).slice(0, 800)); throw new Error("L'envoi du code de confirmation a échoué. Vérifiez votre numéro."); }
+    return { ok: true, requiresOtp: true, status: "pending", ussd, fees, total, message: r.body?.message || "Un code de confirmation vous a été envoyé par SMS." };
   }
 
   let r: any;
-  try { r = await YP.payDirectPayment({ reference, phone, operator: op.code, paymentIntentId: intent }); }
+  try { r = await YP.payDirectPayment({ reference, phone, operator: op.code, paymentIntentId: intent! }); }
   catch { throw new Error("Impossible de joindre l'opérateur. Réessayez."); }
-  if (!r.ok) { console.error("[direct pay]", reference, r.status, JSON.stringify(r.body).slice(0, 500)); throw new Error("L'opérateur a refusé l'opération. Vérifiez votre numéro et votre solde."); }
+  if (!r.ok) { console.error("[direct pay]", reference, r.status, JSON.stringify(r.body).slice(0, 800)); throw new Error(providerMessage(r.body) || "L'opérateur a refusé l'opération. Vérifiez votre numéro et votre solde."); }
   const st = YP.extractProviderStatus(r.body);
   if (st === "success") { await settlePayment(db, tx.id, r.body); return { ok: true, requiresOtp: false, status: "success" }; }
   if (st === "failed") { await markFailed(db, tx, r.body); return { ok: true, requiresOtp: false, status: "failed" }; }
-  return { ok: true, requiresOtp: false, status: "pending", message: op.hint || "Confirmez le paiement sur votre téléphone." };
+  return { ok: true, requiresOtp: false, status: "pending", fees, total, message: r.body?.message || op.hint || "Confirmez le paiement sur votre téléphone." };
+}
+
+/** Message d'erreur lisible renvoyé par la passerelle, sans exposer le partenaire. */
+function providerMessage(body: any): string | null {
+  const raw = body?.message || body?.error?.message || body?.error || (Array.isArray(body?.errors) ? body.errors[0] : null);
+  const msg = typeof raw === "string" ? raw.trim() : "";
+  if (!msg) return null;
+  if (/yenga|kreezus/i.test(msg)) return null;
+  return msg.slice(0, 180);
 }
 
 async function markFailed(db: any, tx: any, body: any) {
@@ -469,7 +484,10 @@ async function confirmDirect(payload: any) {
   let r: any;
   try { r = await YP.payDirectPayment({ reference, phone: meta.phone, operator: meta.operator, otp, paymentIntentId: tx.payment_intent_id || meta.intent }); }
   catch { throw new Error("Service momentanément indisponible. Réessayez."); }
-  if (!r.ok) throw new Error("Code incorrect ou paiement refusé.");
+  if (!r.ok) {
+    console.error("[direct confirm]", reference, r.status, JSON.stringify(r.body).slice(0, 800));
+    throw new Error(providerMessage(r.body) || "Code incorrect ou paiement refusé.");
+  }
   const st = YP.extractProviderStatus(r.body);
   if (st === "success") { await settlePayment(db, tx.id, r.body); return { ok: true, status: "success" }; }
   if (st === "failed") { await markFailed(db, tx, r.body); return { ok: true, status: "failed" }; }
