@@ -1372,7 +1372,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   // ================= Dépôt in-app via YengaPay Direct Payment (sans redirection) =================
 
   async listDepositOperators() {
-    return { ok: true, operators: YP.OPERATORS.map((o) => ({ code: o.code, label: o.label, flow: o.flow })) };
+    return { ok: true, operators: YP.OPERATORS.map((o) => ({
+      code: o.code, label: o.label, flow: o.flow,
+      ussdPrefix: o.ussdPrefix || null, otpBySms: o.otpBySms !== false, hint: o.hint || null,
+    })) };
   },
 
   async initDeposit({ data, user, admin }) {
@@ -1399,7 +1402,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       return { ok: false, error: "La passerelle de paiement a refusé l'opération.", message: typeof initRes.body === "string" ? initRes.body.slice(0, 200) : JSON.stringify(initRes.body).slice(0, 200) };
     }
     const body = initRes.body;
-    const paymentIntentId = body?.id || body?.paymentIntentId || body?.paymentIntent?.id || body?.data?.id || null;
+    const paymentIntentId = YP.extractIntentId(body);
+    if (!paymentIntentId) return { ok: false, error: "La passerelle de paiement n'a pas pu initier l'opération." };
 
     const { error: txErr } = await admin.from("transactions").insert({
       user_id: userId, type: "deposit", status: "pending",
@@ -1411,6 +1415,14 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (txErr) return { ok: false, error: "Erreur lors de l'enregistrement de l'opération." };
 
     if (operator.flow === "otp") {
+      // Orange / Telecel : le client génère lui-même son code via USSD, aucun SMS à envoyer.
+      if (operator.otpBySms === false) {
+        return {
+          ok: true, reference, requiresOtp: true, status: "pending",
+          ussd: YP.ussdCodeFor(operator, amount),
+          message: operator.hint || "Composez le code USSD pour générer votre code de paiement.",
+        };
+      }
       let otpRes: any;
       try {
         otpRes = await YP.sendDirectPaymentOtp({ reference, phone, operator: operator.code, paymentIntentId });
@@ -1418,6 +1430,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         return { ok: false, error: "Impossible d'envoyer le code de confirmation. " + (e as Error).message };
       }
       if (!otpRes.ok) {
+        console.error("[deposit otp]", reference, otpRes.status, JSON.stringify(otpRes.body).slice(0, 800));
         return { ok: false, error: "L'envoi du code de confirmation a échoué." };
       }
       return { ok: true, reference, requiresOtp: true, status: "pending", message: "Un code de confirmation vous a été envoyé par SMS." };
@@ -1431,6 +1444,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       return { ok: false, error: "Impossible d'initier le paiement. " + (e as Error).message };
     }
     if (!payRes.ok) {
+      console.error("[deposit pay]", reference, payRes.status, JSON.stringify(payRes.body).slice(0, 800));
       return { ok: false, error: "La passerelle de paiement a refusé l'opération." };
     }
     const providerStatus = YP.extractProviderStatus(payRes.body);
@@ -1478,6 +1492,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       return { ok: false, status: "failed", message: "Impossible de contacter la passerelle de paiement. " + (e as Error).message };
     }
     if (!payRes.ok) {
+      console.error("[deposit confirm]", reference, payRes.status, JSON.stringify(payRes.body).slice(0, 800));
       return { ok: true, status: "failed", message: "Code incorrect ou paiement refusé." };
     }
     const providerStatus = YP.extractProviderStatus(payRes.body);
