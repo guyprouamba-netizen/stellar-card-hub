@@ -29,6 +29,8 @@ export function MomoPayment({ reference, amount, currency = "XOF", defaultPhone 
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [ussd, setUssd] = useState<string | null>(null);
+  const [fees, setFees] = useState<number>(0);
+  const [total, setTotal] = useState<number>(amount);
   const [copied, setCopied] = useState(false);
   const poll = useRef<number | null>(null);
 
@@ -75,10 +77,15 @@ export function MomoPayment({ reference, amount, currency = "XOF", defaultPhone 
       if (r.status === "failed") { finish("failed"); return; }
       if (r.requiresOtp) {
         setUssd(r.ussd ?? previewUssd ?? null);
+        if (typeof r.fees === "number") setFees(r.fees);
+        if (typeof r.total === "number") setTotal(r.total);
         setStep("otp");
         setInfo(r.message || "Saisissez le code de confirmation.");
       }
-      else { setStep("waiting"); setInfo(r.message || "Confirmez le paiement sur votre téléphone."); startPolling(); }
+      else {
+        if (typeof r.total === "number") setTotal(r.total);
+        setStep("waiting"); setInfo(r.message || "Confirmez le paiement sur votre téléphone."); startPolling();
+      }
     } catch (e: any) { setError(e.message); }
     finally { setBusy(false); }
   }
@@ -94,7 +101,9 @@ export function MomoPayment({ reference, amount, currency = "XOF", defaultPhone 
     finally { setBusy(false); }
   }
 
-  const money = `${Number(amount).toLocaleString("fr-FR")} ${currency === "XOF" ? "FCFA" : currency}`;
+  const unit = currency === "XOF" ? "FCFA" : currency;
+  const money = `${Number(amount).toLocaleString("fr-FR")} ${unit}`;
+  const totalMoney = `${Number(total).toLocaleString("fr-FR")} ${unit}`;
 
   if (step === "done") return (
     <div className="text-center">
@@ -184,14 +193,18 @@ export function MomoPayment({ reference, amount, currency = "XOF", defaultPhone 
           <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric"
             placeholder="Code de confirmation"
             className="mt-2 w-full rounded-2xl border border-border bg-surface-2 px-4 py-3 text-center font-[Space_Grotesk] text-xl font-bold tracking-[0.4em] outline-none focus:border-primary" />
-          <div className="mt-3 flex items-baseline justify-between text-xs text-muted-foreground">
-            <span>Montant à débiter</span>
-            <b className="font-[Space_Grotesk] text-base text-foreground tabular-nums">{money}</b>
+          <div className="mt-4 space-y-1 rounded-2xl border border-border bg-surface-2 p-3 text-xs">
+            <div className="flex justify-between text-muted-foreground"><span>Montant</span><span className="tabular-nums">{money}</span></div>
+            {fees > 0 && <div className="flex justify-between text-muted-foreground"><span>Frais opérateur</span><span className="tabular-nums">{fees.toLocaleString("fr-FR")} {unit}</span></div>}
+            <div className="flex items-baseline justify-between border-t border-border pt-1 font-semibold">
+              <span>Total à débiter</span>
+              <b className="font-[Space_Grotesk] text-base tabular-nums">{totalMoney}</b>
+            </div>
           </div>
           {error && <p className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
           <button onClick={confirm} disabled={busy || otp.length < 4}
             className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : `Payer ${money}`}
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : `Payer ${totalMoney}`}
           </button>
           <button onClick={() => setStep("form")} className="mt-3 w-full text-xs text-muted-foreground">Modifier le numéro</button>
         </>
