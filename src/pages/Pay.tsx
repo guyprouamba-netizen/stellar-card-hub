@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getPublicLink, initCheckout, verifyPayment } from "@/lib/pay.functions";
+import { MomoPayment } from "@/components/momo-payment";
 import { Loader2, ShieldCheck, Smartphone, Check, X } from "lucide-react";
 
 type Ctx = {
@@ -19,6 +20,7 @@ export default function PayPage() {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [verifyStatus, setVerifyStatus] = useState<"idle" | "checking" | "success" | "failed" | "pending">("idle");
+  const [payRef, setPayRef] = useState<string | null>(null);
 
   useEffect(() => {
     getPublicLink(slug).then((r: any) => {
@@ -56,10 +58,10 @@ export default function PayPage() {
         slug, amount: ctx.link.amount ? undefined : amount,
         customer_email: email,
         customer_name: name || undefined, customer_phone: phone || undefined,
-        returnUrl: window.location.origin + window.location.pathname,
       });
-      if (r.checkout_url) window.location.href = r.checkout_url;
-      else throw new Error("Lien de paiement introuvable");
+      if (!r?.reference) throw new Error("Paiement indisponible pour le moment");
+      setPayRef(r.reference);
+      setSubmitting(false);
     } catch (e: any) { setError(e.message); setSubmitting(false); }
   }
 
@@ -116,6 +118,13 @@ export default function PayPage() {
           <h2 className="font-[Space_Grotesk] text-xl font-bold">{ctx.link.title}</h2>
           {ctx.link.description && <p className="mt-1 text-sm text-muted-foreground">{ctx.link.description}</p>}
 
+          {payRef ? (
+            <div className="mt-6">
+              <MomoPayment reference={payRef} amount={amount} currency={ctx.link.currency} defaultPhone={phone}
+                onSuccess={() => setVerifyStatus("success")} onCancel={() => setPayRef(null)} />
+            </div>
+          ) : (
+          <>
           <div className="mt-6">
             <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Montant</label>
             <div className="mt-2 flex items-baseline gap-2 rounded-2xl border border-border bg-surface-2 px-4 py-3">
@@ -149,12 +158,14 @@ export default function PayPage() {
 
           <button onClick={submit} disabled={submitting || amount <= 0 || !email || verifyStatus === "checking"}
             className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
-            {submitting || verifyStatus === "checking" ? <Loader2 className="h-4 w-4 animate-spin" /> : `Payer ${Number(amount).toLocaleString("fr-FR")} ${ctx.link.currency}`}
+            {submitting || verifyStatus === "checking" ? <Loader2 className="h-4 w-4 animate-spin" /> : `Continuer · ${Number(amount).toLocaleString("fr-FR")} ${ctx.link.currency}`}
           </button>
 
           <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
             <ShieldCheck className="h-3 w-3" /> Paiement sécurisé via FASO-INVEST PAY
           </p>
+          </>
+          )}
         </div>
 
         {verifyStatus === "pending" && (

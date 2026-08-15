@@ -21,6 +21,7 @@ import SmsAdmin from "@/pages/SmsAdmin";
 import Transfer from "@/pages/Transfer";
 import PaypalWithdraw from "@/pages/PaypalWithdraw";
 import Vitrine from "@/pages/Vitrine";
+import CheckoutPage from "@/pages/Checkout";
 import AdminTransfers from "@/pages/AdminTransfers";
 import Download from "@/pages/Download";
 import NotFound from "@/pages/NotFound";
@@ -60,6 +61,7 @@ export default function App() {
       <Route path="/pay/:slug" element={<Pay />} />
       <Route path="/shop/:slug" element={<Shop />} />
       <Route path="/vitrine/:projectId" element={<Vitrine />} />
+      <Route path="/checkout/:reference" element={<CheckoutPage />} />
       <Route path="/order/:token" element={<OrderTracking />} />
       <Route path="*" element={<NotFound />} />
       </Routes>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getShop, initShopCheckout } from "@/lib/pay.functions";
+import { MomoPayment } from "@/components/momo-payment";
 import { Loader2, ShoppingCart, Plus, Minus, X, ShieldCheck, Store, Mail, Phone } from "lucide-react";
 
 type Product = { id: string; name: string; slug: string; description: string | null; price: number; currency: string; project_id?: string | null; media?: Array<{ url: string; type: string }> };
@@ -27,6 +28,7 @@ export default function Shop() {
   const [cartOpen, setCartOpen] = useState(false);
   const [customer, setCustomer] = useState({ name: "", email: "", phone: "", address: "", note: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [pay, setPay] = useState<{ reference: string; amount: number; currency: string; order_token: string } | null>(null);
 
   useEffect(() => {
     // Retour depuis paiement : rediriger vers le suivi de commande
@@ -69,12 +71,10 @@ export default function Shop() {
         customer_phone: customer.phone || undefined,
         shipping_address: customer.address || undefined,
         customer_note: customer.note || undefined,
-        // Le serveur append pay_ref & order au retour → on retombe sur /shop/:slug qui redirige vers /order/:token
-        returnUrl: `${window.location.origin}/shop/${biz.slug}`,
       });
-      if (r.checkout_url) {
-        window.location.href = r.checkout_url;
-      } else throw new Error("Redirection paiement introuvable");
+      if (!r?.reference) throw new Error("Paiement indisponible pour le moment");
+      setPay({ reference: r.reference, amount: Number(r.amount), currency: r.currency, order_token: r.order_token });
+      setSubmitting(false);
     } catch (e: any) { setError(e.message); setSubmitting(false); }
   }
 
@@ -222,6 +222,13 @@ export default function Shop() {
               <button onClick={() => setCartOpen(false)} className="grid h-9 w-9 place-items-center rounded-full border border-border hover:bg-muted"><X className="h-4 w-4" /></button>
             </div>
             <div className="mt-6 flex-1 space-y-3 overflow-y-auto">
+              {pay ? (
+                <MomoPayment
+                  reference={pay.reference} amount={pay.amount} currency={pay.currency} defaultPhone={customer.phone}
+                  onSuccess={() => setTimeout(() => navigate(`/order/${pay.order_token}`), 1500)}
+                  onCancel={() => setPay(null)}
+                />
+              ) : (<>
               {cartCount === 0 && <p className="text-center text-sm text-muted-foreground">Votre panier est vide</p>}
               {Object.entries(cart).map(([pid, qty]) => {
                 const p = products.find((x) => x.id === pid); if (!p) return null;
@@ -255,8 +262,9 @@ export default function Shop() {
                     className="w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
                 </div>
               )}
+              </>)}
             </div>
-            {cartCount > 0 && (
+            {cartCount > 0 && !pay && (
               <div className="mt-4 border-t border-border pt-4">
                 {error && <p className="mb-2 rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">{error}</p>}
                 <div className="flex items-baseline justify-between">

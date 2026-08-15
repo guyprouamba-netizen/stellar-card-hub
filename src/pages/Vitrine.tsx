@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { getVitrine } from "@/lib/pay.functions";
 import { initShopCheckout } from "@/lib/pay.functions";
+import { MomoPayment } from "@/components/momo-payment";
 import { Loader2, Minus, Plus, Search, ShoppingBag, X } from "lucide-react";
 
 type Product = { id: string; name: string; description: string | null; price: number; currency: string; media: Array<{ url: string; type: string }> };
@@ -16,6 +17,7 @@ export default function VitrinePage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ customer_name: "", customer_email: "", customer_phone: "", shipping_address: "" });
   const [paying, setPaying] = useState(false);
+  const [pay, setPay] = useState<{ reference: string; amount: number; currency: string; order_token: string } | null>(null);
 
   useEffect(() => {
     getVitrine(projectId)
@@ -45,9 +47,8 @@ export default function VitrinePage() {
         business_slug: data.business.slug,
         items: cartItems.map((p) => ({ product_id: p.id, quantity: cart[p.id] })),
         ...form,
-        returnUrl: window.location.href,
       });
-      if (r?.checkout_url) window.location.href = r.checkout_url;
+      if (r?.reference) setPay({ reference: r.reference, amount: Number(r.amount), currency: r.currency, order_token: r.order_token });
       else toast.error("Paiement indisponible");
     } catch (e: any) { toast.error(e.message); }
     finally { setPaying(false); }
@@ -170,7 +171,13 @@ export default function VitrinePage() {
                 </div>
               ))}
             </div>
-            {cartItems.length > 0 && (
+            {cartItems.length > 0 && (pay ? (
+                <div className="mt-4 border-t border-border pt-4">
+                  <MomoPayment reference={pay.reference} amount={pay.amount} currency={pay.currency} defaultPhone={form.customer_phone}
+                    onSuccess={() => setTimeout(() => { window.location.href = `/order/${pay.order_token}`; }, 1500)}
+                    onCancel={() => setPay(null)} />
+                </div>
+              ) : (
               <form onSubmit={checkout} className="mt-4 space-y-2 border-t border-border pt-4">
                 <input required placeholder="Votre nom" value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })}
                   className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-primary" />
@@ -185,7 +192,7 @@ export default function VitrinePage() {
                   {paying && <Loader2 className="h-4 w-4 animate-spin" />} Commander et payer
                 </button>
               </form>
-            )}
+            ))}
           </div>
         </div>
       )}
