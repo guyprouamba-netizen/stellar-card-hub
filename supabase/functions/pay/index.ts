@@ -434,7 +434,8 @@ async function payDirect(payload: any) {
   }).eq("id", tx.id);
 
   if (op.flow === "otp") {
-    const ussd = YP.ussdCodeFor(op, Number(tx.amount));
+    // Le code USSD doit porter le montant réellement débité (frais opérateur inclus).
+    const ussd = YP.ussdCodeFor(op, total);
     // Orange Money : le client génère lui-même son code via USSD (aucun SMS à envoyer).
     if (op.otpBySms === false) {
       return {
