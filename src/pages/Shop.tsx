@@ -222,6 +222,13 @@ export default function Shop() {
               <button onClick={() => setCartOpen(false)} className="grid h-9 w-9 place-items-center rounded-full border border-border hover:bg-muted"><X className="h-4 w-4" /></button>
             </div>
             <div className="mt-6 flex-1 space-y-3 overflow-y-auto">
+              {pay ? (
+                <MomoPayment
+                  reference={pay.reference} amount={pay.amount} currency={pay.currency} defaultPhone={customer.phone}
+                  onSuccess={() => setTimeout(() => navigate(`/order/${pay.order_token}`), 1500)}
+                  onCancel={() => setPay(null)}
+                />
+              ) : (<>
               {cartCount === 0 && <p className="text-center text-sm text-muted-foreground">Votre panier est vide</p>}
               {Object.entries(cart).map(([pid, qty]) => {
                 const p = products.find((x) => x.id === pid); if (!p) return null;
@@ -255,8 +262,9 @@ export default function Shop() {
                     className="w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
                 </div>
               )}
+              </>)}
             </div>
-            {cartCount > 0 && (
+            {cartCount > 0 && !pay && (
               <div className="mt-4 border-t border-border pt-4">
                 {error && <p className="mb-2 rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">{error}</p>}
                 <div className="flex items-baseline justify-between">
