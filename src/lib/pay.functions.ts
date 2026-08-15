@@ -42,7 +42,10 @@ export type PayStatus = "pending" | "success" | "failed";
 export const listOperators = () => call("listOperators") as Promise<{ ok: boolean; operators: MomoOperator[] }>;
 export const getCheckout = (reference: string) => call("getCheckout", { reference });
 export const payDirect = (data: { reference: string; operator: string; phone: string }) =>
-  call("payDirect", data) as Promise<{ ok: boolean; requiresOtp?: boolean; status: PayStatus; message?: string; ussd?: string | null }>;
+  call("payDirect", data) as Promise<{
+    ok: boolean; requiresOtp?: boolean; status: PayStatus; message?: string;
+    ussd?: string | null; fees?: number; total?: number;
+  }>;
 export const confirmDirect = (data: { reference: string; otp: string }) =>
   call("confirmDirect", data) as Promise<{ ok: boolean; status: PayStatus }>;
 

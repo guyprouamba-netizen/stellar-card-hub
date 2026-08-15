@@ -1,12 +1,22 @@
-// Client YengaPay Direct Payment (paiement 100% in-app, sans redirection).
-// Doc SDK officiel : POST /groups/{groupId}/direct-payment/init/{projectId}
-//                    POST /groups/{groupId}/direct-payment/send-otp/{projectId}
-//                    POST /groups/{groupId}/direct-payment/pay/{projectId}
+// Client Direct Payment (paiement 100% in-app, sans redirection).
+// Contrat officiel :
+//   POST /groups/{groupId}/projects/{projectId}/direct-payment/init
+//        body { amount, reference, articles[], customerEmailToNotify? }
+//   POST /groups/{groupId}/projects/{projectId}/direct-payment/send-otp   (MOOV/CORISM/SANKM)
+//        body { paymentIntentId, operatorCode, countryCode, customerMSISDN }
+//   POST /groups/{groupId}/projects/{projectId}/direct-payment/pay
+//        body { paymentIntentId, operatorCode, countryCode, customerMSISDN, otp? }
+//   GET  /groups/{groupId}/projects/{projectId}/direct-payment/status/{paymentIntentId}
 const YENGAPAY_BASE = "https://api.yengapay.com/api/v1";
 
 export type OperatorFlow = "otp" | "push";
 export type Operator = {
   code: string; label: string; flow: OperatorFlow; prefixes: string[];
+  /** Code opérateur attendu par la passerelle. */
+  ypCode: string;
+  countryCode: string;
+  /** Anciens codes conservés pour les paiements déjà enregistrés. */
+  aliases?: string[];
   /** Code USSD que le client compose lui-même pour générer son code de paiement (Orange). */
   ussdPrefix?: string;
   /** Instruction affichée au client. */
@@ -18,25 +28,30 @@ export type Operator = {
 // Opérateurs supportés (Burkina Faso).
 export const OPERATORS: Operator[] = [
   {
-    code: "ORANGE_MONEY_BF", label: "Orange Money", flow: "otp", prefixes: ["07", "05"],
+    code: "ORANGE_MONEY_BF", ypCode: "ORANGE", countryCode: "BF", aliases: ["ORANGE", "ORANGE_BF"],
+    label: "Orange Money", flow: "otp", prefixes: ["07", "05"],
     ussdPrefix: "*144*4*6*", otpBySms: false,
     hint: "Composez le code USSD affiché pour générer votre code de paiement Orange Money, puis saisissez-le ci-dessous.",
   },
   {
-    code: "MOOV_MONEY_BF", label: "Moov Money", flow: "push", prefixes: ["06", "01"],
-    hint: "Validez la demande de paiement qui s'affiche sur votre téléphone (ou composez *555#).",
+    code: "MOOV_MONEY_BF", ypCode: "MOOV", countryCode: "BF", aliases: ["MOOV", "MOOV_BF"],
+    label: "Moov Money", flow: "push", prefixes: ["06", "01"],
+    hint: "Validez la demande de paiement qui s'affiche sur votre téléphone.",
   },
   {
-    code: "TELECEL_BF", label: "Telecel Money", flow: "push", prefixes: ["05"],
-    hint: "Validez la demande de paiement reçue sur votre téléphone.",
+    code: "TELECEL_BF", ypCode: "TELECEL", countryCode: "BF", aliases: ["TELECEL"],
+    label: "Telecel Money", flow: "otp", prefixes: ["05"], otpBySms: false,
+    hint: "Générez votre code de paiement Telecel Money depuis le menu USSD de votre téléphone, puis saisissez-le ci-dessous.",
   },
   {
-    code: "SANK_MONEY", label: "Sank Money", flow: "push", prefixes: [],
-    hint: "Ouvrez l'application Sank Money et validez la demande de paiement.",
+    code: "SANK_MONEY", ypCode: "SANKM", countryCode: "BF", aliases: ["SANKM", "SANKM_BF"],
+    label: "Sank Money", flow: "otp", prefixes: [], otpBySms: true,
+    hint: "Un code de confirmation Sank Money vous est envoyé par SMS.",
   },
   {
-    code: "CORIS_MONEY", label: "Coris Money", flow: "push", prefixes: [],
-    hint: "Validez la demande de paiement dans Coris Money.",
+    code: "CORIS_MONEY", ypCode: "CORISM", countryCode: "BF", aliases: ["CORISM", "CORISM_BF"],
+    label: "Coris Money", flow: "otp", prefixes: [], otpBySms: true,
+    hint: "Un code de confirmation Coris Money vous est envoyé par SMS.",
   },
 ];
 
@@ -47,7 +62,16 @@ export function ussdCodeFor(op: Operator, amount: number): string | null {
 }
 
 export function findOperator(code: string): Operator | undefined {
-  return OPERATORS.find((o) => o.code === String(code || "").toUpperCase());
+  const c = String(code || "").toUpperCase();
+  return OPERATORS.find((o) => o.code === c || o.ypCode === c || (o.aliases || []).includes(c));
+}
+
+/** Normalise un numéro burkinabè au format MSISDN attendu (226XXXXXXXX). */
+export function toMsisdn(phone: string, countryCode = "BF"): string {
+  let d = String(phone || "").replace(/\D/g, "");
+  d = d.replace(/^0+/, "");
+  if (countryCode === "BF" && d.length === 8) d = `226${d}`;
+  return d;
 }
 
 function creds() {
@@ -89,53 +113,62 @@ async function fetchWithFallback(paths: string[], apiKey: string, body?: any) {
 export type InitDepositResult = { ok: boolean; reference: string; raw: any; status?: string };
 
 export async function initDirectPayment(opts: {
-  amount: number; reference: string; callbackUrl: string; description?: string;
+  amount: number; reference: string; callbackUrl?: string; description?: string; customerEmail?: string;
 }) {
   const { apiKey, groupId, projectId } = creds();
-  const paths = [
+  const amount = Math.round(Number(opts.amount));
+  const body: any = {
+    amount,
+    reference: opts.reference,
+    articles: [{ title: opts.description || "Paiement", description: opts.description || "Paiement", price: amount }],
+  };
+  if (opts.customerEmail) body.customerEmailToNotify = opts.customerEmail;
+  return await fetchWithFallback([
+    `/groups/${groupId}/projects/${projectId}/direct-payment/init`,
     `/groups/${groupId}/direct-payment/init/${projectId}`,
-    `/groups/${groupId}/direct-payment/init`,
-    `/groups/${groupId}/payment-intent/${projectId}`,
-  ];
-  const body = {
-    paymentAmount: Number(opts.amount),
-    reference: opts.reference,
-    callbackUrl: opts.callbackUrl,
-    articles: [{ title: "Recharge FASO-INVEST PAY", description: opts.description || "Recharge portefeuille", pictures: [], price: Number(opts.amount) }],
-  };
-  const r = await fetchWithFallback(paths, apiKey, body);
-  return r;
+  ], apiKey, body);
 }
 
-export async function sendDirectPaymentOtp(opts: { reference: string; phone: string; operator: string; paymentIntentId?: string }) {
+/** paymentIntentId renvoyé par /init (tolère les variantes de nommage). */
+export function extractIntentId(body: any): string | null {
+  return body?.paymentIntentId || body?.id || body?.paymentIntent?.id || body?.data?.paymentIntentId || body?.data?.id || null;
+}
+
+/** Opérateurs réellement disponibles + frais renvoyés par /init. */
+export function extractAvailableOperators(body: any): any[] {
+  const list = body?.availableOperators || body?.operators || body?.data?.availableOperators;
+  return Array.isArray(list) ? list : [];
+}
+
+export async function sendDirectPaymentOtp(opts: { reference?: string; phone: string; operator: string; paymentIntentId?: string }) {
   const { apiKey, groupId, projectId } = creds();
-  const paths = [
+  const op = findOperator(opts.operator);
+  const body: any = {
+    paymentIntentId: opts.paymentIntentId,
+    operatorCode: op?.ypCode || String(opts.operator || "").toUpperCase(),
+    countryCode: op?.countryCode || "BF",
+    customerMSISDN: toMsisdn(opts.phone, op?.countryCode || "BF"),
+  };
+  return await fetchWithFallback([
+    `/groups/${groupId}/projects/${projectId}/direct-payment/send-otp`,
     `/groups/${groupId}/direct-payment/send-otp/${projectId}`,
-    `/groups/${groupId}/direct-payment/send-otp`,
-  ];
-  const body: any = {
-    reference: opts.reference,
-    phoneNumber: opts.phone,
-    operator: opts.operator,
-  };
-  if (opts.paymentIntentId) body.paymentIntentId = opts.paymentIntentId;
-  return await fetchWithFallback(paths, apiKey, body);
+  ], apiKey, body);
 }
 
-export async function payDirectPayment(opts: { reference: string; phone: string; operator: string; otp?: string; paymentIntentId?: string }) {
+export async function payDirectPayment(opts: { reference?: string; phone: string; operator: string; otp?: string; paymentIntentId?: string }) {
   const { apiKey, groupId, projectId } = creds();
-  const paths = [
-    `/groups/${groupId}/direct-payment/pay/${projectId}`,
-    `/groups/${groupId}/direct-payment/pay`,
-  ];
+  const op = findOperator(opts.operator);
   const body: any = {
-    reference: opts.reference,
-    phoneNumber: opts.phone,
-    operator: opts.operator,
+    paymentIntentId: opts.paymentIntentId,
+    operatorCode: op?.ypCode || String(opts.operator || "").toUpperCase(),
+    countryCode: op?.countryCode || "BF",
+    customerMSISDN: toMsisdn(opts.phone, op?.countryCode || "BF"),
   };
-  if (opts.otp) body.otp = opts.otp;
-  if (opts.paymentIntentId) body.paymentIntentId = opts.paymentIntentId;
-  return await fetchWithFallback(paths, apiKey, body);
+  if (opts.otp) body.otp = String(opts.otp);
+  return await fetchWithFallback([
+    `/groups/${groupId}/projects/${projectId}/direct-payment/pay`,
+    `/groups/${groupId}/direct-payment/pay/${projectId}`,
+  ], apiKey, body);
 }
 
 export async function checkDirectPaymentStatus(paymentIntentId: string) {
