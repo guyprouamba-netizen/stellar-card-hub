@@ -462,6 +462,19 @@ function providerMessage(body: any): string | null {
   const msg = typeof raw === "string" ? raw.trim() : "";
   if (!msg) return null;
   if (/yenga|kreezus/i.test(msg)) return null;
+  const low = msg.toLowerCase();
+  if (/otp (does not exist|not found|expired|invalid)|invalid otp|code (invalide|expir)/.test(low))
+    return "Code de paiement invalide ou expiré. Générez un nouveau code sur votre téléphone puis réessayez immédiatement.";
+  if (/insufficient|solde|balance/.test(low))
+    return "Solde insuffisant sur votre compte Mobile Money.";
+  if (/msisdn|phone|numero|number/.test(low))
+    return "Numéro Mobile Money invalide pour cet opérateur.";
+  if (/min(imum)?amount|max(imum)?amount|amount/.test(low))
+    return "Montant non autorisé par l'opérateur pour cette transaction.";
+  if (/expired|expire/.test(low))
+    return "La session de paiement a expiré. Relancez le paiement.";
+  if (/cancel|refus|declin/.test(low))
+    return "Paiement refusé par l'opérateur.";
   return msg.slice(0, 180);
 }
 
