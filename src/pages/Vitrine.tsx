@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { getVitrine } from "@/lib/pay.functions";
 import { initShopCheckout } from "@/lib/pay.functions";
+import { MomoPayment } from "@/components/momo-payment";
 import { Loader2, Minus, Plus, Search, ShoppingBag, X } from "lucide-react";
 
 type Product = { id: string; name: string; description: string | null; price: number; currency: string; media: Array<{ url: string; type: string }> };
@@ -170,8 +171,7 @@ export default function VitrinePage() {
                 </div>
               ))}
             </div>
-            {cartItems.length > 0 && (
-              {pay ? (
+            {cartItems.length > 0 && (pay ? (
                 <div className="mt-4 border-t border-border pt-4">
                   <MomoPayment reference={pay.reference} amount={pay.amount} currency={pay.currency} defaultPhone={form.customer_phone}
                     onSuccess={() => setTimeout(() => { window.location.href = `/order/${pay.order_token}`; }, 1500)}
@@ -192,8 +192,7 @@ export default function VitrinePage() {
                   {paying && <Loader2 className="h-4 w-4 animate-spin" />} Commander et payer
                 </button>
               </form>
-              )}
-            )}
+            ))}
           </div>
         </div>
       )}
