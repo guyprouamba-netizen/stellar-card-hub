@@ -113,53 +113,62 @@ async function fetchWithFallback(paths: string[], apiKey: string, body?: any) {
 export type InitDepositResult = { ok: boolean; reference: string; raw: any; status?: string };
 
 export async function initDirectPayment(opts: {
-  amount: number; reference: string; callbackUrl: string; description?: string;
+  amount: number; reference: string; callbackUrl?: string; description?: string; customerEmail?: string;
 }) {
   const { apiKey, groupId, projectId } = creds();
-  const paths = [
+  const amount = Math.round(Number(opts.amount));
+  const body: any = {
+    amount,
+    reference: opts.reference,
+    articles: [{ title: opts.description || "Paiement", description: opts.description || "Paiement", price: amount }],
+  };
+  if (opts.customerEmail) body.customerEmailToNotify = opts.customerEmail;
+  return await fetchWithFallback([
+    `/groups/${groupId}/projects/${projectId}/direct-payment/init`,
     `/groups/${groupId}/direct-payment/init/${projectId}`,
-    `/groups/${groupId}/direct-payment/init`,
-    `/groups/${groupId}/payment-intent/${projectId}`,
-  ];
-  const body = {
-    paymentAmount: Number(opts.amount),
-    reference: opts.reference,
-    callbackUrl: opts.callbackUrl,
-    articles: [{ title: "Recharge FASO-INVEST PAY", description: opts.description || "Recharge portefeuille", pictures: [], price: Number(opts.amount) }],
-  };
-  const r = await fetchWithFallback(paths, apiKey, body);
-  return r;
+  ], apiKey, body);
 }
 
-export async function sendDirectPaymentOtp(opts: { reference: string; phone: string; operator: string; paymentIntentId?: string }) {
+/** paymentIntentId renvoyé par /init (tolère les variantes de nommage). */
+export function extractIntentId(body: any): string | null {
+  return body?.paymentIntentId || body?.id || body?.paymentIntent?.id || body?.data?.paymentIntentId || body?.data?.id || null;
+}
+
+/** Opérateurs réellement disponibles + frais renvoyés par /init. */
+export function extractAvailableOperators(body: any): any[] {
+  const list = body?.availableOperators || body?.operators || body?.data?.availableOperators;
+  return Array.isArray(list) ? list : [];
+}
+
+export async function sendDirectPaymentOtp(opts: { reference?: string; phone: string; operator: string; paymentIntentId?: string }) {
   const { apiKey, groupId, projectId } = creds();
-  const paths = [
+  const op = findOperator(opts.operator);
+  const body: any = {
+    paymentIntentId: opts.paymentIntentId,
+    operatorCode: op?.ypCode || String(opts.operator || "").toUpperCase(),
+    countryCode: op?.countryCode || "BF",
+    customerMSISDN: toMsisdn(opts.phone, op?.countryCode || "BF"),
+  };
+  return await fetchWithFallback([
+    `/groups/${groupId}/projects/${projectId}/direct-payment/send-otp`,
     `/groups/${groupId}/direct-payment/send-otp/${projectId}`,
-    `/groups/${groupId}/direct-payment/send-otp`,
-  ];
-  const body: any = {
-    reference: opts.reference,
-    phoneNumber: opts.phone,
-    operator: opts.operator,
-  };
-  if (opts.paymentIntentId) body.paymentIntentId = opts.paymentIntentId;
-  return await fetchWithFallback(paths, apiKey, body);
+  ], apiKey, body);
 }
 
-export async function payDirectPayment(opts: { reference: string; phone: string; operator: string; otp?: string; paymentIntentId?: string }) {
+export async function payDirectPayment(opts: { reference?: string; phone: string; operator: string; otp?: string; paymentIntentId?: string }) {
   const { apiKey, groupId, projectId } = creds();
-  const paths = [
-    `/groups/${groupId}/direct-payment/pay/${projectId}`,
-    `/groups/${groupId}/direct-payment/pay`,
-  ];
+  const op = findOperator(opts.operator);
   const body: any = {
-    reference: opts.reference,
-    phoneNumber: opts.phone,
-    operator: opts.operator,
+    paymentIntentId: opts.paymentIntentId,
+    operatorCode: op?.ypCode || String(opts.operator || "").toUpperCase(),
+    countryCode: op?.countryCode || "BF",
+    customerMSISDN: toMsisdn(opts.phone, op?.countryCode || "BF"),
   };
-  if (opts.otp) body.otp = opts.otp;
-  if (opts.paymentIntentId) body.paymentIntentId = opts.paymentIntentId;
-  return await fetchWithFallback(paths, apiKey, body);
+  if (opts.otp) body.otp = String(opts.otp);
+  return await fetchWithFallback([
+    `/groups/${groupId}/projects/${projectId}/direct-payment/pay`,
+    `/groups/${groupId}/direct-payment/pay/${projectId}`,
+  ], apiKey, body);
 }
 
 export async function checkDirectPaymentStatus(paymentIntentId: string) {
