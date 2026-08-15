@@ -5,16 +5,46 @@
 const YENGAPAY_BASE = "https://api.yengapay.com/api/v1";
 
 export type OperatorFlow = "otp" | "push";
-export type Operator = { code: string; label: string; flow: OperatorFlow; prefixes: string[] };
+export type Operator = {
+  code: string; label: string; flow: OperatorFlow; prefixes: string[];
+  /** Code USSD que le client compose lui-même pour générer son code de paiement (Orange). */
+  ussdPrefix?: string;
+  /** Instruction affichée au client. */
+  hint?: string;
+  /** true = l'opérateur envoie l'OTP par SMS (send-otp API), false = le client le génère via USSD. */
+  otpBySms?: boolean;
+};
 
 // Opérateurs supportés (Burkina Faso).
 export const OPERATORS: Operator[] = [
-  { code: "ORANGE_MONEY_BF", label: "Orange Money", flow: "otp", prefixes: ["07", "05"] },
-  { code: "MOOV_MONEY_BF", label: "Moov Money", flow: "push", prefixes: ["06", "01"] },
-  { code: "TELECEL_BF", label: "Telecel Money", flow: "push", prefixes: ["05"] },
-  { code: "SANK_MONEY", label: "Sank Money", flow: "push", prefixes: [] },
-  { code: "CORIS_MONEY", label: "Coris Money", flow: "push", prefixes: [] },
+  {
+    code: "ORANGE_MONEY_BF", label: "Orange Money", flow: "otp", prefixes: ["07", "05"],
+    ussdPrefix: "*144*4*6*", otpBySms: false,
+    hint: "Composez le code USSD affiché pour générer votre code de paiement Orange Money, puis saisissez-le ci-dessous.",
+  },
+  {
+    code: "MOOV_MONEY_BF", label: "Moov Money", flow: "push", prefixes: ["06", "01"],
+    hint: "Validez la demande de paiement qui s'affiche sur votre téléphone (ou composez *555#).",
+  },
+  {
+    code: "TELECEL_BF", label: "Telecel Money", flow: "push", prefixes: ["05"],
+    hint: "Validez la demande de paiement reçue sur votre téléphone.",
+  },
+  {
+    code: "SANK_MONEY", label: "Sank Money", flow: "push", prefixes: [],
+    hint: "Ouvrez l'application Sank Money et validez la demande de paiement.",
+  },
+  {
+    code: "CORIS_MONEY", label: "Coris Money", flow: "push", prefixes: [],
+    hint: "Validez la demande de paiement dans Coris Money.",
+  },
 ];
+
+/** Code USSD complet à composer pour un montant donné (Orange Money). */
+export function ussdCodeFor(op: Operator, amount: number): string | null {
+  if (!op.ussdPrefix) return null;
+  return `${op.ussdPrefix}${Math.round(Number(amount))}#`;
+}
 
 export function findOperator(code: string): Operator | undefined {
   return OPERATORS.find((o) => o.code === String(code || "").toUpperCase());
