@@ -340,6 +340,130 @@ async function settlePayment(db: any, paymentId: string, providerBody: any) {
   return { credited: true, fee, net };
 }
 
+
+function appBaseUrl() {
+  return (PUBLIC_APP_URL || "https://pay.faso-invest.com").replace(/\/+$/, "");
+}
+
+// ============================================================
+// PAIEMENT MOBILE MONEY IN-APP (aucune redirection externe)
+// ============================================================
+function publicOperators() {
+  return YP.OPERATORS.map((o) => ({ code: o.code, label: o.label, flow: o.flow }));
+}
+
+async function loadPending(db: any, reference: string) {
+  const { data: tx } = await db.from("payment_link_payments")
+    .select("id,reference,amount,currency,status,payment_intent_id,metadata,business_id,order_id")
+    .eq("reference", reference).maybeSingle();
+  return tx;
+}
+
+async function directStatus(db: any, tx: any) {
+  const meta = (tx.metadata as any) || {};
+  const intent = tx.payment_intent_id || meta.intent;
+  if (!intent) return "pending" as const;
+  try {
+    const r = await YP.checkDirectPaymentStatus(intent);
+    if (!r.ok) return "pending" as const;
+    return YP.extractProviderStatus(r.body);
+  } catch { return "pending" as const; }
+}
+
+// Contexte d'un paiement (page /checkout/:reference et suivi)
+async function getCheckoutContext(reference: string) {
+  const db = admin();
+  const tx = await loadPending(db, reference);
+  if (!tx) return null;
+  const { data: biz } = await db.from("businesses").select("id,name,slug,logo_url").eq("id", tx.business_id).maybeSingle();
+  const meta = (tx.metadata as any) || {};
+  return {
+    payment: {
+      reference: tx.reference, amount: Number(tx.amount), currency: tx.currency,
+      status: tx.status, description: meta.description || null, return_url: meta.return_url || null,
+    },
+    business: biz ? { id: biz.id, name: biz.name, slug: biz.slug, logo_url: biz.logo_url } : null,
+    operators: publicOperators(),
+  };
+}
+
+// Démarre le paiement : init intent + OTP (Orange) ou push USSD (autres)
+async function payDirect(payload: any) {
+  const db = admin();
+  const reference = String(payload?.reference || "");
+  const phone = String(payload?.phone || "").replace(/[^0-9+]/g, "");
+  const op = YP.findOperator(String(payload?.operator || ""));
+  if (!op) throw new Error("Opérateur non pris en charge");
+  if (phone.replace(/\D/g, "").length < 8) throw new Error("Numéro de téléphone invalide");
+  const tx = await loadPending(db, reference);
+  if (!tx) throw new Error("Paiement introuvable");
+  if (tx.status !== "pending") return { ok: true, status: tx.status, requiresOtp: false };
+
+  const meta = (tx.metadata as any) || {};
+  let intent = tx.payment_intent_id || meta.intent || null;
+  if (!intent) {
+    let init: any;
+    try {
+      init = await YP.initDirectPayment({
+        amount: Number(tx.amount), reference,
+        callbackUrl: `${SUPABASE_URL}/functions/v1/yengapay-webhook`,
+        description: meta.description || "Paiement",
+      });
+    } catch { throw new Error("Service de paiement momentanément indisponible. Réessayez."); }
+    if (!init.ok) throw new Error("Le paiement n'a pas pu être initié. Vérifiez le montant et réessayez.");
+    const b = init.body;
+    intent = b?.id || b?.paymentIntentId || b?.paymentIntent?.id || b?.data?.id || null;
+  }
+  await db.from("payment_link_payments").update({
+    payment_intent_id: intent,
+    customer_phone: phone,
+    metadata: { ...meta, direct: true, operator: op.code, phone, intent },
+  }).eq("id", tx.id);
+
+  if (op.flow === "otp") {
+    let r: any;
+    try { r = await YP.sendDirectPaymentOtp({ reference, phone, operator: op.code, paymentIntentId: intent }); }
+    catch { throw new Error("Impossible d'envoyer le code de confirmation. Réessayez."); }
+    if (!r.ok) throw new Error("L'envoi du code de confirmation a échoué. Vérifiez votre numéro.");
+    return { ok: true, requiresOtp: true, status: "pending", message: "Un code de confirmation vous a été envoyé par SMS." };
+  }
+
+  let r: any;
+  try { r = await YP.payDirectPayment({ reference, phone, operator: op.code, paymentIntentId: intent }); }
+  catch { throw new Error("Impossible de joindre l'opérateur. Réessayez."); }
+  if (!r.ok) throw new Error("L'opérateur a refusé l'opération. Vérifiez votre numéro et votre solde.");
+  const st = YP.extractProviderStatus(r.body);
+  if (st === "success") { await settlePayment(db, tx.id, r.body); return { ok: true, requiresOtp: false, status: "success" }; }
+  if (st === "failed") { await markFailed(db, tx, r.body); return { ok: true, requiresOtp: false, status: "failed" }; }
+  return { ok: true, requiresOtp: false, status: "pending", message: "Confirmez le paiement sur votre téléphone (code USSD)." };
+}
+
+async function markFailed(db: any, tx: any, body: any) {
+  await db.from("payment_link_payments").update({ status: "failed", metadata: { ...((tx.metadata as any) || {}), fail: body } })
+    .eq("id", tx.id).eq("status", "pending");
+  if (tx.order_id) await db.from("orders").update({ status: "cancelled" }).eq("id", tx.order_id).eq("status", "pending_payment");
+}
+
+// Confirmation OTP (Orange Money)
+async function confirmDirect(payload: any) {
+  const db = admin();
+  const reference = String(payload?.reference || "");
+  const otp = String(payload?.otp || "").replace(/\D/g, "");
+  const tx = await loadPending(db, reference);
+  if (!tx) throw new Error("Paiement introuvable");
+  if (tx.status !== "pending") return { ok: true, status: tx.status };
+  const meta = (tx.metadata as any) || {};
+  if (!otp) throw new Error("Code de confirmation requis");
+  let r: any;
+  try { r = await YP.payDirectPayment({ reference, phone: meta.phone, operator: meta.operator, otp, paymentIntentId: tx.payment_intent_id || meta.intent }); }
+  catch { throw new Error("Service momentanément indisponible. Réessayez."); }
+  if (!r.ok) throw new Error("Code incorrect ou paiement refusé.");
+  const st = YP.extractProviderStatus(r.body);
+  if (st === "success") { await settlePayment(db, tx.id, r.body); return { ok: true, status: "success" }; }
+  if (st === "failed") { await markFailed(db, tx, r.body); return { ok: true, status: "failed" }; }
+  return { ok: true, status: "pending" };
+}
+
 // --- Public actions (no auth) ---
 async function getPublicLink(slug: string) {
   const db = admin();
@@ -395,10 +519,16 @@ async function initCheckout(body: any) {
 async function verifyPayment(reference: string) {
   const db = admin();
   const { data: tx } = await db.from("payment_link_payments")
-    .select("id,status,payment_intent_id,reference,amount,currency,net_amount,fee_amount,paid_at,order_id")
+    .select("id,status,payment_intent_id,reference,amount,currency,net_amount,fee_amount,paid_at,order_id,metadata,business_id")
     .eq("reference", reference).maybeSingle();
   if (!tx) return { ok: false, error: "Référence introuvable" };
   if (tx.status !== "pending") return { ok: true, status: tx.status, payment: tx };
+  if (((tx as any).metadata as any)?.direct) {
+    const st2 = await directStatus(db, tx);
+    if (st2 === "success") { await settlePayment(db, tx.id, { verify: "direct" }); return { ok: true, status: "success", order_id: (tx as any).order_id || null }; }
+    if (st2 === "failed") { await markFailed(db, tx, { verify: "direct" }); return { ok: true, status: "failed" }; }
+    return { ok: true, status: "pending" };
+  }
   const body = await lookupYengaPay(reference, tx.payment_intent_id);
   if (!body) return { ok: true, status: "pending" };
   const st = mapStatus(body?.status || body?.paymentStatus || body?.data?.status);
@@ -689,7 +819,7 @@ Deno.serve(async (req) => {
       const payload = await req.json().catch(() => ({}));
       const action = String(payload?.action || "");
       // Anti-abuse: rate-limit by IP for public actions
-      const limits: Record<string, number> = { getLink: 60, initCheckout: 10, verifyPayment: 30, getShop: 60, getVitrine: 60, initShopCheckout: 10, getOrder: 30 };
+      const limits: Record<string, number> = { getLink: 60, initCheckout: 10, verifyPayment: 60, getShop: 60, getVitrine: 60, initShopCheckout: 10, getOrder: 30, payDirect: 15, confirmDirect: 20, getCheckout: 60 };
       if (limits[action]) {
         const ok = await checkPublicRateLimit(`pay:${action}`, req, limits[action]);
         if (!ok) return jsonResponse({ error: "Trop de requêtes, réessayez dans une minute." }, 429);
@@ -704,6 +834,22 @@ Deno.serve(async (req) => {
         payload.customer_name = String(payload?.customer_name || "").slice(0, 80);
         payload.customer_phone = String(payload?.customer_phone || "").slice(0, 24);
         const r = await initCheckout(payload);
+        return jsonResponse(r);
+      }
+      if (action === "getCheckout") {
+        const ctx = await getCheckoutContext(String(payload?.reference || ""));
+        if (!ctx) return jsonResponse({ error: "Paiement introuvable" }, 404);
+        return jsonResponse({ ok: true, ...ctx });
+      }
+      if (action === "listOperators") {
+        return jsonResponse({ ok: true, operators: publicOperators() });
+      }
+      if (action === "payDirect") {
+        const r = await payDirect(payload);
+        return jsonResponse(r);
+      }
+      if (action === "confirmDirect") {
+        const r = await confirmDirect(payload);
         return jsonResponse(r);
       }
       if (action === "verifyPayment") {
