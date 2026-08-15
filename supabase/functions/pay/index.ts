@@ -410,7 +410,7 @@ async function payDirect(payload: any) {
         description: meta.description || "Paiement",
       });
     } catch { throw new Error("Service de paiement momentanément indisponible. Réessayez."); }
-    if (!init.ok) throw new Error("Le paiement n'a pas pu être initié. Vérifiez le montant et réessayez.");
+      if (!init.ok) { console.error("[direct init]", reference, init.status, JSON.stringify(init.body).slice(0, 500)); throw new Error("Le paiement n'a pas pu être initié. Vérifiez le montant et réessayez."); }
     const b = init.body;
     intent = b?.id || b?.paymentIntentId || b?.paymentIntent?.id || b?.data?.id || null;
   }
@@ -424,14 +424,14 @@ async function payDirect(payload: any) {
     let r: any;
     try { r = await YP.sendDirectPaymentOtp({ reference, phone, operator: op.code, paymentIntentId: intent }); }
     catch { throw new Error("Impossible d'envoyer le code de confirmation. Réessayez."); }
-    if (!r.ok) throw new Error("L'envoi du code de confirmation a échoué. Vérifiez votre numéro.");
+    if (!r.ok) { console.error("[direct otp]", reference, r.status, JSON.stringify(r.body).slice(0, 500)); throw new Error("L'envoi du code de confirmation a échoué. Vérifiez votre numéro."); }
     return { ok: true, requiresOtp: true, status: "pending", message: "Un code de confirmation vous a été envoyé par SMS." };
   }
 
   let r: any;
   try { r = await YP.payDirectPayment({ reference, phone, operator: op.code, paymentIntentId: intent }); }
   catch { throw new Error("Impossible de joindre l'opérateur. Réessayez."); }
-  if (!r.ok) throw new Error("L'opérateur a refusé l'opération. Vérifiez votre numéro et votre solde.");
+  if (!r.ok) { console.error("[direct pay]", reference, r.status, JSON.stringify(r.body).slice(0, 500)); throw new Error("L'opérateur a refusé l'opération. Vérifiez votre numéro et votre solde."); }
   const st = YP.extractProviderStatus(r.body);
   if (st === "success") { await settlePayment(db, tx.id, r.body); return { ok: true, requiresOtp: false, status: "success" }; }
   if (st === "failed") { await markFailed(db, tx, r.body); return { ok: true, requiresOtp: false, status: "failed" }; }
