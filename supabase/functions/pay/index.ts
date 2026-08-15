@@ -349,7 +349,11 @@ function appBaseUrl() {
 // PAIEMENT MOBILE MONEY IN-APP (aucune redirection externe)
 // ============================================================
 function publicOperators() {
-  return YP.OPERATORS.map((o) => ({ code: o.code, label: o.label, flow: o.flow }));
+  return YP.OPERATORS.map((o) => ({
+    code: o.code, label: o.label, flow: o.flow,
+    prefixes: o.prefixes, ussdPrefix: o.ussdPrefix || null,
+    otpBySms: o.otpBySms !== false, hint: o.hint || null,
+  }));
 }
 
 async function loadPending(db: any, reference: string) {
@@ -421,11 +425,19 @@ async function payDirect(payload: any) {
   }).eq("id", tx.id);
 
   if (op.flow === "otp") {
+    const ussd = YP.ussdCodeFor(op, Number(tx.amount));
+    // Orange Money : le client génère lui-même son code via USSD (aucun SMS à envoyer).
+    if (op.otpBySms === false) {
+      return {
+        ok: true, requiresOtp: true, status: "pending", ussd,
+        message: op.hint || "Composez le code USSD pour générer votre code de paiement.",
+      };
+    }
     let r: any;
     try { r = await YP.sendDirectPaymentOtp({ reference, phone, operator: op.code, paymentIntentId: intent }); }
     catch { throw new Error("Impossible d'envoyer le code de confirmation. Réessayez."); }
     if (!r.ok) { console.error("[direct otp]", reference, r.status, JSON.stringify(r.body).slice(0, 500)); throw new Error("L'envoi du code de confirmation a échoué. Vérifiez votre numéro."); }
-    return { ok: true, requiresOtp: true, status: "pending", message: "Un code de confirmation vous a été envoyé par SMS." };
+    return { ok: true, requiresOtp: true, status: "pending", ussd, message: "Un code de confirmation vous a été envoyé par SMS." };
   }
 
   let r: any;
@@ -435,7 +447,7 @@ async function payDirect(payload: any) {
   const st = YP.extractProviderStatus(r.body);
   if (st === "success") { await settlePayment(db, tx.id, r.body); return { ok: true, requiresOtp: false, status: "success" }; }
   if (st === "failed") { await markFailed(db, tx, r.body); return { ok: true, requiresOtp: false, status: "failed" }; }
-  return { ok: true, requiresOtp: false, status: "pending", message: "Confirmez le paiement sur votre téléphone (code USSD)." };
+  return { ok: true, requiresOtp: false, status: "pending", message: op.hint || "Confirmez le paiement sur votre téléphone." };
 }
 
 async function markFailed(db: any, tx: any, body: any) {
