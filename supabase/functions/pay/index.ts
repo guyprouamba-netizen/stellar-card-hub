@@ -297,8 +297,10 @@ async function settlePayment(db: any, paymentId: string, providerBody: any) {
     .select("id,business_id,amount,status,fee_amount,net_amount,reference,currency,customer_email,customer_name,link_id,project_id,product_id,order_id").eq("id", paymentId).maybeSingle();
   if (!tx || tx.status !== "pending") return { credited: false };
   const { data: biz } = await db.from("businesses").select("id,balance,fee_bps").eq("id", tx.business_id).single();
-  const fee = Math.round((Number(tx.amount) * Number(biz.fee_bps || 0)) / 10000);
-  const net = Number(tx.amount) - fee;
+  const cfg = await loadGatewayFeeConfig(db);
+  const feePct = Math.ceil((Number(tx.amount) * cfg.fee_bps) / 10000);
+  const fee = Math.max(cfg.min_xof, feePct + cfg.fee_flat_xof);
+  const net = Math.max(0, Number(tx.amount) - fee);
   const { data: updated } = await db.from("payment_link_payments").update({
     status: "success", fee_amount: fee, net_amount: net,
     paid_at: new Date().toISOString(),
