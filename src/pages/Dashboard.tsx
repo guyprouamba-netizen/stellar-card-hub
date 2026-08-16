@@ -21,6 +21,7 @@ import { updateMyProfile, updateMyPassword, createAvatarUploadUrl, getAvatarSign
 import { getMyReferralStats, getPublicConfig } from "@/lib/profile.functions";
 import { IssueCardSheet } from "@/components/issue-card-sheet";
 import { VirtualCard } from "@/components/virtual-card";
+import { TwoFactorSetup } from "@/components/two-factor-setup";
 import { toast } from "sonner";
 
 type Tab = "home" | "deposit" | "withdraw" | "cards" | "tx" | "referrals" | "profile" | "purchases";
