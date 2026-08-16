@@ -487,7 +487,7 @@ function providerMessage(body: any): string | null {
   if (/yenga|kreezus/i.test(msg)) return null;
   const low = msg.toLowerCase();
   if (/otp (does not exist|not found|expired|invalid)|invalid otp|code (invalide|expir)/.test(low))
-    return "Code de paiement invalide ou expiré. Générez un nouveau code sur votre téléphone puis réessayez immédiatement.";
+    return "Code invalide ou expiré. Composez à nouveau le *144*4*6*montant# pour obtenir un NOUVEAU code et validez-le ici immédiatement.";
   if (/insufficient|solde|balance/.test(low))
     return "Solde insuffisant sur votre compte Mobile Money.";
   if (/msisdn|phone|numero|number/.test(low))
