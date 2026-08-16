@@ -721,7 +721,7 @@ function BusinessesTab({ businesses }: { businesses: any[] }) {
 function KycTab({ kyc, onAction }: { kyc: any[]; onAction: () => void }) {
   const review = useServerFn(adminReviewKyc);
   async function decide(user_id: string, decision: "approved" | "rejected") {
-    try { await review({ data: { user_id, decision } }); toast.success("KYC mis à jour"); onAction(); }
+    try { await review({ id: user_id, status: decision }); toast.success("KYC mis à jour"); onAction(); }
     catch (e) { toast.error((e as Error).message); }
   }
   return (
@@ -754,7 +754,7 @@ function KycTab({ kyc, onAction }: { kyc: any[]; onAction: () => void }) {
 function WithdrawalsTab({ withdrawals, onAction }: { withdrawals: any[]; onAction: () => void }) {
   const review = useServerFn(adminReviewWithdrawal);
   async function decide(id: string, decision: "approved" | "rejected" | "paid") {
-    try { await review({ data: { id, decision } }); toast.success("Retrait mis à jour"); onAction(); }
+    try { await review({ id, status: decision }); toast.success("Retrait mis à jour"); onAction(); }
     catch (e) { toast.error((e as Error).message); }
   }
   return (
@@ -785,7 +785,6 @@ function WithdrawalsTab({ withdrawals, onAction }: { withdrawals: any[]; onActio
 }
 
 
-export default AdminPage;
 
 function ReferralsAdminTab(_props: { adjust?: any; refetchOverview: () => void }) {
   const fetchList = useServerFn(adminReferralsOverview);
@@ -796,7 +795,7 @@ function ReferralsAdminTab(_props: { adjust?: any; refetchOverview: () => void }
   const groups = (data as any)?.groups ?? [];
   async function suspend(userId: string) {
     if (!confirm("Suspendre ce parrain ? Il ne pourra plus se connecter.")) return;
-    try { await toggle({ data: { user_id: userId, is_active: false } }); toast.success("Utilisateur suspendu"); refetch(); }
+    try { await toggle({ user_id: userId, is_active: false }); toast.success("Utilisateur suspendu"); refetch(); }
     catch (e) { toast.error((e as Error).message); }
   }
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin" />;
