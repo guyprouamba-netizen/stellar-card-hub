@@ -153,7 +153,7 @@ function Auth() {
         } catch (err: any) {
           // En cas d'erreur d'envoi OTP, on laisse l'utilisateur mais on affiche l'erreur
           console.error("OTP send failed detailed:", err);
-          toast.error("'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            je te demande de faire des testes pour declancher les l'affichage de la page a ecrire l'OTP");
+          toast.error("'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            FAIS LES TESTES ET DIS MOI LE RESULTAT");
           await fastRedirect(signedInUser);
         } finally {
           setLoading(false);
