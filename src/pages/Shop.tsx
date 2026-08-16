@@ -347,54 +347,64 @@ export default function Shop() {
           ))
         )}
 
-        <footer className="mt-16 overflow-hidden rounded-3xl p-8 sm:p-12" style={{ background: th.surface, border: `1px solid ${th.primary}22` }}>
-          <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-3">
-            <div>
-              <div className="flex items-center gap-3">
+        <footer id="footer" className="mt-32 overflow-hidden rounded-[3rem] p-8 sm:p-20 relative" style={{ background: th.surface, border: `1px solid ${th.primary}11` }}>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] rounded-full -mr-32 -mt-32" style={{ backgroundColor: `${th.primary}05` }} />
+          
+          <div className="grid gap-16 lg:grid-cols-4">
+            <div className="lg:col-span-2">
+              <div className="flex items-center gap-4">
                 {biz.logo_url ? (
-                  <img src={biz.logo_url} alt={biz.name} className="h-10 w-10 rounded-xl object-cover" />
+                  <img src={biz.logo_url} alt={biz.name} className="h-12 w-12 rounded-2xl object-cover" />
                 ) : (
-                  <div className="grid h-10 w-10 place-items-center rounded-xl text-lg font-bold" style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl text-xl font-black italic shadow-2xl" style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
                 )}
-                <span className="text-xl font-bold">{biz.name}</span>
+                <span className="text-3xl font-black tracking-tighter uppercase italic">{biz.name}</span>
               </div>
-              <p className="mt-4 text-sm leading-relaxed" style={{ color: th.muted }}>{biz.description || biz.tagline || "Votre boutique de confiance pour des achats en toute sécurité."}</p>
+              <p className="mt-8 text-lg font-medium max-w-md leading-relaxed" style={{ color: th.muted }}>
+                {biz.description || biz.tagline || "Redéfinir le futur du commerce avec élégance et performance."}
+              </p>
             </div>
 
             <div>
-              <h4 className="font-bold uppercase tracking-wider text-xs mb-4" style={{ color: th.primary }}>Navigation</h4>
-              <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:opacity-80 transition">Accueil</a></li>
+              <h4 className="font-black uppercase tracking-[0.2em] text-[10px] mb-8" style={{ color: th.primary }}>Navigation</h4>
+              <ul className="space-y-4 text-sm font-bold">
+                <li><a href="#" className="hover:opacity-60 transition-opacity">Accueil</a></li>
                 {projects.map(p => (
-                  <li key={p.id}><a href={`#project-${p.id}`} className="hover:opacity-80 transition">{p.name}</a></li>
+                  <li key={p.id}><a href={`#project-${p.id}`} className="hover:opacity-60 transition-opacity uppercase italic">{p.name}</a></li>
                 ))}
               </ul>
             </div>
 
             <div>
-              <h4 className="font-bold uppercase tracking-wider text-xs mb-4" style={{ color: th.primary }}>Contact</h4>
-              <div className="space-y-4 text-sm" style={{ color: th.muted }}>
+              <h4 className="font-black uppercase tracking-[0.2em] text-[10px] mb-8" style={{ color: th.primary }}>Contact</h4>
+              <div className="space-y-6 text-sm font-bold" style={{ color: th.text }}>
                 {biz.contact_email && (
-                  <a href={`mailto:${biz.contact_email}`} className="flex items-center gap-2 hover:text-foreground transition">
-                    <Mail className="h-4 w-4" /> {biz.contact_email}
+                  <a href={`mailto:${biz.contact_email}`} className="flex items-center gap-3 hover:opacity-60 transition-opacity">
+                    <Mail className="h-5 w-5 opacity-40" /> {biz.contact_email}
                   </a>
                 )}
                 {biz.contact_phone && (
-                  <a href={`tel:${biz.contact_phone}`} className="flex items-center gap-2 hover:text-foreground transition">
-                    <Phone className="h-4 w-4" /> {biz.contact_phone}
+                  <a href={`tel:${biz.contact_phone}`} className="flex items-center gap-3 hover:opacity-60 transition-opacity">
+                    <Phone className="h-5 w-5 opacity-40" /> {biz.contact_phone}
                   </a>
                 )}
-                <div className="flex items-center gap-2 pt-2">
-                  <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                  <span className="text-[11px]">Paiements sécurisés Mobile Money</span>
+                <div className="flex items-center gap-3 pt-4">
+                  <div className="h-10 w-10 rounded-full border border-white/5 flex items-center justify-center">
+                    <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Paiements Sécurisés</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-12 border-t pt-8 text-center text-[11px]" style={{ borderColor: `${th.primary}22`, color: th.muted }}>
-            <p>© {new Date().getFullYear()} {biz.name}. Tous droits réservés.</p>
-            <p className="mt-1 opacity-60">Propulsé par FASO-INVEST PAY</p>
+          <div className="mt-20 border-t pt-10 flex flex-col sm:flex-row items-center justify-between gap-4" style={{ borderColor: `${th.primary}11` }}>
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">© {new Date().getFullYear()} {biz.name}.</p>
+            <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest opacity-40">
+              <a href="#" className="hover:opacity-100 transition-opacity">Privacy</a>
+              <a href="#" className="hover:opacity-100 transition-opacity">Terms</a>
+              <span className="text-white italic">FASO-INVEST PAY</span>
+            </div>
           </div>
         </footer>
       </main>
