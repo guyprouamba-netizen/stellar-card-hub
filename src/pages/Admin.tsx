@@ -244,13 +244,13 @@ function UsersTab({ users, onAction }: { users: any[]; onAction: () => void }) {
   const [adjustFor, setAdjustFor] = useState<any | null>(null);
   const [editFor, setEditFor] = useState<any | null>(null);
   async function flip(u: any) {
-    try { await toggle({ data: { user_id: u.id, is_active: !u.is_active } }); toast.success("Utilisateur mis à jour"); onAction(); }
+    try { await toggle({ user_id: u.id, is_active: !u.is_active }); toast.success("Utilisateur mis à jour"); onAction(); }
     catch (e) { toast.error((e as Error).message); }
   }
   async function remove(u: any) {
     const ok = window.confirm(`Supprimer définitivement le compte de ${u.full_name || u.email} ? Cette action est irréversible et supprimera ses portefeuilles, cartes et transactions.`);
     if (!ok) return;
-    try { await del({ data: { user_id: u.id } }); toast.success("Compte supprimé"); onAction(); }
+    try { await del({ user_id: u.id }); toast.success("Compte supprimé"); onAction(); }
     catch (e) { toast.error((e as Error).message); }
   }
   return (
@@ -318,7 +318,7 @@ function EditUserModal({ user, onClose, onDone, edit }: { user: any; onClose: ()
     try {
       const patch: any = { user_id: user.id, full_name: fullName, email };
       if (password && password.length >= 6) patch.password = password;
-      await edit({ data: patch });
+      await edit(patch);
       toast.success("Utilisateur mis à jour");
       onDone();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
@@ -360,7 +360,7 @@ function AdjustWalletModal({ user, onClose, onDone, adjust }: { user: any; onClo
     setBusy(true);
     try {
       const signed = direction === "credit" ? amount : -amount;
-      await adjust({ data: { user_id: user.id, currency, amount: signed, note } });
+      await adjust({ user_id: user.id, currency, amount: signed, note });
       toast.success(direction === "credit" ? "Solde crédité" : "Solde débité");
       onDone();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
@@ -1068,7 +1068,7 @@ function ShopTemplatesTab() {
   async function remove(id: string) {
     if (!confirm("Supprimer ce template ?")) return;
     try {
-      await del({ data: { id } });
+      await del(id);
       toast.success("Template supprimé");
       refresh();
     } catch (e) { toast.error((e as Error).message); }
@@ -1187,7 +1187,7 @@ function ShopTemplatesTab() {
                     try { toSave.config = JSON.parse(toSave.config_raw); delete toSave.config_raw; }
                     catch(e) { throw new Error("JSON de configuration invalide"); }
                   }
-                  await upsert({ data: toSave });
+                  await upsert(toSave);
                   toast.success(modal.id ? "Template mis à jour" : "Template créé");
                   setModal(null);
                   refresh();
