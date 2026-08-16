@@ -681,7 +681,17 @@ async function dispatchProjectWebhook(admin: any, opts: {
 
 // ============= Handlers =============
 // v: internal-transfer-6 (force category registration)
-const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userClient: any }) => Promise<any>> = {
+const H1: Record<string, any> = {
+
+
+
+  async adminListShopTemplates({ user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const { data, error } = await admin.from("shop_templates").select("*").order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { ok: true, templates: data || [] };
+  },
+
   async listProductCategories(args: any) {
     await assertBusinessOwner(args.admin, args.user.id, args.data.business_id);
     const { data: rows, error } = await args.admin.from("product_categories")
@@ -712,14 +722,6 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     return { ok: true };
   },
 
-
-
-  async adminListShopTemplates({ user, admin }) {
-    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
-    const { data, error } = await admin.from("shop_templates").select("*").order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
-    return { ok: true, templates: data || [] };
-  },
 
   async adminUpsertShopTemplate({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
@@ -2047,7 +2049,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     });
     return { ok: true, new_balance: newBalance };
   },
+};
 
+const H2: Record<string, any> = {
   async adminReviewKyc({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const { error } = await admin.from("kyc_submissions").update({
@@ -3052,6 +3056,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   // ===========================================================
   // ORDERS (merchant order management)
   // ===========================================================
+};
+
+const H3: Record<string, any> = {
   async listOrders({ data, user, admin }) {
     await assertBusinessOwner(admin, user.id, data.business_id);
     let q: any = admin.from("orders")
@@ -3658,6 +3665,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const updated = await pollAndProcessMomoTransfer(admin, t, { forceDisburse: true });
     return { ok: true, transfer: updated };
   },
+};
+
+const H4: Record<string, any> = {
   async adminUpdateMomoTransferConfig({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const map: Record<string, any> = {
@@ -4136,80 +4146,6 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     return rows ?? [];
   },
 
-  async adminUpdateSenderRequest({ data, user, admin }) {
-    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
-    const { id, status, admin_note } = data;
-    if (!id) throw new Error("ID requis");
-    const patch: any = {};
-    if (status) patch.status = status;
-    if (admin_note !== undefined) patch.admin_note = admin_note;
-    patch.updated_at = new Date().toISOString();
-
-    const { data: row, error } = await admin.from("sms_sender_requests")
-      .update(patch)
-      .eq("id", id)
-      .select("*")
-      .single();
-    if (error) throw new Error(error.message);
-
-    // If approved, notify user via SMS (non-blocking)
-    if (status === "approved" && row.user_id) {
-      notifySms(admin, "sender_request", {
-        userId: row.user_id,
-        amount: 0,
-        extra: {
-          sender_id: row.sender_id,
-          status: "APPROUVÉE"
-        }
-      }).catch(() => {});
-    }
-
-    return row;
-  },
-
-  async listSmsCredits({ data, user, admin }) {
-    await assertBusinessOwner(admin, user.id, data.business_id);
-    const { data: row, error } = await admin.from("sms_wallets")
-      .select("*").eq("business_id", data.business_id).maybeSingle();
-    if (error) throw new Error(error.message);
-    return row || { business_id: data.business_id, credits: 0 };
-  },
-
-  async purchaseSmsCredits({ data, user, admin }) {
-    await assertBusinessOwner(admin, user.id, data.business_id);
-    const { quantity, sender_id } = data;
-    if (!quantity || quantity <= 0) throw new Error("Quantité invalide");
-    
-    // Get SMS price from config
-    const { data: cfg } = await admin.from("platform_config").select("value").eq("key", "sms_price").maybeSingle();
-    const pricePerSms = Number(cfg?.value || 25);
-    const totalCost = quantity * pricePerSms;
-
-    // Check wallet
-    const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", user.id).eq("currency", "XOF").maybeSingle();
-    if (!w || Number(w.balance) < totalCost) throw new Error(`Solde insuffisant (${totalCost} XOF requis)`);
-
-    // Deduct from wallet
-    await admin.from("wallets").update({ balance: Number(w.balance) - totalCost }).eq("id", w.id);
-    
-    // Add transaction
-    await admin.from("transactions").insert({
-      user_id: user.id, type: "sms_purchase", status: "success",
-      amount: totalCost, currency: "XOF", provider: "internal",
-      description: `Achat de ${quantity} crédits SMS (${sender_id})`,
-      metadata: { business_id: data.business_id, quantity, sender_id }
-    });
-
-    // Update SMS wallet
-    const { data: sw } = await admin.from("sms_wallets").select("id,credits").eq("business_id", data.business_id).maybeSingle();
-    if (sw) {
-      await admin.from("sms_wallets").update({ credits: Number(sw.credits) + quantity }).eq("id", sw.id);
-    } else {
-      await admin.from("sms_wallets").insert({ business_id: data.business_id, credits: quantity });
-    }
-
-    return { ok: true, quantity, cost: totalCost };
-  },
 
 
   async adminUpdateSenderRequest({ data, user, admin }) {
@@ -4365,6 +4301,14 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   },
 };
 
+const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userClient: any }) => Promise<any>> = {
+  ...H1,
+  ...H2,
+  ...H3,
+  ...H4
+};
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   try {
@@ -4373,17 +4317,21 @@ Deno.serve(async (req) => {
     const payload = await req.json().catch(() => ({}));
     const fn = (payload as any).fn;
     const data = (payload as any).data ?? {};
+    
     if (!fn || typeof fn !== "string") return jsonResponse({ error: "missing fn" }, 400);
     const handler = HANDLERS[fn];
-    console.log(`[API Dispatch] fn: ${fn}, found: ${!!handler}, total: ${Object.keys(HANDLERS).length}`);
+    
     if (!handler) {
       const keys = Object.keys(HANDLERS);
-      const start = keys.slice(0, 3).join(", ");
-      const end = keys.slice(-3).join(", ");
+      const start = keys.slice(0, 5).join(", ");
+      const end = keys.slice(-5).join(", ");
       return jsonResponse({ error: `unknown fn: ${fn} (total: ${keys.length}, samples: ${start}...${end})` }, 404);
     }
+    
+    console.log(`[API Dispatch] fn: ${fn}, found: true, total: ${Object.keys(HANDLERS).length}`);
     const result = await handler({ data, user, admin, userClient });
     return jsonResponse(result);
+
   } catch (e) {
     const msg = (e as Error).message || "Internal error";
     const status = msg === "Unauthorized" ? 401 : msg === "Forbidden" ? 403 : 400;
