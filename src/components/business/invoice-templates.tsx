@@ -876,6 +876,185 @@ export const TechStartup = ({ invoice, business }: TemplateProps) => (
   </div>
 );
 
+// 21. COFFEE SHOP
+export const CoffeeShop = ({ invoice, business }: TemplateProps) => (
+  <div className="bg-[#fff9f0] p-8 max-w-[380px] mx-auto font-mono text-[#5d4037] border-2 border-[#d7ccc8] shadow-sm rounded-lg relative overflow-hidden">
+    <div className="absolute top-0 left-0 w-full h-1 bg-[#5d4037]" />
+    <div className="text-center mb-10">
+      <h1 className="text-2xl font-black uppercase italic tracking-tighter mb-1">{business.name}</h1>
+      <p className="text-[10px] uppercase opacity-60 italic">Handcrafted Experiences</p>
+    </div>
+    <div className="space-y-4 mb-10 text-sm">
+      <div className="flex justify-between border-b border-[#d7ccc8] border-dashed pb-2">
+        <span>#{invoice.number.slice(-5)}</span>
+        <span>{format(new Date(invoice.created_at), 'HH:mm')}</span>
+      </div>
+      {invoice.items.map((it, i) => (
+        <div key={i} className="flex justify-between items-center group">
+          <span className="font-bold">{it.name.toUpperCase()} <span className="text-[10px] font-normal opacity-60">× {it.qty}</span></span>
+          <span className="font-bold">{(it.qty * it.price).toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+    <div className="border-t-2 border-[#5d4037] pt-4 mb-6">
+      <div className="flex justify-between items-center text-xl font-black">
+        <span>TOTAL DUE</span>
+        <span>{invoice.total.toLocaleString()} {invoice.currency}</span>
+      </div>
+    </div>
+    <div className="text-center text-[10px] opacity-60 italic leading-relaxed">
+      <p>Enjoy your break!</p>
+      <p className="mt-2 text-[8px] uppercase not-italic font-bold">Processed by YengaPay</p>
+    </div>
+  </div>
+);
+
+// 22. HOTEL LUXE (Conciergerie)
+export const HotelLuxe = ({ invoice, business, settings }: TemplateProps) => (
+  <div className="bg-white p-16 max-w-5xl mx-auto text-[#2c3e50] font-serif border border-slate-100 shadow-2xl relative">
+    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#d4af37] via-[#f1e5ac] to-[#d4af37]" />
+    <div className="flex justify-between items-start mb-24">
+      <div>
+        <h1 className="text-4xl font-light tracking-[0.2em] uppercase mb-2">{business.name}</h1>
+        <p className="text-xs uppercase tracking-widest text-[#d4af37] font-bold">Luxury Collection</p>
+      </div>
+      <div className="text-right text-xs uppercase tracking-widest leading-loose">
+        <p>Folio N° {invoice.number}</p>
+        <p>{format(new Date(invoice.created_at), 'MMMM d, yyyy')}</p>
+      </div>
+    </div>
+    <div className="grid grid-cols-2 gap-20 mb-20 text-sm border-b border-slate-100 pb-20">
+      <div>
+        <p className="text-[#d4af37] font-bold uppercase mb-4 tracking-widest">Guest Information</p>
+        <p className="text-2xl font-light">{invoice.customer_name}</p>
+        <p className="text-slate-400 mt-2 italic">{invoice.customer_email}</p>
+      </div>
+      <div className="text-right">
+        <p className="text-[#d4af37] font-bold uppercase mb-4 tracking-widest">Establishment</p>
+        <p className="font-bold text-lg">{settings.legal_name || business.name}</p>
+        <p className="text-slate-500 mt-1">{settings.address}</p>
+      </div>
+    </div>
+    <table className="w-full text-sm mb-20">
+      <thead>
+        <tr className="text-left text-[#d4af37] font-bold uppercase tracking-widest text-[10px] border-b border-slate-100">
+          <th className="py-4">Service Description</th>
+          <th className="py-4 text-right">Charges</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-50">
+        {invoice.items.map((it, i) => (
+          <tr key={i}>
+            <td className="py-6 italic">{it.name} <span className="text-[10px] not-italic opacity-40 ml-2">(× {it.qty})</span></td>
+            <td className="py-6 text-right font-bold tracking-widest">{(it.qty * it.price).toLocaleString()}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    <div className="flex justify-between items-end">
+      <div className="text-[10px] uppercase tracking-[0.3em] opacity-30 italic">Thank you for staying with us</div>
+      <div className="text-right">
+        <p className="text-[#d4af37] text-xs font-bold uppercase mb-2 tracking-widest">Total Folio</p>
+        <p className="text-5xl font-light tracking-tighter">{invoice.total.toLocaleString()} <span className="text-2xl font-normal opacity-40">{invoice.currency}</span></p>
+      </div>
+    </div>
+  </div>
+);
+
+// 23. MINIMALIST BENTO
+export const MinimalistBento = ({ invoice, business }: TemplateProps) => (
+  <div className="bg-[#f8fafc] p-6 max-w-4xl mx-auto font-sans grid grid-cols-6 grid-rows-3 gap-4 h-[600px]">
+    <div className="col-span-4 row-span-1 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col justify-center">
+      <h1 className="text-4xl font-black tracking-tighter text-slate-900 leading-tight">Paid to <span className="text-indigo-600">{business.name}</span>.</h1>
+    </div>
+    <div className="col-span-2 row-span-1 bg-indigo-600 p-8 rounded-[2rem] shadow-glow text-white flex flex-col justify-between">
+      <div className="text-xs font-bold uppercase tracking-widest opacity-60">Total Amount</div>
+      <div className="text-3xl font-black">{invoice.total.toLocaleString()} {invoice.currency}</div>
+    </div>
+    <div className="col-span-2 row-span-2 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+      <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-6">Client</div>
+      <p className="text-xl font-bold text-slate-900 mb-2">{invoice.customer_name}</p>
+      <p className="text-sm text-slate-500 truncate">{invoice.customer_email}</p>
+    </div>
+    <div className="col-span-4 row-span-2 bg-slate-900 p-8 rounded-[2rem] text-white flex flex-col">
+      <div className="text-xs font-bold uppercase tracking-widest text-white/40 mb-6">Items</div>
+      <div className="flex-1 space-y-4 overflow-y-auto pr-4 scrollbar-hide">
+        {invoice.items.map((it, i) => (
+          <div key={i} className="flex justify-between items-center group">
+            <span className="text-white/80 font-medium">{it.name} <span className="text-white/20 ml-2">× {it.qty}</span></span>
+            <span className="font-bold">{(it.qty * it.price).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-8 text-[10px] font-bold uppercase tracking-widest text-white/20">{invoice.number} — {format(new Date(invoice.created_at), 'dd/MM/yyyy')}</div>
+    </div>
+  </div>
+);
+
+// 24. CLASSIC RED (Corporate Standard)
+export const ClassicRed = ({ invoice, business, settings }: TemplateProps) => (
+  <div className="bg-white p-12 max-w-4xl mx-auto font-sans border-l-[12px] border-rose-600 shadow-xl">
+    <div className="flex justify-between items-start mb-16">
+      <div>
+        <h1 className="text-4xl font-black text-slate-900 mb-2">{business.name}</h1>
+        <p className="text-rose-600 font-bold tracking-widest uppercase text-xs">Official Business Record</p>
+      </div>
+      <div className="text-right">
+        <h2 className="text-2xl font-bold text-slate-400 uppercase tracking-widest mb-2">Invoice</h2>
+        <div className="space-y-1 text-sm font-medium">
+          <p>Number: <span className="text-slate-900">{invoice.number}</span></p>
+          <p>Date: <span className="text-slate-900">{format(new Date(invoice.created_at), 'dd/MM/yyyy')}</span></p>
+        </div>
+      </div>
+    </div>
+    <div className="grid grid-cols-2 gap-12 mb-16 border-y border-slate-100 py-12">
+      <div>
+        <p className="text-xs font-bold text-slate-400 uppercase mb-4">Merchant</p>
+        <p className="font-bold text-lg">{settings.legal_name || business.name}</p>
+        <p className="text-slate-500 text-sm mt-1">{settings.address}</p>
+        <p className="text-slate-500 text-sm italic mt-2">IFU: {settings.ifu}</p>
+      </div>
+      <div>
+        <p className="text-xs font-bold text-slate-400 uppercase mb-4">Customer</p>
+        <p className="font-bold text-lg">{invoice.customer_name}</p>
+        <p className="text-slate-500 text-sm mt-1">{invoice.customer_email}</p>
+      </div>
+    </div>
+    <table className="w-full text-sm mb-16">
+      <thead>
+        <tr className="bg-slate-50 text-slate-900 font-bold border-b-2 border-slate-900">
+          <th className="py-4 px-2 text-left">Description</th>
+          <th className="py-4 px-2 text-right">Qty</th>
+          <th className="py-4 px-2 text-right">Unit Price</th>
+          <th className="py-4 px-2 text-right">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {invoice.items.map((it, i) => (
+          <tr key={i} className="border-b border-slate-100">
+            <td className="py-4 px-2">{it.name}</td>
+            <td className="py-4 px-2 text-right">{it.qty}</td>
+            <td className="py-4 px-2 text-right">{it.price.toLocaleString()}</td>
+            <td className="py-4 px-2 text-right font-bold">{(it.qty * it.price).toLocaleString()}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    <div className="flex justify-end pt-8 border-t-2 border-slate-900">
+      <div className="text-right w-64 space-y-3">
+        <div className="flex justify-between text-slate-500 text-sm">
+          <span>Subtotal</span>
+          <span>{invoice.subtotal.toLocaleString()}</span>
+        </div>
+        <div className="flex justify-between text-2xl font-black text-rose-600 pt-2">
+          <span>TOTAL DUE</span>
+          <span>{invoice.total.toLocaleString()} {invoice.currency}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 // Map of all templates
 export const INVOICE_TEMPLATES: Record<string, React.FC<TemplateProps>> = {
   "stripe-modern": StripeModern,
@@ -898,4 +1077,8 @@ export const INVOICE_TEMPLATES: Record<string, React.FC<TemplateProps>> = {
   "retro-ticket": RetroTicket,
   "clean-pharmacy": CleanPharmacy,
   "tech-startup": TechStartup,
+  "coffee-shop": CoffeeShop,
+  "hotel-luxe": HotelLuxe,
+  "minimalist-bento": MinimalistBento,
+  "classic-red": ClassicRed,
 };
