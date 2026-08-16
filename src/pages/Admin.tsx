@@ -1045,10 +1045,27 @@ function GatewayFeeSettings() {
         <input type="checkbox" checked={!!cfg.enabled} onChange={(e) => setCfg((d: any) => ({ ...d, enabled: e.target.checked }))} />
         Activer la passerelle API
       </label>
-      <div className="flex justify-end">
+      <div className="flex justify-end mt-4">
         <button onClick={save} disabled={busy} className="rounded-full bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
         </button>
+      </div>
+      
+      <div className="mt-8 pt-8 border-t border-border">
+        <h2 className="font-[Space_Grotesk] text-xl font-bold">Alertes Administrateur</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Numéro recevant les notifications SMS critiques (demandes de Sender ID, etc.)</p>
+        <div className="mt-4 flex gap-3 max-w-sm">
+          <input 
+            type="text" 
+            value={cfg?.admin_notification_phone || ""} 
+            onChange={(e) => setCfg({ ...cfg, admin_notification_phone: e.target.value })}
+            className="flex-1 rounded-xl border border-border bg-surface-2 px-4 py-2 text-sm outline-none focus:border-primary"
+            placeholder="+22670000000"
+          />
+          <button onClick={save} disabled={busy} className="rounded-xl border border-border px-4 py-2 text-xs font-bold hover:bg-muted">
+            MAJ
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -2175,16 +2175,22 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async adminGetConfig({ user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const cfg = await loadPricingConfig(admin);
-    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof"]);
+    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone"]);
     const extrasMap: Record<string, any> = {};
-    for (const r of extras ?? []) extrasMap[r.key] = r.value;
+    for (const r of extras ?? []) {
+      if (r.key === "admin_notification_phone") {
+        try { extrasMap[r.key] = JSON.parse(r.value); } catch { extrasMap[r.key] = r.value; }
+      } else {
+        extrasMap[r.key] = r.value;
+      }
+    }
     return { ok: true, config: { ...cfg, ...extrasMap } };
   },
 
   async adminUpdateConfig({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const allowedNumbers = ["card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee", "referral_reward_xof"];
-    const allowedStrings = ["whatsapp_group_url"];
+    const allowedStrings = ["whatsapp_group_url", "admin_notification_phone"];
     const updates: Array<{ key: string; value: string }> = [];
     for (const k of allowedNumbers) {
       if (data?.[k] !== undefined && data[k] !== null && data[k] !== "") {
