@@ -36,7 +36,15 @@ export function MomoPayment({ reference, amount, currency = "XOF", defaultPhone 
 
   useEffect(() => {
     listOperators().then((r) => {
-      if (r?.operators?.length) { setOperators(r.operators); setOperator(r.operators[0].code); }
+      if (r?.operators?.length) { 
+        setOperators(r.operators); 
+        setOperator(r.operators[0].code); 
+        
+        // Auto-trigger for checkout redirect flow
+        if (step === "form" && !busy) {
+          start();
+        }
+      }
     }).catch(() => { /* fallback conservé */ });
     return () => { if (poll.current) window.clearInterval(poll.current); };
   }, []);

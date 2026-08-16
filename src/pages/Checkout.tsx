@@ -11,7 +11,14 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getCheckout(reference).then(setCtx).catch((e) => setError(e.message));
+    getCheckout(reference).then(r => {
+      setCtx(r);
+      // Auto-start direct flow to trigger YengaPay redirect if not already done
+      if (r?.payment?.status === "pending") {
+         // The redirection logic is now handled in payDirect or the checkout page itself
+         // We'll let MomoPayment handle the initial call if checkoutUrl is present
+      }
+    }).catch((e) => setError(e.message));
   }, [reference]);
 
   if (error) return (
@@ -40,10 +47,17 @@ export default function CheckoutPage() {
           {p.description && <p className="mt-1 text-sm text-muted-foreground">{p.description}</p>}
         </div>
         <div className="mt-8 rounded-3xl border border-border bg-card p-6 shadow-card-premium">
-          <MomoPayment
-            reference={p.reference} amount={p.amount} currency={p.currency}
-            onSuccess={() => { if (p.return_url) setTimeout(() => { window.location.href = p.return_url + (p.return_url.includes("?") ? "&" : "?") + `pay_ref=${encodeURIComponent(p.reference)}`; }, 1800); }}
-          />
+          <div className="text-center py-12">
+            <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
+            <p className="mt-6 font-bold text-lg">Préparation du paiement...</p>
+            <p className="mt-2 text-sm text-muted-foreground">Redirection vers YengaPay en cours</p>
+          </div>
+          <div className="hidden">
+            <MomoPayment
+              reference={p.reference} amount={p.amount} currency={p.currency}
+              onSuccess={() => { if (p.return_url) setTimeout(() => { window.location.href = p.return_url + (p.return_url.includes("?") ? "&" : "?") + `pay_ref=${encodeURIComponent(p.reference)}`; }, 1800); }}
+            />
+          </div>
         </div>
       </div>
     </div>
