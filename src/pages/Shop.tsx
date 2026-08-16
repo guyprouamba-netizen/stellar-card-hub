@@ -205,6 +205,7 @@ export default function Shop() {
     );
   };
 
+
   return (
     <div className="min-h-screen selection:bg-primary selection:text-primary-foreground" style={{ background: th.bg, color: th.text }}>
       <AnimatePresence mode="wait">
