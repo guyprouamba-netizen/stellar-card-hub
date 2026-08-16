@@ -169,7 +169,7 @@ export default function Shop() {
           </div>
         </section>
 
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+      
         {/* Publications */}
         {posts.length > 0 && (
           <section className="mb-12">
