@@ -1007,34 +1007,41 @@ export const HotelLuxe = ({ invoice, business, settings }: TemplateProps) => (
 );
 
 // 23. MINIMALIST BENTO
-export const MinimalistBento = ({ invoice, business }: TemplateProps) => (
-  <div className="bg-[#f8fafc] p-6 max-w-4xl mx-auto font-sans grid grid-cols-6 grid-rows-3 gap-4 h-[600px]">
-    <div className="col-span-4 row-span-1 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col justify-center">
-      <h1 className="text-4xl font-black tracking-tighter text-slate-900 leading-tight">Paid to <span className="text-indigo-600">{business.name}</span>.</h1>
-    </div>
-    <div className="col-span-2 row-span-1 bg-indigo-600 p-8 rounded-[2rem] shadow-glow text-white flex flex-col justify-between">
-      <div className="text-xs font-bold uppercase tracking-widest opacity-60">Total Amount</div>
-      <div className="text-3xl font-black">{invoice.total.toLocaleString()} {invoice.currency}</div>
-    </div>
-    <div className="col-span-2 row-span-2 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
-      <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-6">Client</div>
-      <p className="text-xl font-bold text-slate-900 mb-2">{invoice.customer_name}</p>
-      <p className="text-sm text-slate-500 truncate">{invoice.customer_email}</p>
-    </div>
-    <div className="col-span-4 row-span-2 bg-slate-900 p-8 rounded-[2rem] text-white flex flex-col">
-      <div className="text-xs font-bold uppercase tracking-widest text-white/40 mb-6">Items</div>
-      <div className="flex-1 space-y-4 overflow-y-auto pr-4 scrollbar-hide">
-        {invoice.items.map((it, i) => (
-          <div key={i} className="flex justify-between items-center group">
-            <span className="text-white/80 font-medium">{it.name} <span className="text-white/20 ml-2">× {it.qty}</span></span>
-            <span className="font-bold">{(it.qty * it.price).toLocaleString()}</span>
-          </div>
-        ))}
+export const MinimalistBento = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
+  return (
+    <div className="bg-[#f8fafc] p-6 max-w-4xl mx-auto font-sans grid grid-cols-6 grid-rows-3 gap-4 h-[600px]">
+      <div className="col-span-4 row-span-1 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col justify-center">
+        <h1 className="text-4xl font-black tracking-tighter text-slate-900 leading-tight">Paid to <span className="text-indigo-600">{business.name}</span>.</h1>
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mt-2">{title}</p>
       </div>
-      <div className="mt-8 text-[10px] font-bold uppercase tracking-widest text-white/20">{invoice.number} — {format(new Date(invoice.created_at), 'dd/MM/yyyy')}</div>
+      <div className="col-span-2 row-span-1 bg-indigo-600 p-8 rounded-[2rem] shadow-glow text-white flex flex-col justify-between relative overflow-hidden">
+        <div className="text-xs font-bold uppercase tracking-widest opacity-60">Total Amount</div>
+        <div className="text-3xl font-black">{invoice.total.toLocaleString()} {invoice.currency}</div>
+        <div className="absolute -bottom-4 -right-4 opacity-20 transform rotate-12">
+          <QRCodeSVG value={`https://pay.faso-invest.com/verify/${invoice.number}`} size={80} />
+        </div>
+      </div>
+      <div className="col-span-2 row-span-2 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+        <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-6">Client</div>
+        <p className="text-xl font-bold text-slate-900 mb-2">{invoice.customer_name}</p>
+        <p className="text-sm text-slate-500 truncate">{invoice.customer_email}</p>
+      </div>
+      <div className="col-span-4 row-span-2 bg-slate-900 p-8 rounded-[2rem] text-white flex flex-col">
+        <div className="text-xs font-bold uppercase tracking-widest text-white/40 mb-6">Items</div>
+        <div className="flex-1 space-y-4 overflow-y-auto pr-4 scrollbar-hide">
+          {invoice.items.map((it, i) => (
+            <div key={i} className="flex justify-between items-center group">
+              <span className="text-white/80 font-medium">{it.name} <span className="text-white/20 ml-2">× {it.qty}</span></span>
+              <span className="font-bold">{(it.qty * it.price).toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-8 text-[10px] font-bold uppercase tracking-widest text-white/20">{invoice.number} — {format(new Date(invoice.created_at), 'dd/MM/yyyy')}</div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // 24. CLASSIC RED (Corporate Standard)
 export const ClassicRed = ({ invoice, business, settings, kind = "invoice" }: TemplateProps) => {
