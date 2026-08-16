@@ -362,6 +362,61 @@ export const GovStandard = ({ invoice, business, settings }: TemplateProps) => {
   );
 };
 
+// 6. STRIPE VINTAGE
+export const StripeVintage = ({ invoice, business }: TemplateProps) => (
+  <div className="bg-[#fcfcfc] p-10 font-serif max-w-2xl mx-auto border border-slate-200 shadow-xl">
+    <div className="flex justify-between border-b pb-6">
+      <h2 className="text-2xl font-bold uppercase tracking-widest">{business.name}</h2>
+      <div className="text-right text-xs text-slate-500">
+        <p>INVOICE #{invoice.number}</p>
+        <p>{format(new Date(invoice.created_at), 'MMMM d, yyyy')}</p>
+      </div>
+    </div>
+    <div className="mt-8">
+      <table className="w-full text-left">
+        <thead>
+          <tr className="border-b uppercase text-[10px] text-slate-400">
+            <th className="py-2">Item</th>
+            <th className="py-2 text-right">Total</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {invoice.items.map((it, i) => (
+            <tr key={i} className="text-sm">
+              <td className="py-3">{it.name} x{it.qty}</td>
+              <td className="py-3 text-right">{(it.qty * it.price).toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
+// 7. PAYPAL STATEMENT
+export const PaypalStatement = ({ invoice, business }: TemplateProps) => (
+  <div className="bg-white p-8 max-w-3xl mx-auto border border-blue-100">
+    <div className="bg-blue-600 p-6 -m-8 mb-8 text-white">
+      <h2 className="text-xl font-bold">PayPal</h2>
+      <p className="text-sm opacity-90">Merchant Transaction Statement</p>
+    </div>
+    <div className="flex justify-between items-center mb-8">
+      <div className="text-sm">
+        <p className="font-bold text-slate-600">INVOICE TO</p>
+        <p className="font-bold text-lg">{invoice.customer_name}</p>
+      </div>
+      <div className="text-right">
+        <p className="text-3xl font-bold text-blue-600">{invoice.total.toLocaleString()} {invoice.currency}</p>
+      </div>
+    </div>
+    <button className="w-full bg-blue-600 text-white font-bold py-3 rounded-full hover:bg-blue-700">
+      Pay Now
+    </button>
+  </div>
+);
+
+// Add more templates...
+
 // Map of all templates
 export const INVOICE_TEMPLATES: Record<string, React.FC<TemplateProps>> = {
   "stripe-modern": StripeModern,
@@ -369,4 +424,6 @@ export const INVOICE_TEMPLATES: Record<string, React.FC<TemplateProps>> = {
   "bistro-thermal": BistroThermal,
   "amazon-retail": AmazonRetail,
   "gov-standard": GovStandard,
+  "stripe-vintage": StripeVintage,
+  "paypal-statement": PaypalStatement,
 };
