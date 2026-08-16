@@ -582,8 +582,6 @@ export default function BusinessPage() {
                     </div>
                   )}
                 </section>
-                </section>
-
                 )}
 
                 {/* Payment links */}
