@@ -22,7 +22,6 @@ import { LayoutDashboard, Receipt, CreditCard, Settings2, BarChart3, BookOpen } 
 
 const NAV = [
   { id: "overview", label: "Tableau de bord", icon: LayoutDashboard },
-  
   { id: "projects", label: "Projets", icon: FolderKanban },
   { id: "products", label: "Produits", icon: Package },
   { id: "links", label: "Liens de paiement", icon: Link2 },
@@ -30,7 +29,15 @@ const NAV = [
   { id: "orders", label: "Commandes", icon: Package },
   { id: "sms", label: "SMS Marketing", icon: MessageSquare },
   { id: "docs", label: "Documentation API", icon: BookOpen },
-  { id: "settings", label: "Ma boutique", icon: Settings2 },
+  { 
+    id: "shop", 
+    label: "Boutique", 
+    icon: Store,
+    sub: [
+      { id: "shop_templates", label: "Templates" },
+      { id: "shop_branding", label: "Personnaliser" },
+    ]
+  },
 ] as const;
 const TabIdSet = new Set(NAV.map(n => n.id));
 type TabId = typeof NAV[number]["id"];
@@ -290,16 +297,29 @@ export default function BusinessPage() {
         ) : (
           <div className="flex gap-6">
             {/* Menu vertical */}
-            <aside className="hidden w-60 shrink-0 lg:block">
+            <aside className="hidden w-64 shrink-0 lg:block">
               <nav className="sticky top-20 space-y-1 rounded-2xl border border-border bg-card p-3">
                 {NAV.map((n) => {
                   const Icon = n.icon;
-                  const active = tab === n.id;
+                  const isMainActive = tab === n.id || (n.sub?.some(s => tab === s.id));
                   return (
-                    <button key={n.id} onClick={() => setTab(n.id)}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
-                      <Icon className="h-4 w-4" /> {n.label}
-                    </button>
+                    <div key={n.id} className="space-y-1">
+                      <button onClick={() => setTab(n.id)}
+                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${isMainActive ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+                        <Icon className="h-4 w-4" /> {n.label}
+                      </button>
+                      
+                      {n.sub && isMainActive && (
+                        <div className="ml-9 space-y-1">
+                          {n.sub.map((s) => (
+                            <button key={s.id} onClick={() => setTab(s.id)}
+                              className={`flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-xs font-medium transition ${tab === s.id ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
                 {current && (
@@ -318,7 +338,7 @@ export default function BusinessPage() {
             <div className="min-w-0 flex-1">
             {/* Menu horizontal (mobile) */}
             <div className="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-1 lg:hidden">
-              {NAV.map((n) => (
+              {NAV.flatMap(n => [n, ...(n.sub || [])]).map((n) => (
                 <button key={n.id} onClick={() => setTab(n.id)}
                   className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${tab === n.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-surface-2 text-muted-foreground"}`}>
                   {n.label}
@@ -406,12 +426,21 @@ export default function BusinessPage() {
               )}
 
 
-              {tab === "settings" && (
-                <>
+              {tab === "shop" && (
+                <div className="space-y-6">
+                  <ShopProjectsPanel projects={projects} onChanged={() => refreshCurrent(current.id)} onGoProjects={() => setTab("projects")} />
+                  <ShopTemplateSelector business={current as any} onUpdated={refreshAll} />
+                  <ShopBrandingPanel biz={current} onUpdated={refreshAll} />
+                </div>
+              )}
+
+              {tab === "shop_templates" && (
                 <ShopTemplateSelector business={current as any} onUpdated={refreshAll} />
+              )}
+
+              {tab === "shop_branding" && (
                 <ShopBrandingPanel biz={current} onUpdated={refreshAll} />
-                <ShopProjectsPanel projects={projects} onChanged={() => refreshCurrent(current.id)} onGoProjects={() => setTab("projects")} />
-                </>)}
+              )}
 
                 {tab === "products" && (
                   <ProductsPanel businessId={current.id} shopSlug={current.slug} />
