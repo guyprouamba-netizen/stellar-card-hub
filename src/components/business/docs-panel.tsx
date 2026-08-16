@@ -286,34 +286,46 @@ app.post("/webhooks/paiement", express.raw({ type: "*/*" }), (req, res) => {
 
       {sec === "wordpress" && (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-border bg-card p-5 text-sm flex flex-col justify-between">
-              <div>
-                <h4 className="font-bold mb-2">Extension WooCommerce Officielle</h4>
-                <p className="text-muted-foreground mb-4">Intégration complète pour vos boutiques WooCommerce avec gestion des commandes.</p>
+          <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background to-background p-6 mb-4">
+            <div className="flex flex-col md:flex-row items-center gap-8">
+              <div className="relative z-10 flex-1 space-y-4 text-center md:text-left">
+                <div className="inline-flex items-center gap-2 rounded-full bg-primary/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
+                  Plugins Officiels
+                </div>
+                <h4 className="font-[Space_Grotesk] text-2xl font-bold leading-tight">
+                  Propulsez votre boutique avec <span className="text-primary">FASO INVEST PAY</span>
+                </h4>
+                <p className="text-sm text-muted-foreground max-w-md">
+                  Intégrez nos solutions de paiement Mobile Money directement dans votre écosystème WordPress et WooCommerce en quelques clics. Sécurisé, rapide et fiable.
+                </p>
+                <div className="flex flex-wrap justify-center md:justify-start gap-3 pt-2">
+                  <a 
+                    href="/downloads/fip-woocommerce-plugin.php" 
+                    download="fip-woocommerce.php"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-xs font-bold text-primary-foreground shadow-glow hover:opacity-90 transition-all active:scale-95"
+                  >
+                    Télécharger WooCommerce
+                  </a>
+                  <a 
+                    href="/downloads/fip-simple-plugin.php" 
+                    download="fip-simple.php"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface-2 px-6 py-3 text-xs font-bold hover:bg-muted transition-all active:scale-95"
+                  >
+                    Télécharger Simple PHP
+                  </a>
+                </div>
               </div>
-              <a 
-                href="/downloads/fip-woocommerce-plugin.php" 
-                download="fip-woocommerce.php"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:opacity-90 w-full"
-              >
-                Télécharger (WooCommerce)
-              </a>
-            </div>
-            <div className="rounded-2xl border border-border bg-card p-5 text-sm flex flex-col justify-between">
-              <div>
-                <h4 className="font-bold mb-2">Plugin Simple PHP</h4>
-                <p className="text-muted-foreground mb-4">Léger et robuste. Idéal pour ajouter des boutons de paiement n'importe où via Shortcodes.</p>
+              <div className="relative flex-shrink-0">
+                <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full"></div>
+                <img 
+                  src={wpWooBadge.url} 
+                  alt="WordPress WooCommerce Integration" 
+                  className="relative z-10 w-64 md:w-80 h-auto rounded-2xl shadow-2xl transition-transform hover:scale-105 duration-500"
+                />
               </div>
-              <a 
-                href="/downloads/fip-simple-plugin.php" 
-                download="fip-simple.php"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-muted/50 px-4 py-2.5 text-xs font-bold hover:bg-muted w-full"
-              >
-                Télécharger (Simple PHP)
-              </a>
             </div>
           </div>
+
 
           <div className="rounded-2xl border border-border bg-card p-5 text-sm">
             <div className="mt-2 rounded-xl border border-primary/20 bg-primary/5 p-4 text-[13px]">
