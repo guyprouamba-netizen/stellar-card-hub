@@ -41,8 +41,8 @@ export function SmsMerchantPanel({ businessId }: { businessId: string }) {
       ]);
       setRequests(r);
       setCredits(c);
-      // In a real scenario, we might have a specific SMS price in cfg
-      // but the backend purchaseSmsCredits currently uses a hardcoded 20.
+      if (cfg?.sms_price) setSmsPrice(cfg.sms_price);
+      else setSmsPrice(20);
     } catch (e: any) {
       console.error(e);
     } finally {
