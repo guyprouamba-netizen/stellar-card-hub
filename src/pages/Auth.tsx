@@ -58,7 +58,7 @@ function Auth() {
     void dashboardWarmup;
     navigate(isAdmin ? "/admin" : "/dashboard", { replace: true, state: { userId } });
   }
-  const [mode, setMode] = useState<"login" | "signup" | "2fa">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "2fa" | "registration_otp">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -129,8 +129,26 @@ function Auth() {
           signedInUser = signInData.session?.user ?? signedInUser;
         }
         if (!signedInUser?.id) throw new Error("Session introuvable");
-        toast.success("Compte créé — bienvenue !");
-        await fastRedirect(signedInUser);
+        
+        // Initialiser l'OTP de bienvenue/inscription
+        setTempUser(signedInUser);
+        setLoading(true);
+        try {
+          const { data: res, error: apiErr } = await supabase.functions.invoke("api", { 
+            body: { fn: "sendRegistrationOTP" } 
+          });
+          if (apiErr || res?.error) throw new Error(apiErr?.message || res?.error || "Erreur envoi OTP");
+          setMode("registration_otp");
+          toast.success("Code de bienvenue envoyé par WhatsApp");
+        } catch (err: any) {
+          // En cas d'erreur d'envoi OTP, on laisse l'utilisateur mais on affiche l'erreur
+          // (Optionnel: on pourrait le déconnecter si on veut forcer l'OTP)
+          console.error("OTP send failed", err);
+          toast.error("Impossible d'envoyer le code WhatsApp. Contactez le support.");
+          await fastRedirect(signedInUser);
+        } finally {
+          setLoading(false);
+        }
       } else {
         const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -177,12 +195,13 @@ function Auth() {
     setLoading(true);
     setFormError(null);
     try {
+      const functionName = mode === "registration_otp" ? "verifyRegistrationOTP" : "verify2FAOTP";
       const { data: res, error: apiErr } = await supabase.functions.invoke("api", { 
-        body: { fn: "verify2FAOTP", data: { code: otp } } 
+        body: { fn: functionName, data: { code: otp } } 
       });
       if (apiErr || res?.error) throw new Error(apiErr?.message || res?.error || "Code invalide");
       
-      toast.success("Vérification réussie");
+      toast.success(mode === "registration_otp" ? "Bienvenue sur FASO-INVEST PAY !" : "Vérification réussie");
       await fastRedirect(tempUser);
     } catch (err: any) {
       setFormError(err.message);
@@ -237,12 +256,12 @@ function Auth() {
             {mode === "login" ? "Connectez-vous à votre espace FASO-INVEST PAY." : "Lancez vos cartes virtuelles en 2 minutes."}
           </p>
 
-          {mode === "2fa" ? (
+          {mode === "2fa" || mode === "registration_otp" ? (
             <form className="mt-8 space-y-4" onSubmit={verifyOTP}>
               <div className="flex flex-col items-center gap-4">
                 <div className="flex items-center gap-3 rounded-2xl bg-success/10 p-4 text-sm text-success w-full">
                   <Smartphone className="h-5 w-5 shrink-0" />
-                  <span>Entrez le code envoyé au <b>{phone}</b> via WhatsApp.</span>
+                  <span>{mode === "registration_otp" ? "Vérifiez votre compte : entrez le code WhatsApp envoyé au " : "Entrez le code envoyé au "}<b>{phone}</b>.</span>
                 </div>
                 {formError && (
                   <div role="alert" className="flex items-start gap-2 rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive w-full">
@@ -271,7 +290,7 @@ function Auth() {
                   onClick={() => { setMode("login"); supabase.auth.signOut(); }}
                   className="text-xs text-muted-foreground hover:underline"
                 >
-                  Annuler et se reconnecter
+                  {mode === "registration_otp" ? "Retour à l'inscription" : "Annuler et se reconnecter"}
                 </button>
               </div>
             </form>
