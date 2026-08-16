@@ -2359,6 +2359,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
       if (allowedBools.includes(r.key)) {
         extrasMap[r.key] = String(val) === "true";
+        console.log(`[adminGetConfig] key: ${r.key}, raw: ${val}, parsed: ${extrasMap[r.key]}`);
       } else if (allowedNumbers.includes(r.key)) {
         extrasMap[r.key] = Number(val);
       } else if (allowedStrings.includes(r.key)) {
