@@ -517,30 +517,37 @@ export const QontoModern = ({ invoice, business, settings, kind = "invoice" }: T
 };
 
 // 9. UBER RECEIPT
-export const UberReceipt = ({ invoice, business }: TemplateProps) => (
-  <div className="bg-white p-6 max-w-md mx-auto font-sans shadow-lg border-t-8 border-black">
-    <div className="flex justify-between items-center mb-10">
-      <h1 className="text-3xl font-bold tracking-tighter">Uber</h1>
-      <p className="text-slate-400 text-sm">{format(new Date(invoice.created_at), 'dd/MM/yyyy')}</p>
-    </div>
-    <h2 className="text-4xl font-bold mb-6">{invoice.total.toLocaleString()} {invoice.currency}</h2>
-    <div className="space-y-4 text-sm border-t border-b py-6 border-slate-100">
-      {invoice.items.map((it, i) => (
-        <div key={i} className="flex justify-between">
-          <span className="text-slate-600">{it.name}</span>
-          <span className="font-bold">{(it.qty * it.price).toLocaleString()}</span>
-        </div>
-      ))}
-    </div>
-    <div className="mt-6 flex items-center gap-3">
-      <div className="w-8 h-8 rounded-full bg-slate-200" />
-      <div>
-        <p className="font-bold">YengaPay Personal</p>
-        <p className="text-xs text-slate-400">•••• 1234</p>
+export const UberReceipt = ({ invoice, business, kind = "receipt" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
+  return (
+    <div className="bg-white p-6 max-w-md mx-auto font-sans shadow-lg border-t-8 border-black">
+      <div className="flex justify-between items-center mb-10">
+        <h1 className="text-3xl font-bold tracking-tighter">Uber</h1>
+        <p className="text-slate-400 text-sm">{format(new Date(invoice.created_at), 'dd/MM/yyyy')}</p>
       </div>
+      <div className="mb-4">
+        <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">{title}</p>
+        <h2 className="text-4xl font-bold">{invoice.total.toLocaleString()} {invoice.currency}</h2>
+      </div>
+      <div className="space-y-4 text-sm border-t border-b py-6 border-slate-100">
+        {invoice.items.map((it, i) => (
+          <div key={i} className="flex justify-between">
+            <span className="text-slate-600">{it.name}</span>
+            <span className="font-bold">{(it.qty * it.price).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-6 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full bg-slate-200" />
+        <div>
+          <p className="font-bold">Payé via YengaPay</p>
+          <p className="text-xs text-slate-400">Réf: {invoice.number}</p>
+        </div>
+      </div>
+      <VerificationFooter business={business} invoice={invoice} />
     </div>
-  </div>
-);
+  );
+};
 
 // 10. LUXE MAISON (Style Chanel/Vuitton)
 export const LuxeMaison = ({ invoice, business }: TemplateProps) => (
