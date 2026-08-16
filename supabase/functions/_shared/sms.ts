@@ -37,12 +37,18 @@ export async function sendSmsRaw(opts: {
     // The API uses a GET request with query parameters for simplicity and high compatibility.
     const url = new URL(endpoint);
     url.searchParams.append("api_token", token);
-    url.searchParams.append("recipient", opts.recipient);
+    
+    // BBG WhatsApp strictly requires digits ONLY (no +)
+    const cleanRecipient = opts.recipient.replace(/[^\d]/g, "");
+    url.searchParams.append("recipient", cleanRecipient);
     url.searchParams.append("message", opts.message);
     
     if (!isWhatsapp) {
       url.searchParams.append("sender_id", opts.sender_id);
       url.searchParams.append("type", opts.type || "plain");
+    } else {
+      // For WhatsApp, some versions of the API might require a specific type or format
+      // We keep it simple as per the documentation
     }
 
     console.log(`[sendSmsRaw] Requesting ${isWhatsapp ? 'WhatsApp' : 'SMS'} via GET: ${endpoint}?api_token=***&recipient=${opts.recipient}`);
