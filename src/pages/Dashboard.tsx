@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard, ArrowDownLeft, ArrowUpRight, CreditCard, History,
   UserCircle, LogOut, Plus, Snowflake, Loader2,
-  AlertTriangle, Wallet, Building2, Users, Share2, MessageCircle, Copy, Check, Repeat,
+  AlertTriangle, Wallet, Building2, Users, Share2, MessageCircle, Copy, Check, Repeat, ShoppingBag,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
@@ -23,7 +23,7 @@ import { IssueCardSheet } from "@/components/issue-card-sheet";
 import { VirtualCard } from "@/components/virtual-card";
 import { toast } from "sonner";
 
-type Tab = "home" | "deposit" | "withdraw" | "cards" | "tx" | "referrals" | "profile";
+type Tab = "home" | "deposit" | "withdraw" | "cards" | "tx" | "referrals" | "profile" | "purchases";
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -173,6 +173,7 @@ function Dashboard() {
                {tab === "withdraw" && (offline ? <OfflineAction /> : <WithdrawTab balance={Number(data.wallets.find((w: any) => w.currency === "XOF")?.balance ?? 0)} profile={data.profile} onDone={() => refetch()} />)}
               {tab === "cards" && <CardsTab cards={data.cards} onAction={() => refetch()} />}
               {tab === "tx" && <TxTab transactions={data.transactions} />}
+              {tab === "purchases" && <PurchasesTab userId={session.user.id} />}
               {tab === "referrals" && <ReferralsTab />}
               {tab === "profile" && <ProfileTab profile={data.profile} onDone={() => refetch()} setTab={setTab} />}
             </>
@@ -224,6 +225,7 @@ function MobileNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "deposit", label: "Dépôt", Icon: ArrowDownLeft },
     { id: "withdraw", label: "Retrait", Icon: ArrowUpRight },
     { id: "cards", label: "Cartes", Icon: CreditCard },
+    { id: "purchases", label: "Achats", Icon: ShoppingBag },
     { id: "profile", label: "Profil", Icon: UserCircle },
   ];
   async function logout() {
@@ -272,6 +274,7 @@ function Sidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "withdraw", label: "Retrait d'argent", Icon: ArrowUpRight },
     { id: "cards", label: "Mes cartes", Icon: CreditCard },
     { id: "tx", label: "Mes transactions", Icon: History },
+    { id: "purchases", label: "Mes achats", Icon: ShoppingBag },
     { id: "referrals", label: "Parrainage", Icon: Users },
     { id: "profile", label: "Mon profil", Icon: UserCircle },
   ];
@@ -916,5 +919,86 @@ function Kpi({ label, value, highlight }: { label: string; value: string; highli
   );
 }
 
+
+
+function PurchasesTab({ userId }: { userId: string }) {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const { data: userData } = await supabase.auth.getUser();
+      const email = userData.user?.email;
+      if (!email) {
+        setLoading(false);
+        return;
+      }
+
+      const { data } = await supabase.from("shop_orders" as any)
+        .select("*, business:businesses(name, logo_url)")
+        .eq("customer_email", email)
+        .order("created_at", { ascending: false });
+
+      if (data) setOrders(data as any[]);
+      setLoading(false);
+    }
+    load();
+  }, [userId]);
+
+  if (loading) return <div className="grid h-64 place-items-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+
+  const labels: Record<string, string> = {
+    pending_payment: "En attente",
+    paid: "Payée",
+    preparing: "Préparation",
+    shipped: "Expédiée",
+    delivered: "Livrée",
+    cancelled: "Annulée",
+    refunded: "Remboursée",
+  };
+
+  return (
+    <div className="space-y-6">
+      <header>
+        <h2 className="font-[Space_Grotesk] text-2xl font-bold">Mes achats</h2>
+        <p className="text-sm text-muted-foreground">Historique de vos commandes sur les boutiques du réseau.</p>
+      </header>
+
+      {orders.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-border p-12 text-center">
+          <ShoppingBag className="mx-auto h-12 w-12 text-muted-foreground/20" />
+          <p className="mt-4 text-muted-foreground">Vous n'avez pas encore effectué d'achats.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {orders.map((order) => (
+            <Link 
+              key={order.id} 
+              to={`/order/${order.order_token}`}
+              className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
+            >
+              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-muted">
+                {order.business?.logo_url ? (
+                  <img src={order.business.logo_url} className="h-full w-full object-cover" alt="" />
+                ) : (
+                  <div className="grid h-full w-full place-items-center"><ShoppingBag className="h-5 w-5 text-muted-foreground" /></div>
+                )}
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <h3 className="truncate font-bold text-sm">{order.business?.name || "Boutique"}</h3>
+                <p className="text-xs text-muted-foreground">N° {order.order_number}</p>
+                <p className="mt-1 text-xs font-medium text-primary uppercase">{labels[order.status] || order.status}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-bold tabular-nums">{Number(order.total_amount).toLocaleString("fr-FR")} {order.currency}</p>
+                <p className="text-[10px] text-muted-foreground">{new Date(order.created_at).toLocaleDateString("fr-FR")}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default Dashboard;
