@@ -550,27 +550,32 @@ export const UberReceipt = ({ invoice, business, kind = "receipt" }: TemplatePro
 };
 
 // 10. LUXE MAISON (Style Chanel/Vuitton)
-export const LuxeMaison = ({ invoice, business }: TemplateProps) => (
-  <div className="bg-[#1a1a1a] p-16 text-white font-serif max-w-4xl mx-auto tracking-widest uppercase text-center">
-    <h1 className="text-5xl font-light mb-16 tracking-[0.3em]">{business.name}</h1>
-    <div className="border-t border-white/20 pt-12 mb-12 flex justify-between text-[10px] opacity-60">
-      <span>Facture N°{invoice.number}</span>
-      <span>{format(new Date(invoice.created_at), 'dd . MM . yyyy')}</span>
+export const LuxeMaison = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
+  return (
+    <div className="bg-[#1a1a1a] p-16 text-white font-serif max-w-4xl mx-auto tracking-widest uppercase text-center relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-full h-full border-[20px] border-white/5 pointer-events-none" />
+      <h1 className="text-5xl font-light mb-16 tracking-[0.3em]">{business.name}</h1>
+      <div className="border-t border-white/20 pt-12 mb-12 flex justify-between text-[10px] opacity-60">
+        <span>{title} N°{invoice.number}</span>
+        <span>{format(new Date(invoice.created_at), 'dd . MM . yyyy')}</span>
+      </div>
+      <div className="space-y-8 my-20">
+        {invoice.items.map((it, i) => (
+          <div key={i} className="flex justify-between items-center group">
+            <span className="text-xl font-light">{it.name}</span>
+            <span className="text-xl">{(it.qty * it.price).toLocaleString()} {invoice.currency}</span>
+          </div>
+        ))}
+      </div>
+      <div className="border-t border-white/20 pt-12">
+        <p className="text-3xl font-light">{invoice.total.toLocaleString()} {invoice.currency}</p>
+        <p className="text-[8px] mt-20 opacity-40 italic underline underline-offset-8">Merci de votre confiance</p>
+      </div>
+      <VerificationFooter business={business} invoice={invoice} />
     </div>
-    <div className="space-y-8 my-20">
-      {invoice.items.map((it, i) => (
-        <div key={i} className="flex justify-between items-center group">
-          <span className="text-xl font-light">{it.name}</span>
-          <span className="text-xl">{(it.qty * it.price).toLocaleString()} {invoice.currency}</span>
-        </div>
-      ))}
-    </div>
-    <div className="border-t border-white/20 pt-12">
-      <p className="text-3xl font-light">{invoice.total.toLocaleString()} {invoice.currency}</p>
-      <p className="text-[8px] mt-20 opacity-40 italic underline underline-offset-8">Merci de votre confiance</p>
-    </div>
-  </div>
-);
+  );
+};
 
 // 11. GOOGLE CLOUD
 export const GoogleCloud = ({ invoice, business, settings }: TemplateProps) => (
