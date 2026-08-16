@@ -1485,3 +1485,11 @@ CONTRACT_TEMPLATES["notaire-officiel"] = NotaireOfficiel;
 CONTRACT_TEMPLATES["hotel-luxe"] = HotelLuxe;
 CONTRACT_TEMPLATES["classic-red"] = ClassicRed;
 CONTRACT_TEMPLATES["zen-minimal"] = ZenMinimal;
+CONTRACT_TEMPLATES["bistro-thermal"] = BistroThermal;
+CONTRACT_TEMPLATES["stripe-modern"] = StripeModern;
+CONTRACT_TEMPLATES["apple-minimal"] = AppleMinimal;
+CONTRACT_TEMPLATES["gov-standard"] = GovStandard;
+
+RECEIPT_TEMPLATES["stripe-modern"] = StripeModern;
+RECEIPT_TEMPLATES["apple-minimal"] = AppleMinimal;
+RECEIPT_TEMPLATES["gov-standard"] = GovStandard;
