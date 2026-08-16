@@ -2360,7 +2360,13 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const { data } = await admin.from("platform_config").select("key,value")
       .in("key", ["whatsapp_group_url", "referral_reward_xof"]);
     const out: Record<string, any> = {};
-    for (const r of data ?? []) out[r.key] = r.value;
+    for (const r of data ?? []) {
+      try {
+        out[r.key] = (typeof r.value === 'string') ? JSON.parse(r.value) : r.value;
+      } catch (e) {
+        out[r.key] = r.value;
+      }
+    }
     return { ok: true, ...out };
   },
 
