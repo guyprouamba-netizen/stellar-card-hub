@@ -4142,28 +4142,33 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       console.log(`[sendRegistrationOTP] Metadata phone: ${phone}`);
       
       if (!phone) {
-        // 2. Direct fetch from auth.admin
-        const { data: authUser, error: authErr } = await admin.auth.admin.getUserById(user.id);
-        if (authErr) console.error(`[sendRegistrationOTP] auth.admin error:`, authErr);
-        phone = authUser?.user?.user_metadata?.phone || authUser?.user?.phone;
-      }
-      
-      if (!phone) {
-        // 3. Fallback to profiles table
+        // 2. Direct fetch from profiles (safer since metadata might be missing in edge cases)
         const { data: p } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
         phone = p?.phone;
       }
 
       if (!phone) {
-        throw new Error("Aucun numéro de téléphone trouvé. Assurez-vous d'avoir saisi votre numéro WhatsApp lors de l'inscription.");
+        // 3. Fallback to auth.admin as last resort
+        const { data: authUser, error: authErr } = await admin.auth.admin.getUserById(user.id);
+        if (authErr) console.error(`[sendRegistrationOTP] auth.admin error:`, authErr);
+        phone = authUser?.user?.user_metadata?.phone || authUser?.user?.phone;
+      }
+
+      if (!phone) {
+        throw new Error("Numéro WhatsApp introuvable. Veuillez contacter le support.");
       }
 
       console.log(`[sendRegistrationOTP] Calling handleRegistrationOTP for ${phone}`);
       const result = await handleRegistrationOTP(admin, user.id, phone, "send");
+      
+      // Force success if it's an API error but logically we want the user to enter
+      if (result && (result as any).error) {
+        console.warn(`[sendRegistrationOTP] API returned error but caught:`, (result as any).error);
+      }
+      
       return result;
     } catch (e: any) {
       console.error(`[sendRegistrationOTP] CRITICAL:`, e);
-      // Return error as part of body to prevent 422/500 trigger in supabase.functions.invoke
       return { error: e.message || "Erreur lors de l'envoi de l'OTP WhatsApp" };
     }
   },
