@@ -239,8 +239,8 @@ function MobileNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     <>
       <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between border-b border-border bg-card/90 px-4 py-3 backdrop-blur md:hidden">
         <Link to="/" className="flex items-center gap-2">
-          <img src={logo} alt="FASO-INVEST PAY" className="h-8 w-8 rounded-lg" />
-          <span className="text-sm font-bold tracking-tight">FASO-INVEST <span className="text-primary">PAY</span></span>
+          <img src={logo} alt="FASO INVEST PAY" className="h-8 w-8 rounded-lg" />
+          <span className="text-sm font-bold tracking-tight">FASO INVEST <span className="text-primary">PAY</span></span>
         </Link>
         <button onClick={logout} aria-label="Déconnexion" className="grid h-9 w-9 place-items-center rounded-full border border-border text-muted-foreground hover:text-destructive">
           <LogOut className="h-4 w-4" />
@@ -288,8 +288,8 @@ function Sidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-border bg-card/30 p-4 md:flex md:flex-col">
       <Link to="/" className="mb-2 flex items-center gap-2 px-2">
-        <img src={logo} alt="FASO-INVEST PAY" className="h-9 w-9 rounded-xl" />
-        <span className="text-sm font-bold tracking-tight">FASO-INVEST <span className="text-primary">PAY</span></span>
+        <img src={logo} alt="FASO INVEST PAY" className="h-9 w-9 rounded-xl" />
+        <span className="text-sm font-bold tracking-tight">FASO INVEST <span className="text-primary">PAY</span></span>
       </Link>
       <BackButton to="/" className="mb-4 px-2" />
       <nav className="flex flex-1 flex-col gap-1">
@@ -326,7 +326,7 @@ function HomeTab({ data, onOpenTx }: { data: any; onAction: () => void; onOpenTx
     <div className="space-y-8">
       <header>
         <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Bonjour {data.profile?.full_name?.split(" ")[0] ?? ""} 👋</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Voici un aperçu de votre compte FASO-INVEST PAY.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Voici un aperçu de votre compte FASO INVEST PAY.</p>
       </header>
 
       {whatsappUrl && (
