@@ -8,6 +8,8 @@ import {
 } from "@/lib/business.functions";
 import { uploadBusinessMedia } from "@/lib/upload";
 
+type ProductCategory = { id: string; name: string; slug: string };
+
 type Product = {
   id: string; name: string; description: string | null; price: number; currency: string;
   image_url: string | null; show_in_shop: boolean; status: string;
@@ -16,7 +18,9 @@ type Product = {
   downloadable?: boolean; download_url?: string | null; download_name?: string | null;
   download_limit?: number | null; download_expiry_days?: number | null;
   access_instructions?: string | null; purchase_note?: string | null;
-  product_media?: Array<{ url: string; type: string }>;
+  product_media?: Array<{ id: string; url: string; type: string }>;
+  category_id?: string | null;
+  product_categories?: ProductCategory | null;
 };
 
 const FIELD = "w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary";
