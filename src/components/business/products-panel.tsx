@@ -59,12 +59,26 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
   useEffect(() => { setLoading(true); refresh(); /* eslint-disable-next-line */ }, [businessId]);
 
   async function onUpload(file: File) {
+    if (draft.media.length >= 5) {
+      toast.error("Maximum 5 images autorisées");
+      return;
+    }
     setUploading(true);
     try {
       const url = await uploadBusinessMedia(file, "products");
-      setDraft((d) => ({ ...d, image_url: url }));
+      setDraft((d) => ({ ...d, media: [...d.media, url], image_url: d.image_url || url }));
     } catch (e: any) { toast.error(e.message); }
     finally { setUploading(false); }
+  }
+
+  async function onAddCategory() {
+    if (!newCat.trim()) return;
+    try {
+      await createProductCategory({ business_id: businessId, name: newCat.trim() });
+      setNewCat("");
+      refresh();
+      toast.success("Catégorie créée ✅");
+    } catch (e: any) { toast.error(e.message); }
   }
 
   async function onUploadFile(file: File) {
