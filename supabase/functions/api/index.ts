@@ -4109,24 +4109,16 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       .single();
     if (error) throw new Error(error.message);
 
-    // Si approuvé, notifier l'utilisateur par SMS
+    // If approved, notify user via SMS (non-blocking)
     if (status === "approved" && row.user_id) {
-      try {
-        const { data: p } = await admin.from("profiles").select("phone").eq("id", row.user_id).maybeSingle();
-        if (p?.phone) {
-          const userPhone = normalizeBfPhone(p.phone);
-          const { data: smsCfg } = await admin.from("sms_config").select("sender_id").limit(1).maybeSingle();
-          const senderId = (smsCfg as any)?.sender_id || "FASOPAY";
-          
-          await sendSmsRaw({
-            recipient: userPhone,
-            message: `[FASO-PAY] Votre demande de Sender ID "${row.sender_id}" a été APPROUVÉE. Vous pouvez désormais l'utiliser pour vos campagnes SMS.`,
-            sender_id: senderId
-          });
+      notifySms(admin, "sender_request", {
+        userId: row.user_id,
+        amount: 0,
+        extra: {
+          sender_id: row.sender_id,
+          status: "APPROUVÉE"
         }
-      } catch (e) {
-        console.error("Notify user approved sender ID failed", e);
-      }
+      }).catch(() => {});
     }
 
     return row;
