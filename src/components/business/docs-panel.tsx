@@ -285,26 +285,43 @@ app.post("/webhooks/paiement", express.raw({ type: "*/*" }), (req, res) => {
       {sec === "wordpress" && (
         <div className="space-y-4">
           <div className="rounded-2xl border border-border bg-card p-5 text-sm">
-            <h4 className="font-bold">Intégration WordPress</h4>
-            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-muted-foreground">
-              <li>Créez le dossier <code>wp-content/plugins/fip-paiement/</code> et le fichier <code>fip-paiement.php</code> ci-dessous.</li>
-              <li>Renseignez vos clés dans le fichier (ou via <code>wp-config.php</code>).</li>
-              <li>Activez le plugin dans <b>Extensions</b>.</li>
-              <li>Insérez le bouton avec le shortcode <code>[fip_bouton montant="5000" libelle="Payer"]</code>.</li>
-              <li>Pour WooCommerce, utilisez la passerelle de paiement fournie plus bas — elle apparaît dans <b>WooCommerce → Réglages → Paiements</b>.</li>
-            </ol>
+            <h4 className="font-bold flex items-center justify-between">
+              Extension WooCommerce Officielle (F.I.P)
+              <a 
+                href="/downloads/fip-woocommerce-plugin.php" 
+                download="fip-woocommerce.php"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:opacity-90"
+              >
+                Télécharger le Plugin (.php)
+              </a>
+            </h4>
+            <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4 text-[13px]">
+              <p className="font-semibold text-primary">Instructions d'installation :</p>
+              <ol className="mt-2 list-decimal space-y-2 pl-5 text-muted-foreground">
+                <li>Téléchargez le fichier ci-dessus.</li>
+                <li>Allez dans votre administration WordPress : <b>Extensions &gt; Ajouter &gt; Téléverser une extension</b>.</li>
+                <li>Sélectionnez le fichier et cliquez sur <b>Installer maintenant</b>, puis <b>Activer</b>.</li>
+                <li>Allez dans <b>WooCommerce &gt; Réglages &gt; Paiements</b> et activez « Faso Invest Paiement ».</li>
+                <li>Cliquez sur <b>Gérer</b> et copiez-collez votre <b>Clé Secrète API</b> et votre <b>Secret Webhook</b> depuis l'onglet « Intégration API ».</li>
+              </ol>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-5 text-sm">
+            <h4 className="font-bold">Développement sur-mesure</h4>
+            <p className="mt-2 text-muted-foreground">
+              Si vous n'utilisez pas WooCommerce, vous pouvez utiliser le code ci-dessous pour créer un plugin personnalisé :
+            </p>
           </div>
           <Code title="Plugin WordPress simple (shortcode + webhook)" code={`<?php
 /**
- * Plugin Name: FIP Paiement
- * Description: Paiement Mobile Money via la passerelle FIP.
- * Version: 1.0
+ * Plugin Name: FIP Paiement (Démo)
+ * Description: Version simple pour intégration manuelle.
  */
 if (!defined('ABSPATH')) exit;
 
-define('FIP_API_URL', '${ENDPOINT}');
-define('FIP_SECRET_KEY', 'sk_live_VOTRE_CLE');
-define('FIP_WEBHOOK_SECRET', 'whsec_VOTRE_SECRET');
+// IMPORTANT: Utilisez les réglages dans l'administration WordPress plutôt que de coder les clés en dur.
+$fip_secret_key = 'sk_live_...'; 
+$fip_webhook_secret = 'whsec_...';
 
 function fip_shortcode($atts) {
   $a = shortcode_atts(['montant' => 1000, 'libelle' => 'Payer'], $atts);
@@ -315,9 +332,9 @@ add_shortcode('fip_bouton', 'fip_shortcode');
 
 function fip_pay() {
   $montant = intval($_GET['montant'] ?? 0);
-  $res = wp_remote_post(FIP_API_URL . '/checkout/sessions', [
+  $res = wp_remote_post('${ENDPOINT}/checkout/sessions', [
     'headers' => [
-      'Authorization' => 'Bearer ' . FIP_SECRET_KEY,
+      'Authorization' => 'Bearer ' . $GLOBALS['fip_secret_key'],
       'Content-Type'  => 'application/json',
     ],
     'body' => wp_json_encode([
@@ -330,81 +347,11 @@ function fip_pay() {
     'timeout' => 30,
   ]);
   $body = json_decode(wp_remote_retrieve_body($res), true);
-  if (empty($body['ok'])) wp_die('Paiement indisponible : ' . esc_html($body['error'] ?? ''));
+  if (empty($body['ok'])) wp_die('Paiement indisponible');
   wp_redirect($body['data']['checkout_url']); exit;
 }
 add_action('admin_post_nopriv_fip_pay', 'fip_pay');
-add_action('admin_post_fip_pay', 'fip_pay');
-
-// Webhook : https://votre-site.com/wp-json/fip/v1/webhook
-add_action('rest_api_init', function () {
-  register_rest_route('fip/v1', '/webhook', [
-    'methods'  => 'POST',
-    'permission_callback' => '__return_true',
-    'callback' => function (WP_REST_Request $req) {
-      $raw = $req->get_body();
-      parse_str(str_replace(',', '&', $req->get_header('x-fip-signature')), $p);
-      $expected = hash_hmac('sha256', $p['t'] . '.' . $raw, FIP_WEBHOOK_SECRET);
-      if (!hash_equals($expected, $p['v1'] ?? '')) return new WP_REST_Response('bad signature', 401);
-      $data = json_decode($raw, true);
-      do_action('fip_paiement_recu', $data['event'], $data['data']);
-      return new WP_REST_Response(['received' => true], 200);
-    },
-  ]);
-});`} />
-          <Code title="Passerelle WooCommerce" code={`<?php
-add_filter('woocommerce_payment_gateways', function ($g) { $g[] = 'WC_Gateway_FIP'; return $g; });
-
-add_action('plugins_loaded', function () {
-  class WC_Gateway_FIP extends WC_Payment_Gateway {
-    public function __construct() {
-      $this->id = 'fip';
-      $this->method_title = 'Mobile Money (FIP)';
-      $this->title = 'Mobile Money — Orange, Moov, Wave';
-      $this->has_fields = false;
-      $this->init_form_fields(); $this->init_settings();
-      add_action('woocommerce_update_options_payment_gateways_' . $this->id, [$this, 'process_admin_options']);
-    }
-    public function init_form_fields() {
-      $this->form_fields = [
-        'enabled'    => ['title' => 'Activer', 'type' => 'checkbox', 'default' => 'yes'],
-        'secret_key' => ['title' => 'Clé secrète (sk_…)', 'type' => 'password'],
-      ];
-    }
-    public function process_payment($order_id) {
-      $order = wc_get_order($order_id);
-      $res = wp_remote_post('${ENDPOINT}/checkout/sessions', [
-        'headers' => [
-          'Authorization' => 'Bearer ' . $this->get_option('secret_key'),
-          'Content-Type'  => 'application/json',
-        ],
-        'body' => wp_json_encode([
-          'amount'         => (int) $order->get_total(),
-          'currency'       => $order->get_currency(),
-          'reference'      => 'WC-' . $order_id . '-' . time(),
-          'description'    => 'Commande #' . $order_id,
-          'customer_email' => $order->get_billing_email(),
-          'customer_name'  => $order->get_formatted_billing_full_name(),
-          'customer_phone' => $order->get_billing_phone(),
-          'return_url'     => $this->get_return_url($order),
-        ]),
-        'timeout' => 30,
-      ]);
-      $body = json_decode(wp_remote_retrieve_body($res), true);
-      if (empty($body['ok'])) { wc_add_notice('Paiement indisponible', 'error'); return; }
-      $order->update_meta_data('_fip_reference', $body['data']['reference']);
-      $order->save();
-      return ['result' => 'success', 'redirect' => $body['data']['checkout_url']];
-    }
-  }
-});
-
-// Confirmation via webhook : marque la commande payée
-add_action('fip_paiement_recu', function ($event, $data) {
-  if ($event !== 'payment.succeeded') return;
-  $orders = wc_get_orders(['meta_key' => '_fip_reference', 'meta_value' => $data['reference'], 'limit' => 1]);
-  if ($orders) { $orders[0]->payment_complete($data['reference']); }
-}, 10, 2);`} />
+add_action('admin_post_fip_pay', 'fip_pay');`} />
         </div>
       )}
 
