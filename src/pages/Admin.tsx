@@ -980,6 +980,23 @@ function PaypalWithdrawSettings() {
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
         </button>
       </div>
+
+      <div className="mt-8 rounded-2xl border border-primary/30 bg-primary/5 p-6">
+        <h2 className="font-[Space_Grotesk] text-xl font-bold">Alertes Administrateur</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Numéro recevant les notifications SMS critiques (demandes de Sender ID, etc.)</p>
+        <div className="mt-4 max-w-sm">
+          <label className="block">
+            <span className="text-xs font-medium uppercase text-muted-foreground">Numéro de téléphone</span>
+            <input 
+              type="text" 
+              value={cfg?.admin_notification_phone || ""} 
+              onChange={(e) => setCfg({ ...cfg, admin_notification_phone: e.target.value })}
+              className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-4 py-2 text-sm outline-none focus:border-primary"
+              placeholder="+22670000000"
+            />
+          </label>
+        </div>
+      </div>
     </div>
   );
 }
