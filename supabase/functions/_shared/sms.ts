@@ -2,6 +2,7 @@
 // Fire-and-forget: never throw to the caller so business flows are never blocked.
 
 const BBG_ENDPOINT = "https://bbgsmsapp.betterbegoing.com/api/http/sms/send";
+const BBG_WHATSAPP_ENDPOINT = "https://bbgsmsapp.betterbegoing.com/api/http/whatsapp/send";
 
 export function normalizeBfPhone(input: string | null | undefined): string | null {
   if (!input) return null;
