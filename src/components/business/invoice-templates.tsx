@@ -437,6 +437,7 @@ export const StripeVintage = ({ invoice, business, kind = "invoice" }: TemplateP
     </div>
   </div>
 );
+};
 
 // 7. PAYPAL STATEMENT
 export const PaypalStatement = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
