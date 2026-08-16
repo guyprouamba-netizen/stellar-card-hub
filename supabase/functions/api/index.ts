@@ -4313,6 +4313,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   try {
     const keys = Object.keys(HANDLERS);
+    return jsonResponse({ total: keys.length, samples: keys.slice(0, 5) });
+
     const payload = await req.json().catch(() => ({}));
     const fn = (payload as any).fn;
     const data = (payload as any).data ?? {};
