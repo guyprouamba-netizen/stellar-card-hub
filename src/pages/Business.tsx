@@ -672,7 +672,12 @@ function ShopBrandingPanel({ biz, onUpdated }: { biz: Biz & { logo_url?: string;
 
   return (
     <section className="mt-6 rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
-      <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><Store className="h-5 w-5" /> Personnalisation boutique</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><Store className="h-5 w-5" /> Personnalisation boutique</h3>
+        <button onClick={saveText} disabled={saving} className="rounded-full bg-gradient-primary px-6 py-1.5 text-xs font-bold text-primary-foreground shadow-glow hover:scale-105 active:scale-95 disabled:opacity-50 transition">
+          {saving ? "Enregistrement..." : "Enregistrer"}
+        </button>
+      </div>
       <p className="mt-1 text-xs text-muted-foreground">Ces éléments apparaissent sur votre page boutique publique et sur vos reçus/factures.</p>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div>
