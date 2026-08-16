@@ -2282,7 +2282,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async adminGetConfig({ user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const cfg = await loadPricingConfig(admin);
-    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone", "notify_admin_sender_request", "sender_request_admin_template"]);
+    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone", "notify_admin_sender_request", "sender_request_admin_template", "sender_request_user_template"]);
     const extrasMap: Record<string, any> = {};
     for (const r of extras ?? []) {
       if (r.key === "notify_admin_sender_request") {
@@ -2298,7 +2298,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async adminUpdateConfig({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const allowedNumbers = ["card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee", "referral_reward_xof"];
-    const allowedStrings = ["whatsapp_group_url", "admin_notification_phone", "sender_request_admin_template"];
+    const allowedStrings = ["whatsapp_group_url", "admin_notification_phone", "sender_request_admin_template", "sender_request_user_template"];
     const allowedBools = ["notify_admin_sender_request"];
     const updates: Array<{ key: string; value: string }> = [];
     for (const k of allowedNumbers) {
@@ -2324,7 +2324,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (upsertError) throw new Error(`Erreur lors de la mise à jour de ${u.key}: ${upsertError.message}`);
     }
     const cfg = await loadPricingConfig(admin);
-    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone", "notify_admin_sender_request", "sender_request_admin_template"]);
+    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone", "notify_admin_sender_request", "sender_request_admin_template", "sender_request_user_template"]);
     const extrasMap: Record<string, any> = {};
     for (const r of extras ?? []) {
       if (r.key === "notify_admin_sender_request") {

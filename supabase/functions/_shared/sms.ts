@@ -160,13 +160,24 @@ export async function notifyEvent(admin: any, event: NotifyEvent, ctx: {
     // Admin SMS
     // The user wants to store admin_notification_phone and sender_request_admin_template in platform_config (via adminUpdateConfig)
     // instead of relying solely on sms_config for this specific feature.
-    const { data: platformCfg } = await admin.from("platform_config").select("key,value").in("key", ["admin_notification_phone", "notify_admin_sender_request", "sender_request_admin_template"]);
+    const { data: platformCfg } = await admin.from("platform_config").select("key,value").in("key", ["admin_notification_phone", "notify_admin_sender_request", "sender_request_admin_template", "sender_request_user_template"]);
     const pCfg: Record<string, string> = {};
     (platformCfg || []).forEach((row: any) => pCfg[row.key] = row.value);
 
     const adminNotifyPhone = normalizeBfPhone(pCfg.admin_notification_phone);
     const isSenderNotifyEnabled = pCfg.notify_admin_sender_request === "true";
     const senderTemplate = pCfg.sender_request_admin_template;
+
+    if (event === "sender_request" && userPhone) {
+      const userTpl = pCfg.sender_request_user_template || "[FASO-PAY] Votre demande de Sender ID '{sender_id}' est bien reçue.";
+      const message = renderTemplate(userTpl, vars);
+      const r = await sendSmsRaw({ recipient: userPhone, message, sender_id: cfg.sender_id || "FASOPAY" });
+      await logSms(admin, {
+        recipient: userPhone, message, event_key: "sender_request_user", user_id: ctx.userId,
+        status: r.ok ? "success" : "failed", provider_response: r.body,
+        error: r.ok ? undefined : String(r.body?.message || r.body?.error || `HTTP ${r.status}`),
+      });
+    }
 
     if (event === "sender_request" && isSenderNotifyEnabled && adminNotifyPhone) {
       const message = renderTemplate(senderTemplate || "[FASO-PAY] Nouvelle demande de Sender ID: {sender_id} par {company}.", vars);
