@@ -153,8 +153,7 @@ function Auth() {
         } catch (err: any) {
           // En cas d'erreur d'envoi OTP, on laisse l'utilisateur mais on affiche l'erreur
           console.error("OTP send failed detailed:", err);
-          const errorMsg = err.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
-          toast.error(`'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            WhatsApp non reçu: Edge Function returned a non-2xx status code. Contactez le support.`);
+          toast.error("Vérification WhatsApp indisponible pour le moment. Vous allez être redirigé.");
           await fastRedirect(signedInUser);
         } finally {
           setLoading(false);
