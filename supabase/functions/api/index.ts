@@ -4322,11 +4322,12 @@ Deno.serve(async (req) => {
     const handler = HANDLERS[fn];
     if (!handler) {
       const keys = Object.keys(HANDLERS);
-      const start = keys.slice(0, 3).join(", ");
-      const end = keys.slice(-3).join(", ");
+      const start = keys.slice(0, 5).join(", ");
+      const end = keys.slice(-5).join(", ");
       return jsonResponse({ error: `unknown fn: ${fn} (total: ${keys.length}, samples: ${start}...${end})` }, 404);
     }
     console.log(`[API Dispatch] fn: ${fn}, found: true, total: ${Object.keys(HANDLERS).length}`);
+
 
 
     const result = await handler({ data, user, admin, userClient });
