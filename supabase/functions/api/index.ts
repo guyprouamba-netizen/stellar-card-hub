@@ -2693,7 +2693,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   // ===========================================================
   // CATEGORIES
   // ===========================================================
-  async listProductCategories_LEGACY({ data, user, admin }: any) {
+  async listProductCategories({ data, user, admin }: any) {
     await assertBusinessOwner(admin, user.id, data.business_id);
     const { data: rows, error } = await admin.from("product_categories")
       .select("*")
