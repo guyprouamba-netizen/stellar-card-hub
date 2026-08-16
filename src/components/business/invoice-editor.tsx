@@ -15,7 +15,21 @@ interface InvoiceEditorProps {
 }
 
 export default function InvoiceEditor({ business, settings, invoice: initialInvoice, onClose, onSaved }: InvoiceEditorProps) {
-  const [template, setTemplate] = useState(initialInvoice?.template_slug || "stripe-modern");
+  const [template, setTemplate] = useState(initialInvoice?.template_slug || "");
+  
+  // Choose correct template list based on kind
+  const currentTemplates = data.kind === 'receipt' 
+    ? RECEIPT_TEMPLATES 
+    : data.kind === 'contract' 
+      ? CONTRACT_TEMPLATES 
+      : INVOICE_TEMPLATES;
+
+  // Set default template if none selected or if kind changed
+  const availableKeys = Object.keys(currentTemplates);
+  const activeTemplate = template && currentTemplates[template] 
+    ? template 
+    : availableKeys[0];
+
   const [loading, setLoading] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState(initialInvoice || {
