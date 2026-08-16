@@ -55,6 +55,7 @@ export async function sendSmsRaw(opts: {
       headers: { "Accept": "application/json" }
     });
     const text = await res.text();
+    console.log(`[sendSmsRaw] API raw response:`, text);
     let body: any = text;
     try { body = JSON.parse(text); } catch { /* keep text */ }
     return { ok: res.ok, body, status: res.status };
