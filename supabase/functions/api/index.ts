@@ -2928,6 +2928,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       currency: data.currency || "XOF",
       status: data.status || "issued",
       pdf_url: data.pdf_url || null,
+      template_slug: data.template_slug || "stripe-modern",
+      notes: data.notes || null,
+      discount_amount: data.discount_amount || 0,
+      metadata: data.metadata || {}
     }).select("*").single();
     if (error) throw new Error(error.message);
     return row;
@@ -2937,7 +2941,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!inv) throw new Error("Facture introuvable");
     await assertBusinessOwner(admin, user.id, inv.business_id);
     const patch: Record<string, any> = {};
-    for (const k of ["status", "pdf_url", "customer_name", "customer_email", "customer_phone"]) {
+    const allowed = ["status", "pdf_url", "customer_name", "customer_email", "customer_phone", "template_slug", "notes", "items", "subtotal", "tax", "total", "discount_amount", "metadata"];
+    for (const k of allowed) {
       if (data?.[k] !== undefined) patch[k] = data[k];
     }
     const { data: row, error } = await admin.from("invoices").update(patch).eq("id", data.id).select("*").single();
