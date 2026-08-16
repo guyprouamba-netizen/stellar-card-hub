@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getShop } from "@/lib/pay.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { Loader2, ShieldCheck, Store, Mail, Phone, Eye } from "lucide-react";
+
 import { ProductDetailModal } from "@/components/product-detail-modal";
 
 type Product = { id: string; name: string; slug: string; description: string | null; price: number; currency: string; project_id?: string | null; media?: Array<{ url: string; type: string }> };
