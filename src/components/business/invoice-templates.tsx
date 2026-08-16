@@ -242,10 +242,131 @@ export const BistroThermal = ({ invoice, business }: TemplateProps) => {
   );
 };
 
+// 4. AMAZON RETAIL
+export const AmazonRetail = ({ invoice, business, settings }: TemplateProps) => {
+  return (
+    <div className="bg-white p-8 text-slate-900 font-sans max-w-4xl mx-auto border border-slate-200">
+      <div className="flex justify-between border-b-2 border-slate-900 pb-4 mb-8">
+        <h1 className="text-3xl font-bold italic">amazon.pay</h1>
+        <div className="text-right text-sm">
+          <p className="font-bold">Détails de la commande</p>
+          <p>Commande n° {invoice.number}</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-8 mb-8 text-sm">
+        <div>
+          <p className="font-bold mb-1 border-b border-slate-200 pb-1">Adresse de facturation</p>
+          <p>{invoice.customer_name}</p>
+          <p className="text-slate-500">{invoice.customer_email}</p>
+        </div>
+        <div>
+          <p className="font-bold mb-1 border-b border-slate-200 pb-1">Mode de paiement</p>
+          <p>YengaPay (Mobile Money)</p>
+        </div>
+        <div>
+          <p className="font-bold mb-1 border-b border-slate-200 pb-1">Récapitulatif</p>
+          <div className="flex justify-between">
+            <span>Articles :</span>
+            <span>{invoice.subtotal.toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between font-bold mt-2 pt-2 border-t border-slate-200">
+            <span>Total :</span>
+            <span>{invoice.total.toLocaleString()} {invoice.currency}</span>
+          </div>
+        </div>
+      </div>
+      <table className="w-full text-xs">
+        <thead className="bg-slate-100">
+          <tr>
+            <th className="p-2 text-left">Article</th>
+            <th className="p-2 text-right">Prix</th>
+            <th className="p-2 text-right">Qté</th>
+            <th className="p-2 text-right">Total</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {invoice.items.map((item, i) => (
+            <tr key={i}>
+              <td className="p-2">{item.name}</td>
+              <td className="p-2 text-right">{item.price.toLocaleString()}</td>
+              <td className="p-2 text-right">{item.qty}</td>
+              <td className="p-2 text-right">{(item.qty * item.price).toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+// 5. GOUVERNEMENTAL (Standard officiel)
+export const GovStandard = ({ invoice, business, settings }: TemplateProps) => {
+  return (
+    <div className="bg-white p-12 text-black font-serif max-w-4xl mx-auto border-4 border-double border-black">
+      <div className="text-center mb-12">
+        <h2 className="text-xl font-bold uppercase underline decoration-double underline-offset-4">Burkina Faso</h2>
+        <p className="text-sm italic">Unité - Progrès - Justice</p>
+        <div className="mt-8 flex justify-between items-start text-left text-xs uppercase font-bold">
+          <div>
+            <p>{settings.legal_name || business.name}</p>
+            <p>IFU: {settings.ifu || "00000000X"}</p>
+            <p>RCCM: {settings.rccm || "BF OUA 2024 B 000"}</p>
+          </div>
+          <div className="text-right">
+            <p>Facture n° {invoice.number}</p>
+            <p>Date: {format(new Date(invoice.created_at), 'dd/MM/yyyy')}</p>
+          </div>
+        </div>
+      </div>
+      <div className="mb-8 p-4 border border-black bg-slate-50">
+        <p className="text-sm font-bold">DOIT: {invoice.customer_name}</p>
+      </div>
+      <table className="w-full border-collapse border border-black text-sm">
+        <thead>
+          <tr className="bg-slate-100">
+            <th className="border border-black p-2 text-left">Désignation</th>
+            <th className="border border-black p-2 text-right w-24">Quantité</th>
+            <th className="border border-black p-2 text-right w-32">Prix Unitaire</th>
+            <th className="border border-black p-2 text-right w-32">Montant</th>
+          </tr>
+        </thead>
+        <tbody>
+          {invoice.items.map((item, i) => (
+            <tr key={i}>
+              <td className="border border-black p-2">{item.name}</td>
+              <td className="border border-black p-2 text-right">{item.qty}</td>
+              <td className="border border-black p-2 text-right">{item.price.toLocaleString()}</td>
+              <td className="border border-black p-2 text-right">{(item.qty * item.price).toLocaleString()}</td>
+            </tr>
+          ))}
+          {[...Array(Math.max(0, 5 - invoice.items.length))].map((_, i) => (
+            <tr key={`blank-${i}`} className="h-8">
+              <td className="border border-black p-2"></td>
+              <td className="border border-black p-2"></td>
+              <td className="border border-black p-2"></td>
+              <td className="border border-black p-2"></td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colSpan={3} className="border border-black p-2 text-right font-bold uppercase">Net à Payer</td>
+            <td className="border border-black p-2 text-right font-bold">{invoice.total.toLocaleString()} {invoice.currency}</td>
+          </tr>
+        </tfoot>
+      </table>
+      <div className="mt-12 text-xs italic">
+        <p>Arrêtée la présente facture à la somme de : {invoice.total.toLocaleString()} {invoice.currency}</p>
+      </div>
+    </div>
+  );
+};
+
 // Map of all templates
 export const INVOICE_TEMPLATES: Record<string, React.FC<TemplateProps>> = {
   "stripe-modern": StripeModern,
   "apple-minimal": AppleMinimal,
   "bistro-thermal": BistroThermal,
-  // Add more here to reach 30+
+  "amazon-retail": AmazonRetail,
+  "gov-standard": GovStandard,
 };
