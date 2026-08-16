@@ -2281,6 +2281,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   // ---------- Paramètres plateforme (taux + frais) ----------
   async adminGetConfig({ user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const allowedNumbers = ["card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee", "referral_reward_xof", "paypal_wd_fee_bps", "paypal_wd_fee_flat_xof", "paypal_wd_min_xof", "paypal_wd_max_xof", "gateway_fee_bps", "gateway_fee_flat_xof", "gateway_min_xof", "sms_price", "business_cashout_fee_bps", "business_cashout_fee_flat_xof", "business_cashout_min_xof"];
+    const allowedBools = ["notify_admin_sender_request", "paypal_wd_enabled", "gateway_enabled", "momo_transfer_enabled"];
     const cfg = await loadPricingConfig(admin);
     const { data: extras } = await admin.from("platform_config").select("key,value");
     const extrasMap: Record<string, any> = {};
