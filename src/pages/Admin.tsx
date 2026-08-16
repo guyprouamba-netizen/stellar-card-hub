@@ -1048,12 +1048,18 @@ function GatewayFeeSettings() {
         <h2 className="font-[Space_Grotesk] text-xl font-bold">Passerelle de paiement (API projets)</h2>
         <p className="mt-1 text-sm text-muted-foreground">Frais prélevés sur les paiements encaissés par les marchands via leurs clés API projet.</p>
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         {num("fee_bps", "Commission (points de base)", "200 = 2% du montant encaissé")}
         {num("fee_flat_xof", "Frais fixe (XOF)", "Ajouté à chaque transaction")}
         {num("min_xof", "Montant minimum (XOF)", "Ex: 100")}
+        <label className="block">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Prix SMS Marchand (XOF)</span>
+          <input type="number" value={cfg.sms_price || 20} onChange={(e) => setCfg((d: any) => ({ ...d, sms_price: Number(e.target.value) }))}
+            className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none" />
+          <span className="mt-1 block text-[11px] text-muted-foreground">Prix payé par le marchand par SMS envoyé.</span>
+        </label>
       </div>
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex items-center gap-2 text-sm mt-2">
         <input type="checkbox" checked={!!cfg.enabled} onChange={(e) => setCfg((d: any) => ({ ...d, enabled: e.target.checked }))} />
         Activer la passerelle API
       </label>
