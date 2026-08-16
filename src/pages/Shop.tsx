@@ -20,7 +20,7 @@ type Biz = {
     animation?: 'fade' | 'slide' | 'zoom';
     card_style?: 'glass' | 'neo' | 'flat';
     header_style?: 'transparent' | 'glass' | 'floating';
-  }; id: string; name: string } | null;
+  } | null; id: string; name: string } | null;
 };
 type ShopProject = { id: string; name: string; description: string | null; cover_url: string | null; logo_url: string | null; products: Product[] };
 
