@@ -666,41 +666,41 @@ export const AirbnbHost = ({ invoice, business, kind = "invoice" }: TemplateProp
 };
 
 // 13. WISE BORDERLESS
-export const WiseBorderless = ({ invoice, business, settings }: TemplateProps) => (
-  <div className="bg-[#252c32] p-10 max-w-4xl mx-auto text-white font-sans border border-slate-700">
-    <div className="flex justify-between items-start mb-16">
-      <div className="bg-[#00b9ff] text-white px-4 py-2 font-black text-xl italic">Wise</div>
-      <div className="text-right">
-        <p className="text-[#00b9ff] font-bold">Transaction confirmée</p>
-        <p className="text-sm opacity-50">{format(new Date(invoice.created_at), 'd MMM yyyy, HH:mm')}</p>
+export const WiseBorderless = ({ invoice, business, settings, kind = "invoice" }: TemplateProps) => {
+  const statusLabel = kind === "receipt" ? "Reçu confirmé" : kind === "contract" ? "Contrat signé" : "Transaction confirmée";
+  return (
+    <div className="bg-[#252c32] p-10 max-w-4xl mx-auto text-white font-sans border border-slate-700">
+      <div className="flex justify-between items-start mb-16">
+        <div className="bg-[#00b9ff] text-white px-4 py-2 font-black text-xl italic">Wise</div>
+        <div className="text-right">
+          <p className="text-[#00b9ff] font-bold">{statusLabel}</p>
+          <p className="text-sm opacity-50">{format(new Date(invoice.created_at), 'd MMM yyyy, HH:mm')}</p>
+        </div>
       </div>
+      <div className="grid grid-cols-2 gap-10 mb-16">
+        <div>
+          <p className="text-xs opacity-50 uppercase mb-2">Émetteur</p>
+          <p className="font-bold text-xl">{settings.legal_name || business.name}</p>
+        </div>
+        <div>
+          <p className="text-xs opacity-50 uppercase mb-2">Bénéficiaire</p>
+          <p className="font-bold text-xl">{invoice.customer_name}</p>
+        </div>
+      </div>
+      <div className="bg-white/5 p-8 border border-white/10 space-y-6 mb-10">
+        <div className="flex justify-between text-2xl font-bold">
+          <span className="opacity-50 font-normal">Montant total</span>
+          <span>{invoice.total.toLocaleString()} {invoice.currency}</span>
+        </div>
+        <div className="flex justify-between text-[10px] opacity-30 uppercase font-bold tracking-tighter pt-6 border-t border-white/10">
+          <span>Réf Transaction</span>
+          <span>{invoice.number}</span>
+        </div>
+      </div>
+      <VerificationFooter business={business} invoice={invoice} />
     </div>
-    <div className="grid grid-cols-2 gap-10 mb-16">
-      <div>
-        <p className="text-xs opacity-50 uppercase mb-2">Émetteur</p>
-        <p className="font-bold text-xl">{settings.legal_name || business.name}</p>
-      </div>
-      <div>
-        <p className="text-xs opacity-50 uppercase mb-2">Bénéficiaire</p>
-        <p className="font-bold text-xl">{invoice.customer_name}</p>
-      </div>
-    </div>
-    <div className="bg-white/5 p-8 border border-white/10 space-y-6">
-      <div className="flex justify-between text-2xl font-bold">
-        <span className="opacity-50 font-normal">Montant envoyé</span>
-        <span>{invoice.subtotal.toLocaleString()} {invoice.currency}</span>
-      </div>
-      <div className="flex justify-between text-sm opacity-50 italic">
-        <span>Frais Wise (0.4%)</span>
-        <span>- {(invoice.subtotal * 0.004).toLocaleString()} {invoice.currency}</span>
-      </div>
-      <div className="flex justify-between text-3xl font-black text-[#00b9ff] pt-6 border-t border-white/10">
-        <span>Le bénéficiaire reçoit</span>
-        <span>{(invoice.total - (invoice.subtotal * 0.004)).toLocaleString()} {invoice.currency}</span>
-      </div>
-    </div>
-  </div>
-);
+  );
+};
 
 // 14. MICROSOFT AZURE
 export const MicrosoftAzure = ({ invoice, business, settings }: TemplateProps) => (
