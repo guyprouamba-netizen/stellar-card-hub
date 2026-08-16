@@ -1180,7 +1180,12 @@ function ShopTemplatesTab() {
               <button onClick={() => setModal(null)} className="rounded-full border border-border px-6 py-2 text-sm font-semibold hover:bg-muted">Annuler</button>
               <button onClick={async () => {
                 try {
-                  await upsert({ data: modal });
+                  const toSave = { ...modal };
+                  if (toSave.config_raw) {
+                    try { toSave.config = JSON.parse(toSave.config_raw); delete toSave.config_raw; }
+                    catch(e) { throw new Error("JSON de configuration invalide"); }
+                  }
+                  await upsert({ data: toSave });
                   toast.success(modal.id ? "Template mis à jour" : "Template créé");
                   setModal(null);
                   refresh();
