@@ -1190,43 +1190,47 @@ export const SoftMint = ({ invoice, business, settings }: TemplateProps) => (
 );
 
 // 27. DARK VANGUARD (High-End Tech)
-export const DarkVanguard = ({ invoice, business }: TemplateProps) => (
-  <div className="bg-[#0c0c0c] p-16 max-w-5xl mx-auto text-white font-sans border-t-[20px] border-indigo-600 shadow-2xl relative overflow-hidden">
-    <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(45deg,rgba(79,70,229,0.05)_0%,transparent_100%)] pointer-events-none" />
-    <div className="flex justify-between items-end mb-32 relative z-10">
-      <h1 className="text-7xl font-black italic tracking-tighter leading-none">{business.name}</h1>
-      <div className="text-right text-indigo-600 font-black text-xs uppercase tracking-[0.5em]">{invoice.number}</div>
-    </div>
-    <div className="grid grid-cols-12 gap-10 mb-32 relative z-10">
-      <div className="col-span-8">
-        <p className="text-white/20 font-bold uppercase tracking-widest text-[10px] mb-8">Statement for</p>
-        <h2 className="text-5xl font-black tracking-tighter leading-tight mb-4">{invoice.customer_name}</h2>
-        <p className="text-white/40 text-lg font-medium">{invoice.customer_email}</p>
+export const DarkVanguard = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
+  return (
+    <div className="bg-[#0c0c0c] p-16 max-w-5xl mx-auto text-white font-sans border-t-[20px] border-indigo-600 shadow-2xl relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(45deg,rgba(79,70,229,0.05)_0%,transparent_100%)] pointer-events-none" />
+      <div className="flex justify-between items-end mb-32 relative z-10">
+        <h1 className="text-7xl font-black italic tracking-tighter leading-none">{business.name}</h1>
+        <div className="text-right text-indigo-600 font-black text-xs uppercase tracking-[0.5em]">{title} {invoice.number}</div>
       </div>
-      <div className="col-span-4 flex flex-col justify-end items-end">
-        <p className="text-white/20 font-bold uppercase tracking-widest text-[10px] mb-8">Settled Amount</p>
-        <div className="text-6xl font-black tracking-tighter flex items-start gap-2">
-          {invoice.total.toLocaleString()}
-          <span className="text-2xl text-indigo-600 mt-2">{invoice.currency}</span>
+      <div className="grid grid-cols-12 gap-10 mb-32 relative z-10">
+        <div className="col-span-8">
+          <p className="text-white/20 font-bold uppercase tracking-widest text-[10px] mb-8">Statement for</p>
+          <h2 className="text-5xl font-black tracking-tighter leading-tight mb-4">{invoice.customer_name}</h2>
+          <p className="text-white/40 text-lg font-medium">{invoice.customer_email}</p>
+        </div>
+        <div className="col-span-4 flex flex-col justify-end items-end">
+          <p className="text-white/20 font-bold uppercase tracking-widest text-[10px] mb-8">Settled Amount</p>
+          <div className="text-6xl font-black tracking-tighter flex items-start gap-2">
+            {invoice.total.toLocaleString()}
+            <span className="text-2xl text-indigo-600 mt-2">{invoice.currency}</span>
+          </div>
         </div>
       </div>
-    </div>
-    <div className="space-y-2 mb-32 relative z-10">
-      {invoice.items.map((it, i) => (
-        <div key={i} className="flex justify-between items-center py-8 border-b border-white/5 group hover:border-indigo-600 transition-colors duration-700">
-          <span className="text-2xl font-black tracking-tighter group-hover:pl-4 transition-all duration-700">{it.name} <span className="text-white/20 font-normal italic ml-4">× {it.qty}</span></span>
-          <span className="text-2xl font-black italic opacity-40 group-hover:opacity-100 group-hover:text-indigo-600 transition-all duration-700">{(it.qty * it.price).toLocaleString()}</span>
-        </div>
-      ))}
-    </div>
-    <div className="flex justify-between items-center relative z-10">
-      <div className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center">
-        <div className="w-4 h-4 bg-indigo-600 rounded-full animate-ping" />
+      <div className="space-y-2 mb-32 relative z-10">
+        {invoice.items.map((it, i) => (
+          <div key={i} className="flex justify-between items-center py-8 border-b border-white/5 group hover:border-indigo-600 transition-colors duration-700">
+            <span className="text-2xl font-black tracking-tighter group-hover:pl-4 transition-all duration-700">{it.name} <span className="text-white/20 font-normal italic ml-4">× {it.qty}</span></span>
+            <span className="text-2xl font-black italic opacity-40 group-hover:opacity-100 group-hover:text-indigo-600 transition-all duration-700">{(it.qty * it.price).toLocaleString()}</span>
+          </div>
+        ))}
       </div>
-      <div className="text-[8px] font-black uppercase tracking-[1em] text-white/10">Engineered by YengaPay</div>
+      <div className="flex justify-between items-center relative z-10">
+        <div className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center">
+          <div className="w-4 h-4 bg-indigo-600 rounded-full animate-ping" />
+        </div>
+        <div className="text-[8px] font-black uppercase tracking-[1em] text-white/10">Engineered by YengaPay</div>
+      </div>
+      <VerificationFooter business={business} invoice={invoice} />
     </div>
-  </div>
-);
+  );
+};
 
 // 28. ORGANIC KRAFT (Eco-friendly Retail)
 export const OrganicKraft = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
