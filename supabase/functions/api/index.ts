@@ -681,7 +681,7 @@ async function dispatchProjectWebhook(admin: any, opts: {
 
 // ============= Handlers =============
 // v: internal-transfer-6 (force category registration)
-const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userClient: any }) => Promise<any>> = {
+const H1: Record<string, any> = {
 
 
 
