@@ -507,9 +507,9 @@ export default function BusinessPage() {
                     <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
                       {projects.map((p) => {
                          return (
-                           <div key={p.id} className="group relative flex flex-col overflow-hidden rounded-[2.5rem] border border-border bg-card transition-all hover:border-primary/40 hover:shadow-card-premium min-h-[480px]">
+                           <div key={p.id} className="group relative flex flex-col overflow-hidden rounded-[2rem] border border-border bg-card transition-all hover:border-primary/40 hover:shadow-card-premium min-h-[400px]">
                              {/* Badge de Type */}
-                             <div className="absolute left-6 top-6 z-10">
+                             <div className="absolute right-6 top-6 z-10">
                                <span className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-3 py-1.5 text-[11px] font-black uppercase tracking-widest text-white shadow-lg">
                                  <Building2 className="h-3.5 w-3.5" /> Marchand
                                </span>
