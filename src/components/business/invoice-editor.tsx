@@ -86,10 +86,15 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
       });
       
       const imgData = canvas.toDataURL("image/png");
+      
+      // Calculate dimensions in px (96 DPI standard)
+      const pdfWidth = canvas.width;
+      const pdfHeight = canvas.height;
+      
       const pdf = new jsPDF({
-        orientation: "portrait",
+        orientation: pdfWidth > pdfHeight ? "landscape" : "portrait",
         unit: "px",
-        format: [canvas.width, canvas.height]
+        format: [pdfWidth, pdfHeight]
       });
       
       pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
