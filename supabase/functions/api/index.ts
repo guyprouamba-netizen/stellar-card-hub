@@ -1821,6 +1821,21 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     return { ok: true };
   },
 
+
+  async listShopTemplates({ admin }) {
+    const { data, error } = await admin.from("shop_templates").select("id,name,slug,description,thumbnail_url,preview_url,price,is_free,category").order("name");
+    if (error) throw new Error(error.message);
+    return { ok: true, templates: data || [] };
+  },
+
+  async applyShopTemplate({ data, user, admin }) {
+    const { business_id, template_id } = data;
+    await assertBusinessOwner(admin, user.id, business_id);
+    const { error } = await admin.from("businesses").update({ template_id }).eq("id", business_id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  },
+
   // L'utilisateur met à jour son propre profil (nom + téléphone + avatar).
   async updateMyProfile({ data, user, admin }) {
     const patch: Record<string, any> = {};
