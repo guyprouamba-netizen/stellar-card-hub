@@ -2279,11 +2279,13 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async adminGetConfig({ user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const cfg = await loadPricingConfig(admin);
-    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone"]);
+    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone", "notify_admin_sender_request"]);
     const extrasMap: Record<string, any> = {};
     for (const r of extras ?? []) {
-      if (r.key === "admin_notification_phone") {
+      if (r.key === "admin_notification_phone" || r.key === "whatsapp_group_url") {
         try { extrasMap[r.key] = JSON.parse(r.value); } catch { extrasMap[r.key] = r.value; }
+      } else if (r.key === "notify_admin_sender_request") {
+        extrasMap[r.key] = r.value === "true";
       } else {
         extrasMap[r.key] = r.value;
       }
@@ -2305,9 +2307,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       }
     }
     for (const k of allowedStrings) {
-      if (typeof data?.[k] === "string" && data[k].trim() !== "") {
-        // JSONB string : stocker en JSON valide entre guillemets
-        updates.push({ key: k, value: JSON.stringify(data[k].trim().slice(0, 500)) });
+      if (data?.[k] !== undefined && data[k] !== null) {
+        updates.push({ key: k, value: JSON.stringify(String(data[k]).trim().slice(0, 500)) });
       }
     }
     for (const k of allowedBools) {
@@ -2319,10 +2320,12 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       await admin.from("platform_config").upsert({ key: u.key, value: u.value }, { onConflict: "key" });
     }
     const cfg = await loadPricingConfig(admin);
-    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "notify_admin_sender_request"]);
+    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone", "notify_admin_sender_request"]);
     const extrasMap: Record<string, any> = {};
     for (const r of extras ?? []) {
-      if (r.key === "notify_admin_sender_request") {
+      if (r.key === "admin_notification_phone" || r.key === "whatsapp_group_url") {
+        try { extrasMap[r.key] = JSON.parse(r.value); } catch { extrasMap[r.key] = r.value; }
+      } else if (r.key === "notify_admin_sender_request") {
         extrasMap[r.key] = r.value === "true";
       } else {
         extrasMap[r.key] = r.value;
