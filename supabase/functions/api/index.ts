@@ -8,7 +8,7 @@ import { computeCardCost, computeFundCost, loadPricingConfig } from "../_shared/
 import { sendEmail } from "../_shared/email.ts";
 import { notifyEvent as notifySms, sendSmsRaw } from "../_shared/sms.ts";
 import * as YP from "../_shared/yengapay.ts";
-import { handle2FA } from "./2fa.ts";
+import { handle2FA, handleRegistrationOTP } from "./2fa.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -4133,9 +4133,18 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   },
 
   async sendRegistrationOTP({ user, admin }) {
-    const { data: p } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
-    if (!p?.phone) throw new Error("Aucun numéro de téléphone configuré.");
-    return await handle2FA(admin, user.id, p.phone, "send", undefined, "registration");
+    // Lors de l'inscription, on récupère le numéro directement depuis auth.users via le service_role
+    const { data: authUser, error: authErr } = await admin.auth.admin.getUserById(user.id);
+    const phone = authUser?.user?.user_metadata?.phone || authUser?.user?.phone;
+    
+    if (!phone) {
+      // Fallback sur le profil si metadata absent
+      const { data: p } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
+      if (!p?.phone) throw new Error("Aucun numéro de téléphone trouvé pour l'envoi de l'OTP.");
+      return await handleRegistrationOTP(admin, user.id, p.phone, "send");
+    }
+    
+    return await handleRegistrationOTP(admin, user.id, phone, "send");
   },
 
   async verifyRegistrationOTP({ data, user, admin }) {

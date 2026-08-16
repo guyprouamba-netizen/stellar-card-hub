@@ -123,11 +123,15 @@ function Auth() {
           throw { code: "user_already_exists", message: "Un compte existe déjà avec cet email." };
         }
         let signedInUser = signUpData.session?.user ?? signUpData.user ?? null;
-        if (!signUpData.session) {
+        if (!signUpData.session && email && password) {
           const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
-          if (signInErr) throw signInErr;
-          signedInUser = signInData.session?.user ?? signedInUser;
+          if (signInErr) {
+            console.error("Auto-signin failed", signInErr);
+          } else {
+            signedInUser = signInData.session?.user ?? signedInUser;
+          }
         }
+        
         if (!signedInUser?.id) throw new Error("Session introuvable");
         
         // Initialiser l'OTP de bienvenue/inscription
@@ -137,7 +141,12 @@ function Auth() {
           const { data: res, error: apiErr } = await supabase.functions.invoke("api", { 
             body: { fn: "sendRegistrationOTP" } 
           });
-          if (apiErr || res?.error) throw new Error(apiErr?.message || res?.error || "Erreur envoi OTP");
+          
+          if (apiErr || res?.error) {
+            console.error("API Error sending OTP:", apiErr || res?.error);
+            throw new Error(apiErr?.message || res?.error || "Erreur envoi OTP");
+          }
+          
           setMode("registration_otp");
           toast.success("Code de bienvenue envoyé par WhatsApp");
         } catch (err: any) {
