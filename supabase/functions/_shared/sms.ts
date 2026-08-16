@@ -162,16 +162,28 @@ export async function notifyEvent(admin: any, event: NotifyEvent, ctx: {
     }
 
     // Admin SMS
-    if (cfg.notify_admin && adminKey && Array.isArray(cfg.admin_phones) && cfg.admin_phones.length > 0) {
-      const tpl = await loadTemplate(admin, adminKey);
+    const shouldNotifyAdmin = (cfg.notify_admin && adminKey) || (event === "sender_request" && cfg.notify_admin_sender_request);
+
+    if (shouldNotifyAdmin && Array.isArray(cfg.admin_phones) && cfg.admin_phones.length > 0) {
+      // For sender_request, we don't have a template in sms_templates usually, so we might need a fallback
+      // but the user asked for it to be a checkbox in "Notifications SMS" settings.
+      // If event is sender_request, we can use a hardcoded message if no template is found.
+      const tpl = adminKey ? await loadTemplate(admin, adminKey) : null;
+      let message = "";
+      
       if (tpl?.enabled && tpl.body) {
-        const message = renderTemplate(tpl.body, vars);
+        message = renderTemplate(tpl.body, vars);
+      } else if (event === "sender_request") {
+        message = `[FASO-PAY] Nouvelle demande de Sender ID: "${vars.sender_id}" par ${vars.company || name}.`;
+      }
+
+      if (message) {
         const normalized = cfg.admin_phones.map((p: string) => normalizeBfPhone(p)).filter(Boolean) as string[];
         if (normalized.length) {
           const recipient = normalized.join(",");
-          const r = await sendSmsRaw({ recipient, message, sender_id: cfg.sender_id });
+          const r = await sendSmsRaw({ recipient, message, sender_id: cfg.sender_id || "FASOPAY" });
           await logSms(admin, {
-            recipient, message, event_key: adminKey, user_id: ctx.userId,
+            recipient, message, event_key: adminKey || "sender_request_admin", user_id: ctx.userId,
             status: r.ok ? "success" : "failed", provider_response: r.body,
             error: r.ok ? undefined : String(r.body?.message || r.body?.error || `HTTP ${r.status}`),
           });
