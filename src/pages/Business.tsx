@@ -334,7 +334,7 @@ export default function BusinessPage() {
                     <Link to={`/business/${current.id}/accounting`} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
                       <BarChart3 className="h-4 w-4" /> Comptabilité
                     </Link>
-                    <Link to={`/business/${current.id}/contracts`} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
+                    <Link to={`/business/${current.id}/contracts`} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${tab === 'contracts' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
                       <Receipt className="h-4 w-4" /> Contrats & Factures
                     </Link>
                   </div>
