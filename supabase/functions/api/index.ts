@@ -2288,8 +2288,11 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (r.key === "notify_admin_sender_request") {
         extrasMap[r.key] = r.value === "true";
       } else {
-        // Plain string or number
-        extrasMap[r.key] = r.value;
+        let val = r.value;
+        if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"') && val.length > 1) {
+          try { val = JSON.parse(val); } catch { /* ignore */ }
+        }
+        extrasMap[r.key] = val;
       }
     }
     return { ok: true, config: { ...cfg, ...extrasMap } };
