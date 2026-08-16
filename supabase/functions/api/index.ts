@@ -2489,28 +2489,41 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     await assertUserRateLimit(admin, user.id, "cashoutBusinessBalance", 6);
     const biz = await assertBusinessOwner(admin, user.id, data.business_id);
     const { data: b } = await admin.from("businesses").select("balance,owner_id").eq("id", biz.id).single();
-    const amount = Number(b?.balance || 0);
-    if (amount <= 0) return { ok: false, error: "Solde nul" };
+    const totalBalance = Number(b?.balance || 0);
+    if (totalBalance <= 0) return { ok: false, error: "Solde nul" };
+    
+    // Apply cashout fees
+    const cfg = await loadGatewayFeeConfig(admin);
+    const feePct = Math.ceil((totalBalance * cfg.business_cashout_fee_bps) / 10000);
+    const fees = Math.max(cfg.business_cashout_min_xof, feePct + cfg.business_cashout_fee_flat_xof);
+    const netAmount = Math.max(0, totalBalance - fees);
+    
+    if (netAmount <= 0 && totalBalance > 0) return { ok: false, error: `Le solde est insuffisant pour couvrir les frais de retrait (${fees} XOF)` };
+
     const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", b.owner_id).eq("currency", "XOF").maybeSingle();
     if (!w) return { ok: false, error: "Wallet XOF introuvable" };
-    await admin.from("wallets").update({ balance: Number(w.balance) + amount }).eq("id", w.id);
+    
+    await admin.from("wallets").update({ balance: Number(w.balance) + netAmount }).eq("id", w.id);
     await admin.from("businesses").update({ balance: 0 }).eq("id", biz.id);
+    
     await admin.from("transactions").insert({
       user_id: b.owner_id, type: "deposit", status: "success",
-      amount, currency: "XOF",
-      description: `Transfert solde business → wallet`,
-      metadata: { business_id: biz.id },
+      amount: netAmount, currency: "XOF",
+      description: `Retrait solde business → wallet (frais: ${fees} XOF)`,
+      metadata: { business_id: biz.id, fees, gross_amount: totalBalance },
     });
-    // Comptabilité : tout retrait depuis la boutique est enregistré automatiquement
+    
+    // Accounting
     await admin.from("accounting_entries").insert({
       business_id: biz.id, kind: "expense",
       label: "Retrait vers portefeuille",
-      amount, currency: "XOF",
+      amount: totalBalance, currency: "XOF",
       entry_date: new Date().toISOString().slice(0, 10),
       auto_generated: true,
-      notes: "Retrait automatique du solde boutique",
+      notes: `Retrait solde boutique. Net: ${netAmount}, Frais: ${fees}`,
     });
-    return { ok: true, transferred: amount };
+    
+    return { ok: true, transferred: netAmount, fees };
   },
 
   // ===========================================================
