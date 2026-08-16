@@ -107,3 +107,9 @@ export const purchaseSmsCredits = (data: { business_id: string; sender_id: strin
 export const listShopTemplates = () => callApi("listShopTemplates");
 export const applyShopTemplate = (data: { business_id: string; template_id: string | null }) => 
   callApi("applyShopTemplate", data);
+
+export const createPaydunyaPayment = (data: { business_id: string; amount: number; origin?: string }) =>
+  callApi("createPaydunyaPayment", data);
+
+export const verifyPaydunyaPayment = (token: string) =>
+  callApi("verifyPaydunyaPayment", { token });
