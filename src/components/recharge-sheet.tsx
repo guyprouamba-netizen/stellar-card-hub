@@ -229,7 +229,7 @@ export function RechargeSheet({ open, onClose }: { open: boolean; onClose: () =>
             )}
 
             <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
-              <ShieldCheck className="h-3 w-3" /> Paiement chiffré traité par FASO-INVEST PAY
+              <ShieldCheck className="h-3 w-3" /> Paiement chiffré traité par FASO INVEST PAY
             </p>
           </motion.div>
         </>

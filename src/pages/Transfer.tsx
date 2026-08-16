@@ -201,7 +201,7 @@ export default function TransferPage() {
               Envoyer de l'argent
             </h1>
             <p className="mt-2 text-sm font-medium" style={{ color: C.green }}>
-              Transferts <b>gratuits & instantanés</b> entre comptes FASO-INVEST PAY. Même si le destinataire n'a pas encore de compte, il recevra un SMS pour récupérer son argent.
+              Transferts <b>gratuits & instantanés</b> entre comptes FASO INVEST PAY. Même si le destinataire n'a pas encore de compte, il recevra un SMS pour récupérer son argent.
             </p>
           </div>
           <button
@@ -267,7 +267,7 @@ export default function TransferPage() {
                 {lookup && (
                   <div className={`mt-2 flex items-center gap-2 text-xs font-medium ${lookup.found ? "text-emerald-700" : "text-amber-700"}`}>
                     {lookup.found ? (
-                      <><CheckCircle2 className="h-4 w-4" /> Compte FASO-INVEST PAY trouvé{lookup.name ? ` — ${lookup.name}` : ""}. Livraison instantanée.</>
+                      <><CheckCircle2 className="h-4 w-4" /> Compte FASO INVEST PAY trouvé{lookup.name ? ` — ${lookup.name}` : ""}. Livraison instantanée.</>
                     ) : (
                       <><Clock className="h-4 w-4" /> Pas de compte détecté. Le destinataire recevra un SMS pour créer son compte gratuit et récupérer l'argent.</>
                     )}

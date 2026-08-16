@@ -166,7 +166,7 @@ async function exportA4(c: any, biz: any) {
     if (buyer) doc.text(`Acheteur : ${buyer}`, 14, y);
     if (promoter) doc.text(`Promoteur : ${promoter}`, W - 14, y, { align: "right" });
   }
-  doc.setTextColor(150).setFontSize(8).text("Généré via FASO-INVEST PAY · Vérification par QR code", W / 2, 292, { align: "center" });
+  doc.setTextColor(150).setFontSize(8).text("Généré via FASO INVEST PAY · Vérification par QR code", W / 2, 292, { align: "center" });
   doc.save(`${c.number}.pdf`);
 }
 
@@ -283,7 +283,7 @@ async function exportImage(c: any, biz: any) {
   if (buyer) ctx.fillText(`Acheteur : ${buyer}`, 40, H - 130);
   if (promoter) ctx.fillText(`Promoteur : ${promoter}`, 40, H - 100);
   ctx.fillStyle = "#94a3b8"; ctx.font = "14px sans-serif"; ctx.textAlign = "center";
-  ctx.fillText("Généré via FASO-INVEST PAY", W / 2, H - 30);
+  ctx.fillText("Généré via FASO INVEST PAY", W / 2, H - 30);
   const a = document.createElement("a");
   a.download = `${c.number}.png`;
   a.href = canvas.toDataURL("image/png");
@@ -347,7 +347,7 @@ pre{white-space:pre-wrap;font-family:inherit;line-height:1.6;margin:24px 0 0}
       <div style="text-align:right">${promoter ? `<b>Promoteur</b><br>${escapeHtml(promoter)}` : ""}</div>
     </div>
   </div>
-  <div class="foot">Généré via FASO-INVEST PAY · Vérifiable par QR code</div>
+  <div class="foot">Généré via FASO INVEST PAY · Vérifiable par QR code</div>
 </div></body></html>`;
   const blob = new Blob([html], { type: "text/html" });
   const url = URL.createObjectURL(blob);

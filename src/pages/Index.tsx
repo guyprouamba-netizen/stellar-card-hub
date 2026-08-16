@@ -267,7 +267,7 @@ function Index() {
               <img src={logo} alt="" className="h-8 w-8 rounded-lg" />
               <span className="font-semibold">FASO INVEST <span className="text-primary">PAY</span></span>
             </div>
-            <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} FASO-INVEST PAY — Tous droits réservés. Ouagadougou, Burkina Faso.</p>
+            <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} FASO INVEST PAY — Tous droits réservés. Ouagadougou, Burkina Faso.</p>
           </div>
         </footer>
       </main>

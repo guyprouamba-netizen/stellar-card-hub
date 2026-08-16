@@ -13,9 +13,9 @@ const wallets = [
 
 const movements = [
   { type: "in", label: "Recharge Mobile Money", method: "Orange Money", amount: 50000, currency: "XOF", date: "Aujourd'hui · 11:24", status: "success" as const },
-  { type: "out", label: "Émission carte USD", method: "FASO-INVEST PAY", amount: -25000, currency: "XOF", date: "Hier · 17:02", status: "success" as const },
+  { type: "out", label: "Émission carte USD", method: "FASO INVEST PAY", amount: -25000, currency: "XOF", date: "Hier · 17:02", status: "success" as const },
   { type: "in", label: "Recharge Mobile Money", method: "MTN MoMo", amount: 25000, currency: "XOF", date: "12 mai · 09:11", status: "success" as const },
-  { type: "out", label: "Transfert vers @marie", method: "FASO-INVEST PAY", amount: -7500, currency: "XOF", date: "10 mai · 18:46", status: "success" as const },
+  { type: "out", label: "Transfert vers @marie", method: "FASO INVEST PAY", amount: -7500, currency: "XOF", date: "10 mai · 18:46", status: "success" as const },
   { type: "in", label: "Recharge Mobile Money", method: "Wave", amount: 10000, currency: "XOF", date: "08 mai · 14:00", status: "pending" as const },
 ];
 

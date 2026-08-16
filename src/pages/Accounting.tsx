@@ -592,7 +592,7 @@ function ReportsTab({ businessId }: any) {
           </table>
         </div>
 
-        <p className="mt-6 text-[10px] text-muted-foreground text-center">Édité le {new Date().toLocaleString("fr-FR")} · FASO-INVEST PAY</p>
+        <p className="mt-6 text-[10px] text-muted-foreground text-center">Édité le {new Date().toLocaleString("fr-FR")} · FASO INVEST PAY</p>
       </div>
     </div>
   );

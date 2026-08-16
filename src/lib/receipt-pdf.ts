@@ -73,7 +73,7 @@ export function generateReceiptPdf(d: ReceiptData): Blob {
 
   // Footer
   doc.setTextColor(150).setFontSize(8).setFont("helvetica", "normal");
-  doc.text("Émis via FASO-INVEST PAY · Paiement sécurisé Mobile Money", W / 2, 287, { align: "center" });
+  doc.text("Émis via FASO INVEST PAY · Paiement sécurisé Mobile Money", W / 2, 287, { align: "center" });
 
   return doc.output("blob");
 }
