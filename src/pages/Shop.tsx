@@ -356,10 +356,10 @@ export default function Shop() {
                   <span className="text-4xl font-black opacity-10" style={{ color: th.text }}>{String(g.products.length).padStart(2, '0')}</span>
                 </div>
               </motion.div>
-              <div className={`grid gap-8 ${
+              <div className={`grid gap-4 sm:gap-6 ${
                 biz.template?.config?.layout === 'bento' ? 'grid-cols-2 lg:grid-cols-4' : 
                 biz.template?.config?.layout === 'split' ? 'grid-cols-1 lg:grid-cols-2' : 
-                'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
               }`}>
                 {g.products.map(card)}
               </div>
