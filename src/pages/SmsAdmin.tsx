@@ -174,6 +174,7 @@ export default function SmsAdmin() {
               { k: "event_card_recharge", label: "Recharge de carte USD" },
               { k: "event_withdrawal", label: "Demande de retrait" },
               { k: "event_withdrawal_paid", label: "Retrait payé" },
+              { k: "event_sender_request", label: "Demande de Sender ID (Admin)" },
             ].map((ev) => (
               <label key={ev.k} className="flex items-center justify-between rounded-2xl border border-border bg-surface-2 p-3">
                 <span className="text-sm">{ev.label}</span>
