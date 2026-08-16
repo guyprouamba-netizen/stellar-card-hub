@@ -262,7 +262,7 @@ function Auth() {
             {mode === "login" ? "Bon retour 👋" : "Créer un compte"}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {mode === "login" ? "Connectez-vous à votre espace FASO INVEST PAY." : "'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            il faut corriger l'erreur venant des categories des produits, il faut crrer des categories, l'administrateur se reserve le droit d'ajouter des categories, supprimer et atres. JE VOUDRAIS QUE TU ME PROPOSE DES TICKET DE CAISSES PROFESSIONNEL MINIMUN 30 EXEMPLAIRE; des tickets de caisses inspirer des grandes magazin ou de commerce en ligne"}
+            {mode === "login" ? "Connectez-vous à votre espace FASO INVEST PAY." : "'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            je vais te demander de faire des templates de recu ou de facture au minimun 30 pour chaque cas; des recus tirés des grandes entreprises en lignes; des factures pro format; editable; des exemplaire prmiums, extremement pro"}
           </p>
 
           {mode === "2fa" || mode === "registration_otp" ? (
