@@ -174,6 +174,22 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
               <option value="USD">USD</option>
             </select>
           </div>
+          
+          <div className="flex gap-2 sm:col-span-2">
+            <select value={draft.category_id} onChange={(e) => setDraft((d) => ({ ...d, category_id: e.target.value }))}
+              className={`${FIELD} flex-1`}>
+              <option value="">-- Sans catégorie --</option>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <div className="flex flex-1 gap-2">
+              <input value={newCat} onChange={(e) => setNewCat(e.target.value)}
+                placeholder="Nouvelle catégorie…" className={`${FIELD} flex-1`} />
+              <button onClick={onAddCategory} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted hover:bg-border transition-colors">
+                <FolderPlus className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
           <textarea value={draft.description} onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
             rows={2} placeholder="Description (optionnel)"
             className="rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary sm:col-span-2" />
