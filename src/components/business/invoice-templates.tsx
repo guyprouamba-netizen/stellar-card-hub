@@ -235,19 +235,25 @@ export const AppleMinimal = ({ invoice, business, settings, kind = "invoice" }: 
 };
 
 // 3. POS THERMAL (Ticket de caisse)
-export const BistroThermal = ({ invoice, business, kind = "receipt" }: TemplateProps) => {
+export const BistroThermal = ({ invoice, business, settings, kind = "receipt" }: TemplateProps) => {
   return (
     <div className="bg-white p-6 text-black font-mono max-w-[320px] mx-auto text-xs border border-dashed border-slate-300">
       <div className="text-center mb-6 flex flex-col items-center">
         {business.logo_url ? (
           <img src={business.logo_url} alt="Logo" className="h-10 w-auto mb-2 grayscale contrast-200" />
-        ) : null}
+        ) : (
+          <div className="h-10 w-10 border border-black flex items-center justify-center font-bold mb-2">
+            {business.name[0]}
+          </div>
+        )}
         <h2 className="text-sm font-bold uppercase">{business.name}</h2>
-        <p>{business.description || "Merci de votre visite"}</p>
-        <p className="mt-2">----------------------------</p>
-        <p>TICKET #{invoice.number.slice(-6)}</p>
+        {settings.phone && <p>Tel: {settings.phone}</p>}
+        {settings.address && <p className="text-[10px] opacity-70">{settings.address}</p>}
+        <p className="mt-2 text-[10px]">{business.description || "Merci de votre visite"}</p>
+        <p className="mt-2 font-bold tracking-tighter">----------------------------</p>
+        <p className="font-bold">TICKET #{invoice.number.slice(-6)}</p>
         <p>{format(new Date(invoice.created_at), 'dd/MM/yyyy HH:mm')}</p>
-        <p>----------------------------</p>
+        <p className="font-bold tracking-tighter">----------------------------</p>
       </div>
 
       <div className="space-y-2">
@@ -271,12 +277,12 @@ export const BistroThermal = ({ invoice, business, kind = "receipt" }: TemplateP
       </div>
 
       <div className="text-center mt-8">
-        <p>MERCI ET A BIENTOT !</p>
+        <p className="font-bold">MERCI ET A BIENTOT !</p>
         <div className="mt-4 flex justify-center">
-          {/* Simulation d'un QR Code */}
           <QRCodeSVG value={`https://pay.faso-invest.com/verify/${invoice.number}`} size={64} />
         </div>
-        <p className="mt-2 text-[8px] text-slate-500 font-bold">Généré par FASO-INVEST PAY</p>
+        <p className="mt-2 text-[8px] text-slate-500 font-bold uppercase tracking-tighter">Généré par FASO-INVEST PAY</p>
+        {settings.ifu && <p className="mt-1 text-[7px] opacity-50">IFU: {settings.ifu}</p>}
       </div>
     </div>
   );
@@ -1474,11 +1480,6 @@ INVOICE_TEMPLATES["bold-impact"] = BoldImpact;
 INVOICE_TEMPLATES["zen-minimal"] = ZenMinimal;
 
 RECEIPT_TEMPLATES["bistro-thermal"] = BistroThermal;
-RECEIPT_TEMPLATES["uber-receipt"] = UberReceipt;
-RECEIPT_TEMPLATES["retro-ticket"] = RetroTicket;
-RECEIPT_TEMPLATES["clean-pharmacy"] = CleanPharmacy;
-RECEIPT_TEMPLATES["coffee-shop"] = CoffeeShop;
-RECEIPT_TEMPLATES["luxe-maison"] = LuxeMaison;
 
 CONTRACT_TEMPLATES["notaire-officiel"] = NotaireOfficiel;
 CONTRACT_TEMPLATES["hotel-luxe"] = HotelLuxe;
