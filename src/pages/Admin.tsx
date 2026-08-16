@@ -905,7 +905,17 @@ function SettingsTab() {
           business_cashout_fee_bps: Number(draft.business_cashout_fee_bps),
           business_cashout_fee_flat_xof: Number(draft.business_cashout_fee_flat_xof),
           business_cashout_min_xof: Number(draft.business_cashout_min_xof)
-        })
+        }),
+        supabase.from("sms_config").upsert({
+          id: 'global',
+          notify_admin_sender_request: !!draft.notify_admin_sender_request,
+          event_wallet_recharge: !!draft.event_wallet_recharge,
+          event_card_recharge: !!draft.event_card_recharge,
+          event_withdrawal: !!draft.event_withdrawal,
+          event_withdrawal_paid: !!draft.event_withdrawal_paid,
+          event_sender_request: !!draft.event_sender_request,
+          admin_phones: draft.admin_notification_phone ? [draft.admin_notification_phone.replace(/\D/g, '')] : []
+        } as any)
       ]);
 
       const fresh: any = await getCfg();
@@ -969,6 +979,29 @@ function SettingsTab() {
             <span className="text-sm font-semibold text-foreground">Demande de Sender ID (Admin)</span>
             <p className="text-[11px] text-muted-foreground">Recevoir un SMS pour chaque nouvelle demande.</p>
           </label>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 md:col-span-2">
+          {[
+            { k: "event_wallet_recharge", label: "Recharge du portefeuille" },
+            { k: "event_card_recharge", label: "Recharge de carte USD" },
+            { k: "event_withdrawal", label: "Demande de retrait" },
+            { k: "event_withdrawal_paid", label: "Retrait payé" },
+            { k: "event_sender_request", label: "Demande de Sender ID (Marchand)" },
+          ].map((ev) => (
+            <div key={ev.k} className="flex items-center gap-3 rounded-xl border border-border bg-surface-2 p-3">
+              <input
+                type="checkbox"
+                id={ev.k}
+                checked={!!draft[ev.k]}
+                onChange={(e) => setDraft((d: any) => ({ ...d, [ev.k]: e.target.checked }))}
+                className="h-4 w-4 rounded accent-primary"
+              />
+              <label htmlFor={ev.k} className="cursor-pointer">
+                <span className="text-xs font-semibold text-foreground">{ev.label}</span>
+              </label>
+            </div>
+          ))}
         </div>
 
         <label className="block">
