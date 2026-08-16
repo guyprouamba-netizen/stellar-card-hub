@@ -597,7 +597,10 @@ async function assertBusinessOwner(admin: any, userId: string, businessId: strin
 
 // ===== Passerelle de paiement projet : frais + webhooks signés =====
 async function loadGatewayFeeConfig(admin: any) {
-  const keys = ["gateway_fee_bps", "gateway_fee_flat_xof", "gateway_min_xof", "gateway_enabled"];
+  const keys = [
+    "gateway_fee_bps", "gateway_fee_flat_xof", "gateway_min_xof", "gateway_enabled",
+    "business_cashout_fee_bps", "business_cashout_fee_flat_xof", "business_cashout_min_xof"
+  ];
   const { data } = await admin.from("platform_config").select("key,value").in("key", keys);
   const map = new Map((data ?? []).map((r: any) => [r.key, r.value]));
   const num = (k: string, d: number) => {
@@ -611,6 +614,9 @@ async function loadGatewayFeeConfig(admin: any) {
     fee_flat_xof: num("gateway_fee_flat_xof", 0),
     min_xof: num("gateway_min_xof", 100),
     enabled: enabledRaw === undefined || enabledRaw === null ? true : Boolean(enabledRaw),
+    business_cashout_fee_bps: num("business_cashout_fee_bps", 100), // Default 1%
+    business_cashout_fee_flat_xof: num("business_cashout_fee_flat_xof", 100), // Default 100 XOF
+    business_cashout_min_xof: num("business_cashout_min_xof", 500),
   };
 }
 
