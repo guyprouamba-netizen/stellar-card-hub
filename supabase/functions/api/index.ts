@@ -609,6 +609,47 @@ async function dispatchProjectWebhook(admin: any, opts: {
 // ============= Handlers =============
 // v: internal-transfer-2
 const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userClient: any }) => Promise<any>> = {
+  // ---------- Shop Templates (MOVING TO TOP) ----------
+  async adminListShopTemplates({ user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const { data, error } = await admin.from("shop_templates").select("*").order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { ok: true, templates: data || [] };
+  },
+
+  async adminUpsertShopTemplate({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const id = data.id || null;
+    const row: any = {
+      name: String(data.name || ""),
+      slug: String(data.slug || ""),
+      description: String(data.description || ""),
+      price: Number(data.price || 0),
+      is_free: !!data.is_free,
+      thumbnail_url: data.thumbnail_url || null,
+      preview_url: data.preview_url || null,
+      category: data.category || 'ecommerce',
+      config: data.config || {},
+      updated_at: new Date().toISOString()
+    };
+    if (id) {
+      const { data: res, error } = await admin.from("shop_templates").update(row).eq("id", id).select("*").single();
+      if (error) throw new Error(error.message);
+      return { ok: true, template: res };
+    } else {
+      const { data: res, error } = await admin.from("shop_templates").insert({ ...row, created_at: new Date().toISOString() }).select("*").single();
+      if (error) throw new Error(error.message);
+      return { ok: true, template: res };
+    }
+  },
+
+  async adminDeleteShopTemplate({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const { error } = await admin.from("shop_templates").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  },
+
   // ---------- Dashboard ----------
   async getDashboardData({ user, admin, userClient }) {
     const userId = user.id;
