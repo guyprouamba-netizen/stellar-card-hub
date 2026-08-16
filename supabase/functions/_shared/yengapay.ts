@@ -74,10 +74,10 @@ export function toMsisdn(phone: string, countryCode = "BF"): string {
   return d;
 }
 
-function creds() {
-  const apiKey = Deno.env.get("YENGAPAY_API_KEY");
-  const groupId = Deno.env.get("YENGAPAY_GROUP_ID");
-  const projectId = Deno.env.get("YENGAPAY_PROJECT_ID");
+function creds(overrides?: { apiKey?: string; groupId?: string; projectId?: string }) {
+  const apiKey = overrides?.apiKey || Deno.env.get("YENGAPAY_API_KEY");
+  const groupId = overrides?.groupId || Deno.env.get("YENGAPAY_GROUP_ID");
+  const projectId = overrides?.projectId || Deno.env.get("YENGAPAY_PROJECT_ID");
   if (!apiKey || !groupId || !projectId) throw new Error("Configuration de la passerelle de paiement manquante");
   return { apiKey, groupId, projectId };
 }
@@ -114,8 +114,9 @@ export type InitDepositResult = { ok: boolean; reference: string; raw: any; stat
 
 export async function initDirectPayment(opts: {
   amount: number; reference: string; callbackUrl?: string; description?: string; customerEmail?: string;
+  overrides?: { apiKey?: string; groupId?: string; projectId?: string };
 }) {
-  const { apiKey, groupId, projectId } = creds();
+  const { apiKey, groupId, projectId } = creds(opts.overrides);
   const amount = Math.round(Number(opts.amount));
   const body: any = {
     amount,
@@ -140,8 +141,11 @@ export function extractAvailableOperators(body: any): any[] {
   return Array.isArray(list) ? list : [];
 }
 
-export async function sendDirectPaymentOtp(opts: { reference?: string; phone: string; operator: string; paymentIntentId?: string }) {
-  const { apiKey, groupId, projectId } = creds();
+export async function sendDirectPaymentOtp(opts: { 
+  reference?: string; phone: string; operator: string; paymentIntentId?: string;
+  overrides?: { apiKey?: string; groupId?: string; projectId?: string };
+}) {
+  const { apiKey, groupId, projectId } = creds(opts.overrides);
   const op = findOperator(opts.operator);
   const body: any = {
     paymentIntentId: opts.paymentIntentId,
@@ -155,8 +159,11 @@ export async function sendDirectPaymentOtp(opts: { reference?: string; phone: st
   ], apiKey, body);
 }
 
-export async function payDirectPayment(opts: { reference?: string; phone: string; operator: string; otp?: string; paymentIntentId?: string }) {
-  const { apiKey, groupId, projectId } = creds();
+export async function payDirectPayment(opts: { 
+  reference?: string; phone: string; operator: string; otp?: string; paymentIntentId?: string;
+  overrides?: { apiKey?: string; groupId?: string; projectId?: string };
+}) {
+  const { apiKey, groupId, projectId } = creds(opts.overrides);
   const op = findOperator(opts.operator);
   const body: any = {
     paymentIntentId: opts.paymentIntentId,
@@ -171,8 +178,8 @@ export async function payDirectPayment(opts: { reference?: string; phone: string
   ], apiKey, body);
 }
 
-export async function checkDirectPaymentStatus(paymentIntentId: string) {
-  const { apiKey, groupId, projectId } = creds();
+export async function checkDirectPaymentStatus(paymentIntentId: string, overrides?: { apiKey?: string; groupId?: string; projectId?: string }) {
+  const { apiKey, groupId, projectId } = creds(overrides);
   const url = `${YENGAPAY_BASE}/groups/${groupId}/projects/${projectId}/direct-payment/status/${paymentIntentId}`;
   const res = await fetch(url, { headers: { "x-api-key": apiKey, Accept: "application/json" } });
   const text = await res.text();

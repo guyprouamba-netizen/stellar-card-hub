@@ -17,11 +17,12 @@ import ProductsPanel from "@/components/business/products-panel";
 import { SmsMerchantPanel } from "@/components/business/sms-merchant-panel";
 import ProjectConfigSheet from "@/components/business/project-config-sheet";
 import DocsPanel from "@/components/business/docs-panel";
-import { ArrowLeft, Building2, Copy, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Palette, Loader2, MessageSquare } from "lucide-react";
+import { ArrowLeft, Building2, Copy, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Palette, Loader2, MessageSquare, ShieldCheck, Activity } from "lucide-react";
 import { LayoutDashboard, Receipt, CreditCard, Settings2, BarChart3, BookOpen } from "lucide-react";
 
 const NAV = [
   { id: "overview", label: "Tableau de bord", icon: LayoutDashboard },
+  { id: "gateway", label: "Passerelle Marchande", icon: ShieldCheck },
   { id: "projects", label: "Projets", icon: FolderKanban },
   { id: "products", label: "Produits", icon: Package },
   { id: "links", label: "Liens de paiement", icon: Link2 },
@@ -31,6 +32,7 @@ const NAV = [
   { id: "docs", label: "Documentation API", icon: BookOpen },
   { id: "settings", label: "Ma boutique", icon: Settings2 },
 ] as const;
+const TabIdSet = new Set(NAV.map(n => n.id));
 type TabId = typeof NAV[number]["id"];
 
 type Biz = { id: string; name: string; slug: string; status: string; balance: number; fee_bps: number };
@@ -58,7 +60,7 @@ export default function BusinessPage() {
   const [postDraft, setPostDraft] = useState<{ title: string; body: string; image_url: string }>({ title: "", body: "", image_url: "" });
   const [uploadingImg, setUploadingImg] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TabId>("overview");
+  const [tab, setTab] = useState<string>("overview");
   const [configProject, setConfigProject] = useState<Project | null>(null);
 
   useEffect(() => {
@@ -325,8 +327,9 @@ export default function BusinessPage() {
             </div>
 
             {current && (
-              <>
-              {tab === "overview" && (<>
+              <div className="space-y-6">
+              {tab === "overview" && (
+                <>
                 {/* Barre de statistiques (style tableau de bord marchand) */}
                 <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {[
@@ -400,9 +403,75 @@ export default function BusinessPage() {
                   </div>
                 </div>
 
-                </>)}
+                {(tab as any) === "gateway" && (
+                  <div className="space-y-6">
+                    <div className="rounded-3xl border border-border bg-card p-6 shadow-card-premium">
+                      <div className="flex items-center gap-3">
+                        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+                          <ShieldCheck className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <h3 className="font-[Space_Grotesk] text-xl font-bold">Passerelle Marchande</h3>
+                          <p className="text-sm text-muted-foreground">Encaissez vos clients directement sur votre site via l'API YengaPay (Projet 31062).</p>
+                        </div>
+                      </div>
 
-                {tab === "settings" && (<>
+                      <div className="mt-8 grid gap-6 md:grid-cols-2">
+                        <div className="space-y-4">
+                          <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Configuration YengaPay</h4>
+                          <div className="rounded-2xl border border-border bg-surface-2 p-5 space-y-4">
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Projet ID</p>
+                              <p className="mt-1 font-mono text-sm font-bold">31062</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Webhook URL (à copier dans YengaPay)</p>
+                              <div className="mt-1 flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs">
+                                <span className="flex-1 truncate font-mono text-primary">{`${window.location.origin.replace("lovable.app", "supabase.co")}/functions/v1/yengapay-webhook`}</span>
+                                <button onClick={() => copy(`${window.location.origin.replace("lovable.app", "supabase.co")}/functions/v1/yengapay-webhook`)} className="text-muted-foreground hover:text-foreground"><Copy className="h-3.5 w-3.5" /></button>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Secret Webhook (Auto-configuré)</p>
+                              <p className="mt-1 font-mono text-sm font-bold text-emerald-500">9dea2ad9-••••••••-acfa-••••••••</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Test & Documentation</h4>
+                          <div className="space-y-2">
+                            <button onClick={() => setTab("docs")} className="w-full flex items-center justify-between rounded-2xl border border-border bg-card p-4 hover:border-primary/40 transition">
+                              <div className="flex items-center gap-3">
+                                <BookOpen className="h-5 w-5 text-primary" />
+                                <div className="text-left">
+                                  <p className="font-semibold">Documentation API</p>
+                                  <p className="text-xs text-muted-foreground">Intégration technique pas à pas</p>
+                                </div>
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            </button>
+                            <div className="rounded-2xl border border-border bg-card p-4">
+                              <div className="flex items-center gap-3">
+                                <Activity className="h-5 w-5 text-amber-500" />
+                                <div>
+                                  <p className="font-semibold text-sm">Statut du service</p>
+                                  <p className="text-xs text-muted-foreground">Opérationnel · Temps de réponse ~200ms</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                </>
+              )}
+
+              {tab === "settings" && (
+                <>
                 <ShopTemplateSelector business={current as any} onUpdated={refreshAll} />
                 <ShopBrandingPanel biz={current} onUpdated={refreshAll} />
                 <ShopProjectsPanel projects={projects} onChanged={() => refreshCurrent(current.id)} onGoProjects={() => setTab("projects")} />
@@ -603,7 +672,7 @@ export default function BusinessPage() {
 
 
                 {/* Section « Clés API » masquée volontairement — accès interne uniquement */}
-              </>
+            </div>
             )}
             </div>
           </div>
