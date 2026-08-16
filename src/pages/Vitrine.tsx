@@ -48,6 +48,10 @@ export default function VitrinePage() {
         items: cartItems.map((p) => ({ product_id: p.id, quantity: cart[p.id] })),
         ...form,
       });
+      if (r?.checkoutUrl) {
+        window.location.href = r.checkoutUrl;
+        return;
+      }
       if (r?.reference) setPay({ reference: r.reference, amount: Number(r.amount), currency: r.currency, order_token: r.order_token });
       else toast.error("Paiement indisponible");
     } catch (e: any) { toast.error(e.message); }
@@ -148,7 +152,7 @@ export default function VitrinePage() {
         <p className="font-semibold text-foreground">{business.name}</p>
         {business.contact_phone && <p className="mt-1">{business.contact_phone}</p>}
         {business.contact_email && <p>{business.contact_email}</p>}
-        <p className="mt-3">Paiement sécurisé · FASO-INVEST PAY</p>
+        <p className="mt-3">Paiement 100% sécurisé</p>
       </footer>
 
       {/* Cart drawer */}
@@ -172,10 +176,14 @@ export default function VitrinePage() {
               ))}
             </div>
             {cartItems.length > 0 && (pay ? (
-                <div className="mt-4 border-t border-border pt-4">
-                  <MomoPayment reference={pay.reference} amount={pay.amount} currency={pay.currency} defaultPhone={form.customer_phone}
-                    onSuccess={() => setTimeout(() => { window.location.href = `/order/${pay.order_token}`; }, 1500)}
-                    onCancel={() => setPay(null)} />
+                <div className="mt-4 border-t border-border pt-4 text-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                  <p className="mt-4 font-bold text-sm">Redirection vers YengaPay...</p>
+                  <div className="hidden">
+                    <MomoPayment reference={pay.reference} amount={pay.amount} currency={pay.currency} defaultPhone={form.customer_phone}
+                      onSuccess={() => setTimeout(() => { window.location.href = `/order/${pay.order_token}`; }, 1500)}
+                      onCancel={() => setPay(null)} />
+                  </div>
                 </div>
               ) : (
               <form onSubmit={checkout} className="mt-4 space-y-2 border-t border-border pt-4">

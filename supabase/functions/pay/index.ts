@@ -460,7 +460,7 @@ async function payDirect(payload: any) {
     const { checkoutUrl, paymentIntentId } = await createYengaPayIntent({
       amount: total, reference,
       title: meta.description || "Paiement",
-      description: meta.description || "Paiement via FASO-INVEST PAY",
+      description: meta.description || "Paiement sécurisé",
       callbackUrl: `${SUPABASE_URL}/functions/v1/yengapay-webhook`,
       returnUrl: meta.return_url || `${appBaseUrl()}/order/${reference}`
     });
@@ -602,7 +602,7 @@ async function initCheckout(body: any) {
     const { checkoutUrl, paymentIntentId } = await createYengaPayIntent({
       amount, reference,
       title: link.title || "Paiement",
-      description: link.description || "Paiement via FASO-INVEST PAY",
+      description: link.description || "Paiement sécurisé",
       callbackUrl: `${SUPABASE_URL}/functions/v1/yengapay-webhook`,
       returnUrl: body?.returnUrl || `${appBaseUrl()}/order/${reference}`
     });

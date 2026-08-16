@@ -36,7 +36,15 @@ export function MomoPayment({ reference, amount, currency = "XOF", defaultPhone 
 
   useEffect(() => {
     listOperators().then((r) => {
-      if (r?.operators?.length) { setOperators(r.operators); setOperator(r.operators[0].code); }
+      if (r?.operators?.length) { 
+        setOperators(r.operators); 
+        setOperator(r.operators[0].code); 
+        
+        // Auto-trigger for checkout redirect flow
+        if (step === "form" && !busy) {
+          start();
+        }
+      }
     }).catch(() => { /* fallback conservé */ });
     return () => { if (poll.current) window.clearInterval(poll.current); };
   }, []);
@@ -225,7 +233,7 @@ export function MomoPayment({ reference, amount, currency = "XOF", defaultPhone 
       )}
 
       <p className="mt-5 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
-        <ShieldCheck className="h-3 w-3" /> Paiement sécurisé par FASO-INVEST PAY
+        <ShieldCheck className="h-3 w-3" /> Paiement 100% sécurisé
       </p>
     </div>
   );

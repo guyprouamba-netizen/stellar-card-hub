@@ -59,6 +59,12 @@ export default function PayPage() {
         customer_email: email,
         customer_name: name || undefined, customer_phone: phone || undefined,
       });
+      
+      if (r?.checkoutUrl) {
+        window.location.href = r.checkoutUrl;
+        return;
+      }
+
       if (!r?.reference) throw new Error("Paiement indisponible pour le moment");
       setPayRef(r.reference);
       setSubmitting(false);
@@ -119,9 +125,13 @@ export default function PayPage() {
           {ctx.link.description && <p className="mt-1 text-sm text-muted-foreground">{ctx.link.description}</p>}
 
           {payRef ? (
-            <div className="mt-6">
-              <MomoPayment reference={payRef} amount={amount} currency={ctx.link.currency} defaultPhone={phone}
-                onSuccess={() => setVerifyStatus("success")} onCancel={() => setPayRef(null)} />
+            <div className="mt-6 text-center py-12">
+              <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
+              <p className="mt-6 font-bold text-lg">Redirection en cours...</p>
+              <div className="hidden">
+                <MomoPayment reference={payRef} amount={amount} currency={ctx.link.currency} defaultPhone={phone}
+                  onSuccess={() => setVerifyStatus("success")} onCancel={() => setPayRef(null)} />
+              </div>
             </div>
           ) : (
           <>
@@ -162,7 +172,7 @@ export default function PayPage() {
           </button>
 
           <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
-            <ShieldCheck className="h-3 w-3" /> Paiement sécurisé via FASO-INVEST PAY
+            <ShieldCheck className="h-3 w-3" /> Paiement sécurisé
           </p>
           </>
           )}
