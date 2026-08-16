@@ -27,6 +27,7 @@ Deno.serve(async (req) => {
   const secrets = [
     Deno.env.get("YENGAPAY_WEBHOOK_SECRET"),
     Deno.env.get("YENGAPAY_PAYPAL_WEBHOOK_SECRET"),
+    Deno.env.get("YENGAPAY_MERCHANT_WEBHOOK_SECRET"), // Nouveau secret marchand 9dea2ad9...
   ].filter(Boolean) as string[];
   if (secrets.length === 0) return new Response("Missing webhook secret", { status: 500, headers: corsHeaders });
   const raw = await req.text();

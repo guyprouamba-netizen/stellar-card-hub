@@ -231,7 +231,19 @@ Content-Type: application/json
 
             <div className="rounded-2xl border border-border p-4">
               <p className="inline-flex items-center gap-1.5 text-sm font-semibold"><Webhook className="h-4 w-4" /> URL de notification (webhook)</p>
-              <input value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://votre-site.com/webhooks/paiement" className={`${field} mt-3`} />
+              
+              <div className="mt-3 space-y-2">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">URL à insérer dans YengaPay (Projet 31062)</p>
+                <div className="flex items-center gap-2 rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-xs">
+                  <span className="flex-1 truncate font-mono">{`${window.location.origin.replace("lovable.app", "supabase.co")}/functions/v1/yengapay-webhook`}</span>
+                  <button onClick={() => copy(`${window.location.origin.replace("lovable.app", "supabase.co")}/functions/v1/yengapay-webhook`)} className="text-muted-foreground hover:text-foreground"><Copy className="h-3.5 w-3.5" /></button>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Votre URL de retour (Marchand)</p>
+                <input value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://votre-site.com/webhooks/paiement" className={`${field} mt-1`} />
+              </div>
               <p className="mt-2 text-[11px] text-muted-foreground">
                 Chaque notification est signée : en-tête <code>X-FIP-Signature: t=…,v1=HMAC_SHA256(t + "." + corps, secret)</code>.
               </p>
