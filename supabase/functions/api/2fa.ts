@@ -19,8 +19,11 @@ export async function handle2FA(admin: any, userId: string, phone: string, actio
     if (error) throw error;
 
     console.log(`[handle2FA] Sending WhatsApp OTP to ${normalized} for purpose ${purpose}`);
+    // BBG WhatsApp requires recipient WITHOUT the '+' sign according to common PHP SMS gate implementations
+    const cleanRecipient = normalized.startsWith("+") ? normalized.slice(1) : normalized;
+
     const r = await sendSmsRaw({
-      recipient: normalized,
+      recipient: cleanRecipient,
       message: purpose === "registration" 
         ? `Bienvenue sur FASO-INVEST PAY ! Votre code de confirmation est : ${otp}`
         : `Votre code de sécurité FASO-INVEST PAY est : ${otp}`,
@@ -28,7 +31,7 @@ export async function handle2FA(admin: any, userId: string, phone: string, actio
       type: "whatsapp"
     });
 
-    console.log(`[handle2FA] BBG SMS response:`, JSON.stringify(r.body));
+    console.log(`[handle2FA] BBG WhatsApp response:`, JSON.stringify(r.body));
 
     if (!r.ok) {
       console.error(`[handle2FA] BBG SMS Error:`, r.body);
