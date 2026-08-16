@@ -128,7 +128,12 @@ export default function Shop() {
     }
 
     getShop(slug).then((r: any) => {
-      setBiz(r.business); setProducts(r.products); setProjects(r.projects || []); setPosts(r.posts); setLoading(false);
+      setBiz(r.business); 
+      setProducts(r.products); 
+      setProjects(r.projects || []); 
+      setPosts(r.posts); 
+      setCategories(r.categories || []);
+      setLoading(false);
     }).catch((e) => { setError(e.message); setLoading(false); });
 
   }, [slug, navigate]);
