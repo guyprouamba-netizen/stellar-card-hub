@@ -1480,6 +1480,9 @@ INVOICE_TEMPLATES["bold-impact"] = BoldImpact;
 INVOICE_TEMPLATES["zen-minimal"] = ZenMinimal;
 
 RECEIPT_TEMPLATES["bistro-thermal"] = BistroThermal;
+RECEIPT_TEMPLATES["stripe-modern"] = StripeModern;
+RECEIPT_TEMPLATES["apple-minimal"] = AppleMinimal;
+RECEIPT_TEMPLATES["gov-standard"] = GovStandard;
 
 CONTRACT_TEMPLATES["notaire-officiel"] = NotaireOfficiel;
 CONTRACT_TEMPLATES["hotel-luxe"] = HotelLuxe;
@@ -1489,7 +1492,3 @@ CONTRACT_TEMPLATES["bistro-thermal"] = BistroThermal;
 CONTRACT_TEMPLATES["stripe-modern"] = StripeModern;
 CONTRACT_TEMPLATES["apple-minimal"] = AppleMinimal;
 CONTRACT_TEMPLATES["gov-standard"] = GovStandard;
-
-RECEIPT_TEMPLATES["stripe-modern"] = StripeModern;
-RECEIPT_TEMPLATES["apple-minimal"] = AppleMinimal;
-RECEIPT_TEMPLATES["gov-standard"] = GovStandard;
