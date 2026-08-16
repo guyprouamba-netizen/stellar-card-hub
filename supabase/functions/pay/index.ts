@@ -18,6 +18,24 @@ function admin() {
   return createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
 }
 
+async function loadGatewayFeeConfig(db: any) {
+  const keys = ["gateway_fee_bps", "gateway_fee_flat_xof", "gateway_min_xof", "gateway_enabled"];
+  const { data } = await db.from("platform_config").select("key,value").in("key", keys);
+  const map = new Map((data ?? []).map((r: any) => [r.key, r.value]));
+  const num = (k: string, d: number) => {
+    const v = map.get(k);
+    const n = Number(typeof v === "object" && v !== null ? (v as any).value : v);
+    return Number.isFinite(n) ? n : d;
+  };
+  const enabledRaw = map.get("gateway_enabled");
+  return {
+    fee_bps: num("gateway_fee_bps", 200),
+    fee_flat_xof: num("gateway_fee_flat_xof", 0),
+    min_xof: num("gateway_min_xof", 100),
+    enabled: enabledRaw === undefined || enabledRaw === null ? true : Boolean(enabledRaw),
+  };
+}
+
 async function sha256Hex(input: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
   return Array.from(new Uint8Array(buf)).map((x) => x.toString(16).padStart(2, "0")).join("");
