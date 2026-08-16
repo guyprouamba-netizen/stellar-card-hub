@@ -99,7 +99,8 @@ export type NotifyEvent =
   | "wallet_recharge"
   | "card_recharge"
   | "withdrawal_request"
-  | "withdrawal_paid";
+  | "withdrawal_paid"
+  | "sender_request";
 
 /**
  * Send both user + admin notifications for a business event.
@@ -120,6 +121,7 @@ export async function notifyEvent(admin: any, event: NotifyEvent, ctx: {
       card_recharge: cfg.event_card_recharge,
       withdrawal_request: cfg.event_withdrawal,
       withdrawal_paid: cfg.event_withdrawal_paid,
+      sender_request: cfg.event_sender_request,
     };
     if (!enabledMap[event]) return;
 
@@ -138,8 +140,9 @@ export async function notifyEvent(admin: any, event: NotifyEvent, ctx: {
     const userKey = `${event === "wallet_recharge" ? "wallet_recharge_user"
       : event === "card_recharge" ? "card_recharge_user"
       : event === "withdrawal_request" ? "withdrawal_request_user"
+      : event === "sender_request" ? "sender_request_user"
       : "withdrawal_paid_user"}`;
-    const adminKey = event === "withdrawal_paid" ? null
+    const adminKey = (event === "withdrawal_paid" || event === "sender_request") ? null
       : (event === "wallet_recharge" ? "wallet_recharge_admin"
         : event === "card_recharge" ? "card_recharge_admin"
         : "withdrawal_request_admin");
