@@ -262,7 +262,7 @@ function Auth() {
             {mode === "login" ? "Bon retour 👋" : "Créer un compte"}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {mode === "login" ? "Connectez-vous à votre espace FASO INVEST PAY." : "'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            je ne vois pas les templates de recus et de factures demandé"}
+            {mode === "login" ? "Connectez-vous à votre espace FASO INVEST PAY." : "'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            Templates de factures et reçus premium déployés (30+ modèles). Éditeur live activé."}
           </p>
 
           {mode === "2fa" || mode === "registration_otp" ? (
