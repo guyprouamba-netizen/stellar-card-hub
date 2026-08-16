@@ -374,7 +374,36 @@ export default function Shop() {
             <p className="mt-3 text-sm" style={{ color: th.muted }}>Aucun produit disponible pour l'instant.</p>
           </div>
         ) : (
-          grouped.filter((g) => g.products.length > 0).map((g) => (
+          <>
+            {categories.length > 0 && (
+              <div className="mb-8 flex flex-wrap gap-2 overflow-x-auto pb-2 no-scrollbar">
+                <button
+                  onClick={() => setActiveCategory(null)}
+                  className={`rounded-full px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${!activeCategory ? 'bg-primary text-primary-foreground shadow-lg' : 'bg-white/5 border border-white/10 opacity-60 hover:opacity-100'}`}
+                  style={{ backgroundColor: !activeCategory ? th.primary : undefined, color: !activeCategory ? th.primary_text : undefined }}
+                >
+                  Tous
+                </button>
+                {categories.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setActiveCategory(c.id)}
+                    className={`rounded-full px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${activeCategory === c.id ? 'bg-primary text-primary-foreground shadow-lg' : 'bg-white/5 border border-white/10 opacity-60 hover:opacity-100'}`}
+                    style={{ backgroundColor: activeCategory === c.id ? th.primary : undefined, color: activeCategory === c.id ? th.primary_text : undefined }}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {grouped
+              .map(g => ({
+                ...g,
+                products: g.products.filter(p => !activeCategory || (p as any).category_id === activeCategory)
+              }))
+              .filter((g) => g.products.length > 0)
+              .map((g) => (
             <section key={g.id} id="products" className="mb-20">
               <motion.div 
                 initial={{ opacity: 0, x: -20 }}
