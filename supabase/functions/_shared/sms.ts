@@ -33,28 +33,25 @@ export async function sendSmsRaw(opts: {
     const isWhatsapp = opts.type === "whatsapp";
     const endpoint = isWhatsapp ? BBG_WHATSAPP_ENDPOINT : BBG_ENDPOINT;
 
-    // Based on the developer documentation provided by the user:
-    // https://bbgsmsapp.betterbegoing.com/developers/http-docs
-    // The example uses URL encoded parameters: ?api_token=...&recipient=...&message=...
-    // We will use URLSearchParams to ensure proper encoding of the message.
-    
-    const params = new URLSearchParams();
-    params.append("api_token", token);
-    params.append("recipient", opts.recipient);
-    params.append("message", opts.message);
+    // Based on the developer documentation: https://bbgsmsapp.betterbegoing.com/developers/http-docs
+    // The API uses a GET request with query parameters for simplicity and high compatibility.
+    const url = new URL(endpoint);
+    url.searchParams.append("api_token", token);
+    url.searchParams.append("recipient", opts.recipient);
+    url.searchParams.append("message", opts.message);
     
     if (!isWhatsapp) {
-      params.append("sender_id", opts.sender_id);
-      params.append("type", opts.type || "plain");
+      url.searchParams.append("sender_id", opts.sender_id);
+      url.searchParams.append("type", opts.type || "plain");
     }
 
-    const url = `${endpoint}?${params.toString()}`;
-    console.log(`[sendSmsRaw] Calling ${isWhatsapp ? 'WhatsApp' : 'SMS'} API (GET): ${endpoint}?api_token=***&recipient=${opts.recipient}`);
+    console.log(`[sendSmsRaw] Requesting ${isWhatsapp ? 'WhatsApp' : 'SMS'} via GET: ${endpoint}?api_token=***&recipient=${opts.recipient}`);
 
-    const res = await fetch(url, {
+    const res = await fetch(url.toString(), {
       method: "GET",
       headers: { "Accept": "application/json" }
     });
+    
     const text = await res.text();
     console.log(`[sendSmsRaw] API raw response:`, text);
     let body: any = text;
