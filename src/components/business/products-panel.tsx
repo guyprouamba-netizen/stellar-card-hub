@@ -30,6 +30,7 @@ const EMPTY = {
   type: "physical", sku: "", stock: "", manage_stock: false, tax_rate: "",
   downloadable: false, download_url: "", download_name: "", download_limit: "", download_expiry_days: "",
   access_instructions: "", purchase_note: "",
+  category_id: "", media: [] as string[],
 };
 
 export default function ProductsPanel({ businessId, shopSlug }: { businessId: string; shopSlug?: string }) {
