@@ -24,8 +24,17 @@ Deno.serve(async (req) => {
     // Invoice confirmed, update database
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
     
-    // Logic to record the successful payment...
-    // In a real scenario, we'd find the pending transaction via custom_data or token
+    // Find the pending transaction via token
+    const { data: tx } = await admin.from("payment_link_payments")
+      .select("id, status")
+      .eq("payment_intent_id", token)
+      .maybeSingle();
+
+    if (tx && tx.status === "pending") {
+      const { settlePayment } = await import("../pay/index.ts");
+      await settlePayment(admin, tx.id, confirmation);
+      console.log(`Payment ${tx.id} settled via Paydunya webhook`);
+    }
     
     return jsonResponse({ ok: true });
   } catch (e) {
