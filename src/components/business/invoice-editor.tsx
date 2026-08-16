@@ -1,8 +1,10 @@
-import { useState } from "react";
-import { X, Save, Download, Printer, Eye, Settings2, Trash2, Plus, User, FileText, Receipt } from "lucide-react";
+import { useState, useRef } from "react";
+import { X, Save, Download, Printer, Eye, Settings2, Trash2, Plus, User, FileText, Receipt, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { INVOICE_TEMPLATES } from "./invoice-templates";
 import { createInvoice, updateInvoice } from "@/lib/business.functions";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 interface InvoiceEditorProps {
   business: any;
@@ -14,6 +16,8 @@ interface InvoiceEditorProps {
 
 export default function InvoiceEditor({ business, settings, invoice: initialInvoice, onClose, onSaved }: InvoiceEditorProps) {
   const [template, setTemplate] = useState(initialInvoice?.template_slug || "stripe-modern");
+  const [loading, setLoading] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState(initialInvoice || {
     number: `INV-${Date.now().toString().slice(-6)}`,
     created_at: new Date().toISOString(),
@@ -50,6 +54,71 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
   };
 
   const TemplateComponent = INVOICE_TEMPLATES[template] || INVOICE_TEMPLATES["stripe-modern"];
+
+  const handleDownloadPDF = async () => {
+    if (!previewRef.current) return;
+    
+    setLoading(true);
+    const toastId = toast.loading("Génération du PDF...");
+    
+    try {
+      const element = previewRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff"
+      });
+      
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "px",
+        format: [canvas.width, canvas.height]
+      });
+      
+      pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+      pdf.save(`${data.kind}-${data.number}.pdf`);
+      toast.success("Téléchargement réussi", { id: toastId });
+    } catch (error) {
+      console.error("PDF Error:", error);
+      toast.error("Erreur lors de la génération du PDF", { id: toastId });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePrint = () => {
+    if (!previewRef.current) return;
+    const printContent = previewRef.current.innerHTML;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>${data.kind} ${data.number}</title>
+            <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+            <style>
+              body { padding: 0; margin: 0; }
+              @media print {
+                .no-print { display: none; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="p-8">${printContent}</div>
+            <script>
+              window.onload = () => {
+                window.print();
+                window.onafterprint = () => window.close();
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -218,17 +287,24 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
               </div>
             </div>
             <div className="flex gap-2">
-              <button className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-bold hover:bg-muted transition-colors">
-                <Download className="h-3.5 w-3.5" /> PDF
+              <button 
+                onClick={handleDownloadPDF}
+                disabled={loading}
+                className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-bold hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} PDF
               </button>
-              <button className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-bold hover:bg-muted transition-colors">
+              <button 
+                onClick={handlePrint}
+                className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-bold hover:bg-muted transition-colors"
+              >
                 <Printer className="h-3.5 w-3.5" /> Imprimer
               </button>
             </div>
           </div>
           
           <div className="flex-1 overflow-y-auto p-12">
-            <div className="transform origin-top scale-[0.85] sm:scale-100">
+            <div ref={previewRef} className="transform origin-top scale-[0.85] sm:scale-100 bg-white">
                <TemplateComponent 
                  invoice={{...data, items: data.items.length > 0 ? data.items : [{name: "Aperçu", qty: 1, price: 0}]}} 
                  business={business} 

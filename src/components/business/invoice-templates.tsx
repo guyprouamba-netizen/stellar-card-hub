@@ -279,14 +279,15 @@ export const BistroThermal = ({ invoice, business, kind = "receipt" }: TemplateP
 };
 
 // 4. AMAZON RETAIL
-export const AmazonRetail = ({ invoice, business, settings }: TemplateProps) => {
+export const AmazonRetail = ({ invoice, business, settings, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
   return (
     <div className="bg-white p-8 text-slate-900 font-sans max-w-4xl mx-auto border border-slate-200">
       <div className="flex justify-between border-b-2 border-slate-900 pb-4 mb-8">
         <h1 className="text-3xl font-bold italic">amazon.pay</h1>
         <div className="text-right text-sm">
           <p className="font-bold">Détails de la commande</p>
-          <p>Commande n° {invoice.number}</p>
+          <p>{title} n° {invoice.number}</p>
         </div>
       </div>
       <div className="grid grid-cols-3 gap-8 mb-8 text-sm">
@@ -331,12 +332,15 @@ export const AmazonRetail = ({ invoice, business, settings }: TemplateProps) => 
           ))}
         </tbody>
       </table>
+      
+      <VerificationFooter business={business} invoice={invoice} />
     </div>
   );
 };
 
 // 5. GOUVERNEMENTAL (Standard officiel)
-export const GovStandard = ({ invoice, business, settings }: TemplateProps) => {
+export const GovStandard = ({ invoice, business, settings, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
   return (
     <div className="bg-white p-12 text-black font-serif max-w-4xl mx-auto border-4 border-double border-black">
       <div className="text-center mb-12">
@@ -349,7 +353,7 @@ export const GovStandard = ({ invoice, business, settings }: TemplateProps) => {
             <p>RCCM: {settings.rccm || "BF OUA 2024 B 000"}</p>
           </div>
           <div className="text-right">
-            <p>Facture n° {invoice.number}</p>
+            <p>{title} n° {invoice.number}</p>
             <p>Date: {format(new Date(invoice.created_at), 'dd/MM/yyyy')}</p>
           </div>
         </div>
@@ -394,17 +398,21 @@ export const GovStandard = ({ invoice, business, settings }: TemplateProps) => {
       <div className="mt-12 text-xs italic">
         <p>Arrêtée la présente facture à la somme de : {invoice.total.toLocaleString()} {invoice.currency}</p>
       </div>
+      
+      <VerificationFooter business={business} invoice={invoice} />
     </div>
   );
 };
 
 // 6. STRIPE VINTAGE
-export const StripeVintage = ({ invoice, business }: TemplateProps) => (
+export const StripeVintage = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
+  return (
   <div className="bg-[#fcfcfc] p-10 font-serif max-w-2xl mx-auto border border-slate-200 shadow-xl">
     <div className="flex justify-between border-b pb-6">
       <h2 className="text-2xl font-bold uppercase tracking-widest">{business.name}</h2>
       <div className="text-right text-xs text-slate-500">
-        <p>INVOICE #{invoice.number}</p>
+        <p>{title.toUpperCase()} #{invoice.number}</p>
         <p>{format(new Date(invoice.created_at), 'MMMM d, yyyy')}</p>
       </div>
     </div>
@@ -425,6 +433,7 @@ export const StripeVintage = ({ invoice, business }: TemplateProps) => (
           ))}
         </tbody>
       </table>
+      <VerificationFooter business={business} invoice={invoice} />
     </div>
   </div>
 );
