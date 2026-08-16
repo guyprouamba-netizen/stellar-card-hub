@@ -204,21 +204,45 @@ export default function Shop() {
       </nav>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <section className="relative mb-12 overflow-hidden rounded-[2rem] shadow-2xl" style={{ backgroundColor: th.surface }}>
-          <div className="absolute inset-0 z-0">
+        <section className="relative mb-20 overflow-hidden rounded-[2.5rem] shadow-2xl" style={{ backgroundColor: th.surface }}>
+          <motion.div 
+            initial={{ scale: 1.1, opacity: 0 }}
+            animate={{ scale: 1, opacity: 0.6 }}
+            transition={{ duration: 1.5 }}
+            className="absolute inset-0 z-0"
+          >
             {biz.cover_url ? (
-              <img src={biz.cover_url} className="h-full w-full object-cover opacity-60" alt="" />
+              <img src={biz.cover_url} className="h-full w-full object-cover" alt="" />
             ) : (
-              <div className="h-full w-full opacity-20" style={{ background: `linear-gradient(135deg, ${th.primary}, ${th.surface})` }} />
+              <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${th.primary}, ${th.surface})` }} />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-          </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+          </motion.div>
 
-          <div className="relative z-10 flex flex-col justify-end p-8 pt-48 sm:p-12 sm:pt-64">
-            <div className="max-w-2xl">
-              <h1 className="font-[Space_Grotesk] text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">{biz.name}</h1>
-              <p className="mt-4 text-lg sm:text-xl" style={{ color: th.muted }}>{biz.tagline || biz.description || "Votre destination shopping premium."}</p>
-            </div>
+          <div className="relative z-10 flex flex-col justify-end p-8 pt-48 sm:p-16 sm:pt-80">
+            <motion.div 
+              initial={{ y: 30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.8 }}
+              className="max-w-3xl"
+            >
+              <h1 className="font-[Space_Grotesk] text-5xl font-black tracking-tighter sm:text-7xl lg:text-8xl text-white uppercase italic leading-[0.9]">
+                {biz.name}
+              </h1>
+              <div className="mt-6 flex flex-wrap items-center gap-4">
+                <p className="text-xl sm:text-2xl font-medium" style={{ color: th.muted }}>
+                  {biz.tagline || biz.description || "L'excellence à portée de main."}
+                </p>
+                <div className="h-px w-12 bg-white/20 hidden sm:block" />
+                <motion.button 
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="rounded-full bg-white px-6 py-2 text-sm font-bold text-black"
+                >
+                  Explorer
+                </motion.button>
+              </div>
+            </motion.div>
           </div>
         </section>
 
