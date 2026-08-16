@@ -480,22 +480,41 @@ export const PaypalStatement = ({ invoice, business, kind = "invoice" }: Templat
 // Add more templates...
 
 // 8. QONTO MODERN
-export const QontoModern = ({ invoice, business, settings }: TemplateProps) => (
-  <div className="bg-white p-12 max-w-4xl mx-auto text-slate-900 border border-slate-100 rounded-3xl">
-    <div className="flex justify-between items-start mb-16">
-      <div className="bg-indigo-600 text-white p-4 rounded-2xl font-black text-2xl w-16 h-16 flex items-center justify-center">Q</div>
-      <div className="text-right">
-        <h2 className="text-4xl font-black tracking-tight">{invoice.total.toLocaleString()} {invoice.currency}</h2>
-        <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-2">Facture #{invoice.number}</p>
+export const QontoModern = ({ invoice, business, settings, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
+  return (
+    <div className="bg-white p-12 max-w-4xl mx-auto text-slate-900 border border-slate-100 rounded-3xl">
+      <div className="flex justify-between items-start mb-16">
+        <div className="bg-indigo-600 text-white p-4 rounded-2xl font-black text-2xl w-16 h-16 flex items-center justify-center">Q</div>
+        <div className="text-right">
+          <h2 className="text-4xl font-black tracking-tight">{invoice.total.toLocaleString()} {invoice.currency}</h2>
+          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-2">{title} #{invoice.number}</p>
+        </div>
       </div>
+      <div className="grid grid-cols-2 gap-12 mb-16">
+        <div>
+          <p className="text-slate-400 text-xs font-bold uppercase mb-4">Émetteur</p>
+          <p className="font-bold">{settings.legal_name || business.name}</p>
+          <p className="text-slate-500 text-sm">{settings.address}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-slate-400 text-xs font-bold uppercase mb-4">Client</p>
+          <p className="font-bold">{invoice.customer_name}</p>
+          <p className="text-slate-500 text-sm">{invoice.customer_email}</p>
+        </div>
+      </div>
+      <div className="space-y-4 mb-16">
+        {invoice.items.map((it, i) => (
+          <div key={i} className="flex justify-between items-center py-4 border-b border-slate-50">
+            <span className="font-medium">{it.name} <span className="text-slate-400 ml-2">x{it.qty}</span></span>
+            <span className="font-bold">{(it.qty * it.price).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+      <VerificationFooter business={business} invoice={invoice} />
     </div>
-    <div className="grid grid-cols-2 gap-12 mb-16">
-      <div>
-        <p className="text-slate-400 text-xs font-bold uppercase mb-4">Émetteur</p>
-        <p className="font-bold">{settings.legal_name || business.name}</p>
-        <p className="text-slate-500 text-sm">{settings.address}</p>
-      </div>
-      <div>
+  );
+};
         <p className="text-slate-400 text-xs font-bold uppercase mb-4">Client</p>
         <p className="font-bold">{invoice.customer_name}</p>
         <p className="text-slate-500 text-sm">{invoice.customer_email}</p>
