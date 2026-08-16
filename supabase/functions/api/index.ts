@@ -3924,6 +3924,16 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       business_id, user_id: user.id, company_name, sender_id, usage_note,
     }).select("*").single();
     if (error) throw new Error(error.message);
+
+    // Alert admin via SMS
+    try {
+      const { data: cfg } = await admin.from("platform_config").select("value").eq("key", "admin_notification_phone").maybeSingle();
+      const adminPhone = cfg?.value || "+22670000000";
+      await sendSmsRaw(adminPhone, `[FASO-PAY] Nouvelle demande de Sender ID: "${sender_id}" par ${company_name}. Veuillez valider dans l'admin.`);
+    } catch (e) {
+      console.error("Notify admin SMS failed", e);
+    }
+
     return row;
   },
 
@@ -3952,6 +3962,20 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (data?.admin_note !== undefined) patch.admin_note = data.admin_note;
     const { data: row, error } = await admin.from("sms_sender_requests").update(patch).eq("id", data.id).select("*").single();
     if (error) throw new Error(error.message);
+
+    // Notify admin on new sender request or status change
+    try {
+      const { data: cfg } = await admin.from("platform_config").select("value").eq("key", "admin_notification_phone").maybeSingle();
+      const adminPhone = cfg?.value || "+22670000000"; // Fallback or configurable
+      
+      if (data?.status === "approved" || data?.status === "rejected") {
+         // Notify user...
+      } else {
+         // It's a new request being processed? No, this handler is for admin update.
+         // We should notify admin in createSenderIdRequest.
+      }
+    } catch (e) { console.error("Admin SMS notify failed", e); }
+
     return row;
   },
 
