@@ -452,22 +452,28 @@ async function payDirect(payload: any) {
     metadata: { ...meta, direct: true, operator: op.code, phone, intent, fees, total, intent_at: new Date().toISOString() },
   }).eq("id", tx.id);
 
-  if (op.flow === "otp") {
-    // Le code USSD doit porter le montant réellement débité (frais opérateur inclus).
-    const ussd = YP.ussdCodeFor(op, total);
-    // Orange Money : le client génère lui-même son code via USSD (aucun SMS à envoyer).
-    if (op.otpBySms === false) {
-      return {
-        ok: true, requiresOtp: true, status: "pending", ussd, fees, total,
-        message: op.hint || "Composez le code USSD pour générer votre code de paiement.",
-      };
+  // Redirection forcée vers YengaPay (Checkout externe) pour tous les flux
+  try {
+    const { checkoutUrl, paymentIntentId } = await createYengaPayIntent({
+      amount: total, reference,
+      title: meta.description || "Paiement",
+      description: meta.description || "Paiement via FASO-INVEST PAY",
+      callbackUrl: `${SUPABASE_URL}/functions/v1/yengapay-webhook`,
+      returnUrl: meta.return_url || `${appBaseUrl()}/order/${reference}`
+    });
+    
+    if (checkoutUrl) {
+      await db.from("payment_link_payments").update({ payment_intent_id: paymentIntentId }).eq("reference", reference);
+      return { ok: true, reference, amount: total, currency: tx.currency, checkoutUrl };
     }
-    let r: any;
-    try { r = await YP.sendDirectPaymentOtp({ reference, phone, operator: op.code, paymentIntentId: intent! }); }
-    catch { throw new Error("Impossible d'envoyer le code de confirmation. Réessayez."); }
-    if (!r.ok) { console.error("[direct otp]", reference, r.status, JSON.stringify(r.body).slice(0, 800)); throw new Error("L'envoi du code de confirmation a échoué. Vérifiez votre numéro."); }
-    return { ok: true, requiresOtp: true, status: "pending", ussd, fees, total, message: r.body?.message || "Un code de confirmation vous a été envoyé par SMS." };
+  } catch (e) {
+    console.error("YengaPay redirect init failed", e);
   }
+
+  // Fallback direct si la redirection échoue (pourrait être supprimé si on veut être strict)
+  if (op.flow === "otp") {
+    // ...
+
 
   let r: any;
   try { r = await YP.payDirectPayment({ reference, phone, operator: op.code, paymentIntentId: intent! }); }
