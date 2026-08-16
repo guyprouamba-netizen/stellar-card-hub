@@ -801,6 +801,8 @@ function ProfileTab({ profile, onDone, setTab }: { profile: any; onDone: () => v
         </button>
       </div>
 
+      <TwoFactorSetup />
+
       <div className="rounded-2xl border border-border bg-card p-6">
         <h2 className="font-semibold">Changer mon mot de passe</h2>
         <div className="mt-4 grid gap-3">
