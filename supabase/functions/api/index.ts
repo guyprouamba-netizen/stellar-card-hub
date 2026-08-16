@@ -2322,7 +2322,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       "momo_transfer_fee_bps", "momo_transfer_fee_flat_xof", "momo_transfer_min_xof", "momo_transfer_max_xof"
     ];
     const allowedStrings = ["whatsapp_group_url", "admin_notification_phone", "sender_request_admin_template", "sender_request_user_template"];
-    const allowedBools = ["notify_admin_sender_request", "paypal_wd_enabled", "gateway_enabled", "momo_transfer_enabled"];
+    const allowedBools = ["notify_admin_sender_request", "paypal_wd_enabled", "gateway_enabled", "momo_transfer_enabled", "event_wallet_recharge", "event_card_recharge", "event_withdrawal", "event_withdrawal_paid", "event_sender_request"];
     console.log("[adminUpdateConfig] updating keys:", Object.keys(data || {}));
     const updates: Array<{ key: string; value: string }> = [];
     for (const k of allowedNumbers) {
