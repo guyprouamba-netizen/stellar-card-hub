@@ -886,7 +886,31 @@ function SettingsTab() {
     try {
       const r: any = await updCfg({ data: draft });
       if (r?.ok === false) throw new Error(r.error);
-      setCfg(r.config); setDraft(r.config);
+      
+      // Update Gateway & Paypal specific configs as well to keep everything in sync
+      await Promise.all([
+        adminUpdatePaypalWithdrawConfig({
+          fee_bps: Number(draft.paypal_wd_fee_bps),
+          fee_flat_xof: Number(draft.paypal_wd_fee_flat_xof),
+          min_xof: Number(draft.paypal_wd_min_xof),
+          max_xof: Number(draft.paypal_wd_max_xof),
+          enabled: !!draft.paypal_wd_enabled
+        }),
+        adminUpdateGatewayFeeConfig({
+          fee_bps: Number(draft.gateway_fee_bps),
+          fee_flat_xof: Number(draft.gateway_fee_flat_xof),
+          min_xof: Number(draft.gateway_min_xof),
+          enabled: !!draft.gateway_enabled,
+          sms_price: Number(draft.sms_price),
+          business_cashout_fee_bps: Number(draft.business_cashout_fee_bps),
+          business_cashout_fee_flat_xof: Number(draft.business_cashout_fee_flat_xof),
+          business_cashout_min_xof: Number(draft.business_cashout_min_xof)
+        })
+      ]);
+
+      const fresh: any = await getCfg();
+      setCfg(fresh.config); 
+      setDraft(fresh.config);
       toast.success("Paramètres mis à jour");
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   }
