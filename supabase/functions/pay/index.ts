@@ -350,7 +350,8 @@ function appBaseUrl() {
 // ============================================================
 function publicOperators() {
   const ops = [...YP.OPERATORS];
-  // Ajouter Paydunya si configuré
+  // Paydunya désactivé à la demande du client
+  /*
   if (Deno.env.get("PAYDUNYA_TOKEN")) {
     ops.push({
       code: "PAYDUNYA",
@@ -359,6 +360,7 @@ function publicOperators() {
       hint: "Payez via votre compte Paydunya ou Mobile Money local.",
     } as any);
   }
+  */
   return ops.map((o) => ({
     code: o.code, label: o.label, flow: o.flow,
     prefixes: o.prefixes, ussdPrefix: o.ussdPrefix || null,
