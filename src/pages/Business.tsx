@@ -26,7 +26,6 @@ const NAV = [
   { id: "links", label: "Liens de paiement", icon: Link2 },
   { id: "payments", label: "Paiements", icon: CreditCard },
   { id: "orders", label: "Commandes", icon: Package },
-  { id: "posts", label: "Publications", icon: Megaphone },
   { id: "docs", label: "Documentation API", icon: BookOpen },
   { id: "settings", label: "Ma boutique", icon: Settings2 },
 ] as const;
