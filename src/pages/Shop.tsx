@@ -206,19 +206,48 @@ export default function Shop() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: th.bg, color: th.text }}>
-      <nav className="sticky top-0 z-40 w-full border-b backdrop-blur-xl" style={{ backgroundColor: `${th.bg}cc`, borderColor: `${th.primary}22` }}>
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            {biz.logo_url ? (
-              <img src={biz.logo_url} alt={biz.name} className="h-9 w-9 rounded-xl object-cover" />
-            ) : (
-              <div className="grid h-9 w-9 place-items-center rounded-xl text-lg font-bold" style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
-            )}
-            <span className="text-lg font-bold tracking-tight">{biz.name}</span>
+    <div className="min-h-screen selection:bg-primary selection:text-primary-foreground" style={{ background: th.bg, color: th.text }}>
+      <AnimatePresence mode="wait">
+        <motion.nav 
+          initial={{ y: -100 }}
+          animate={{ y: 0 }}
+          className={`sticky top-0 z-40 w-full transition-all duration-500 ${
+            biz.template?.config?.header_style === 'floating' ? 'mt-4 px-4 sm:px-8' : ''
+          }`}
+        >
+          <div className={`mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 transition-all duration-500 ${
+            biz.template?.config?.header_style === 'glass' ? 'backdrop-blur-2xl bg-white/5 border-b border-white/10 h-20' :
+            biz.template?.config?.header_style === 'floating' ? 'rounded-2xl backdrop-blur-2xl bg-white/5 border border-white/10 shadow-2xl h-16' :
+            'bg-transparent border-b border-white/5 h-24'
+          } flex items-center justify-between`}>
+            <div className="flex items-center gap-4 group cursor-pointer">
+              {biz.logo_url ? (
+                <div className="relative">
+                  <div className="absolute -inset-1 rounded-xl bg-gradient-to-tr from-primary to-transparent opacity-0 group-hover:opacity-100 transition-opacity blur-sm" style={{ backgroundColor: th.primary }} />
+                  <img src={biz.logo_url} alt={biz.name} className="relative h-10 w-10 rounded-xl object-cover" />
+                </div>
+              ) : (
+                <div className="grid h-10 w-10 place-items-center rounded-xl text-lg font-black italic shadow-lg" style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
+              )}
+              <span className="text-xl font-black tracking-tighter uppercase italic group-hover:tracking-widest transition-all duration-500">{biz.name}</span>
+            </div>
+            
+            <div className="hidden md:flex items-center gap-8 text-[10px] font-black uppercase tracking-widest opacity-60">
+              <a href="#" className="hover:opacity-100 transition-opacity">Accueil</a>
+              <a href="#products" className="hover:opacity-100 transition-opacity">Produits</a>
+              <a href="#footer" className="hover:opacity-100 transition-opacity">Contact</a>
+            </div>
+
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-2 rounded-full bg-white/5 border border-white/10 px-5 py-2 text-[10px] font-black uppercase tracking-widest"
+            >
+              Panier (0)
+            </motion.button>
           </div>
-        </div>
-      </nav>
+        </motion.nav>
+      </AnimatePresence>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <section className="relative mb-20 overflow-hidden rounded-[2.5rem] shadow-2xl" style={{ backgroundColor: th.surface }}>
