@@ -142,10 +142,6 @@ export async function notifyEvent(admin: any, event: NotifyEvent, ctx: {
       : event === "withdrawal_request" ? "withdrawal_request_user"
       : event === "sender_request" ? "sender_request_user"
       : "withdrawal_paid_user"}`;
-    const adminKey = (event === "withdrawal_paid" || event === "sender_request") ? null
-      : (event === "wallet_recharge" ? "wallet_recharge_admin"
-        : event === "card_recharge" ? "card_recharge_admin"
-        : "withdrawal_request_admin");
 
     // User SMS
     if (userPhone) {
@@ -162,28 +158,42 @@ export async function notifyEvent(admin: any, event: NotifyEvent, ctx: {
     }
 
     // Admin SMS
-    const shouldNotifyAdmin = (cfg.notify_admin && adminKey) || (event === "sender_request" && cfg.notify_admin_sender_request);
+    // The user wants to store admin_notification_phone and sender_request_admin_template in platform_config (via adminUpdateConfig)
+    // instead of relying solely on sms_config for this specific feature.
+    const { data: platformCfg } = await admin.from("platform_config").select("key,value").in("key", ["admin_notification_phone", "notify_admin_sender_request", "sender_request_admin_template"]);
+    const pCfg: Record<string, string> = {};
+    (platformCfg || []).forEach((row: any) => pCfg[row.key] = row.value);
 
-    if (shouldNotifyAdmin && Array.isArray(cfg.admin_phones) && cfg.admin_phones.length > 0) {
-      // For sender_request, we don't have a template in sms_templates usually, so we might need a fallback
-      // but the user asked for it to be a checkbox in "Notifications SMS" settings.
-      // If event is sender_request, we can use a hardcoded message if no template is found.
-      const tpl = adminKey ? await loadTemplate(admin, adminKey) : null;
-      let message = "";
-      
+    const adminNotifyPhone = normalizeBfPhone(pCfg.admin_notification_phone);
+    const isSenderNotifyEnabled = pCfg.notify_admin_sender_request === "true";
+    const senderTemplate = pCfg.sender_request_admin_template;
+
+    if (event === "sender_request" && isSenderNotifyEnabled && adminNotifyPhone) {
+      const message = renderTemplate(senderTemplate || "[FASO-PAY] Nouvelle demande de Sender ID: {sender_id} par {company}.", vars);
+      const r = await sendSmsRaw({ recipient: adminNotifyPhone, message, sender_id: cfg.sender_id || "FASOPAY" });
+      await logSms(admin, {
+        recipient: adminNotifyPhone, message, event_key: "sender_request_admin", user_id: ctx.userId,
+        status: r.ok ? "success" : "failed", provider_response: r.body,
+        error: r.ok ? undefined : String(r.body?.message || r.body?.error || `HTTP ${r.status}`),
+      });
+    }
+
+    // Standard Admin notifications (from sms_config.admin_phones)
+    const adminKey = (event === "withdrawal_paid" || event === "sender_request") ? null
+      : (event === "wallet_recharge" ? "wallet_recharge_admin"
+        : event === "card_recharge" ? "card_recharge_admin"
+        : "withdrawal_request_admin");
+
+    if (cfg.notify_admin && adminKey && Array.isArray(cfg.admin_phones) && cfg.admin_phones.length > 0) {
+      const tpl = await loadTemplate(admin, adminKey);
       if (tpl?.enabled && tpl.body) {
-        message = renderTemplate(tpl.body, vars);
-      } else if (event === "sender_request") {
-        message = `[FASO-PAY] Nouvelle demande de Sender ID: "${vars.sender_id}" par ${vars.company || name}.`;
-      }
-
-      if (message) {
+        const message = renderTemplate(tpl.body, vars);
         const normalized = cfg.admin_phones.map((p: string) => normalizeBfPhone(p)).filter(Boolean) as string[];
         if (normalized.length) {
           const recipient = normalized.join(",");
           const r = await sendSmsRaw({ recipient, message, sender_id: cfg.sender_id || "FASOPAY" });
           await logSms(admin, {
-            recipient, message, event_key: adminKey || "sender_request_admin", user_id: ctx.userId,
+            recipient, message, event_key: adminKey, user_id: ctx.userId,
             status: r.ok ? "success" : "failed", provider_response: r.body,
             error: r.ok ? undefined : String(r.body?.message || r.body?.error || `HTTP ${r.status}`),
           });
