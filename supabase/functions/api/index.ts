@@ -4097,7 +4097,51 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   },
 
   async adminListSenderRequests({ user, admin }) {
-    const { data: isAdmin } = await admin.rpc("has_role", { _user_id: user.id, _role: "admin" });
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const { data: rows, error } = await admin.from("sms_sender_requests").select("*").order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  },
+
+  async adminUpdateSenderRequest({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const { id, status, admin_note } = data;
+    if (!id) throw new Error("ID requis");
+    const patch: any = {};
+    if (status) patch.status = status;
+    if (admin_note !== undefined) patch.admin_note = admin_note;
+    patch.updated_at = new Date().toISOString();
+
+    const { data: row, error } = await admin.from("sms_sender_requests")
+      .update(patch)
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+
+    // Si approuvé, notifier l'utilisateur par SMS
+    if (status === "approved" && row.user_id) {
+      try {
+        const { data: p } = await admin.from("profiles").select("phone").eq("id", row.user_id).maybeSingle();
+        if (p?.phone) {
+          const userPhone = normalizeBfPhone(p.phone);
+          const { data: smsCfg } = await admin.from("sms_config").select("sender_id").limit(1).maybeSingle();
+          const senderId = (smsCfg as any)?.sender_id || "FASOPAY";
+          
+          await sendSmsRaw({
+            recipient: userPhone,
+            message: `[FASO-PAY] Votre demande de Sender ID "${row.sender_id}" a été APPROUVÉE. Vous pouvez désormais l'utiliser pour vos campagnes SMS.`,
+            sender_id: senderId
+          });
+        }
+      } catch (e) {
+        console.error("Notify user approved sender ID failed", e);
+      }
+    }
+
+    return row;
+  },
+
     if (!isAdmin) throw new Error("Forbidden");
     const { data: rows, error } = await admin.from("sms_sender_requests")
       .select("*").order("created_at", { ascending: false }).limit(200);
