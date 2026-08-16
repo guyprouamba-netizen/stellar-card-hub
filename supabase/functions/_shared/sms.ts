@@ -30,16 +30,24 @@ export async function sendSmsRaw(opts: {
   const token = Deno.env.get("BBG_SMS_API_TOKEN");
   if (!token) return { ok: false, body: { error: "BBG_SMS_API_TOKEN missing" }, status: 500 };
   try {
+    const isWhatsapp = opts.type === "whatsapp";
+    const endpoint = isWhatsapp ? BBG_WHATSAPP_ENDPOINT : BBG_ENDPOINT;
+
     const payload: any = {
       api_token: token,
       recipient: opts.recipient,
-      type: opts.type || "plain",
       message: opts.message,
     };
-    if (payload.type === "plain") {
+    
+    if (isWhatsapp) {
+      // Documentation states /api/http/whatsapp/send expects api_token, recipient, message
+      // and doesn't explicitly mention 'type' field in the endpoint path for whatsapp.
+    } else {
+      payload.type = opts.type || "plain";
       payload.sender_id = opts.sender_id;
     }
-    const res = await fetch(BBG_ENDPOINT, {
+
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
       body: JSON.stringify(payload),
