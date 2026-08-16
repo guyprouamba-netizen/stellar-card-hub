@@ -350,7 +350,8 @@ function appBaseUrl() {
 // ============================================================
 function publicOperators() {
   const ops = [...YP.OPERATORS];
-  // Ajouter Paydunya si configuré
+  // Paydunya désactivé à la demande du client
+  /*
   if (Deno.env.get("PAYDUNYA_TOKEN")) {
     ops.push({
       code: "PAYDUNYA",
@@ -359,6 +360,7 @@ function publicOperators() {
       hint: "Payez via votre compte Paydunya ou Mobile Money local.",
     } as any);
   }
+  */
   return ops.map((o) => ({
     code: o.code, label: o.label, flow: o.flow,
     prefixes: o.prefixes, ussdPrefix: o.ussdPrefix || null,
@@ -408,24 +410,7 @@ async function payDirect(payload: any) {
   const phone = String(payload?.phone || "").replace(/[^0-9+]/g, "");
   
   if (payload?.operator === "PAYDUNYA") {
-    const tx = await loadPending(db, reference);
-    if (!tx) throw new Error("Paiement introuvable");
-    const { data: biz } = await db.from("businesses").select("name").eq("id", tx.business_id).single();
-    const PD = await import("../_shared/paydunya.ts");
-    const inv = await PD.createInvoice({
-      amount: Number(tx.amount),
-      description: `Paiement ${biz?.name || "Marchand"} - Ref ${reference}`,
-      callback_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/paydunya-webhook`,
-      return_url: `${appBaseUrl()}/order/${reference}`,
-      cancel_url: `${appBaseUrl()}/order/${reference}`,
-      customer: { email: tx.customer_email, name: tx.customer_name, phone: tx.customer_phone }
-    });
-    await db.from("payment_link_payments").update({ 
-      payment_intent_id: inv.token,
-      provider: "paydunya",
-      metadata: { ...(tx.metadata || {}), token: inv.token }
-    }).eq("id", tx.id);
-    return { ok: true, status: "pending", checkoutUrl: inv.response_text || inv.token };
+    throw new Error("Paydunya est actuellement désactivé");
   }
 
   const op = YP.findOperator(String(payload?.operator || ""));
