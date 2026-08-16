@@ -260,7 +260,7 @@ export default function BusinessPage() {
             </Link>
             <div className="flex items-center gap-2">
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-primary text-sm font-black text-primary-foreground">B</span>
-              <h1 className="font-[Space_Grotesk] text-base font-bold tracking-tight sm:text-lg">Espace Business</h1>
+              <h1 className="font-[Space_Grotesk] text-base font-bold tracking-tight sm:text-lg">FASO INVEST PAY - Business</h1>
             </div>
           </div>
           <div className="flex items-center gap-2">
