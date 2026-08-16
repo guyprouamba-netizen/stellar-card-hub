@@ -1028,6 +1028,9 @@ function GatewayFeeSettings() {
         min_xof: Number(cfg.min_xof), enabled: !!cfg.enabled,
         admin_notification_phone: cfg.admin_notification_phone,
         sms_price: Number(cfg.sms_price || 20),
+        business_cashout_fee_bps: Number(cfg.business_cashout_fee_bps),
+        business_cashout_fee_flat_xof: Number(cfg.business_cashout_fee_flat_xof),
+        business_cashout_min_xof: Number(cfg.business_cashout_min_xof),
       });
       setCfg(c);
       toast.success("Frais de la passerelle mis à jour");
@@ -1060,7 +1063,18 @@ function GatewayFeeSettings() {
           <span className="mt-1 block text-[11px] text-muted-foreground">Prix payé par le marchand par SMS envoyé.</span>
         </label>
       </div>
-      <label className="flex items-center gap-2 text-sm mt-2">
+
+      <div className="mt-8 pt-8 border-t border-border">
+        <h2 className="font-[Space_Grotesk] text-xl font-bold">Frais de retrait Marchand</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Frais appliqués lorsque les marchands retirent leur solde cumulé.</p>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          {num("business_cashout_fee_bps", "Commission retrait (points de base)", "100 = 1% du montant")}
+          {num("business_cashout_fee_flat_xof", "Frais fixe retrait (XOF)", "Ex: 100")}
+          {num("business_cashout_min_xof", "Minimum retrait (XOF)", "Ex: 500")}
+        </div>
+      </div>
+
+      <label className="flex items-center gap-2 text-sm mt-6">
         <input type="checkbox" checked={!!cfg.enabled} onChange={(e) => setCfg((d: any) => ({ ...d, enabled: e.target.checked }))} />
         Activer la passerelle API
       </label>

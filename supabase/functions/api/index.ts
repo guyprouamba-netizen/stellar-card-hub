@@ -597,7 +597,10 @@ async function assertBusinessOwner(admin: any, userId: string, businessId: strin
 
 // ===== Passerelle de paiement projet : frais + webhooks signés =====
 async function loadGatewayFeeConfig(admin: any) {
-  const keys = ["gateway_fee_bps", "gateway_fee_flat_xof", "gateway_min_xof", "gateway_enabled"];
+  const keys = [
+    "gateway_fee_bps", "gateway_fee_flat_xof", "gateway_min_xof", "gateway_enabled",
+    "business_cashout_fee_bps", "business_cashout_fee_flat_xof", "business_cashout_min_xof"
+  ];
   const { data } = await admin.from("platform_config").select("key,value").in("key", keys);
   const map = new Map((data ?? []).map((r: any) => [r.key, r.value]));
   const num = (k: string, d: number) => {
@@ -611,6 +614,9 @@ async function loadGatewayFeeConfig(admin: any) {
     fee_flat_xof: num("gateway_fee_flat_xof", 0),
     min_xof: num("gateway_min_xof", 100),
     enabled: enabledRaw === undefined || enabledRaw === null ? true : Boolean(enabledRaw),
+    business_cashout_fee_bps: num("business_cashout_fee_bps", 100), // Default 1%
+    business_cashout_fee_flat_xof: num("business_cashout_fee_flat_xof", 100), // Default 100 XOF
+    business_cashout_min_xof: num("business_cashout_min_xof", 500),
   };
 }
 
@@ -2483,28 +2489,41 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     await assertUserRateLimit(admin, user.id, "cashoutBusinessBalance", 6);
     const biz = await assertBusinessOwner(admin, user.id, data.business_id);
     const { data: b } = await admin.from("businesses").select("balance,owner_id").eq("id", biz.id).single();
-    const amount = Number(b?.balance || 0);
-    if (amount <= 0) return { ok: false, error: "Solde nul" };
+    const totalBalance = Number(b?.balance || 0);
+    if (totalBalance <= 0) return { ok: false, error: "Solde nul" };
+    
+    // Apply cashout fees
+    const cfg = await loadGatewayFeeConfig(admin);
+    const feePct = Math.ceil((totalBalance * cfg.business_cashout_fee_bps) / 10000);
+    const fees = Math.max(cfg.business_cashout_min_xof, feePct + cfg.business_cashout_fee_flat_xof);
+    const netAmount = Math.max(0, totalBalance - fees);
+    
+    if (netAmount <= 0 && totalBalance > 0) return { ok: false, error: `Le solde est insuffisant pour couvrir les frais de retrait (${fees} XOF)` };
+
     const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", b.owner_id).eq("currency", "XOF").maybeSingle();
     if (!w) return { ok: false, error: "Wallet XOF introuvable" };
-    await admin.from("wallets").update({ balance: Number(w.balance) + amount }).eq("id", w.id);
+    
+    await admin.from("wallets").update({ balance: Number(w.balance) + netAmount }).eq("id", w.id);
     await admin.from("businesses").update({ balance: 0 }).eq("id", biz.id);
+    
     await admin.from("transactions").insert({
       user_id: b.owner_id, type: "deposit", status: "success",
-      amount, currency: "XOF",
-      description: `Transfert solde business → wallet`,
-      metadata: { business_id: biz.id },
+      amount: netAmount, currency: "XOF",
+      description: `Retrait solde business → wallet (frais: ${fees} XOF)`,
+      metadata: { business_id: biz.id, fees, gross_amount: totalBalance },
     });
-    // Comptabilité : tout retrait depuis la boutique est enregistré automatiquement
+    
+    // Accounting
     await admin.from("accounting_entries").insert({
       business_id: biz.id, kind: "expense",
       label: "Retrait vers portefeuille",
-      amount, currency: "XOF",
+      amount: totalBalance, currency: "XOF",
       entry_date: new Date().toISOString().slice(0, 10),
       auto_generated: true,
-      notes: "Retrait automatique du solde boutique",
+      notes: `Retrait solde boutique. Net: ${netAmount}, Frais: ${fees}`,
     });
-    return { ok: true, transferred: amount };
+    
+    return { ok: true, transferred: netAmount, fees };
   },
 
   // ===========================================================
@@ -2760,8 +2779,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!key) throw new Error("Générez d'abord les clés API du projet");
     const event = String(data?.event || "payment.succeeded");
     const amount = Math.max(1, Math.floor(Number(data?.amount || 1000)));
-    const fee = await loadGatewayFeeConfig(admin);
-    const feeAmount = Math.round((amount * fee.fee_bps) / 10000) + fee.fee_flat_xof;
+    const cfg = await loadGatewayFeeConfig(admin);
+    const feePct = Math.ceil((amount * cfg.fee_bps) / 10000);
+    const feeAmount = Math.max(cfg.min_xof, feePct + cfg.fee_flat_xof);
     const payload = {
       event,
       test: true,
@@ -2838,6 +2858,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       gateway_enabled: data?.enabled,
       admin_notification_phone: data?.admin_notification_phone,
       gateway_sms_price: data?.sms_price,
+      business_cashout_fee_bps: data?.business_cashout_fee_bps,
+      business_cashout_fee_flat_xof: data?.business_cashout_fee_flat_xof,
+      business_cashout_min_xof: data?.business_cashout_min_xof,
     };
     for (const [k, v] of Object.entries(map)) {
       if (v === undefined || v === null) continue;

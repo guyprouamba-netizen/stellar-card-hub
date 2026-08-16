@@ -18,6 +18,24 @@ function admin() {
   return createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
 }
 
+async function loadGatewayFeeConfig(db: any) {
+  const keys = ["gateway_fee_bps", "gateway_fee_flat_xof", "gateway_min_xof", "gateway_enabled"];
+  const { data } = await db.from("platform_config").select("key,value").in("key", keys);
+  const map = new Map((data ?? []).map((r: any) => [r.key, r.value]));
+  const num = (k: string, d: number) => {
+    const v = map.get(k);
+    const n = Number(typeof v === "object" && v !== null ? (v as any).value : v);
+    return Number.isFinite(n) ? n : d;
+  };
+  const enabledRaw = map.get("gateway_enabled");
+  return {
+    fee_bps: num("gateway_fee_bps", 200),
+    fee_flat_xof: num("gateway_fee_flat_xof", 0),
+    min_xof: num("gateway_min_xof", 100),
+    enabled: enabledRaw === undefined || enabledRaw === null ? true : Boolean(enabledRaw),
+  };
+}
+
 async function sha256Hex(input: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
   return Array.from(new Uint8Array(buf)).map((x) => x.toString(16).padStart(2, "0")).join("");
@@ -279,8 +297,10 @@ async function settlePayment(db: any, paymentId: string, providerBody: any) {
     .select("id,business_id,amount,status,fee_amount,net_amount,reference,currency,customer_email,customer_name,link_id,project_id,product_id,order_id").eq("id", paymentId).maybeSingle();
   if (!tx || tx.status !== "pending") return { credited: false };
   const { data: biz } = await db.from("businesses").select("id,balance,fee_bps").eq("id", tx.business_id).single();
-  const fee = Math.round((Number(tx.amount) * Number(biz.fee_bps || 0)) / 10000);
-  const net = Number(tx.amount) - fee;
+  const cfg = await loadGatewayFeeConfig(db);
+  const feePct = Math.ceil((Number(tx.amount) * cfg.fee_bps) / 10000);
+  const fee = Math.max(cfg.min_xof, feePct + cfg.fee_flat_xof);
+  const net = Math.max(0, Number(tx.amount) - fee);
   const { data: updated } = await db.from("payment_link_payments").update({
     status: "success", fee_amount: fee, net_amount: net,
     paid_at: new Date().toISOString(),
