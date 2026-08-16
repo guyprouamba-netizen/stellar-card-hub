@@ -4313,7 +4313,19 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   try {
     const keys = Object.keys(HANDLERS);
+    const payload = await req.json().catch(() => ({}));
+    const fn = (payload as any).fn;
+    const data = (payload as any).data ?? {};
+    if (!fn || typeof fn !== "string") return jsonResponse({ error: "missing fn" }, 400);
+    const handler = HANDLERS[fn];
+    if (!handler) {
+      const keys = Object.keys(HANDLERS);
+      const start = keys.slice(0, 5).join(", ");
+      const end = keys.slice(-5).join(", ");
+      return jsonResponse({ error: `unknown fn: ${fn} (total: ${keys.length}, samples: ${start}...${end})` }, 404);
+    }
     const { user, userClient } = await getAuthUser(req);
+
     const admin = adminClient();
     const payload = await req.json().catch(() => ({}));
     const fn = (payload as any).fn;
