@@ -152,7 +152,7 @@ function Auth() {
           toast.success("Code de bienvenue envoyé par WhatsApp");
         } catch (err: any) {
           console.error("OTP send failed detailed:", err);
-          toast.error("'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            erreur qui s'affiche et  je suis rediriger vers mon tableau de board");
+          toast.error("Impossible d'envoyer le code WhatsApp pour le moment. Veuillez vérifier votre numéro ou réessayer plus tard.");
           // IMPORTANT: Ne pas rediriger, rester en mode signup pour permettre de réessayer
           setMode("signup");
         } finally {
@@ -210,7 +210,7 @@ function Auth() {
       });
       if (apiErr || res?.error) throw new Error(apiErr?.message || res?.error || "Code invalide");
       
-      toast.success(mode === "registration_otp" ? "Bienvenue sur FASO-INVEST PAY !" : "Vérification réussie");
+      toast.success(mode === "registration_otp" ? "Bienvenue sur FASO INVEST PAY !" : "Vérification réussie");
       await fastRedirect(tempUser);
     } catch (err: any) {
       setFormError(err.message);
@@ -241,11 +241,11 @@ function Auth() {
         <div className="relative space-y-8 px-12">
           <Link to="/" className="flex items-center gap-2 text-lg font-semibold">
             <img src={logo} alt="" width={36} height={36} className="h-9 w-9 rounded-xl" />
-            FASO-INVEST <span className="text-primary">PAY</span>
+            FASO INVEST <span className="text-primary">PAY</span>
           </Link>
           <VirtualCard />
           <p className="max-w-sm text-muted-foreground">
-            « FASO-INVEST PAY m'a permis de payer en ligne en USD depuis Ouaga, sans tracas. »
+            « FASO INVEST PAY m'a permis de payer en ligne en USD depuis Ouaga, sans tracas. »
           </p>
           <p className="text-sm font-semibold">— Aïcha O., entrepreneure</p>
         </div>
@@ -255,14 +255,14 @@ function Auth() {
         <div className="w-full max-w-sm">
           <Link to="/" className="lg:hidden mb-8 inline-flex items-center gap-2 font-semibold">
             <img src={logo} alt="" width={32} height={32} className="h-8 w-8 rounded-lg" />
-            FASO-INVEST PAY
+            FASO INVEST PAY
           </Link>
           <BackButton to="/" className="mb-4" />
           <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">
             {mode === "login" ? "Bon retour 👋" : "Créer un compte"}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {mode === "login" ? "Connectez-vous à votre espace FASO-INVEST PAY." : "Lancez vos cartes virtuelles en 2 minutes."}
+            {mode === "login" ? "Connectez-vous à votre espace FASO INVEST PAY." : "Lancez vos cartes virtuelles en 2 minutes."}
           </p>
 
           {mode === "2fa" || mode === "registration_otp" ? (
