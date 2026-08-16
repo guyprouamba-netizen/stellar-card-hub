@@ -466,9 +466,11 @@ export default function BusinessPage() {
                   </div>
                 )}
 
-                </>)}
+                </>
+              )}
 
-                {tab === "settings" && (<>
+              {tab === "settings" && (
+                <>
                 <ShopTemplateSelector business={current as any} onUpdated={refreshAll} />
                 <ShopBrandingPanel biz={current} onUpdated={refreshAll} />
                 <ShopProjectsPanel projects={projects} onChanged={() => refreshCurrent(current.id)} onGoProjects={() => setTab("projects")} />
