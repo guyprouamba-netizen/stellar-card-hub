@@ -3934,8 +3934,19 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     // Alert admin via SMS
     try {
       const { data: cfg } = await admin.from("platform_config").select("value").eq("key", "admin_notification_phone").maybeSingle();
-      const adminPhone = cfg?.value || "+22670000000";
-      await sendSmsRaw(adminPhone, `[FASO-PAY] Nouvelle demande de Sender ID: "${sender_id}" par ${company_name}. Veuillez valider dans l'admin.`);
+      const rawPhone = cfg?.value || "+22670000000";
+      const adminPhone = normalizeBfPhone(rawPhone);
+      
+      const { data: smsCfg } = await admin.from("sms_config").select("sender_id").limit(1).maybeSingle();
+      const senderId = (smsCfg as any)?.sender_id || "FASOPAY";
+
+      if (adminPhone) {
+        await sendSmsRaw({
+          recipient: adminPhone,
+          message: `[FASO-PAY] Nouvelle demande de Sender ID: "${sender_id}" par ${company_name}. Veuillez valider dans l'admin.`,
+          sender_id: senderId
+        });
+      }
     } catch (e) {
       console.error("Notify admin SMS failed", e);
     }
