@@ -4175,6 +4175,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     }
     
     if (!phone) {
+      console.error(`[sendRegistrationOTP] No phone found for user ${user.id}`);
       throw new Error("Aucun numéro de téléphone trouvé. Assurez-vous d'avoir saisi votre numéro WhatsApp lors de l'inscription.");
     }
     
