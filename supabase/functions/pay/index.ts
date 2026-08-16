@@ -241,9 +241,12 @@ async function createYengaPayIntent(opts: {
   });
   const text = await res.text();
   let body: any = text; try { body = JSON.parse(text); } catch { /**/ }
+  console.log("YengaPay Intent Response:", { status: res.status, body });
   if (!res.ok) throw new Error(`YengaPay ${res.status}: ${typeof body === "string" ? body : JSON.stringify(body)}`);
-  const checkoutUrl = body?.checkoutPageUrlWithPaymentToken || body?.checkout_url || body?.paymentUrl;
-  const paymentIntentId = body?.id || body?.paymentIntentId || body?.paymentIntent?.id || body?.data?.id || null;
+  
+  // YengaPay API v1 response structure check
+  const checkoutUrl = body?.checkoutPageUrlWithPaymentToken || body?.checkout_url || body?.paymentUrl || body?.data?.checkoutUrl || body?.data?.paymentUrl;
+  const paymentIntentId = body?.id || body?.paymentIntentId || body?.paymentIntent?.id || body?.data?.id || body?.data?.paymentIntentId || null;
   return { checkoutUrl, paymentIntentId, raw: body };
 }
 
@@ -463,8 +466,11 @@ async function payDirect(payload: any) {
     });
     
     if (checkoutUrl) {
+      console.log("Redirecting to YengaPay checkout:", checkoutUrl);
       await db.from("payment_link_payments").update({ payment_intent_id: paymentIntentId }).eq("reference", reference);
       return { ok: true, reference, amount: total, currency: tx.currency, checkoutUrl };
+    } else {
+      console.error("No checkoutUrl returned from createYengaPayIntent", reference);
     }
   } catch (e) {
     console.error("YengaPay redirect init failed", e);
