@@ -1295,29 +1295,34 @@ export const BoldImpact = ({ invoice, business }: TemplateProps) => (
 );
 
 // 30. ZEN MINIMAL (Calm & Serene)
-export const ZenMinimal = ({ invoice, business }: TemplateProps) => (
-  <div className="bg-white p-20 max-w-5xl mx-auto text-slate-400 font-light font-serif tracking-[0.2em] uppercase text-center border-x border-slate-50 shadow-sm">
-    <h1 className="text-xl mb-32 tracking-[0.8em] font-light text-slate-900">{business.name}</h1>
-    <div className="mb-32">
-      <p className="text-[10px] mb-8 opacity-40">For Your Records</p>
-      <h2 className="text-3xl text-slate-800 font-light lowercase italic tracking-normal">{invoice.customer_name}</h2>
+export const ZenMinimal = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
+  return (
+    <div className="bg-white p-20 max-w-5xl mx-auto text-slate-400 font-light font-serif tracking-[0.2em] uppercase text-center border-x border-slate-50 shadow-sm">
+      <h1 className="text-xl mb-32 tracking-[0.8em] font-light text-slate-900">{business.name}</h1>
+      <div className="mb-32">
+        <p className="text-[10px] mb-8 opacity-40">{title}</p>
+        <h2 className="text-3xl text-slate-800 font-light lowercase italic tracking-normal">{invoice.customer_name}</h2>
+      </div>
+      <div className="space-y-12 mb-32">
+        {invoice.items.map((it, i) => (
+          <div key={i} className="flex justify-between items-center text-[10px] border-b border-slate-50 pb-8">
+            <span>{it.name}</span>
+            <span className="text-slate-800 font-medium">{(it.qty * it.price).toLocaleString()} {invoice.currency}</span>
+          </div>
+        ))}
+      </div>
+      <div className="pt-20 border-t border-slate-100 flex flex-col items-center">
+        <p className="text-xs mb-4">Total Amount</p>
+        <p className="text-4xl text-slate-900 font-light tracking-widest">{invoice.total.toLocaleString()} {invoice.currency}</p>
+        <div className="mt-32 w-8 h-[1px] bg-slate-200" />
+        <p className="mt-8 text-[8px] opacity-30 italic">Document ID: {invoice.number}</p>
+      </div>
+      
+      <VerificationFooter business={business} invoice={invoice} />
     </div>
-    <div className="space-y-12 mb-32">
-      {invoice.items.map((it, i) => (
-        <div key={i} className="flex justify-between items-center text-[10px] border-b border-slate-50 pb-8">
-          <span>{it.name}</span>
-          <span className="text-slate-800 font-medium">{(it.qty * it.price).toLocaleString()} {invoice.currency}</span>
-        </div>
-      ))}
-    </div>
-    <div className="pt-20 border-t border-slate-100 flex flex-col items-center">
-      <p className="text-xs mb-4">Total Amount</p>
-      <p className="text-4xl text-slate-900 font-light tracking-widest">{invoice.total.toLocaleString()} {invoice.currency}</p>
-      <div className="mt-32 w-8 h-[1px] bg-slate-200" />
-      <p className="mt-8 text-[8px] opacity-30 italic">Document ID: {invoice.number}</p>
-    </div>
-  </div>
-);
+  );
+};
 
 // Map of all templates
 export const INVOICE_TEMPLATES: Record<string, React.FC<TemplateProps>> = {
