@@ -102,3 +102,8 @@ export const listSmsCredits = (business_id: string) =>
   callApi("listSmsCredits", { business_id });
 export const purchaseSmsCredits = (data: { business_id: string; sender_id: string; quantity: number }) =>
   callApi("purchaseSmsCredits", data);
+
+// --- Shop Templates (Public for users to list and apply) ---
+export const listShopTemplates = () => callApi("listShopTemplates");
+export const applyShopTemplate = (data: { business_id: string; template_id: string | null }) => 
+  callApi("applyShopTemplate", data);

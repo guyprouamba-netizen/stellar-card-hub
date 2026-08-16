@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getShop, initShopCheckout } from "@/lib/pay.functions";
-import { MomoPayment } from "@/components/momo-payment";
-import { Loader2, ShoppingCart, Plus, Minus, X, ShieldCheck, Store, Mail, Phone } from "lucide-react";
+import { getShop } from "@/lib/pay.functions";
+import { Loader2, ShieldCheck, Store, Mail, Phone, Eye } from "lucide-react";
+import { ProductDetailModal } from "@/components/product-detail-modal";
 
 type Product = { id: string; name: string; slug: string; description: string | null; price: number; currency: string; project_id?: string | null; media?: Array<{ url: string; type: string }> };
 type Post = { id: string; title: string; body: string | null; image_url: string | null; product_id: string | null; published_at: string };
@@ -10,6 +10,8 @@ type Biz = {
   id: string; name: string; slug: string; description: string | null; tagline?: string | null;
   logo_url: string | null; cover_url?: string | null; contact_email: string | null; contact_phone: string | null;
   theme?: { bg?: string; surface?: string; text?: string; muted?: string; primary?: string; primary_text?: string };
+  template_id?: string | null;
+  template?: { css_vars?: Record<string, string>; id: string; name: string } | null;
 };
 type ShopProject = { id: string; name: string; description: string | null; cover_url: string | null; logo_url: string | null; products: Product[] };
 
@@ -24,11 +26,7 @@ export default function Shop() {
   const [products, setProducts] = useState<Product[]>([]);
   const [projects, setProjects] = useState<ShopProject[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [cart, setCart] = useState<Record<string, number>>({});
-  const [cartOpen, setCartOpen] = useState(false);
-  const [customer, setCustomer] = useState({ name: "", email: "", phone: "", address: "", note: "" });
-  const [submitting, setSubmitting] = useState(false);
-  const [pay, setPay] = useState<{ reference: string; amount: number; currency: string; order_token: string; checkoutUrl?: string } | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     // Retour depuis paiement : rediriger vers le suivi de commande
@@ -44,46 +42,6 @@ export default function Shop() {
     }).catch((e) => { setError(e.message); setLoading(false); });
   }, [slug, navigate]);
 
-  const currency = products[0]?.currency || "XOF";
-  const total = useMemo(() => Object.entries(cart).reduce((s, [pid, qty]) => {
-    const p = products.find((x) => x.id === pid);
-    return s + (p ? Number(p.price) * qty : 0);
-  }, 0), [cart, products]);
-  const cartCount = Object.values(cart).reduce((s, n) => s + n, 0);
-
-  function addToCart(pid: string) {
-    setCart((c) => ({ ...c, [pid]: (c[pid] || 0) + 1 }));
-  }
-  function setQty(pid: string, qty: number) {
-    setCart((c) => { const n = { ...c }; if (qty <= 0) delete n[pid]; else n[pid] = qty; return n; });
-  }
-
-  async function checkout() {
-    if (!biz || cartCount === 0) return;
-    if (!customer.email) { setError("Email requis pour recevoir le reçu"); return; }
-    setSubmitting(true); setError(null);
-    try {
-      const items = Object.entries(cart).map(([product_id, quantity]) => ({ product_id, quantity }));
-      const r: any = await initShopCheckout({
-        business_slug: biz.slug, items,
-        customer_email: customer.email,
-        customer_name: customer.name || undefined,
-        customer_phone: customer.phone || undefined,
-        shipping_address: customer.address || undefined,
-        customer_note: customer.note || undefined,
-      });
-      if (!r?.reference) throw new Error("Paiement indisponible pour le moment");
-      
-      if (r.checkoutUrl) {
-        window.location.href = r.checkoutUrl;
-        return;
-      }
-      
-      setPay({ reference: r.reference, amount: Number(r.amount), currency: r.currency, order_token: r.order_token });
-      setSubmitting(false);
-    } catch (e: any) { setError(e.message); setSubmitting(false); }
-  }
-
   if (loading) return <div className="grid min-h-screen place-items-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   if (error && !biz) return (
     <div className="grid min-h-screen place-items-center px-6 text-center">
@@ -93,13 +51,32 @@ export default function Shop() {
   if (!biz) return null;
 
   const th = { ...DEFAULT_THEME, ...(biz.theme || {}) };
+  
+  // Injecter les variables CSS du template si présent
+  const templateVars = biz.template?.css_vars || {};
+  Object.entries(templateVars).forEach(([k, v]) => {
+    if (k.startsWith('--')) {
+      // @ts-ignore
+      th[k.replace('--', '').replace(/-/g, '_')] = v;
+    }
+  });
+
+  // Injecter dans le DOM pour les styles CSS personnalisés
+  useEffect(() => {
+    const root = document.documentElement;
+    Object.entries(templateVars).forEach(([k, v]) => {
+      root.style.setProperty(k, v as string);
+    });
+    return () => {
+      Object.keys(templateVars).forEach((k) => root.style.removeProperty(k));
+    };
+  }, [biz.template]);
   const grouped: ShopProject[] = projects.length
     ? projects
     : [{ id: "_all", name: "Produits", description: null, cover_url: null, logo_url: null, products }];
 
   const card = (p: Product) => {
     const img = p.media?.[0]?.url;
-    const qty = cart[p.id] || 0;
     return (
       <div key={p.id} id={`product-${p.id}`} className="overflow-hidden rounded-2xl transition hover:-translate-y-1"
         style={{ background: th.surface, border: `1px solid ${th.primary}22` }}>
@@ -110,18 +87,10 @@ export default function Shop() {
           {p.description && <p className="mt-1 text-sm line-clamp-2" style={{ color: th.muted }}>{p.description}</p>}
           <div className="mt-3 flex items-center justify-between gap-2">
             <p className="text-lg font-bold tabular-nums">{Number(p.price).toLocaleString("fr-FR")} <span className="text-xs" style={{ color: th.muted }}>{p.currency}</span></p>
-            {qty === 0 ? (
-              <button onClick={() => addToCart(p.id)} className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold"
-                style={{ background: th.primary, color: th.primary_text }}>
-                <Plus className="h-3.5 w-3.5" /> Ajouter
-              </button>
-            ) : (
-              <div className="inline-flex items-center gap-2 rounded-full px-1 py-0.5" style={{ border: `1px solid ${th.primary}55` }}>
-                <button onClick={() => setQty(p.id, qty - 1)} className="grid h-7 w-7 place-items-center rounded-full"><Minus className="h-3 w-3" /></button>
-                <span className="w-4 text-center text-sm font-bold tabular-nums">{qty}</span>
-                <button onClick={() => setQty(p.id, qty + 1)} className="grid h-7 w-7 place-items-center rounded-full"><Plus className="h-3 w-3" /></button>
-              </div>
-            )}
+            <button onClick={() => setSelectedProduct(p)} className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold transition transform active:scale-95"
+              style={{ background: th.primary, color: th.primary_text }}>
+              <Eye className="h-3.5 w-3.5" /> Voir
+            </button>
           </div>
         </div>
       </div>
@@ -139,12 +108,6 @@ export default function Shop() {
               <div className="grid h-9 w-9 place-items-center rounded-xl text-lg font-bold" style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
             )}
             <span className="text-lg font-bold tracking-tight">{biz.name}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setCartOpen(true)} className="relative grid h-10 w-10 place-items-center rounded-full transition-transform hover:scale-105 active:scale-95" style={{ background: th.surface }}>
-              <ShoppingCart className="h-5 w-5" />
-              {cartCount > 0 && <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold shadow-lg" style={{ background: th.primary, color: th.primary_text }}>{cartCount}</span>}
-            </button>
           </div>
         </div>
       </nav>
@@ -263,83 +226,12 @@ export default function Shop() {
         </footer>
       </main>
 
-      {/* Cart Drawer */}
-      {cartOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-end sm:items-stretch">
-          <div className="absolute inset-0 bg-background/70 backdrop-blur" onClick={() => setCartOpen(false)} />
-          <div className="relative flex h-[90vh] w-full flex-col rounded-t-3xl bg-card p-6 shadow-card-premium sm:h-full sm:w-[440px] sm:rounded-none sm:rounded-l-3xl">
-            <div className="flex items-center justify-between">
-              <h2 className="font-[Space_Grotesk] text-2xl font-bold">Panier</h2>
-              <button onClick={() => setCartOpen(false)} className="grid h-9 w-9 place-items-center rounded-full border border-border hover:bg-muted"><X className="h-4 w-4" /></button>
-            </div>
-            <div className="mt-6 flex-1 space-y-3 overflow-y-auto">
-              {pay ? (
-                pay.checkoutUrl ? (
-                  <div className="text-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-                    <p className="mt-4 font-bold">Redirection vers YengaPay...</p>
-                    <p className="mt-2 text-sm text-muted-foreground">Veuillez patienter pendant que nous préparons votre paiement sécurisé.</p>
-                    <a href={pay.checkoutUrl} className="mt-6 inline-block text-primary underline text-sm">Cliquer ici si la redirection ne fonctionne pas</a>
-                  </div>
-                ) : (
-                  <MomoPayment
-                    reference={pay.reference} amount={pay.amount} currency={pay.currency} defaultPhone={customer.phone}
-                    onSuccess={() => setTimeout(() => navigate(`/order/${pay.order_token}`), 1500)}
-                    onCancel={() => setPay(null)}
-                  />
-                )
-              ) : (<>
-              {cartCount === 0 && <p className="text-center text-sm text-muted-foreground">Votre panier est vide</p>}
-              {Object.entries(cart).map(([pid, qty]) => {
-                const p = products.find((x) => x.id === pid); if (!p) return null;
-                return (
-                  <div key={pid} className="flex items-center gap-3 rounded-xl border border-border bg-surface-2 p-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-semibold">{p.name}</p>
-                      <p className="text-xs text-muted-foreground tabular-nums">{Number(p.price).toLocaleString("fr-FR")} × {qty} = <b>{(Number(p.price) * qty).toLocaleString("fr-FR")} {p.currency}</b></p>
-                    </div>
-                    <div className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-1 py-0.5">
-                      <button onClick={() => setQty(pid, qty - 1)} className="grid h-6 w-6 place-items-center rounded-full hover:bg-muted"><Minus className="h-3 w-3" /></button>
-                      <span className="w-4 text-center text-xs font-bold tabular-nums">{qty}</span>
-                      <button onClick={() => setQty(pid, qty + 1)} className="grid h-6 w-6 place-items-center rounded-full hover:bg-muted"><Plus className="h-3 w-3" /></button>
-                    </div>
-                  </div>
-                );
-              })}
-              {cartCount > 0 && (
-                <div className="mt-6 space-y-2">
-                  <input value={customer.email} onChange={(e) => setCustomer((c) => ({ ...c, email: e.target.value }))} type="email" required placeholder="Email * (reçu de commande)"
-                    className="w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input value={customer.name} onChange={(e) => setCustomer((c) => ({ ...c, name: e.target.value }))} placeholder="Nom"
-                      className="rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
-                    <input value={customer.phone} onChange={(e) => setCustomer((c) => ({ ...c, phone: e.target.value }))} placeholder="Téléphone"
-                      className="rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
-                  </div>
-                  <input value={customer.address} onChange={(e) => setCustomer((c) => ({ ...c, address: e.target.value }))} placeholder="Adresse de livraison (optionnel)"
-                    className="w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
-                  <textarea value={customer.note} onChange={(e) => setCustomer((c) => ({ ...c, note: e.target.value }))} placeholder="Note pour le marchand (optionnel)" rows={2}
-                    className="w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
-                </div>
-              )}
-              </>)}
-            </div>
-            {cartCount > 0 && !pay && (
-              <div className="mt-4 border-t border-border pt-4">
-                {error && <p className="mb-2 rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">{error}</p>}
-                <div className="flex items-baseline justify-between">
-                  <span className="text-sm text-muted-foreground">Total</span>
-                  <span className="font-[Space_Grotesk] text-2xl font-bold tabular-nums">{total.toLocaleString("fr-FR")} <span className="text-sm text-muted-foreground">{currency}</span></span>
-                </div>
-                <button onClick={checkout} disabled={submitting || !customer.email}
-                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : `Payer ${total.toLocaleString("fr-FR")} ${currency}`}
-                </button>
-                <p className="mt-3 flex items-center justify-center gap-1 text-[10px] text-muted-foreground"><ShieldCheck className="h-3 w-3" /> Paiement sécurisé Mobile Money</p>
-              </div>
-            )}
-          </div>
-        </div>
+      {selectedProduct && biz && (
+        <ProductDetailModal
+          product={selectedProduct}
+          biz={biz}
+          onClose={() => setSelectedProduct(null)}
+        />
       )}
     </div>
   );

@@ -6,7 +6,7 @@ import {
   listMyBusinesses, createBusiness, listPaymentLinks, createPaymentLink,
   updatePaymentLink, listLinkPayments, listApiKeys, createApiKey, revokeApiKey,
   cashoutBusinessBalance, listProjects, createProject, getBusinessDashboard,
-  updateBusiness, updateProject,
+  updateBusiness, updateProject, listShopTemplates, applyShopTemplate,
 } from "@/lib/business.functions";
 import {
   listOrders, updateOrderStatus,
@@ -16,7 +16,7 @@ import { uploadBusinessMedia } from "@/lib/upload";
 import ProductsPanel from "@/components/business/products-panel";
 import ProjectConfigSheet from "@/components/business/project-config-sheet";
 import DocsPanel from "@/components/business/docs-panel";
-import { ArrowLeft, Building2, Copy, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Palette } from "lucide-react";
+import { ArrowLeft, Building2, Copy, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Palette, Loader2 } from "lucide-react";
 import { LayoutDashboard, Receipt, CreditCard, Settings2, BarChart3, BookOpen } from "lucide-react";
 
 const NAV = [
@@ -26,7 +26,6 @@ const NAV = [
   { id: "links", label: "Liens de paiement", icon: Link2 },
   { id: "payments", label: "Paiements", icon: CreditCard },
   { id: "orders", label: "Commandes", icon: Package },
-  { id: "posts", label: "Publications", icon: Megaphone },
   { id: "docs", label: "Documentation API", icon: BookOpen },
   { id: "settings", label: "Ma boutique", icon: Settings2 },
 ] as const;
@@ -402,6 +401,7 @@ export default function BusinessPage() {
                 </>)}
 
                 {tab === "settings" && (<>
+                <ShopTemplateSelector business={current as any} onUpdated={refreshAll} />
                 <ShopBrandingPanel biz={current} onUpdated={refreshAll} />
                 <ShopProjectsPanel projects={projects} onChanged={() => refreshCurrent(current.id)} onGoProjects={() => setTab("projects")} />
                 </>)}
@@ -590,53 +590,6 @@ export default function BusinessPage() {
                 {/* PUBLICATIONS / POSTS */}
                 {tab === "docs" && <DocsPanel />}
 
-                {tab === "posts" && (
-                <section>
-                  <div className="mb-3 flex items-center justify-between">
-                    <h3 className="font-[Space_Grotesk] text-xl font-bold inline-flex items-center gap-2"><Megaphone className="h-5 w-5" /> Publications</h3>
-                  </div>
-                  <div className="rounded-2xl border border-border bg-card p-4">
-                    <input value={postDraft.title} onChange={(e) => setPostDraft((d) => ({ ...d, title: e.target.value }))} placeholder="Titre de la publication"
-                      className="w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
-                    <textarea value={postDraft.body} onChange={(e) => setPostDraft((d) => ({ ...d, body: e.target.value }))} rows={3} placeholder="Contenu (promo, actualité, offre du jour…)"
-                      className="mt-2 w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
-                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs hover:bg-muted">
-                        <ImageIcon className="h-3.5 w-3.5" />
-                        {uploadingImg ? "Chargement…" : postDraft.image_url ? "Image ajoutée ✓" : "Ajouter une image"}
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadPostImage(f); }} />
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => onCreatePost(false)} className="rounded-full border border-border px-4 py-1.5 text-xs font-semibold hover:bg-muted">Brouillon</button>
-                        <button onClick={() => onCreatePost(true)} className="rounded-full bg-gradient-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow">Publier</button>
-                      </div>
-                    </div>
-                    {postDraft.image_url && <img src={postDraft.image_url} alt="preview" className="mt-3 h-32 w-full rounded-xl object-cover" />}
-                  </div>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    {posts.length === 0 && <p className="col-span-full text-sm text-muted-foreground">Aucune publication.</p>}
-                    {posts.map((p) => (
-                      <div key={p.id} className="overflow-hidden rounded-2xl border border-border bg-surface-2">
-                        {p.image_url && <img src={p.image_url} alt="" className="h-32 w-full object-cover" />}
-                        <div className="p-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="font-bold">{p.title}</p>
-                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${p.published ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-500"}`}>{p.published ? "Publié" : "Brouillon"}</span>
-                          </div>
-                          {p.body && <p className="mt-1 text-xs text-muted-foreground line-clamp-3">{p.body}</p>}
-                          <div className="mt-3 flex items-center gap-2">
-                            <button onClick={() => onTogglePost(p)} className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-1 text-[10px] hover:bg-muted">
-                              {p.published ? <><EyeOff className="h-3 w-3" /> Dépublier</> : <><Eye className="h-3 w-3" /> Publier</>}
-                            </button>
-                            <button onClick={() => onDeletePost(p.id)} className="grid h-7 w-7 place-items-center rounded-full border border-destructive/40 text-destructive hover:bg-destructive/10"><Trash2 className="h-3 w-3" /></button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-
-                )}
 
                 {/* Section « Clés API » masquée volontairement — accès interne uniquement */}
               </>
@@ -719,7 +672,12 @@ function ShopBrandingPanel({ biz, onUpdated }: { biz: Biz & { logo_url?: string;
 
   return (
     <section className="mt-6 rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
-      <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><Store className="h-5 w-5" /> Personnalisation boutique</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><Store className="h-5 w-5" /> Personnalisation boutique</h3>
+        <button onClick={saveText} disabled={saving} className="rounded-full bg-gradient-primary px-6 py-1.5 text-xs font-bold text-primary-foreground shadow-glow hover:scale-105 active:scale-95 disabled:opacity-50 transition">
+          {saving ? "Enregistrement..." : "Enregistrer"}
+        </button>
+      </div>
       <p className="mt-1 text-xs text-muted-foreground">Ces éléments apparaissent sur votre page boutique publique et sur vos reçus/factures.</p>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div>
@@ -861,3 +819,78 @@ function ShopProjectsPanel({ projects, onChanged, onGoProjects }: { projects: Pr
     </section>
   );
 }
+
+// ============================================================
+// Panneau : Sélection de Template Boutique
+// ============================================================
+function ShopTemplateSelector({ business, onUpdated }: { business: Biz & { template_id?: string | null }; onUpdated: () => void }) {
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  useEffect(() => {
+    listShopTemplates().then((r: any) => {
+      setTemplates(r.templates || []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  async function onApply(tid: string | null) {
+    setBusy(tid || "reset");
+    try {
+      await applyShopTemplate({ business_id: business.id, template_id: tid });
+      toast.success(tid ? "Template appliqué ✅" : "Template réinitialisé");
+      onUpdated();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(null); }
+  }
+
+  return (
+    <section className="mt-6 rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
+      <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><Palette className="h-5 w-5" /> Template de la boutique</h3>
+      <p className="mt-1 text-xs text-muted-foreground">Choisissez l'apparence visuelle de votre boutique en ligne.</p>
+      
+      {loading ? <div className="py-10 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div> : (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={`overflow-hidden rounded-2xl border transition ${!business.template_id ? 'border-primary ring-2 ring-primary/20' : 'border-border'}`}>
+            <div className="grid h-32 place-items-center bg-muted/30"><Store className="h-8 w-8 text-muted-foreground opacity-20" /></div>
+            <div className="p-4">
+              <p className="font-bold">Par défaut (Classique)</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">Le style épuré Faso-Invest Pay.</p>
+              <button onClick={() => onApply(null)} disabled={!business.template_id || busy === "reset"}
+                      className="mt-4 w-full rounded-full border border-border py-1.5 text-xs font-semibold hover:bg-muted disabled:opacity-50">
+                {busy === "reset" ? "..." : !business.template_id ? "Actuel ✓" : "Utiliser"}
+              </button>
+            </div>
+          </div>
+
+          {templates.map((t) => {
+            const active = business.template_id === t.id;
+            return (
+              <div key={t.id} className={`overflow-hidden rounded-2xl border transition ${active ? 'border-primary ring-2 ring-primary/20' : 'border-border'}`}>
+                {t.thumbnail_url ? <img src={t.thumbnail_url} className="h-32 w-full object-cover" alt="" /> : <div className="h-32 bg-muted/30" />}
+                <div className="p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold truncate">{t.name}</p>
+                    <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${t.is_free ? 'bg-emerald-500/10 text-emerald-500' : 'bg-primary/10 text-primary'}`}>
+                      {t.is_free ? 'Gratuit' : `${t.price} XOF`}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[10px] text-muted-foreground line-clamp-2">{t.description || "Pas de description."}</p>
+                  <div className="mt-4 flex gap-2">
+                    <button onClick={() => onApply(t.id)} disabled={active || !!busy}
+                            className={`flex-1 rounded-full py-1.5 text-xs font-semibold transition ${active ? 'bg-primary/10 text-primary' : 'border border-border hover:bg-muted'} disabled:opacity-50`}>
+                      {busy === t.id ? "..." : active ? "Actuel ✓" : "Appliquer"}
+                    </button>
+                    {t.preview_url && <a href={t.preview_url} target="_blank" rel="noreferrer" className="grid h-8 w-8 place-items-center rounded-full border border-border hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" /></a>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
