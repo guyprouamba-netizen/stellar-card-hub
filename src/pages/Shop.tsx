@@ -48,29 +48,50 @@ export default function Shop() {
     const templateId = params.get("template_id");
     
     if (slug === "demo" && templateId) {
-      // Fetch specific template for preview
-      supabase.from("shop_templates").select("*").eq("id", templateId).maybeSingle().then(({ data: t }: { data: any }) => {
+      const bizId = params.get("biz_id");
+      
+      const setupDemo = async () => {
+        try {
+          const { data: t } = await supabase.from("shop_templates").select("*").eq("id", templateId).maybeSingle();
+          let demoBiz: any = {
+            id: "demo",
+            name: "Boutique Démo",
+            slug: "demo",
+            description: "Ceci est une prévisualisation en temps réel de votre futur boutique avec le template sélectionné.",
+            tagline: "Découvrez le rendu final de votre site",
+            logo_url: null,
+            cover_url: t?.thumbnail_url || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&auto=format&fit=crop",
+            contact_email: "demo@faso-invest.com",
+            contact_phone: "+226 00 00 00 00",
+            template: t ? { id: t.id, name: t.name, config: t.config } : null
+          };
 
-        setBiz({
-          id: "demo",
-          name: "Boutique Démo",
-          slug: "demo",
-          description: "Ceci est une prévisualisation en temps réel de votre futur boutique avec le template sélectionné.",
-          tagline: "Découvrez le rendu final de votre site",
-          logo_url: null,
-          cover_url: t?.thumbnail_url || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&auto=format&fit=crop",
-          contact_email: "demo@faso-invest.com",
-          contact_phone: "+226 00 00 00 00",
-          template: t ? { id: t.id, name: t.name, config: t.config } : null
-        });
-        setProducts([
-          { id: "p1", name: "Smartphone Futuriste X", slug: "p1", description: "Le summum de la technologie mobile avec écran holographique.", price: 750000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800", type: "image" }] },
-          { id: "p2", name: "Montre Connectée Elite", slug: "p2", description: "Design luxueux allié à une intelligence artificielle avancée.", price: 250000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800", type: "image" }] },
-          { id: "p3", name: "Casque Audio Immersif", slug: "p3", description: "Une expérience sonore spatiale inégalée.", price: 185000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800", type: "image" }] },
-          { id: "p4", name: "Drone de Course Pro", slug: "p4", description: "Vitesse extrême et caméra 8K pour des prises de vue époustouflantes.", price: 450000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1527977966376-1c8408f9f108?w=800", type: "image" }] }
-        ]);
-        setLoading(false);
-      });
+          let demoProducts = [
+            { id: "p1", name: "Smartphone Futuriste X", slug: "p1", description: "Le summum de la technologie mobile avec écran holographique.", price: 750000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800", type: "image" }] },
+            { id: "p2", name: "Montre Connectée Elite", slug: "p2", description: "Design luxueux allié à une intelligence artificielle avancée.", price: 250000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800", type: "image" }] },
+            { id: "p3", name: "Casque Audio Immersif", slug: "p3", description: "Une expérience sonore spatiale inégalée.", price: 185000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800", type: "image" }] },
+            { id: "p4", name: "Drone de Course Pro", slug: "p4", description: "Vitesse extrême et caméra 8K pour des prises de vue époustouflantes.", price: 450000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1527977966376-1c8408f9f108?w=800", type: "image" }] }
+          ];
+
+          if (bizId) {
+            const { data: realBiz } = await supabase.from("businesses").select("*").eq("id", bizId).maybeSingle();
+            if (realBiz) {
+              demoBiz = { ...demoBiz, ...realBiz, template: demoBiz.template };
+              const { data: realProducts } = await supabase.from("products").select("*, media:product_media(*)").eq("business_id", bizId).limit(8);
+              if (realProducts?.length) demoProducts = realProducts;
+            }
+          }
+
+          setBiz(demoBiz);
+          setProducts(demoProducts);
+          setLoading(false);
+        } catch (e) {
+          console.error("Demo error", e);
+          setLoading(false);
+        }
+      };
+
+      setupDemo();
       return;
     }
 
