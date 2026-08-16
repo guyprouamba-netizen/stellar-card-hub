@@ -272,7 +272,7 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
                 const action = data.id ? updateInvoice : createInvoice;
                 const payload = data.id ? data : { ...data, business_id: business.id };
                 
-                action({ ...payload, template_slug: template })
+                action({ ...payload, template_slug: activeTemplate })
                   .then(() => {
                     toast.success("Facture enregistrée", { id: toastId });
                     onSaved();
