@@ -58,12 +58,14 @@ export function ProductDetailModal({
       if (!r?.reference) throw new Error("Paiement indisponible pour le moment");
       
       if (r.checkoutUrl) {
-        console.log("Redirecting to:", r.checkoutUrl);
+        console.log("Redirecting to YengaPay:", r.checkoutUrl);
         window.location.href = r.checkoutUrl;
         return;
       }
       
-      setPay({ reference: r.reference, amount: Number(r.amount), currency: r.currency, order_token: r.order_token });
+      if (r.reference) {
+        setPay({ reference: r.reference, amount: Number(r.amount), currency: r.currency, order_token: r.order_token, checkoutUrl: r.checkoutUrl });
+      }
     } catch (e: any) { setError(e.message); }
     finally { setSubmitting(false); }
   }

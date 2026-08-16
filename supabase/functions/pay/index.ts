@@ -466,8 +466,8 @@ async function payDirect(payload: any) {
     });
     
     if (checkoutUrl) {
-      console.log("Redirecting to YengaPay checkout:", checkoutUrl);
-      await db.from("payment_link_payments").update({ payment_intent_id: paymentIntentId }).eq("reference", reference);
+      console.log("Redirecting to YengaPay checkout:", { reference, checkoutUrl });
+      await admin().from("payment_link_payments").update({ payment_intent_id: paymentIntentId }).eq("reference", reference);
       return { ok: true, reference, amount: total, currency: tx.currency, checkoutUrl };
     } else {
       console.error("No checkoutUrl returned from createYengaPayIntent", reference);
