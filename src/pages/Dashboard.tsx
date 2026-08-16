@@ -725,6 +725,7 @@ function ProfileTab({ profile, onDone, setTab }: { profile: any; onDone: () => v
       const r: any = await upd({ data: { full_name: fullName, phone, avatar_url: avatarUrl } });
       if (r?.ok === false) throw new Error(r.error || "Échec de la mise à jour");
       toast.success("Profil mis à jour");
+      await refetch();
       onDone();
     } catch (e) { toast.error((e as Error).message); } finally { setSavingProfile(false); }
   }
