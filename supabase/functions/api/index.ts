@@ -2295,6 +2295,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const allowedNumbers = ["card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee", "referral_reward_xof"];
     const allowedStrings = ["whatsapp_group_url", "admin_notification_phone"];
+    const allowedBools = ["notify_admin_sender_request"];
     const updates: Array<{ key: string; value: string }> = [];
     for (const k of allowedNumbers) {
       if (data?.[k] !== undefined && data[k] !== null && data[k] !== "") {
@@ -2309,13 +2310,24 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         updates.push({ key: k, value: JSON.stringify(data[k].trim().slice(0, 500)) });
       }
     }
+    for (const k of allowedBools) {
+      if (data?.[k] !== undefined && data[k] !== null) {
+        updates.push({ key: k, value: String(!!data[k]) });
+      }
+    }
     for (const u of updates) {
       await admin.from("platform_config").upsert({ key: u.key, value: u.value }, { onConflict: "key" });
     }
     const cfg = await loadPricingConfig(admin);
-    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof"]);
+    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "notify_admin_sender_request"]);
     const extrasMap: Record<string, any> = {};
-    for (const r of extras ?? []) extrasMap[r.key] = r.value;
+    for (const r of extras ?? []) {
+      if (r.key === "notify_admin_sender_request") {
+        extrasMap[r.key] = r.value === "true";
+      } else {
+        extrasMap[r.key] = r.value;
+      }
+    }
     return { ok: true, config: { ...cfg, ...extrasMap } };
   },
 
@@ -4065,25 +4077,15 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     }).select("*").single();
     if (error) throw new Error(error.message);
 
-    // Alert admin via SMS
-    try {
-      const { data: cfg } = await admin.from("platform_config").select("value").eq("key", "admin_notification_phone").maybeSingle();
-      const rawPhone = cfg?.value || "+22607933364"; // Updated fallback
-      const adminPhone = normalizeBfPhone(rawPhone);
-      
-      const { data: smsCfg } = await admin.from("sms_config").select("sender_id").limit(1).maybeSingle();
-      const senderId = (smsCfg as any)?.sender_id || "FASOPAY";
-
-      if (adminPhone) {
-        await sendSmsRaw({
-          recipient: adminPhone,
-          message: `[FASO-PAY] Nouvelle demande de Sender ID: "${sender_id}" par ${company_name}. Veuillez valider dans l'admin.`,
-          sender_id: senderId
-        });
+    // Alert admin via SMS (non-blocking)
+    notifySms(admin, "sender_request", {
+      userId: user.id,
+      amount: 0,
+      extra: {
+        sender_id,
+        company: company_name
       }
-    } catch (e) {
-      console.error("Notify admin SMS failed", e);
-    }
+    }).catch(() => {});
 
     return row;
   },
@@ -4119,24 +4121,16 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       .single();
     if (error) throw new Error(error.message);
 
-    // Si approuvé, notifier l'utilisateur par SMS
+    // If approved, notify user via SMS (non-blocking)
     if (status === "approved" && row.user_id) {
-      try {
-        const { data: p } = await admin.from("profiles").select("phone").eq("id", row.user_id).maybeSingle();
-        if (p?.phone) {
-          const userPhone = normalizeBfPhone(p.phone);
-          const { data: smsCfg } = await admin.from("sms_config").select("sender_id").limit(1).maybeSingle();
-          const senderId = (smsCfg as any)?.sender_id || "FASOPAY";
-          
-          await sendSmsRaw({
-            recipient: userPhone,
-            message: `[FASO-PAY] Votre demande de Sender ID "${row.sender_id}" a été APPROUVÉE. Vous pouvez désormais l'utiliser pour vos campagnes SMS.`,
-            sender_id: senderId
-          });
+      notifySms(admin, "sender_request", {
+        userId: row.user_id,
+        amount: 0,
+        extra: {
+          sender_id: row.sender_id,
+          status: "APPROUVÉE"
         }
-      } catch (e) {
-        console.error("Notify user approved sender ID failed", e);
-      }
+      }).catch(() => {});
     }
 
     return row;

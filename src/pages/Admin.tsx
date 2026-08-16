@@ -928,6 +928,19 @@ function SettingsTab() {
           />
           <span className="mt-1 block text-[11px] text-muted-foreground">Affiché sur le tableau de bord.</span>
         </label>
+
+        <label className="flex items-center gap-3 rounded-xl border border-border bg-surface-2 p-4">
+          <input
+            type="checkbox"
+            checked={!!draft.notify_admin_sender_request}
+            onChange={(e) => setDraft((d: any) => ({ ...d, notify_admin_sender_request: e.target.checked }))}
+            className="h-5 w-5 rounded accent-primary"
+          />
+          <div>
+            <span className="text-sm font-semibold">Notification Sender ID</span>
+            <p className="text-[11px] text-muted-foreground">Recevoir un SMS pour chaque nouvelle demande de Sender ID.</p>
+          </div>
+        </label>
       </div>
       <div className="flex justify-end gap-2">
         <button onClick={() => setDraft(cfg)} className="rounded-full border border-border bg-surface-2 px-4 py-2 text-sm">Réinitialiser</button>
