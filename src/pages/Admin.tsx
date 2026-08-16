@@ -753,7 +753,7 @@ function KycTab({ kyc, onAction }: { kyc: any[]; onAction: () => void }) {
 
 function WithdrawalsTab({ withdrawals, onAction }: { withdrawals: any[]; onAction: () => void }) {
   const review = useServerFn(adminReviewWithdrawal);
-  async function decide(id: string, decision: "approved" | "rejected" | "paid") {
+  async function decide(id: string, decision: "completed" | "failed") {
     try { await review({ id, status: decision }); toast.success("Retrait mis à jour"); onAction(); }
     catch (e) { toast.error((e as Error).message); }
   }
