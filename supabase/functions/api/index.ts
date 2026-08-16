@@ -680,9 +680,21 @@ async function dispatchProjectWebhook(admin: any, opts: {
 }
 
 // ============= Handlers =============
-// v: internal-transfer-2
+// v: internal-transfer-3
 const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userClient: any }) => Promise<any>> = {
-  // ---------- Shop Templates (MOVING TO TOP) ----------
+  listProductCategories({ data, user, admin }: any) {
+    return HANDLERS.listProductCategoriesInternal({ data, user, admin });
+  },
+  listProductCategoriesInternal: async ({ data, user, admin }: any) => {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: rows, error } = await admin.from("product_categories")
+      .select("*")
+      .eq("business_id", data.business_id)
+      .order("position", { ascending: true });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  },
+
   async adminListShopTemplates({ user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const { data, error } = await admin.from("shop_templates").select("*").order("created_at", { ascending: false });
