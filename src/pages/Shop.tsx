@@ -23,6 +23,7 @@ type Biz = {
   } | null; id: string; name: string } | null;
 };
 type ShopProject = { id: string; name: string; description: string | null; cover_url: string | null; logo_url: string | null; products: Product[] };
+type ShopCategory = { id: string; name: string; slug: string; position: number };
 
 const DEFAULT_THEME = { bg: "#0b0b0f", surface: "#15151c", text: "#f5f5f7", muted: "#a1a1aa", primary: "#f97316", primary_text: "#ffffff" };
 
