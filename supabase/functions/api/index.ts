@@ -4184,9 +4184,10 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       const result = await handleRegistrationOTP(admin, user.id, phone, "send");
       console.log(`[sendRegistrationOTP] Success:`, JSON.stringify(result));
       return result;
-    } catch (e) {
+    } catch (e: any) {
       console.error(`[sendRegistrationOTP] handleRegistrationOTP CRITICAL ERROR:`, e);
-      throw e;
+      // Return a 200 with error property instead of throwing 500/422
+      return { error: e.message || "Erreur interne lors de l'envoi de l'OTP" };
     }
   },
 
