@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: F.I.P Simple Payment
- * Description: Intégration simple de paiement pour votre site. Configurez vos clés API et commencez à accepter des paiements.
- * Version: 1.0.0
- * Author: F.I.P Fintech
+ * Plugin Name: FASO INVEST PAY Simple Payment
+ * Description: Intégration simple et sécurisée de paiement pour votre site. Configurez vos clés API et commencez à accepter des paiements.
+ * Version: 1.0.1
+ * Author: FASO INVEST PAY - Guy ROUAMBA
  * License: GPL-2.0+
  */
 
@@ -18,8 +18,8 @@ class FIP_Simple_Payment {
 
     public function add_admin_menu() {
         add_menu_page(
-            'F.I.P Payment',
-            'F.I.P Payment',
+            'FASO INVEST PAY',
+            'FASO INVEST PAY',
             'manage_options',
             'fip_payment',
             array($this, 'settings_page'),
@@ -50,7 +50,7 @@ class FIP_Simple_Payment {
     public function settings_page() {
         ?>
         <div class="wrap">
-            <h1>Réglages F.I.P Payment</h1>
+            <h1>Réglages FASO INVEST PAY</h1>
             <form action="options.php" method="post">
                 <?php
                 settings_fields('fip_settings');
@@ -76,11 +76,11 @@ class FIP_Simple_Payment {
 
         // Logique de génération de lien sécurisé vers la passerelle
         $api_key = get_option('fip_api_key');
-        if (!$api_key) return '<p style="color:red;">Erreur: Clé API F.I.P non configurée.</p>';
+        if (!$api_key) return '<p style="color:red;">Erreur: Clé API FASO INVEST PAY non configurée.</p>';
 
         $checkout_url = "https://pay.faso-invest.com/pay?amount=" . $a['amount'] . "&currency=" . $a['currency'] . "&desc=" . urlencode($a['description']);
         
-        return '<a href="' . esc_url($checkout_url) . '" class="button button-primary" style="background:#3B82F6; color:white; padding:10px 20px; border-radius:5px; text-decoration:none;">Payer avec F.I.P</a>';
+        return '<a href="' . esc_url($checkout_url) . '" class="button button-primary" style="background:#3B82F6; color:white; padding:10px 20px; border-radius:5px; text-decoration:none;">Payer avec FASO INVEST PAY</a>';
     }
 }
 

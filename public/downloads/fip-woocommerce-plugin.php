@@ -1,10 +1,10 @@
 <?php
 /**
- * Plugin Name: Faso Invest Paiement (F.I.P) for WooCommerce
+ * Plugin Name: FASO INVEST PAY for WooCommerce
  * Plugin URI: https://faso-invest.com
- * Description: Acceptez les paiements Mobile Money (Orange, Moov, Wave) en Afrique de l'Ouest via la passerelle Faso Invest Paiement.
- * Version: 1.0.0
- * Author: Faso Invest
+ * Description: Acceptez les paiements Mobile Money (Orange, Moov, Wave) en Afrique de l'Ouest via la passerelle FASO INVEST PAY.
+ * Version: 1.0.1
+ * Author: FASO INVEST PAY - Guy ROUAMBA
  * Author URI: https://faso-invest.com
  * License: GPL2
  * Text Domain: fip-paiement
@@ -27,8 +27,8 @@ function fip_paiement_init_gateway() {
             $this->id = 'fip_gateway';
             $this->icon = apply_filters('woocommerce_fip_icon', '');
             $this->has_fields = false;
-            $this->method_title = 'Faso Invest Paiement (F.I.P)';
-            $this->method_description = 'Permet d\'accepter Orange Money, Moov Money et Wave.';
+            $this->method_title = 'FASO INVEST PAY';
+            $this->method_description = 'Permet d\'accepter Orange Money, Moov Money et Wave de manière sécurisée.';
 
             $this->init_form_fields();
             $this->init_settings();
@@ -49,7 +49,7 @@ function fip_paiement_init_gateway() {
                 'enabled' => array(
                     'title' => 'Activer/Désactiver',
                     'type' => 'checkbox',
-                    'label' => 'Activer Faso Invest Paiement',
+                    'label' => 'Activer FASO INVEST PAY',
                     'default' => 'yes'
                 ),
                 'title' => array(

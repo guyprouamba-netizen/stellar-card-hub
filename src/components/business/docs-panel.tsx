@@ -320,7 +320,7 @@ app.post("/webhooks/paiement", express.raw({ type: "*/*" }), (req, res) => {
                 <li>Téléchargez l'un des fichiers ci-dessus.</li>
                 <li>Allez dans votre administration WordPress : <b>Extensions &gt; Ajouter &gt; Téléverser une extension</b>.</li>
                 <li>Sélectionnez le fichier et cliquez sur <b>Installer maintenant</b>, puis <b>Activer</b>.</li>
-                <li>Configurez vos clés API dans le menu <b>F.I.P Payment</b> ou les réglages WooCommerce.</li>
+                <li>Configurez vos clés API dans le menu <b>FASO INVEST PAY</b> ou les réglages WooCommerce.</li>
               </ol>
             </div>
           </div>
@@ -332,8 +332,8 @@ app.post("/webhooks/paiement", express.raw({ type: "*/*" }), (req, res) => {
           </div>
           <Code title="Plugin WordPress simple (shortcode + webhook)" code={`<?php
 /**
- * Plugin Name: FIP Paiement (Démo)
- * Description: Version simple pour intégration manuelle.
+  * Plugin Name: FASO INVEST PAY (Démo)
+  * Description: Version simple pour intégration manuelle sécurisée.
  */
 if (!defined('ABSPATH')) exit;
 
