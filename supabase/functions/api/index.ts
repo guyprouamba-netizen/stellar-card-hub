@@ -2340,9 +2340,15 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone", "notify_admin_sender_request", "sender_request_admin_template", "sender_request_user_template"]);
     const extrasMap: Record<string, any> = {};
     for (const r of extras ?? []) {
-      if (r.key === "notify_admin_sender_request") {
-        extrasMap[r.key] = r.value === "true";
-      } else {
+      try {
+        // If it's already a JS object (shouldn't be, but for safety)
+        if (typeof r.value !== 'string') {
+          extrasMap[r.key] = r.value;
+        } else {
+          extrasMap[r.key] = JSON.parse(r.value);
+        }
+      } catch (e) {
+        // Fallback for unquoted old values
         extrasMap[r.key] = r.value;
       }
     }
