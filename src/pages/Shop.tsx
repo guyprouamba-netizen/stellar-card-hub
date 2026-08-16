@@ -28,9 +28,7 @@ export default function Shop() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  // Effet pour charger les données
   useEffect(() => {
-    // Retour depuis paiement : rediriger vers le suivi de commande
     const params = new URLSearchParams(window.location.search);
     const orderToken = params.get("order");
     if (orderToken && /^[a-f0-9]{16,64}$/i.test(orderToken)) {
@@ -43,7 +41,6 @@ export default function Shop() {
     }).catch((e) => { setError(e.message); setLoading(false); });
   }, [slug, navigate]);
 
-  // Injecter dans le DOM pour les styles CSS personnalisés
   useEffect(() => {
     if (!biz?.template?.config?.css_vars) return;
     const templateVars = biz.template.config.css_vars;
@@ -55,6 +52,22 @@ export default function Shop() {
       Object.keys(templateVars).forEach((k) => root.style.removeProperty(k));
     };
   }, [biz?.template]);
+
+  if (loading) return <div className="grid min-h-screen place-items-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  if (error && !biz) return (
+    <div className="grid min-h-screen place-items-center px-6 text-center">
+      <div><Store className="mx-auto h-12 w-12 text-muted-foreground" /><h1 className="mt-4 text-2xl font-bold">Boutique introuvable</h1><p className="mt-2 text-sm text-muted-foreground">{error}</p></div>
+    </div>
+  );
+  if (!biz) return null;
+
+  const th: any = { ...DEFAULT_THEME, ...(biz.theme || {}) };
+  const templateVars = biz.template?.config?.css_vars || {};
+  Object.entries(templateVars).forEach(([k, v]) => {
+    if (k.startsWith('--')) {
+      th[k.replace('--', '').replace(/-/g, '_')] = v;
+    }
+  });
 
   const grouped: ShopProject[] = projects.length
     ? projects
@@ -98,7 +111,6 @@ export default function Shop() {
       </nav>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Hero Section */}
         <section className="relative mb-12 overflow-hidden rounded-[2rem] shadow-2xl" style={{ backgroundColor: th.surface }}>
           <div className="absolute inset-0 z-0">
             {biz.cover_url ? (
@@ -117,7 +129,6 @@ export default function Shop() {
           </div>
         </section>
 
-        {/* Publications */}
         {posts.length > 0 && (
           <section className="mb-12">
             <h2 className="mb-4 text-xl font-bold">Actualités</h2>
@@ -136,7 +147,6 @@ export default function Shop() {
           </section>
         )}
 
-        {/* Produits regroupés par projet */}
         {products.length === 0 ? (
           <div className="rounded-2xl p-12 text-center" style={{ border: `1px dashed ${th.primary}44` }}>
             <Store className="mx-auto h-10 w-10" style={{ color: th.muted }} />
@@ -158,7 +168,6 @@ export default function Shop() {
           ))
         )}
 
-        {/* Contact & Footer */}
         <footer className="mt-16 overflow-hidden rounded-3xl p-8 sm:p-12" style={{ background: th.surface, border: `1px solid ${th.primary}22` }}>
           <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-3">
             <div>
