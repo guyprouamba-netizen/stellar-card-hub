@@ -4296,8 +4296,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   try {
-    const payload = await req.json().catch(() => ({}));
-    const fn = (payload as any).fn;
+    const keys = Object.keys(HANDLERS);
+    return jsonResponse({ total: keys.length, samples: keys.slice(0, 5) });
+
     const data = (payload as any).data ?? {};
     if (!fn || typeof fn !== "string") return jsonResponse({ error: "missing fn" }, 400);
     const handler = HANDLERS[fn];
