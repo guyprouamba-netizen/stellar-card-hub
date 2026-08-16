@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { BookOpen, Copy, Terminal, Webhook, KeyRound, ShieldCheck, ListChecks } from "lucide-react";
+import wpWooBadge from "@/assets/wordpress-woo-badge.png.asset.json";
+
 
 const ENDPOINT = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pay/v1`;
 
