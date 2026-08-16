@@ -578,50 +578,55 @@ export const LuxeMaison = ({ invoice, business, kind = "invoice" }: TemplateProp
 };
 
 // 11. GOOGLE CLOUD
-export const GoogleCloud = ({ invoice, business, settings }: TemplateProps) => (
-  <div className="bg-white p-10 max-w-4xl mx-auto border border-slate-200 font-sans text-slate-800">
-    <div className="flex justify-between items-start mb-10">
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400">G</div>
-        <span className="text-xl font-bold text-slate-500">Google Cloud</span>
+export const GoogleCloud = ({ invoice, business, settings, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu de taxes" : kind === "contract" ? "Contrat" : "Facture de taxes";
+  return (
+    <div className="bg-white p-10 max-w-4xl mx-auto border border-slate-200 font-sans text-slate-800">
+      <div className="flex justify-between items-start mb-10">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400">G</div>
+          <span className="text-xl font-bold text-slate-500">Google Cloud</span>
+        </div>
+        <div className="text-right">
+          <h2 className="text-2xl font-light">{title}</h2>
+          <p className="text-sm text-slate-400">Date : {format(new Date(invoice.created_at), 'd MMM yyyy')}</p>
+        </div>
       </div>
-      <div className="text-right">
-        <h2 className="text-2xl font-light">Facture de taxes</h2>
-        <p className="text-sm text-slate-400">Date de la facture : {format(new Date(invoice.created_at), 'd MMM yyyy')}</p>
+      <div className="bg-slate-50 p-6 rounded-lg mb-10 flex justify-between">
+        <div>
+          <p className="text-xs font-bold text-slate-400 mb-2">Informations Client</p>
+          <p className="font-bold">{invoice.customer_name}</p>
+          <p className="text-sm text-slate-500">{invoice.customer_email}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs font-bold text-slate-400 mb-2">Total dû</p>
+          <p className="text-3xl font-bold">{invoice.total.toLocaleString()} {invoice.currency}</p>
+          <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mt-1">Ref: {invoice.number}</p>
+        </div>
       </div>
-    </div>
-    <div className="bg-slate-50 p-6 rounded-lg mb-10 flex justify-between">
-      <div>
-        <p className="text-xs font-bold text-slate-400 mb-2">Compte de facturation</p>
-        <p className="font-bold">{invoice.customer_name}</p>
-        <p className="text-sm text-slate-500">{invoice.customer_email}</p>
-      </div>
-      <div className="text-right">
-        <p className="text-xs font-bold text-slate-400 mb-2">Total dû</p>
-        <p className="text-3xl font-bold">{invoice.total.toLocaleString()} {invoice.currency}</p>
-      </div>
-    </div>
-    <table className="w-full text-sm">
-      <thead className="border-b-2 border-slate-800">
-        <tr className="text-left font-bold">
-          <th className="py-2">Description</th>
-          <th className="py-2 text-right">Montant ({invoice.currency})</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-200">
-        {invoice.items.map((it, i) => (
-          <tr key={i}>
-            <td className="py-4">
-              <p className="font-bold">{it.name}</p>
-              <p className="text-xs text-slate-400 italic">Usage du {format(new Date(invoice.created_at), 'MM/yyyy')}</p>
-            </td>
-            <td className="py-4 text-right">{(it.qty * it.price).toLocaleString()}</td>
+      <table className="w-full text-sm mb-10">
+        <thead className="border-b-2 border-slate-800">
+          <tr className="text-left font-bold">
+            <th className="py-2">Description</th>
+            <th className="py-2 text-right">Montant ({invoice.currency})</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
+        </thead>
+        <tbody className="divide-y divide-slate-200">
+          {invoice.items.map((it, i) => (
+            <tr key={i}>
+              <td className="py-4">
+                <p className="font-bold">{it.name}</p>
+                <p className="text-xs text-slate-400 italic">Usage du {format(new Date(invoice.created_at), 'MM/yyyy')}</p>
+              </td>
+              <td className="py-4 text-right">{(it.qty * it.price).toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <VerificationFooter business={business} invoice={invoice} />
+    </div>
+  );
+};
 
 // 12. AIRBNB HOST
 export const AirbnbHost = ({ invoice, business }: TemplateProps) => (
