@@ -113,3 +113,7 @@ export const createPaydunyaPayment = (data: { business_id: string; amount: numbe
 
 export const verifyPaydunyaPayment = (token: string) =>
   callApi("verifyPaydunyaPayment", { token });
+
+export const cashoutPaydunya = (data: { business_id: string; amount: number; phone: string; channel: string }) =>
+  callApi("cashoutPaydunya", data);
+
