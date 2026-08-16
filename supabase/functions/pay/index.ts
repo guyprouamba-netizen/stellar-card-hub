@@ -349,7 +349,17 @@ function appBaseUrl() {
 // PAIEMENT MOBILE MONEY IN-APP (aucune redirection externe)
 // ============================================================
 function publicOperators() {
-  return YP.OPERATORS.map((o) => ({
+  const ops = [...YP.OPERATORS];
+  // Ajouter Paydunya si configuré
+  if (Deno.env.get("PAYDUNYA_TOKEN")) {
+    ops.push({
+      code: "PAYDUNYA",
+      label: "Paydunya (Sénégal, Côte d'Ivoire...)",
+      flow: "push",
+      hint: "Payez via votre compte Paydunya ou Mobile Money local.",
+    } as any);
+  }
+  return ops.map((o) => ({
     code: o.code, label: o.label, flow: o.flow,
     prefixes: o.prefixes, ussdPrefix: o.ussdPrefix || null,
     otpBySms: o.otpBySms !== false, hint: o.hint || null,
@@ -396,6 +406,28 @@ async function payDirect(payload: any) {
   const db = admin();
   const reference = String(payload?.reference || "");
   const phone = String(payload?.phone || "").replace(/[^0-9+]/g, "");
+  
+  if (payload?.operator === "PAYDUNYA") {
+    const tx = await loadPending(db, reference);
+    if (!tx) throw new Error("Paiement introuvable");
+    const { data: biz } = await db.from("businesses").select("name").eq("id", tx.business_id).single();
+    const PD = await import("../_shared/paydunya.ts");
+    const inv = await PD.createInvoice({
+      amount: Number(tx.amount),
+      description: `Paiement ${biz?.name || "Marchand"} - Ref ${reference}`,
+      callback_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/paydunya-webhook`,
+      return_url: `${appBaseUrl()}/order/${reference}`,
+      cancel_url: `${appBaseUrl()}/order/${reference}`,
+      customer: { email: tx.customer_email, name: tx.customer_name, phone: tx.customer_phone }
+    });
+    await db.from("payment_link_payments").update({ 
+      payment_intent_id: inv.token,
+      provider: "paydunya",
+      metadata: { ...(tx.metadata || {}), token: inv.token }
+    }).eq("id", tx.id);
+    return { ok: true, status: "pending", checkoutUrl: inv.response_text || inv.token };
+  }
+
   const op = YP.findOperator(String(payload?.operator || ""));
   if (!op) throw new Error("Opérateur non pris en charge");
   if (phone.replace(/\D/g, "").length < 8) throw new Error("Numéro de téléphone invalide");
@@ -595,6 +627,21 @@ async function verifyPayment(reference: string) {
     if (st2 === "failed") { await markFailed(db, tx, { verify: "direct" }); return { ok: true, status: "failed" }; }
     return { ok: true, status: "pending" };
   }
+  if (tx.provider === "paydunya" && tx.payment_intent_id) {
+    const PD = await import("../_shared/paydunya.ts");
+    const confirmation = await PD.verifyInvoice(tx.payment_intent_id);
+    const pdStatus = PD.mapPaydunyaStatus(confirmation.status);
+    if (pdStatus === "success") {
+      await settlePayment(db, tx.id, confirmation);
+      return { ok: true, status: "success", order_id: (tx as any).order_id || null };
+    }
+    if (pdStatus === "failed") {
+      await markFailed(db, tx, confirmation);
+      return { ok: true, status: "failed" };
+    }
+    return { ok: true, status: "pending" };
+  }
+
   const body = await lookupYengaPay(reference, tx.payment_intent_id);
   if (!body) return { ok: true, status: "pending" };
   const st = mapStatus(body?.status || body?.paymentStatus || body?.data?.status);

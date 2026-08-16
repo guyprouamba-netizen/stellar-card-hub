@@ -149,3 +149,10 @@ export async function createDisbursement(data: {
 
   return await submitRes.json();
 }
+
+export function mapPaydunyaStatus(status: string): "pending" | "success" | "failed" {
+  const s = String(status || "").toLowerCase();
+  if (s === "completed") return "success";
+  if (["cancelled", "expired", "failed"].includes(s)) return "failed";
+  return "pending";
+}
