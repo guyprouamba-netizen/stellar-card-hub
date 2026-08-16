@@ -4141,31 +4141,44 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     
     if (!phone) {
       // Direct fetch from auth.admin in case metadata isn't refreshed in current user object
-      const { data: authUser, error: authErr } = await admin.auth.admin.getUserById(user.id);
-      if (authErr) {
-        console.error(`[sendRegistrationOTP] auth.admin fetch error:`, authErr);
+      try {
+        const { data: authUser, error: authErr } = await admin.auth.admin.getUserById(user.id);
+        if (authErr) {
+          console.error(`[sendRegistrationOTP] auth.admin fetch error:`, authErr);
+        }
+        phone = authUser?.user?.user_metadata?.phone || authUser?.user?.phone;
+        console.log(`[sendRegistrationOTP] Auth.admin phone: ${phone}`);
+      } catch (e) {
+        console.error(`[sendRegistrationOTP] auth.admin exception:`, e);
       }
-      phone = authUser?.user?.user_metadata?.phone || authUser?.user?.phone;
-      console.log(`[sendRegistrationOTP] Auth.admin phone: ${phone}`);
     }
     
     if (!phone) {
       // Final fallback to profiles table
-      const { data: p, error: pErr } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
-      if (pErr) {
-        console.error(`[sendRegistrationOTP] Profile fetch error:`, pErr);
+      try {
+        const { data: p, error: pErr } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
+        if (pErr) {
+          console.error(`[sendRegistrationOTP] Profile fetch error:`, pErr);
+        }
+        phone = p?.phone;
+        console.log(`[sendRegistrationOTP] Profile phone fallback: ${phone}`);
+      } catch (e) {
+        console.error(`[sendRegistrationOTP] profiles exception:`, e);
       }
-      phone = p?.phone;
-      console.log(`[sendRegistrationOTP] Profile phone fallback: ${phone}`);
     }
     
     if (!phone) {
       throw new Error("Aucun numéro de téléphone trouvé. Assurez-vous d'avoir saisi votre numéro WhatsApp lors de l'inscription.");
     }
     
-    const result = await handleRegistrationOTP(admin, user.id, phone, "send");
-    console.log(`[sendRegistrationOTP] Success:`, JSON.stringify(result));
-    return result;
+    try {
+      const result = await handleRegistrationOTP(admin, user.id, phone, "send");
+      console.log(`[sendRegistrationOTP] Success:`, JSON.stringify(result));
+      return result;
+    } catch (e) {
+      console.error(`[sendRegistrationOTP] handleRegistrationOTP error:`, e);
+      throw e;
+    }
   },
 
   async verifyRegistrationOTP({ data, user, admin }) {
