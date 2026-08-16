@@ -40,7 +40,8 @@ export default function Shop() {
     
     if (slug === "demo" && templateId) {
       // Fetch specific template for preview
-      supabase.from("shop_templates").select("*").eq("id", templateId).maybeSingle().then(({ data: t }) => {
+      supabase.from("shop_templates").select("*").eq("id", templateId).maybeSingle().then(({ data: t }: { data: any }) => {
+
         setBiz({
           id: "demo",
           name: "Boutique Démo",
