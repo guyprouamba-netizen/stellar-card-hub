@@ -58,10 +58,11 @@ class FIP_Simple_Payment {
                 submit_button();
                 ?>
             </form>
-            <div class="card">
+            <div class="card" style="margin-top:20px; padding:15px; background:#fff; border:1px solid #ccd0d4; border-radius:8px;">
                 <h2>Utilisation</h2>
-                <p>Utilisez le shortcode suivant pour afficher un bouton de paiement :</p>
+                <p>Utilisez le shortcode suivant pour afficher un bouton de paiement sécurisé :</p>
                 <code>[fip_payment_button amount="1000" currency="XOF" description="Achat Produit"]</code>
+                <p style="font-size:12px; color:#666; margin-top:10px;">Les paiements sont traités via la plateforme sécurisée FASO INVEST PAY.</p>
             </div>
         </div>
         <?php
@@ -77,8 +78,9 @@ class FIP_Simple_Payment {
         $api_key = get_option('fip_api_key');
         if (!$api_key) return '<p style="color:red;">Erreur: Clé API FASO INVEST PAY non configurée.</p>';
 
-        // Création sécurisée de la session via l'API (côté serveur)
+        // Création sécurisée de la session via l'API (côté serveur pour éviter l'exposition des secrets)
         $api_url = 'https://bbepprxkkwdfzmiycqqi.supabase.co/functions/v1/pay/v1/checkout/sessions';
+        
         $response = wp_remote_post($api_url, array(
             'headers' => array(
                 'Authorization' => 'Bearer ' . $api_key,
@@ -88,18 +90,23 @@ class FIP_Simple_Payment {
                 'amount'      => intval($a['amount']),
                 'currency'    => sanitize_text_field($a['currency']),
                 'description' => sanitize_text_field($a['description']),
-                'reference'   => 'SIMPLE-' . time(),
+                'reference'   => 'SIMPLE-' . time() . '-' . wp_generate_password(4, false),
                 'return_url'  => home_url('/'),
             )),
             'timeout' => 30,
         ));
 
-        if (is_wp_error($response)) return '<p style="color:red;">Erreur de connexion.</p>';
+        if (is_wp_error($response)) {
+            return '<p style="color:red;">Erreur de connexion à FASO INVEST PAY.</p>';
+        }
+
         $body = json_decode(wp_remote_retrieve_body($response), true);
         
-        if (empty($body['ok'])) return '<p style="color:red;">Erreur: ' . esc_html($body['error'] ?? 'Inconnue') . '</p>';
+        if (empty($body['ok'])) {
+            return '<p style="color:red;">Erreur FIP: ' . esc_html($body['error'] ?? 'Service indisponible') . '</p>';
+        }
 
-        return '<a href="' . esc_url($body['data']['checkout_url']) . '" class="button button-primary" style="background:#3B82F6; color:white; padding:10px 20px; border-radius:5px; text-decoration:none;">Payer avec FASO INVEST PAY</a>';
+        return '<a href="' . esc_url($body['data']['checkout_url']) . '" class="button button-primary" style="background:#3B82F6; color:white; padding:10px 20px; border-radius:5px; text-decoration:none; display:inline-block; font-weight:bold;">Payer avec FASO INVEST PAY</a>';
     }
 }
 

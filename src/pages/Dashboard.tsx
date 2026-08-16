@@ -846,8 +846,8 @@ function ReferralsTab() {
     catch { toast.error("Impossible de copier"); }
   }
   function share() {
-    const text = `Rejoins-moi sur FASO-INVEST PAY et obtiens ta carte virtuelle Visa/Mastercard en USD ! Inscris-toi avec mon lien : ${link}`;
-    if ((navigator as any).share) (navigator as any).share({ title: "FASO-INVEST PAY", text, url: link }).catch(() => {});
+    const text = `Rejoins-moi sur FASO INVEST PAY et obtiens ta carte virtuelle Visa/Mastercard en USD ! Inscris-toi avec mon lien : ${link}`;
+    if ((navigator as any).share) (navigator as any).share({ title: "FASO INVEST PAY", text, url: link }).catch(() => {});
     else window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   }
   if (isLoading || !data) return <Loader2 className="h-5 w-5 animate-spin" />;
