@@ -16,7 +16,7 @@ import { uploadBusinessMedia } from "@/lib/upload";
 import ProductsPanel from "@/components/business/products-panel";
 import ProjectConfigSheet from "@/components/business/project-config-sheet";
 import DocsPanel from "@/components/business/docs-panel";
-import { ArrowLeft, Building2, Copy, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Palette } from "lucide-react";
+import { ArrowLeft, Building2, Copy, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Palette, Loader2 } from "lucide-react";
 import { LayoutDashboard, Receipt, CreditCard, Settings2, BarChart3, BookOpen } from "lucide-react";
 
 const NAV = [
