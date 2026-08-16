@@ -1101,46 +1101,50 @@ export const ClassicRed = ({ invoice, business, settings }: TemplateProps) => (
 );
 
 // 25. NEON CYBER (Futuristic)
-export const NeonCyber = ({ invoice, business }: TemplateProps) => (
-  <div className="bg-[#050505] p-12 max-w-4xl mx-auto text-cyan-400 font-mono border-[4px] border-cyan-500 shadow-[0_0_30px_rgba(6,182,212,0.5)] rounded-lg relative overflow-hidden">
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.1),transparent_70%)]" />
-    <div className="flex justify-between items-start mb-20 relative z-10">
-      <div>
-        <h1 className="text-5xl font-black italic tracking-tighter uppercase mb-2 text-white bg-cyan-500 px-4">PAY_SUCCESS</h1>
-        <p className="text-xs font-bold uppercase tracking-[0.5em] opacity-60">Terminal // {business.name.toUpperCase()}</p>
-      </div>
-      <div className="text-right">
-        <div className="h-16 w-16 border-2 border-cyan-500 rounded-full flex items-center justify-center animate-pulse">
-          <div className="h-10 w-10 border border-cyan-500 rounded-full flex items-center justify-center">
-            <div className="h-4 w-4 bg-cyan-500 rounded-full shadow-[0_0_10px_#06b6d4]" />
+export const NeonCyber = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
+  return (
+    <div className="bg-[#050505] p-12 max-w-4xl mx-auto text-cyan-400 font-mono border-[4px] border-cyan-500 shadow-[0_0_30px_rgba(6,182,212,0.5)] rounded-lg relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.1),transparent_70%)]" />
+      <div className="flex justify-between items-start mb-20 relative z-10">
+        <div>
+          <h1 className="text-5xl font-black italic tracking-tighter uppercase mb-2 text-white bg-cyan-500 px-4">{title.toUpperCase()}_SUCCESS</h1>
+          <p className="text-xs font-bold uppercase tracking-[0.5em] opacity-60">Terminal // {business.name.toUpperCase()}</p>
+        </div>
+        <div className="text-right">
+          <div className="h-16 w-16 border-2 border-cyan-500 rounded-full flex items-center justify-center animate-pulse">
+            <div className="h-10 w-10 border border-cyan-500 rounded-full flex items-center justify-center">
+              <div className="h-4 w-4 bg-cyan-500 rounded-full shadow-[0_0_10px_#06b6d4]" />
+            </div>
           </div>
         </div>
       </div>
-    </div>
-    <div className="grid grid-cols-2 gap-10 mb-20 relative z-10">
-      <div className="border-l-2 border-cyan-500 pl-6">
-        <p className="text-[10px] uppercase font-bold opacity-40 mb-2">Subject</p>
-        <p className="text-2xl font-black text-white">{invoice.customer_name}</p>
-        <p className="text-xs mt-2 opacity-60">ID: {invoice.customer_email}</p>
-      </div>
-      <div className="text-right border-r-2 border-cyan-500 pr-6">
-        <p className="text-[10px] uppercase font-bold opacity-40 mb-2">Amount_Auth</p>
-        <p className="text-5xl font-black text-white tracking-tighter">{invoice.total.toLocaleString()} <span className="text-xl text-cyan-500">{invoice.currency}</span></p>
-      </div>
-    </div>
-    <div className="space-y-4 mb-20 relative z-10">
-      {invoice.items.map((it, i) => (
-        <div key={i} className="flex justify-between items-center group py-2 border-b border-cyan-500/20">
-          <span className="text-white/60 font-bold tracking-widest">{it.name.toUpperCase()}</span>
-          <span className="font-black text-white">{(it.qty * it.price).toLocaleString()}</span>
+      <div className="grid grid-cols-2 gap-10 mb-20 relative z-10">
+        <div className="border-l-2 border-cyan-500 pl-6">
+          <p className="text-[10px] uppercase font-bold opacity-40 mb-2">Subject</p>
+          <p className="text-2xl font-black text-white">{invoice.customer_name}</p>
+          <p className="text-xs mt-2 opacity-60">ID: {invoice.customer_email}</p>
         </div>
-      ))}
+        <div className="text-right border-r-2 border-cyan-500 pr-6">
+          <p className="text-[10px] uppercase font-bold opacity-40 mb-2">Amount_Auth</p>
+          <p className="text-5xl font-black text-white tracking-tighter">{invoice.total.toLocaleString()} <span className="text-xl text-cyan-500">{invoice.currency}</span></p>
+        </div>
+      </div>
+      <div className="space-y-4 mb-20 relative z-10">
+        {invoice.items.map((it, i) => (
+          <div key={i} className="flex justify-between items-center group py-2 border-b border-cyan-500/20">
+            <span className="text-white/60 font-bold tracking-widest">{it.name.toUpperCase()}</span>
+            <span className="font-black text-white">{(it.qty * it.price).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+      <div className="text-[8px] font-bold uppercase tracking-[0.8em] opacity-20 text-center relative z-10">
+        INVOICE_{invoice.number}_SYSTEM_HASH_CONFIRMED
+      </div>
+      <VerificationFooter business={business} invoice={invoice} />
     </div>
-    <div className="text-[8px] font-bold uppercase tracking-[0.8em] opacity-20 text-center relative z-10">
-      INVOICE_{invoice.number}_SYSTEM_HASH_CONFIRMED
-    </div>
-  </div>
-);
+  );
+};
 
 // 26. SOFT MINT (Ecological/Sustainable)
 export const SoftMint = ({ invoice, business, settings, kind = "invoice" }: TemplateProps) => {
