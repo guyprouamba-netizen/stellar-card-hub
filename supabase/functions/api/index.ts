@@ -2330,7 +2330,12 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       if (r.key === "notify_admin_sender_request") {
         extrasMap[r.key] = r.value === "true";
       } else {
-        extrasMap[r.key] = r.value;
+        // We need to handle possible JSON double-quoting from older records
+        let val = r.value;
+        if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"') && val.length > 1) {
+          try { val = JSON.parse(val); } catch { /* ignore */ }
+        }
+        extrasMap[r.key] = val;
       }
     }
     return { ok: true, config: { ...cfg, ...extrasMap } };
