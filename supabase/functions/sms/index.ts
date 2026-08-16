@@ -80,7 +80,12 @@ Deno.serve(async (req) => {
         const { data: cfg } = await admin.from("sms_config").select("sender_id,enabled").limit(1).maybeSingle();
         if (!cfg?.enabled) return json({ error: "SMS désactivés globalement" }, 400);
         const recipient = list.join(",");
-        const r = await sendSmsRaw({ recipient, message: data.message, sender_id: data.sender_id || cfg.sender_id });
+        const r = await sendSmsRaw({ 
+          recipient, 
+          message: data.message, 
+          sender_id: data.sender_id || cfg.sender_id,
+          type: data.type || "plain"
+        });
         await admin.from("sms_logs").insert({
           recipient, message: data.message, event_key: "custom", user_id: userId,
           status: r.ok ? "success" : "failed", provider_response: r.body,
@@ -96,6 +101,7 @@ Deno.serve(async (req) => {
           recipient: phone,
           message: data.message || "Test FASO-INVEST PAY - Notifications SMS actives ✅",
           sender_id: cfg?.sender_id || "FASOINVEST",
+          type: data.type || "plain"
         });
         await admin.from("sms_logs").insert({
           recipient: phone, message: data.message || "Test", event_key: "test", user_id: userId,

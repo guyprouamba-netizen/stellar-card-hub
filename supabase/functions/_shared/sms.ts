@@ -24,20 +24,24 @@ export async function sendSmsRaw(opts: {
   recipient: string; // may contain commas
   message: string;
   sender_id: string;
+  type?: "plain" | "whatsapp";
 }): Promise<{ ok: boolean; body: any; status: number }> {
   const token = Deno.env.get("BBG_SMS_API_TOKEN");
   if (!token) return { ok: false, body: { error: "BBG_SMS_API_TOKEN missing" }, status: 500 };
   try {
+    const payload: any = {
+      api_token: token,
+      recipient: opts.recipient,
+      type: opts.type || "plain",
+      message: opts.message,
+    };
+    if (payload.type === "plain") {
+      payload.sender_id = opts.sender_id;
+    }
     const res = await fetch(BBG_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify({
-        api_token: token,
-        recipient: opts.recipient,
-        sender_id: opts.sender_id,
-        type: "plain",
-        message: opts.message,
-      }),
+      body: JSON.stringify(payload),
     });
     const text = await res.text();
     let body: any = text;
