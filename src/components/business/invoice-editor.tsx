@@ -68,7 +68,7 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
     setData({ ...data, items: newItems, subtotal, total: subtotal + data.tax });
   };
 
-  const TemplateComponent = INVOICE_TEMPLATES[template] || INVOICE_TEMPLATES["stripe-modern"];
+  const TemplateComponent = currentTemplates[activeTemplate] || INVOICE_TEMPLATES["stripe-modern"];
 
   const handleDownloadPDF = async () => {
     if (!previewRef.current) return;
