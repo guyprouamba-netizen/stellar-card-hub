@@ -760,33 +760,37 @@ export const MicrosoftAzure = ({ invoice, business, settings, kind = "invoice" }
 };
 
 // 15. REVOLUT BUSINESS
-export const RevolutBusiness = ({ invoice, business, settings }: TemplateProps) => (
-  <div className="bg-[#0e0e10] p-12 max-w-4xl mx-auto text-white font-sans border border-white/5 rounded-[2rem]">
-    <div className="flex justify-between items-center mb-20">
-      <div className="text-2xl font-black italic tracking-tighter">Revolut <span className="text-white/40 font-normal">Business</span></div>
-      <div className="bg-white/10 px-4 py-2 rounded-full text-xs font-bold uppercase">Transaction réussie</div>
-    </div>
-    <div className="mb-20">
-      <h2 className="text-6xl font-black tracking-tight mb-4">{invoice.total.toLocaleString()} {invoice.currency}</h2>
-      <p className="text-white/40 font-bold uppercase tracking-widest text-sm">Destinataire : {invoice.customer_name}</p>
-    </div>
-    <div className="grid grid-cols-2 gap-10 border-t border-white/10 pt-10">
-      <div>
-        <p className="text-white/40 text-xs font-bold uppercase mb-2">Expéditeur</p>
-        <p className="font-bold text-lg">{settings.legal_name || business.name}</p>
-        <p className="text-white/60 text-sm mt-1">IFU: {settings.ifu}</p>
+export const RevolutBusiness = ({ invoice, business, settings, kind = "invoice" }: TemplateProps) => {
+  const statusLabel = kind === "receipt" ? "Reçu" : kind === "contract" ? "Signé" : "Réussi";
+  return (
+    <div className="bg-[#0e0e10] p-12 max-w-4xl mx-auto text-white font-sans border border-white/5 rounded-[2rem]">
+      <div className="flex justify-between items-center mb-20">
+        <div className="text-2xl font-black italic tracking-tighter">Revolut <span className="text-white/40 font-normal">Business</span></div>
+        <div className="bg-white/10 px-4 py-2 rounded-full text-xs font-bold uppercase">{statusLabel}</div>
       </div>
-      <div className="text-right">
-        <p className="text-white/40 text-xs font-bold uppercase mb-2">Référence</p>
-        <p className="font-bold text-lg">{invoice.number}</p>
-        <p className="text-white/60 text-sm mt-1">{format(new Date(invoice.created_at), 'dd MMM yyyy')}</p>
+      <div className="mb-20">
+        <h2 className="text-6xl font-black tracking-tight mb-4">{invoice.total.toLocaleString()} {invoice.currency}</h2>
+        <p className="text-white/40 font-bold uppercase tracking-widest text-sm">Client : {invoice.customer_name}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-10 border-t border-white/10 pt-10 mb-10">
+        <div>
+          <p className="text-white/40 text-xs font-bold uppercase mb-2">Expéditeur</p>
+          <p className="font-bold text-lg">{settings.legal_name || business.name}</p>
+          <p className="text-white/60 text-sm mt-1">{settings.address}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-white/40 text-xs font-bold uppercase mb-2">Référence</p>
+          <p className="font-bold text-lg">{invoice.number}</p>
+          <p className="text-white/60 text-sm mt-1">{format(new Date(invoice.created_at), 'dd MMM yyyy')}</p>
+        </div>
+      </div>
+      <VerificationFooter business={business} invoice={invoice} />
+      <div className="mt-10 pt-10 border-t border-white/10 flex justify-center">
+        <div className="h-20 w-20 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center font-bold text-4xl shadow-2xl">R</div>
       </div>
     </div>
-    <div className="mt-20 pt-10 border-t border-white/10 flex justify-center">
-      <div className="h-20 w-20 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center font-bold text-4xl shadow-2xl">R</div>
-    </div>
-  </div>
-);
+  );
+};
 
 // 16. NOTAIRE OFFICIEL (Minimalisme strict)
 export const NotaireOfficiel = ({ invoice, business, settings }: TemplateProps) => (
