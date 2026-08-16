@@ -340,7 +340,37 @@ function computeMomoTransferFees(amount: number, cfg: { fee_bps: number; fee_fla
   return Math.max(0, pct + Math.max(0, Math.floor(cfg.fee_flat_xof)));
 }
 
-// ============ Retrait PayPal (frais paramétrables par l'admin) ============
+  async createPaydunyaPayment({ data, user, admin }) {
+    const amount = Math.floor(Number(data?.amount || 0));
+    const businessId = data?.business_id;
+    if (!amount || amount < 100) throw new Error("Montant invalide (min 100 XOF)");
+    if (!businessId) throw new Error("business_id requis");
+
+    await assertBusinessOwner(admin, user.id, businessId);
+    const { data: biz } = await admin.from("businesses").select("name").eq("id", businessId).maybeSingle();
+
+    const invoice = await PD.createInvoice({
+      amount,
+      description: `Paiement Boutique ${biz?.name || ""}`,
+      callback_url: `${Deno.env.get("PUBLIC_URL")}/api/webhooks/paydunya`,
+      return_url: `${data.origin || ""}/dashboard`,
+      cancel_url: `${data.origin || ""}/dashboard`,
+      customer: {
+        name: user.user_metadata?.full_name || "Client",
+        phone: user.phone || ""
+      }
+    });
+
+    return invoice;
+  },
+
+  async verifyPaydunyaPayment({ data, admin }) {
+    const token = data?.token;
+    if (!token) throw new Error("Token Paydunya manquant");
+    const result = await PD.verifyInvoice(token);
+    return result;
+  },
+
 async function loadPaypalWithdrawConfig(admin: any) {
   const keys = ["paypal_wd_fee_bps", "paypal_wd_fee_flat_xof", "paypal_wd_min_xof", "paypal_wd_max_xof", "paypal_wd_enabled"];
   const { data } = await admin.from("platform_config").select("key,value").in("key", keys);
@@ -3934,8 +3964,19 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     // Alert admin via SMS
     try {
       const { data: cfg } = await admin.from("platform_config").select("value").eq("key", "admin_notification_phone").maybeSingle();
-      const adminPhone = cfg?.value || "+22670000000";
-      await sendSmsRaw(adminPhone, `[FASO-PAY] Nouvelle demande de Sender ID: "${sender_id}" par ${company_name}. Veuillez valider dans l'admin.`);
+      const rawPhone = cfg?.value || "+22670000000";
+      const adminPhone = normalizeBfPhone(rawPhone);
+      
+      const { data: smsCfg } = await admin.from("sms_config").select("sender_id").limit(1).maybeSingle();
+      const senderId = (smsCfg as any)?.sender_id || "FASOPAY";
+
+      if (adminPhone) {
+        await sendSmsRaw({
+          recipient: adminPhone,
+          message: `[FASO-PAY] Nouvelle demande de Sender ID: "${sender_id}" par ${company_name}. Veuillez valider dans l'admin.`,
+          sender_id: senderId
+        });
+      }
     } catch (e) {
       console.error("Notify admin SMS failed", e);
     }
