@@ -629,37 +629,41 @@ export const GoogleCloud = ({ invoice, business, settings, kind = "invoice" }: T
 };
 
 // 12. AIRBNB HOST
-export const AirbnbHost = ({ invoice, business }: TemplateProps) => (
-  <div className="bg-white p-12 max-w-3xl mx-auto font-sans text-slate-900 border border-slate-100 rounded-lg shadow-2xl">
-    <div className="flex justify-between items-center mb-16">
-      <div className="text-rose-500">
-        <svg viewBox="0 0 32 32" className="w-10 h-10 fill-current"><path d="M16 1c2.008 0 3.463.963 4.751 3.269l.533 1.025c1.954 3.83 6.114 12.54 7.1 14.836l.145.353c.667 1.591.91 2.472.96 3.396l.01.415.001.228c0 4.062-2.877 6.478-6.357 6.478-2.224 0-4.556-1.258-6.709-3.386l-.257-.26-.172-.179h-.011l-.176.185c-2.044 2.1-4.392 3.42-6.72 3.42-3.481 0-6.358-2.416-6.358-6.478l.002-.232c.036-1.12.336-2.186.883-3.665l.182-.47c1.116-2.73 5.342-11.75 7.152-15.356l.519-1.026C12.537 1.963 13.992 1 16 1zm0 2c-1.239 0-2.253.539-3.235 2.292l-.503 1c-1.745 3.472-5.908 12.355-7.008 15.044l-.155.404c-.53 1.433-.767 2.333-.797 3.232l-.002.228c0 2.924 1.977 4.478 4.358 4.478 1.706 0 3.659-1.076 5.617-3.03l.317-.323.315-.327-.315-.327-.317-.323c-1.958-1.954-3.911-3.03-5.617-3.03-2.381 0-4.358 1.554-4.358 4.478l.002.228c.03.899.267 1.799.797 3.232l.155.404c1.1 2.689 5.263 11.572 7.008 15.044l.503 1c.982 1.753 1.996 2.292 3.235 2.292z"/></svg>
-      </div>
-      <div className="text-right">
-        <p className="text-slate-400 uppercase font-bold text-xs">Reçu d'hôte</p>
-        <p className="font-bold">Facture #{invoice.number}</p>
-      </div>
-    </div>
-    <div className="mb-12">
-      <h2 className="text-4xl font-bold tracking-tight mb-2">Félicitations, {invoice.customer_name}!</h2>
-      <p className="text-slate-500">Votre paiement a été traité avec succès via {business.name}.</p>
-    </div>
-    <div className="bg-slate-50 p-8 rounded-2xl space-y-4">
-      {invoice.items.map((it, i) => (
-        <div key={i} className="flex justify-between items-center border-b border-slate-200 pb-4 last:border-0 last:pb-0">
-          <div>
-            <p className="font-bold text-lg">{it.name}</p>
-            <p className="text-slate-500 text-sm">{it.qty} nuit(s)</p>
-          </div>
-          <p className="font-bold text-lg">{(it.qty * it.price).toLocaleString()} {invoice.currency}</p>
+export const AirbnbHost = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu d'hôte" : kind === "contract" ? "Contrat" : "Facture d'hôte";
+  return (
+    <div className="bg-white p-12 max-w-3xl mx-auto font-sans text-slate-900 border border-slate-100 rounded-lg shadow-2xl">
+      <div className="flex justify-between items-center mb-16">
+        <div className="text-rose-500">
+          <svg viewBox="0 0 32 32" className="w-10 h-10 fill-current"><path d="M16 1c2.008 0 3.463.963 4.751 3.269l.533 1.025c1.954 3.83 6.114 12.54 7.1 14.836l.145.353c.667 1.591.91 2.472.96 3.396l.01.415.001.228c0 4.062-2.877 6.478-6.357 6.478-2.224 0-4.556-1.258-6.709-3.386l-.257-.26-.172-.179h-.011l-.176.185c-2.044 2.1-4.392 3.42-6.72 3.42-3.481 0-6.358-2.416-6.358-6.478l.002-.232c.036-1.12.336-2.186.883-3.665l.182-.47c1.116-2.73 5.342-11.75 7.152-15.356l.519-1.026C12.537 1.963 13.992 1 16 1zm0 2c-1.239 0-2.253.539-3.235 2.292l-.503 1c-1.745 3.472-5.908 12.355-7.008 15.044l-.155.404c-.53 1.433-.767 2.333-.797 3.232l-.002.228c0 2.924 1.977 4.478 4.358 4.478 1.706 0 3.659-1.076 5.617-3.03l.317-.323.315-.327-.315-.327-.317-.323c-1.958-1.954-3.911-3.03-5.617-3.03-2.381 0-4.358 1.554-4.358 4.478l.002.228c.03.899.267 1.799.797 3.232l.155.404c1.1 2.689 5.263 11.572 7.008 15.044l.503 1c.982 1.753 1.996 2.292 3.235 2.292z"/></svg>
         </div>
-      ))}
+        <div className="text-right">
+          <p className="text-slate-400 uppercase font-bold text-xs">{title}</p>
+          <p className="font-bold">N°{invoice.number}</p>
+        </div>
+      </div>
+      <div className="mb-12">
+        <h2 className="text-4xl font-bold tracking-tight mb-2">Félicitations, {invoice.customer_name}!</h2>
+        <p className="text-slate-500">Votre paiement a été traité avec succès via {business.name}.</p>
+      </div>
+      <div className="bg-slate-50 p-8 rounded-2xl space-y-4 mb-10">
+        {invoice.items.map((it, i) => (
+          <div key={i} className="flex justify-between items-center border-b border-slate-200 pb-4 last:border-0 last:pb-0">
+            <div>
+              <p className="font-bold text-lg">{it.name}</p>
+              <p className="text-slate-500 text-sm">{it.qty} unité(s)</p>
+            </div>
+            <p className="font-bold text-lg">{(it.qty * it.price).toLocaleString()} {invoice.currency}</p>
+          </div>
+        ))}
+      </div>
+      <VerificationFooter business={business} invoice={invoice} />
+      <div className="mt-12 text-center text-xs text-slate-400">
+        <p>Généré par Faso-Invest Pay. Document authentifié par QR Code.</p>
+      </div>
     </div>
-    <div className="mt-12 text-center text-xs text-slate-400">
-      <p>Besoin d'aide ? Consultez le centre d'aide Airbnb ou contactez l'hôte.</p>
-    </div>
-  </div>
-);
+  );
+};
 
 // 13. WISE BORDERLESS
 export const WiseBorderless = ({ invoice, business, settings }: TemplateProps) => (
