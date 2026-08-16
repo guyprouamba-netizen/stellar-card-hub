@@ -793,42 +793,46 @@ export const RevolutBusiness = ({ invoice, business, settings, kind = "invoice" 
 };
 
 // 16. NOTAIRE OFFICIEL (Minimalisme strict)
-export const NotaireOfficiel = ({ invoice, business, settings }: TemplateProps) => (
-  <div className="bg-[#fdfcf9] p-20 max-w-5xl mx-auto text-[#1a1a1a] font-serif border-x border-slate-200">
-    <div className="text-center mb-20">
-      <h1 className="text-3xl font-light uppercase tracking-[0.5em] border-b border-black pb-8 inline-block">Office Notarial</h1>
-      <p className="mt-8 text-sm italic">{settings.legal_name || business.name}</p>
-      <p className="text-xs uppercase tracking-widest mt-2">{settings.address}</p>
-    </div>
-    <div className="flex justify-between items-end mb-20 text-sm italic">
-      <div>
-        <p>A l'attention de M/Mme</p>
-        <p className="font-bold text-lg not-italic">{invoice.customer_name}</p>
+export const NotaireOfficiel = ({ invoice, business, settings, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Note de Frais" : kind === "contract" ? "Acte Notarié" : "Facture de Frais";
+  return (
+    <div className="bg-[#fdfcf9] p-20 max-w-5xl mx-auto text-[#1a1a1a] font-serif border-x border-slate-200">
+      <div className="text-center mb-20">
+        <h1 className="text-3xl font-light uppercase tracking-[0.5em] border-b border-black pb-8 inline-block">Office Notarial</h1>
+        <p className="mt-8 text-sm italic">{settings.legal_name || business.name}</p>
+        <p className="text-xs uppercase tracking-widest mt-2">{settings.address}</p>
       </div>
-      <div className="text-right">
-        <p>Ouagadougou, le {format(new Date(invoice.created_at), 'dd MMMM yyyy', { locale: fr })}</p>
-        <p className="mt-1 font-bold not-italic">Facture de Frais N°{invoice.number}</p>
-      </div>
-    </div>
-    <div className="space-y-6 text-sm leading-loose mb-20">
-      {invoice.items.map((it, i) => (
-        <div key={i} className="flex justify-between border-b border-slate-100 pb-2">
-          <span>{it.name} (Qte: {it.qty})</span>
-          <span className="font-bold">{(it.qty * it.price).toLocaleString()} {invoice.currency}</span>
+      <div className="flex justify-between items-end mb-20 text-sm italic">
+        <div>
+          <p>A l'attention de M/Mme</p>
+          <p className="font-bold text-lg not-italic">{invoice.customer_name}</p>
         </div>
-      ))}
-    </div>
-    <div className="flex justify-end pt-10 border-t-2 border-black">
-      <div className="text-right">
-        <p className="text-xs uppercase tracking-widest opacity-50">Total Honoraires TTC</p>
-        <p className="text-3xl font-bold">{invoice.total.toLocaleString()} {invoice.currency}</p>
+        <div className="text-right">
+          <p>Ouagadougou, le {format(new Date(invoice.created_at), 'dd MMMM yyyy', { locale: fr })}</p>
+          <p className="mt-1 font-bold not-italic">{title} N°{invoice.number}</p>
+        </div>
+      </div>
+      <div className="space-y-6 text-sm leading-loose mb-20">
+        {invoice.items.map((it, i) => (
+          <div key={i} className="flex justify-between border-b border-slate-100 pb-2">
+            <span>{it.name} (Qte: {it.qty})</span>
+            <span className="font-bold">{(it.qty * it.price).toLocaleString()} {invoice.currency}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-end pt-10 border-t-2 border-black mb-10">
+        <div className="text-right">
+          <p className="text-xs uppercase tracking-widest opacity-50">Total Honoraires TTC</p>
+          <p className="text-3xl font-bold">{invoice.total.toLocaleString()} {invoice.currency}</p>
+        </div>
+      </div>
+      <VerificationFooter business={business} invoice={invoice} />
+      <div className="mt-20 text-center text-[10px] uppercase tracking-widest opacity-40">
+        Document certifié par l'Office Notarial {business.name} - YengaPay Ecosystem.
       </div>
     </div>
-    <div className="mt-32 text-center text-[10px] uppercase tracking-widest opacity-40">
-      Document certifié par l'Office Notarial {business.name} - YengaPay Ecosystem.
-    </div>
-  </div>
-);
+  );
+};
 
 // 17. DIGITAL NOMAD (Style Indie Hackers)
 export const DigitalNomad = ({ invoice, business }: TemplateProps) => (
