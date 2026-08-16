@@ -58,11 +58,13 @@ function Auth() {
     void dashboardWarmup;
     navigate(isAdmin ? "/admin" : "/dashboard", { replace: true, state: { userId } });
   }
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "2fa">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [tempUser, setTempUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   function frenchAuthError(err: any): string {
@@ -132,13 +134,59 @@ function Auth() {
       } else {
         const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        
+        const user = signInData.session?.user;
+        if (user) {
+          const { data: profile } = await supabase.from("profiles").select("two_factor_enabled, phone").eq("id", user.id).maybeSingle();
+          if (profile?.two_factor_enabled) {
+            setTempUser(user);
+            setLoading(true);
+            try {
+              const { data: res, error: apiErr } = await supabase.functions.invoke("api", { 
+                body: { fn: "send2FAOTP" } 
+              });
+              if (apiErr || res?.error) throw new Error(apiErr?.message || res?.error || "Erreur envoi OTP");
+              setMode("2fa");
+              setPhone(profile.phone || "");
+              toast.success("Code de sécurité envoyé par WhatsApp");
+            } catch (err: any) {
+              await supabase.auth.signOut();
+              throw err;
+            } finally {
+              setLoading(false);
+            }
+            return;
+          }
+        }
+        
         toast.success("Bienvenue !");
-        await fastRedirect(signInData.session?.user);
+        await fastRedirect(user);
       }
     } catch (e: any) {
       const message = frenchAuthError(e);
       setFormError(message);
       toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function verifyOTP(e: React.FormEvent) {
+    e.preventDefault();
+    if (otp.length < 6) return;
+    setLoading(true);
+    setFormError(null);
+    try {
+      const { data: res, error: apiErr } = await supabase.functions.invoke("api", { 
+        body: { fn: "verify2FAOTP", data: { code: otp } } 
+      });
+      if (apiErr || res?.error) throw new Error(apiErr?.message || res?.error || "Code invalide");
+      
+      toast.success("Vérification réussie");
+      await fastRedirect(tempUser);
+    } catch (err: any) {
+      setFormError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -189,7 +237,46 @@ function Auth() {
             {mode === "login" ? "Connectez-vous à votre espace FASO-INVEST PAY." : "Lancez vos cartes virtuelles en 2 minutes."}
           </p>
 
-          <form className="mt-8 space-y-4" onSubmit={submit}>
+          {mode === "2fa" ? (
+            <form className="mt-8 space-y-4" onSubmit={verifyOTP}>
+              <div className="flex flex-col items-center gap-4">
+                <div className="flex items-center gap-3 rounded-2xl bg-success/10 p-4 text-sm text-success w-full">
+                  <Smartphone className="h-5 w-5 shrink-0" />
+                  <span>Entrez le code envoyé au <b>{phone}</b> via WhatsApp.</span>
+                </div>
+                {formError && (
+                  <div role="alert" className="flex items-start gap-2 rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive w-full">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{formError}</span>
+                  </div>
+                )}
+                <input
+                  required
+                  type="text"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                  placeholder="000000"
+                  className="w-full rounded-full border border-border bg-surface-2 py-4 text-center text-3xl font-bold tracking-[0.5em] outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+                />
+                <button
+                  type="submit"
+                  disabled={loading || otp.length < 6}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-primary py-3 text-sm font-semibold text-primary-foreground shadow-glow transition-transform hover:scale-[1.02] disabled:opacity-60"
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (<>Vérifier le code <CheckCircle2 className="h-4 w-4" /></>)}
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => { setMode("login"); supabase.auth.signOut(); }}
+                  className="text-xs text-muted-foreground hover:underline"
+                >
+                  Annuler et se reconnecter
+                </button>
+              </div>
+            </form>
+          ) : (
+            <form className="mt-8 space-y-4" onSubmit={submit}>
             {formError && (
               <div role="alert" className="flex items-start gap-2 rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -231,7 +318,8 @@ function Auth() {
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (<>{mode === "login" ? "Se connecter" : "Créer mon compte"}<ArrowRight className="h-4 w-4" /></>)}
             </button>
-          </form>
+            </form>
+          )}
 
           {mode === "login" && (
             <p className="mt-4 text-center text-sm">
