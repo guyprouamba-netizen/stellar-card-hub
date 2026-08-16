@@ -426,7 +426,7 @@ async function payDirect(payload: any) {
   // Une intention de paiement Orange Money est très courte (environ 3-4 minutes).
   // On réduit le seuil de rafraîchissement à 3 minutes pour garantir la validité du code OTP.
   const intentAge = meta.intent_at ? Date.now() - new Date(meta.intent_at).getTime() : Infinity;
-  if (intent && intentAge > 3 * 60 * 1000) intent = null;
+  if (intent && intentAge > 2 * 60 * 1000) intent = null;
   if (!intent) {
     let init: any;
     try {
