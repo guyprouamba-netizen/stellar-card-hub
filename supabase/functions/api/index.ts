@@ -371,6 +371,41 @@ function computeMomoTransferFees(amount: number, cfg: { fee_bps: number; fee_fla
     return result;
   },
 
+  async cashoutPaydunya({ data, user, admin }) {
+    const businessId = data?.business_id;
+    const amount = Math.floor(Number(data?.amount || 0));
+    const channel = data?.channel; // e.g. 'orange-money-bf'
+    const phone = data?.phone;
+    
+    if (!amount || amount < 100) throw new Error("Montant invalide");
+    if (!phone) throw new Error("Numéro de téléphone requis");
+    
+    await assertBusinessOwner(admin, user.id, businessId);
+    const { data: b } = await admin.from("businesses").select("balance, name").eq("id", businessId).single();
+    if (Number(b.balance) < amount) throw new Error("Solde boutique insuffisant");
+
+    const result = await PD.createDisbursement({
+      amount,
+      recipient_phone: phone,
+      recipient_name: user.user_metadata?.full_name || "Marchand",
+      account_alias: phone,
+      disburse_channel: channel || "orange-money-bf"
+    });
+
+    if (result.response_code === "00") {
+      await admin.from("businesses").update({ balance: Number(b.balance) - amount }).eq("id", businessId);
+      await admin.from("transactions").insert({
+        user_id: user.id, type: "withdrawal", status: "success",
+        amount, currency: "XOF", provider: "paydunya",
+        description: `Retrait Paydunya (${channel})`,
+        metadata: { business_id: businessId, paydunya_res: result }
+      });
+    }
+
+    return result;
+  },
+
+
 async function loadPaypalWithdrawConfig(admin: any) {
   const keys = ["paypal_wd_fee_bps", "paypal_wd_fee_flat_xof", "paypal_wd_min_xof", "paypal_wd_max_xof", "paypal_wd_enabled"];
   const { data } = await admin.from("platform_config").select("key,value").in("key", keys);
@@ -2766,6 +2801,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       gateway_fee_flat_xof: data?.fee_flat_xof,
       gateway_min_xof: data?.min_xof,
       gateway_enabled: data?.enabled,
+      admin_notification_phone: data?.admin_notification_phone,
     };
     for (const [k, v] of Object.entries(map)) {
       if (v === undefined || v === null) continue;

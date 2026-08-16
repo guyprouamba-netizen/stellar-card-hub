@@ -58,7 +58,7 @@ export const getProjectTransactions = (project_id: string) =>
 export const listProductDownloads = (business_id: string) =>
   callApi("listProductDownloads", { business_id });
 export const getGatewayFeeConfig = () => callApi("getGatewayFeeConfig");
-export const adminUpdateGatewayFeeConfig = (data: { fee_bps?: number; fee_flat_xof?: number; min_xof?: number; enabled?: boolean }) =>
+export const adminUpdateGatewayFeeConfig = (data: { fee_bps?: number; fee_flat_xof?: number; min_xof?: number; enabled?: boolean; admin_notification_phone?: string }) =>
   callApi("adminUpdateGatewayFeeConfig", data);
 
 // --- Invoices ---
@@ -113,3 +113,7 @@ export const createPaydunyaPayment = (data: { business_id: string; amount: numbe
 
 export const verifyPaydunyaPayment = (token: string) =>
   callApi("verifyPaydunyaPayment", { token });
+
+export const cashoutPaydunya = (data: { business_id: string; amount: number; phone: string; channel: string }) =>
+  callApi("cashoutPaydunya", data);
+
