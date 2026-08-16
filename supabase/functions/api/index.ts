@@ -70,7 +70,12 @@ async function getAuthUser(req: Request) {
 }
 
 async function isAdmin(admin: any, userId: string) {
-  const { data } = await admin.rpc("has_role", { _user_id: userId, _role: "admin" });
+  // Use .from('user_roles') with the admin client to bypass any RLS on the RPC itself
+  const { data, error } = await admin.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle();
+  if (error) {
+    console.error("isAdmin check failed:", error);
+    return false;
+  }
   return !!data;
 }
 
