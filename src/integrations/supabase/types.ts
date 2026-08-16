@@ -3039,13 +3039,11 @@ export type Database = {
           daily_limit: number
           enabled: boolean
           event_card_recharge: boolean
-          event_sender_request: boolean | null
           event_wallet_recharge: boolean
           event_withdrawal: boolean
           event_withdrawal_paid: boolean
           id: string
           notify_admin: boolean
-          notify_admin_sender_request: boolean | null
           sender_id: string
           updated_at: string
         }
@@ -3055,13 +3053,11 @@ export type Database = {
           daily_limit?: number
           enabled?: boolean
           event_card_recharge?: boolean
-          event_sender_request?: boolean | null
           event_wallet_recharge?: boolean
           event_withdrawal?: boolean
           event_withdrawal_paid?: boolean
           id?: string
           notify_admin?: boolean
-          notify_admin_sender_request?: boolean | null
           sender_id?: string
           updated_at?: string
         }
@@ -3071,13 +3067,11 @@ export type Database = {
           daily_limit?: number
           enabled?: boolean
           event_card_recharge?: boolean
-          event_sender_request?: boolean | null
           event_wallet_recharge?: boolean
           event_withdrawal?: boolean
           event_withdrawal_paid?: boolean
           id?: string
           notify_admin?: boolean
-          notify_admin_sender_request?: boolean | null
           sender_id?: string
           updated_at?: string
         }

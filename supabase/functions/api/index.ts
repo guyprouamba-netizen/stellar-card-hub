@@ -2278,43 +2278,18 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     return { ok: true };
   },
 
-  // ---------- Paramètres plateforme (taux + frais + SMS) ----------
+  // ---------- Paramètres plateforme (taux + frais) ----------
   async adminGetConfig({ user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
-    const allowedNumbers = [
-      "card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee", "referral_reward_xof",
-      "paypal_wd_fee_bps", "paypal_wd_fee_flat_xof", "paypal_wd_min_xof", "paypal_wd_max_xof",
-      "gateway_fee_bps", "gateway_fee_flat_xof", "gateway_min_xof", "sms_price",
-      "business_cashout_fee_bps", "business_cashout_fee_flat_xof", "business_cashout_min_xof",
-      "momo_transfer_fee_bps", "momo_transfer_fee_flat_xof", "momo_transfer_min_xof", "momo_transfer_max_xof"
-    ];
-    const allowedBools = [
-      "notify_admin_sender_request", "paypal_wd_enabled", "gateway_enabled", "momo_transfer_enabled",
-      "event_wallet_recharge", "event_card_recharge", "event_withdrawal", "event_withdrawal_paid", "event_sender_request"
-    ];
-    const allowedStrings = ["whatsapp_group_url", "admin_notification_phone", "sender_request_admin_template", "sender_request_user_template"];
-    
-    // Default pricing config from shared helper
     const cfg = await loadPricingConfig(admin);
-    
-    // Additional settings from platform_config table
-    const { data: extras } = await admin.from("platform_config").select("key,value");
+    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone", "notify_admin_sender_request", "sender_request_admin_template", "sender_request_user_template"]);
     const extrasMap: Record<string, any> = {};
     for (const r of extras ?? []) {
-      let val = r.value;
-      // Handle legacy JSON quoting if present
-      if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"') && val.length > 1) {
-        try { val = JSON.parse(val); } catch { /* ignore */ }
-      }
-
-      if (allowedBools.includes(r.key)) {
-        extrasMap[r.key] = String(val) === "true";
-      } else if (allowedNumbers.includes(r.key)) {
-        extrasMap[r.key] = Number(val);
-      } else if (allowedStrings.includes(r.key)) {
-        extrasMap[r.key] = String(val);
+      if (r.key === "notify_admin_sender_request") {
+        extrasMap[r.key] = r.value === "true";
       } else {
-        extrasMap[r.key] = val;
+        // Plain string or number
+        extrasMap[r.key] = r.value;
       }
     }
     return { ok: true, config: { ...cfg, ...extrasMap } };
@@ -2322,51 +2297,40 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   async adminUpdateConfig({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
-    const allowedNumbers = [
-      "card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee", "referral_reward_xof",
-      "paypal_wd_fee_bps", "paypal_wd_fee_flat_xof", "paypal_wd_min_xof", "paypal_wd_max_xof",
-      "gateway_fee_bps", "gateway_fee_flat_xof", "gateway_min_xof", "sms_price",
-      "business_cashout_fee_bps", "business_cashout_fee_flat_xof", "business_cashout_min_xof",
-      "momo_transfer_fee_bps", "momo_transfer_fee_flat_xof", "momo_transfer_min_xof", "momo_transfer_max_xof"
-    ];
+    const allowedNumbers = ["card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee", "referral_reward_xof"];
     const allowedStrings = ["whatsapp_group_url", "admin_notification_phone", "sender_request_admin_template", "sender_request_user_template"];
-    const allowedBools = [
-      "notify_admin_sender_request", "paypal_wd_enabled", "gateway_enabled", "momo_transfer_enabled",
-      "event_wallet_recharge", "event_card_recharge", "event_withdrawal", "event_withdrawal_paid", "event_sender_request"
-    ];
-
-    console.log("[adminUpdateConfig] updating payload:", JSON.stringify(data));
+    const allowedBools = ["notify_admin_sender_request"];
     const updates: Array<{ key: string; value: string }> = [];
-    
-    for (const [k, v] of Object.entries(data || {})) {
-      if (allowedNumbers.includes(k)) {
-        const n = Number(v);
-        if (Number.isFinite(n)) updates.push({ key: k, value: String(n) });
-      } else if (allowedStrings.includes(k)) {
-        updates.push({ key: k, value: String(v || "").trim().slice(0, 1000) });
-      } else if (allowedBools.includes(k)) {
-        updates.push({ key: k, value: String(!!v) });
+    for (const k of allowedNumbers) {
+      if (data?.[k] !== undefined && data[k] !== null && data[k] !== "") {
+        const n = Number(data[k]);
+        if (!Number.isFinite(n) || n < 0) return { ok: false, error: `Valeur invalide pour ${k}` };
+        updates.push({ key: k, value: String(n) });
       }
     }
-
-    if (updates.length > 0) {
-      for (const u of updates) {
-        const { error } = await admin.from("platform_config").upsert({ key: u.key, value: u.value }, { onConflict: "key" });
-        if (error) console.error(`[adminUpdateConfig] upsert failed for ${u.key}:`, error.message);
+    for (const k of allowedStrings) {
+      if (data?.[k] !== undefined && data[k] !== null) {
+        // We store as plain string to avoid double encoding/parsing issues
+        updates.push({ key: k, value: String(data[k]).trim().slice(0, 1000) });
       }
     }
-
-    return await this.adminGetConfig({ user, admin });
-  },
-
-        extrasMap[r.key] = String(val) === "true";
-        console.log(`[adminGetConfig] key: ${r.key}, raw: ${val}, parsed: ${extrasMap[r.key]}`);
-      } else if (allowedNumbers.includes(r.key)) {
-        extrasMap[r.key] = Number(val);
-      } else if (allowedStrings.includes(r.key)) {
-        extrasMap[r.key] = String(val);
+    for (const k of allowedBools) {
+      if (data?.[k] !== undefined && data[k] !== null) {
+        updates.push({ key: k, value: String(!!data[k]) });
+      }
+    }
+    for (const u of updates) {
+      const { error: upsertError } = await admin.from("platform_config").upsert({ key: u.key, value: u.value }, { onConflict: "key" });
+      if (upsertError) throw new Error(`Erreur lors de la mise à jour de ${u.key}: ${upsertError.message}`);
+    }
+    const cfg = await loadPricingConfig(admin);
+    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone", "notify_admin_sender_request", "sender_request_admin_template", "sender_request_user_template"]);
+    const extrasMap: Record<string, any> = {};
+    for (const r of extras ?? []) {
+      if (r.key === "notify_admin_sender_request") {
+        extrasMap[r.key] = r.value === "true";
       } else {
-        extrasMap[r.key] = val;
+        extrasMap[r.key] = r.value;
       }
     }
     return { ok: true, config: { ...cfg, ...extrasMap } };
