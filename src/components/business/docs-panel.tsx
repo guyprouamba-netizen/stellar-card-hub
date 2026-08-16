@@ -284,25 +284,43 @@ app.post("/webhooks/paiement", express.raw({ type: "*/*" }), (req, res) => {
 
       {sec === "wordpress" && (
         <div className="space-y-4">
-          <div className="rounded-2xl border border-border bg-card p-5 text-sm">
-            <h4 className="font-bold flex items-center justify-between">
-              Extension WooCommerce Officielle (F.I.P)
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-2xl border border-border bg-card p-5 text-sm flex flex-col justify-between">
+              <div>
+                <h4 className="font-bold mb-2">Extension WooCommerce Officielle</h4>
+                <p className="text-muted-foreground mb-4">Intégration complète pour vos boutiques WooCommerce avec gestion des commandes.</p>
+              </div>
               <a 
                 href="/downloads/fip-woocommerce-plugin.php" 
                 download="fip-woocommerce.php"
-                className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:opacity-90"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:opacity-90 w-full"
               >
-                Télécharger le Plugin (.php)
+                Télécharger (WooCommerce)
               </a>
-            </h4>
-            <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4 text-[13px]">
+            </div>
+            <div className="rounded-2xl border border-border bg-card p-5 text-sm flex flex-col justify-between">
+              <div>
+                <h4 className="font-bold mb-2">Plugin Simple PHP</h4>
+                <p className="text-muted-foreground mb-4">Léger et robuste. Idéal pour ajouter des boutons de paiement n'importe où via Shortcodes.</p>
+              </div>
+              <a 
+                href="/downloads/fip-simple-plugin.php" 
+                download="fip-simple.php"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-muted/50 px-4 py-2.5 text-xs font-bold hover:bg-muted w-full"
+              >
+                Télécharger (Simple PHP)
+              </a>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-5 text-sm">
+            <div className="mt-2 rounded-xl border border-primary/20 bg-primary/5 p-4 text-[13px]">
               <p className="font-semibold text-primary">Instructions d'installation :</p>
               <ol className="mt-2 list-decimal space-y-2 pl-5 text-muted-foreground">
-                <li>Téléchargez le fichier ci-dessus.</li>
+                <li>Téléchargez l'un des fichiers ci-dessus.</li>
                 <li>Allez dans votre administration WordPress : <b>Extensions &gt; Ajouter &gt; Téléverser une extension</b>.</li>
                 <li>Sélectionnez le fichier et cliquez sur <b>Installer maintenant</b>, puis <b>Activer</b>.</li>
-                <li>Allez dans <b>WooCommerce &gt; Réglages &gt; Paiements</b> et activez « Faso Invest Paiement ».</li>
-                <li>Cliquez sur <b>Gérer</b> et copiez-collez votre <b>Clé Secrète API</b> et votre <b>Secret Webhook</b> depuis l'onglet « Intégration API ».</li>
+                <li>Configurez vos clés API dans le menu <b>F.I.P Payment</b> ou les réglages WooCommerce.</li>
               </ol>
             </div>
           </div>
