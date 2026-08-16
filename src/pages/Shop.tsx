@@ -7,7 +7,7 @@ import { Loader2, ShieldCheck, Store, Mail, Phone, Eye, ArrowRight, Star } from 
 
 import { ProductDetailModal } from "@/components/product-detail-modal";
 
-type Product = { id: string; name: string; slug: string; description?: string | null; price: number; currency: string; project_id?: string | null; media?: any };
+type Product = { id: string; name: string; slug: string; description: string | null; price: number; currency: string; project_id?: string | null; media?: any };
 type Post = { id: string; title: string; body: string | null; image_url: string | null; product_id: string | null; published_at: string };
 type Biz = {
   id: string; name: string; slug: string; description: string | null; tagline?: string | null;
