@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useServerFn } from '@/hooks/use-server-fn';
+import { useServerFn } from '@/lib/server-fn';
 import { adminGetConfig, adminUpdateConfig } from '@/lib/admin.functions';
 import { supabase } from '@/integrations/supabase/client';
 
