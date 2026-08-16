@@ -112,7 +112,7 @@ function Auth() {
           email, password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { full_name: fullName, phone, ...(refCode ? { referrer_code: refCode } : {}) },
+            data: { full_name: fullName, phone: phone.trim(), ...(refCode ? { referrer_code: refCode } : {}) },
           },
         });
         if (error) throw error;
@@ -141,6 +141,7 @@ function Auth() {
           const { data: res, error: apiErr } = await supabase.functions.invoke("api", { 
             body: { fn: "sendRegistrationOTP" } 
           });
+          console.log("OTP API response:", res, "API Error:", apiErr);
           
           if (apiErr || res?.error) {
             console.error("API Error sending OTP:", apiErr || res?.error);

@@ -4136,64 +4136,47 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async sendRegistrationOTP({ user, admin }) {
     console.log(`[sendRegistrationOTP] Initiating for user: ${user.id}`);
     
-    // Attempt to get phone from metadata first
-    let phone = user.user_metadata?.phone;
-    console.log(`[sendRegistrationOTP] Metadata phone: ${phone}`);
-    
-    if (!phone) {
-      // Direct fetch from auth.admin in case metadata isn't refreshed in current user object
-      try {
-        const { data: authUser, error: authErr } = await admin.auth.admin.getUserById(user.id);
-        if (authErr) {
-          console.error(`[sendRegistrationOTP] auth.admin fetch error:`, authErr);
-        }
-        phone = authUser?.user?.user_metadata?.phone || authUser?.user?.phone;
-        console.log(`[sendRegistrationOTP] Auth.admin phone: ${phone}`);
-      } catch (e) {
-        console.error(`[sendRegistrationOTP] auth.admin exception:`, e);
-      }
-    }
-    
-    // Normalize phone before fallback search
-    const normalized = normalizeBfPhone(phone);
-    console.log(`[sendRegistrationOTP] Normalized input phone: ${normalized}`);
-    
-    if (!normalized) {
-      // Final fallback to profiles table using exact or similar phone
-      try {
-        const { data: p, error: pErr } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
-        if (pErr) {
-          console.error(`[sendRegistrationOTP] Profile fetch error:`, pErr);
-        }
-        phone = p?.phone;
-        console.log(`[sendRegistrationOTP] Profile phone fallback: ${phone}`);
-      } catch (e) {
-        console.error(`[sendRegistrationOTP] profiles exception:`, e);
-      }
-    } else {
-      phone = normalized;
-    }
-    
-    if (!phone) {
-      console.error(`[sendRegistrationOTP] No phone found for user ${user.id}`);
-      throw new Error("Aucun numéro de téléphone trouvé. Assurez-vous d'avoir saisi votre numéro WhatsApp lors de l'inscription.");
-    }
-    
     try {
+      // 1. Attempt to get phone from metadata first
+      let phone = user.user_metadata?.phone;
+      console.log(`[sendRegistrationOTP] Metadata phone: ${phone}`);
+      
+      if (!phone) {
+        // 2. Direct fetch from auth.admin
+        const { data: authUser, error: authErr } = await admin.auth.admin.getUserById(user.id);
+        if (authErr) console.error(`[sendRegistrationOTP] auth.admin error:`, authErr);
+        phone = authUser?.user?.user_metadata?.phone || authUser?.user?.phone;
+      }
+      
+      if (!phone) {
+        // 3. Fallback to profiles table
+        const { data: p } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
+        phone = p?.phone;
+      }
+
+      if (!phone) {
+        throw new Error("Aucun numéro de téléphone trouvé. Assurez-vous d'avoir saisi votre numéro WhatsApp lors de l'inscription.");
+      }
+
+      console.log(`[sendRegistrationOTP] Calling handleRegistrationOTP for ${phone}`);
       const result = await handleRegistrationOTP(admin, user.id, phone, "send");
-      console.log(`[sendRegistrationOTP] Success:`, JSON.stringify(result));
       return result;
-    } catch (e) {
-      console.error(`[sendRegistrationOTP] handleRegistrationOTP error:`, e);
-      throw e;
+    } catch (e: any) {
+      console.error(`[sendRegistrationOTP] CRITICAL:`, e);
+      // Return error as part of body to prevent 422/500 trigger in supabase.functions.invoke
+      return { error: e.message || "Erreur lors de l'envoi de l'OTP WhatsApp" };
     }
   },
 
   async verifyRegistrationOTP({ data, user, admin }) {
-    const { code } = data;
-    const { data: p } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
-    if (!p?.phone) throw new Error("Profil incomplet.");
-    return await handle2FA(admin, user.id, p.phone, "verify", code, "registration");
+    try {
+      const { code } = data;
+      const { data: p } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
+      if (!p?.phone) throw new Error("Profil incomplet.");
+      return await handle2FA(admin, user.id, p.phone, "verify", code, "registration");
+    } catch (e: any) {
+      return { error: e.message || "Erreur de vérification" };
+    }
   },
 
   async update2FASettings({ data, user, admin }) {

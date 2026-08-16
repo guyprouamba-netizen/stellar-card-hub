@@ -2,6 +2,7 @@
 // Fire-and-forget: never throw to the caller so business flows are never blocked.
 
 const BBG_ENDPOINT = "https://bbgsmsapp.betterbegoing.com/api/http/sms/send";
+const BBG_WHATSAPP_ENDPOINT = "https://bbgsmsapp.betterbegoing.com/api/http/whatsapp/send";
 
 export function normalizeBfPhone(input: string | null | undefined): string | null {
   if (!input) return null;
@@ -29,21 +30,30 @@ export async function sendSmsRaw(opts: {
   const token = Deno.env.get("BBG_SMS_API_TOKEN");
   if (!token) return { ok: false, body: { error: "BBG_SMS_API_TOKEN missing" }, status: 500 };
   try {
-    const payload: any = {
-      api_token: token,
-      recipient: opts.recipient,
-      type: opts.type || "plain",
-      message: opts.message,
-    };
-    if (payload.type === "plain") {
-      payload.sender_id = opts.sender_id;
+    const isWhatsapp = opts.type === "whatsapp";
+    const endpoint = isWhatsapp ? BBG_WHATSAPP_ENDPOINT : BBG_ENDPOINT;
+
+    // Based on the developer documentation: https://bbgsmsapp.betterbegoing.com/developers/http-docs
+    // The API uses a GET request with query parameters for simplicity and high compatibility.
+    const url = new URL(endpoint);
+    url.searchParams.append("api_token", token);
+    url.searchParams.append("recipient", opts.recipient);
+    url.searchParams.append("message", opts.message);
+    
+    if (!isWhatsapp) {
+      url.searchParams.append("sender_id", opts.sender_id);
+      url.searchParams.append("type", opts.type || "plain");
     }
-    const res = await fetch(BBG_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify(payload),
+
+    console.log(`[sendSmsRaw] Requesting ${isWhatsapp ? 'WhatsApp' : 'SMS'} via GET: ${endpoint}?api_token=***&recipient=${opts.recipient}`);
+
+    const res = await fetch(url.toString(), {
+      method: "GET",
+      headers: { "Accept": "application/json" }
     });
+    
     const text = await res.text();
+    console.log(`[sendSmsRaw] API raw response:`, text);
     let body: any = text;
     try { body = JSON.parse(text); } catch { /* keep text */ }
     return { ok: res.ok, body, status: res.status };
