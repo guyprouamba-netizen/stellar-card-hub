@@ -152,7 +152,7 @@ export default function VitrinePage() {
         <p className="font-semibold text-foreground">{business.name}</p>
         {business.contact_phone && <p className="mt-1">{business.contact_phone}</p>}
         {business.contact_email && <p>{business.contact_email}</p>}
-        <p className="mt-3">Paiement sécurisé · FASO-INVEST PAY</p>
+        <p className="mt-3">Paiement 100% sécurisé</p>
       </footer>
 
       {/* Cart drawer */}

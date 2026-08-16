@@ -4,7 +4,7 @@ import { getCheckout } from "@/lib/pay.functions";
 import { MomoPayment } from "@/components/momo-payment";
 import { Loader2, X } from "lucide-react";
 
-/** Page de paiement hébergée par FASO-INVEST PAY (sessions API marchands). */
+/** Page de paiement sécurisée (sessions API marchands). */
 export default function CheckoutPage() {
   const { reference = "" } = useParams();
   const [ctx, setCtx] = useState<any>(null);
