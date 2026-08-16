@@ -1265,34 +1265,39 @@ export const OrganicKraft = ({ invoice, business }: TemplateProps) => (
 );
 
 // 29. BOLD IMPACT (Aggressive Marketing)
-export const BoldImpact = ({ invoice, business }: TemplateProps) => (
-  <div className="bg-[#ffdd00] p-12 max-w-4xl mx-auto text-black font-black font-sans border-[16px] border-black shadow-[20px_20px_0px_0px_rgba(0,0,0,1)]">
-    <div className="flex justify-between items-start mb-32">
-      <h1 className="text-8xl font-black italic tracking-tighter leading-none -ml-4 uppercase">{business.name}</h1>
-      <div className="bg-black text-[#ffdd00] p-4 text-xs font-black uppercase tracking-widest mt-4 italic shadow-glow">Paid</div>
-    </div>
-    <div className="mb-32">
-      <p className="text-xl uppercase tracking-widest mb-4">Sold to</p>
-      <h2 className="text-6xl uppercase tracking-tighter italic mb-2">{invoice.customer_name}</h2>
-      <p className="text-2xl opacity-60 italic">{invoice.customer_email}</p>
-    </div>
-    <div className="space-y-8 mb-32">
-      {invoice.items.map((it, i) => (
-        <div key={i} className="flex justify-between items-center border-b-[8px] border-black pb-4 group hover:bg-black hover:text-[#ffdd00] transition-all duration-300 px-4">
-          <span className="text-4xl italic">{it.name.toUpperCase()} <span className="text-lg opacity-40">×{it.qty}</span></span>
-          <span className="text-4xl italic">{(it.qty * it.price).toLocaleString()}</span>
-        </div>
-      ))}
-    </div>
-    <div className="flex justify-between items-end">
-      <div className="text-sm uppercase tracking-[0.4em] italic max-w-xs">Confirmed Transaction Powered by YengaPay Engine</div>
-      <div className="text-right">
-        <p className="text-xl uppercase mb-2">Total Amount</p>
-        <p className="text-9xl tracking-tighter italic leading-none">{invoice.total.toLocaleString()} <span className="text-4xl">{invoice.currency}</span></p>
+export const BoldImpact = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
+  return (
+    <div className="bg-[#ffdd00] p-12 max-w-4xl mx-auto text-black font-black font-sans border-[16px] border-black shadow-[20px_20px_0px_0px_rgba(0,0,0,1)]">
+      <div className="flex justify-between items-start mb-32">
+        <h1 className="text-8xl font-black italic tracking-tighter leading-none -ml-4 uppercase">{business.name}</h1>
+        <div className="bg-black text-[#ffdd00] p-4 text-xs font-black uppercase tracking-widest mt-4 italic shadow-glow">{title}</div>
       </div>
+      <div className="mb-32">
+        <p className="text-xl uppercase tracking-widest mb-4">Sold to</p>
+        <h2 className="text-6xl uppercase tracking-tighter italic mb-2">{invoice.customer_name}</h2>
+        <p className="text-2xl opacity-60 italic">{invoice.customer_email}</p>
+      </div>
+      <div className="space-y-8 mb-32">
+        {invoice.items.map((it, i) => (
+          <div key={i} className="flex justify-between items-center border-b-[8px] border-black pb-4 group hover:bg-black hover:text-[#ffdd00] transition-all duration-300 px-4">
+            <span className="text-4xl italic">{it.name.toUpperCase()} <span className="text-lg opacity-40">×{it.qty}</span></span>
+            <span className="text-4xl italic">{(it.qty * it.price).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-between items-end">
+        <div className="text-sm uppercase tracking-[0.4em] italic max-w-xs">Confirmed Transaction Powered by YengaPay Engine</div>
+        <div className="text-right">
+          <p className="text-xl uppercase mb-2">Total Amount</p>
+          <p className="text-9xl tracking-tighter italic leading-none">{invoice.total.toLocaleString()} <span className="text-4xl">{invoice.currency}</span></p>
+        </div>
+      </div>
+      
+      <VerificationFooter business={business} invoice={invoice} />
     </div>
-  </div>
-);
+  );
+};
 
 // 30. ZEN MINIMAL (Calm & Serene)
 export const ZenMinimal = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
