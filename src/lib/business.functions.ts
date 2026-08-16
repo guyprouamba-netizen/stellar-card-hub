@@ -42,6 +42,12 @@ export const addProductMedia = (data: { product_id: string; type: "image" | "vid
   callApi("addProductMedia", data);
 export const deleteProductMedia = (id: string) => callApi("deleteProductMedia", { id });
 
+// --- Categories ---
+export const listProductCategories = (business_id: string) => callApi("listProductCategories", { business_id });
+export const createProductCategory = (data: { business_id: string; name: string; description?: string }) =>
+  callApi("createProductCategory", data);
+export const deleteProductCategory = (id: string) => callApi("deleteProductCategory", { id });
+
 // --- Project API keys / webhooks (passerelle) ---
 export const getProjectIntegration = (project_id: string) => callApi("getProjectIntegration", { project_id });
 export const createProjectApiKeys = (data: { project_id: string; mode?: "live" | "test"; webhook_url?: string }) =>

@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Package, Plus, Trash2, Eye, EyeOff, Image as ImageIcon, Loader2, ExternalLink, Download, Settings2, FileUp } from "lucide-react";
+import { Package, Plus, Trash2, Eye, EyeOff, Image as ImageIcon, Loader2, ExternalLink, Download, Settings2, FileUp, FolderPlus } from "lucide-react";
 import {
   listBusinessProducts, createProduct, updateProduct, deleteProduct,
+  listProductCategories, createProductCategory, deleteProductCategory,
+  addProductMedia, deleteProductMedia,
 } from "@/lib/business.functions";
 import { uploadBusinessMedia } from "@/lib/upload";
+
+type ProductCategory = { id: string; name: string; slug: string };
 
 type Product = {
   id: string; name: string; description: string | null; price: number; currency: string;
@@ -14,7 +18,9 @@ type Product = {
   downloadable?: boolean; download_url?: string | null; download_name?: string | null;
   download_limit?: number | null; download_expiry_days?: number | null;
   access_instructions?: string | null; purchase_note?: string | null;
-  product_media?: Array<{ url: string; type: string }>;
+  product_media?: Array<{ id: string; url: string; type: string }>;
+  category_id?: string | null;
+  product_categories?: ProductCategory | null;
 };
 
 const FIELD = "w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary";
@@ -24,6 +30,7 @@ const EMPTY = {
   type: "physical", sku: "", stock: "", manage_stock: false, tax_rate: "",
   downloadable: false, download_url: "", download_name: "", download_limit: "", download_expiry_days: "",
   access_instructions: "", purchase_note: "",
+  category_id: "", media: [] as string[],
 };
 
 export default function ProductsPanel({ businessId, shopSlug }: { businessId: string; shopSlug?: string }) {
@@ -34,21 +41,44 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
   const [uploading, setUploading] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [advanced, setAdvanced] = useState(false);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [newCat, setNewCat] = useState("");
 
   async function refresh() {
-    try { setItems(await listBusinessProducts(businessId)); }
+    try { 
+      const [p, c] = await Promise.all([
+        listBusinessProducts(businessId),
+        listProductCategories(businessId)
+      ]);
+      setItems(p);
+      setCategories(c);
+    }
     catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   }
   useEffect(() => { setLoading(true); refresh(); /* eslint-disable-next-line */ }, [businessId]);
 
   async function onUpload(file: File) {
+    if (draft.media.length >= 5) {
+      toast.error("Maximum 5 images autorisées");
+      return;
+    }
     setUploading(true);
     try {
       const url = await uploadBusinessMedia(file, "products");
-      setDraft((d) => ({ ...d, image_url: url }));
+      setDraft((d) => ({ ...d, media: [...d.media, url], image_url: d.image_url || url }));
     } catch (e: any) { toast.error(e.message); }
     finally { setUploading(false); }
+  }
+
+  async function onAddCategory() {
+    if (!newCat.trim()) return;
+    try {
+      await createProductCategory({ business_id: businessId, name: newCat.trim() });
+      setNewCat("");
+      refresh();
+      toast.success("Catégorie créée ✅");
+    } catch (e: any) { toast.error(e.message); }
   }
 
   async function onUploadFile(file: File) {
@@ -69,11 +99,11 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
     if (!Number.isFinite(price) || price <= 0) { toast.error("Prix invalide"); return; }
     setSaving(true);
     try {
-      await createProduct({
+      const p = await createProduct({
         business_id: businessId, name: draft.name.trim(),
         description: draft.description || null, short_description: draft.short_description || null,
         price, sale_price: num(draft.sale_price),
-        currency: draft.currency, image_url: draft.image_url || null, show_in_shop: true,
+        currency: draft.currency, image_url: draft.image_url || draft.media[0] || null, show_in_shop: true,
         type: draft.type, sku: draft.sku || null,
         stock: num(draft.stock), manage_stock: draft.manage_stock,
         tax_rate: num(draft.tax_rate) ?? 0,
@@ -81,7 +111,19 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
         download_url: draft.download_url || null, download_name: draft.download_name || null,
         download_limit: num(draft.download_limit), download_expiry_days: num(draft.download_expiry_days),
         access_instructions: draft.access_instructions || null, purchase_note: draft.purchase_note || null,
+        category_id: draft.category_id || null,
       });
+
+      // Upload gallery
+      if (draft.media.length > 0) {
+        await Promise.all(draft.media.map((url, i) => addProductMedia({
+          product_id: p.id,
+          type: "image",
+          url,
+          position: i
+        })));
+      }
+
       toast.success("Produit ajouté à la boutique ✅");
       setDraft({ ...EMPTY });
       refresh();
@@ -132,6 +174,22 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
               <option value="USD">USD</option>
             </select>
           </div>
+          
+          <div className="flex gap-2 sm:col-span-2">
+            <select value={draft.category_id} onChange={(e) => setDraft((d) => ({ ...d, category_id: e.target.value }))}
+              className={`${FIELD} flex-1`}>
+              <option value="">-- Sans catégorie --</option>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <div className="flex flex-1 gap-2">
+              <input value={newCat} onChange={(e) => setNewCat(e.target.value)}
+                placeholder="Nouvelle catégorie…" className={`${FIELD} flex-1`} />
+              <button onClick={onAddCategory} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted hover:bg-border transition-colors">
+                <FolderPlus className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
           <textarea value={draft.description} onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
             rows={2} placeholder="Description (optionnel)"
             className="rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary sm:col-span-2" />
@@ -208,11 +266,27 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted">
             {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
-            Photo du produit
-            <input type="file" accept="image/*" className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); e.target.value = ""; }} />
+            Images du produit ({draft.media.length}/5)
+            <input type="file" accept="image/*" className="hidden" multiple
+              onChange={(e) => { 
+                const files = Array.from(e.target.files || []);
+                files.forEach(f => onUpload(f));
+                e.target.value = ""; 
+              }} />
           </label>
-          {draft.image_url && <img src={draft.image_url} alt="" className="h-12 w-12 rounded-xl object-cover" />}
+          <div className="flex flex-wrap gap-2">
+            {draft.media.map((url, i) => (
+              <div key={i} className="relative group">
+                <img src={url} alt="" className="h-12 w-12 rounded-xl object-cover border border-border" />
+                <button 
+                  onClick={() => setDraft(d => ({ ...d, media: d.media.filter((_, idx) => idx !== i) }))}
+                  className="absolute -right-1 -top-1 hidden h-4 w-4 place-items-center rounded-full bg-destructive text-[10px] text-white group-hover:grid"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
           <button onClick={onCreate} disabled={saving}
             className="ml-auto inline-flex items-center gap-2 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Ajouter
@@ -237,6 +311,11 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
                 <div className="p-4">
                   <div className="flex items-center gap-2">
                     <p className="truncate font-bold">{p.name}</p>
+                    {p.product_categories && (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        {p.product_categories.name}
+                      </span>
+                    )}
                     {(p.downloadable || p.type === "digital") && (
                       <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                         <Download className="h-3 w-3" /> Digital

@@ -82,21 +82,25 @@ export function ProductDetailModal({
         </button>
 
         {/* Media Gallery */}
-        <div className="w-full md:w-1/2 overflow-y-auto bg-black/20">
+        <div className="w-full md:w-1/2 overflow-y-auto bg-black/20 no-scrollbar">
           {mainMedia ? (
-            <div className="space-y-2 p-2">
-              <img src={mainMedia} alt={product.name} className="w-full rounded-2xl object-cover aspect-square" />
-              <div className="grid grid-cols-2 gap-2">
-                {otherMedia.map((m, i) => (
-                  <div key={i} className="aspect-square rounded-xl overflow-hidden">
-                    {m.type?.includes('video') ? (
-                      <video src={m.url} className="w-full h-full object-cover" />
-                    ) : (
-                      <img src={m.url} className="w-full h-full object-cover" alt="" />
-                    )}
-                  </div>
-                ))}
+            <div className="space-y-4 p-4">
+              <div className="overflow-hidden rounded-2xl border border-white/10 shadow-lg">
+                <img src={mainMedia} alt={product.name} className="w-full object-cover aspect-square" />
               </div>
+              {otherMedia.length > 0 && (
+                <div className="grid grid-cols-2 gap-4">
+                  {otherMedia.map((m, i) => (
+                    <div key={i} className="aspect-square rounded-2xl overflow-hidden border border-white/5 shadow-md">
+                      {m.type?.includes('video') ? (
+                        <video src={m.url} className="w-full h-full object-cover" controls />
+                      ) : (
+                        <img src={m.url} className="w-full h-full object-cover" alt="" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div className="aspect-square grid place-items-center" style={{ background: `${th.primary}12` }}>

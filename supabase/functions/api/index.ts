@@ -2572,7 +2572,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     }
     await assertBusinessOwner(admin, user.id, business_id);
     let q = admin.from("products")
-      .select("*, product_media(id,type,url,position)").eq("business_id", business_id);
+      .select("*, product_media(id,type,url,position), product_categories(id,name,slug)").eq("business_id", business_id);
     if (data?.project_id) q = q.eq("project_id", data.project_id);
     const { data: rows, error } = await q.order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -2612,6 +2612,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       manage_stock: Boolean(data?.manage_stock),
       tax_rate: Number(data?.tax_rate || 0),
       weight: data?.weight ?? null,
+      category_id: data?.category_id || null,
     }).select("*").single();
     if (error) throw new Error(error.message);
     return row;
@@ -2625,6 +2626,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       "name", "description", "price", "currency", "sku", "stock", "status", "show_in_shop", "image_url", "project_id",
       "type", "short_description", "sale_price", "purchase_note", "access_instructions", "downloadable",
       "download_url", "download_name", "download_limit", "download_expiry_days", "manage_stock", "tax_rate", "weight",
+      "category_id",
     ]) {
       if (data?.[k] !== undefined) patch[k] = data[k];
     }
@@ -2654,6 +2656,37 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!m) throw new Error("Média introuvable");
     await assertBusinessOwner(admin, user.id, (m as any).products.business_id);
     await admin.from("product_media").delete().eq("id", data.id);
+    return { ok: true };
+  },
+
+  // ===========================================================
+  // CATEGORIES
+  // ===========================================================
+  async listProductCategories({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: rows, error } = await admin.from("product_categories")
+      .select("*")
+      .eq("business_id", data.business_id)
+      .order("position", { ascending: true });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  },
+  async createProductCategory({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const name = String(data?.name || "").trim();
+    if (name.length < 2) throw new Error("Nom de catégorie requis");
+    const slug = slugify(name) + "-" + randomHex(2);
+    const { data: row, error } = await admin.from("product_categories").insert({
+      business_id: data.business_id, name, slug, description: data?.description || null,
+    }).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+  async deleteProductCategory({ data, user, admin }) {
+    const { data: cat } = await admin.from("product_categories").select("business_id").eq("id", data.id).maybeSingle();
+    if (!cat) throw new Error("Catégorie introuvable");
+    await assertBusinessOwner(admin, user.id, cat.business_id);
+    await admin.from("product_categories").delete().eq("id", data.id);
     return { ok: true };
   },
 
