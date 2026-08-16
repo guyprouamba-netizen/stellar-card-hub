@@ -855,8 +855,6 @@ function ReferralsAdminTab(_props: { adjust?: any; refetchOverview: () => void }
 
 import { SettingsTab } from "./AdminSettingsRefactor";
 
-/* The old SettingsTab content was here, now refactored */
-/* The old Settings sections were here, now consolidated into SettingsTab refactored */
 
 
 function ShopTemplatesTab() {
