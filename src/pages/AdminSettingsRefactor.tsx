@@ -83,7 +83,10 @@ export function SettingsTab() {
           <InputField k="usd_rate_xof" label="Taux USD → XOF" hint="Valeur du Dollar en CFA (ex: 869)" />
           <InputField k="card_issue_fee_xof" label="Frais émission carte (XOF)" hint="Frais fixe par carte (ex: 4500)" />
           <InputField k="referral_reward_xof" label="Bonus parrainage (XOF)" hint="Bonus par carte achetée" />
+          <InputField k="strowallet_fixed_fee_usd" label="Frais fixe émetteur (USD)" hint="Ex: 1.90" />
+          <InputField k="strowallet_pct_fee" label="Frais % émetteur" hint="Ex: 0.01 = 1%" />
         </div>
+
 
         <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
           <h2 className="font-[Space_Grotesk] text-xl font-bold">Notifications Admin</h2>
