@@ -19,7 +19,7 @@ import { DashboardAiAssistant } from "@/components/admin/ai-assistant";
 
 type Tab = "users" | "flow" | "analytics" | "assistant" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "businesses" | "shop-templates" | "sms-requests" | "settings";
 
-export default function AdminPage() {
+function AdminPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("flow");
   const [authState, setAuthState] = useState<"loading" | "denied" | "ok">("loading");
@@ -410,7 +410,7 @@ function StrowalletTab({ cards, onAction }: { cards: any[]; onAction?: () => voi
   async function sync(card_id?: string) {
     setSyncing(true); setSyncSummary(null);
     try {
-      const r: any = await syncFn({ data: card_id ? { card_id } : {} });
+      const r: any = await syncFn(card_id);
       const changed = (r?.results ?? []).filter((x: any) => x.changed);
       setSyncSummary(
         `${r?.count ?? 0} carte(s) vérifiée(s) · ${changed.length} mise(s) à jour` +
@@ -426,7 +426,7 @@ function StrowalletTab({ cards, onAction }: { cards: any[]; onAction?: () => voi
     if (openTx === provider_card_id) { setOpenTx(null); return; }
     setOpenTx(provider_card_id); setTxItems(null); setTxLoading(true);
     try {
-      const r: any = await txFn({ data: { card_id: provider_card_id } });
+      const r: any = await txFn(provider_card_id);
       setTxItems(r?.items ?? []);
     } catch (e) { toast.error((e as Error).message); setTxItems([]); }
     finally { setTxLoading(false); }
@@ -520,7 +520,7 @@ function PaymentsTab({ tx }: { tx: any[] }) {
     if (!confirm("Confirmer le crédit manuel de cette recharge ?")) return;
     setBusyId(txId);
     try {
-      const r: any = await creditFn({ data: { txId } });
+      const r: any = await creditFn(txId);
       if (r?.alreadyCredited) toast.info("Déjà crédité");
       else toast.success(`Crédité (${r?.amount} XOF)`);
       setTimeout(() => window.location.reload(), 600);
@@ -530,7 +530,7 @@ function PaymentsTab({ tx }: { tx: any[] }) {
   async function inspect() {
     if (!inspectId.trim()) return;
     setInspecting(true); setInspectResult(null);
-    try { setInspectResult(await inspectFn({ data: { id: inspectId.trim() } })); }
+    try { setInspectResult(await inspectFn(inspectId.trim())); }
     catch (e) { toast.error((e as Error).message); }
     finally { setInspecting(false); }
   }
@@ -539,7 +539,7 @@ function PaymentsTab({ tx }: { tx: any[] }) {
     if (ids.length === 0) { toast.error("Collez au moins un ID YengaPay"); return; }
     setVerifying(true); setVerifyResults(null);
     try {
-      const r: any = await verifyBatchFn({ data: { ids } });
+      const r: any = await verifyBatchFn(ids);
       setVerifyResults(r?.results || []);
     } catch (e) { toast.error((e as Error).message); }
     finally { setVerifying(false); }
@@ -547,7 +547,7 @@ function PaymentsTab({ tx }: { tx: any[] }) {
   async function creditFromVerify(txId: string) {
     if (!confirm("Créditer cette recharge maintenant ?")) return;
     try {
-      const r: any = await creditFn({ data: { txId } });
+      const r: any = await creditFn(txId);
       if (r?.alreadyCredited) toast.info("Déjà crédité");
       else toast.success(`Crédité (${r?.amount} XOF)`);
       // refresh verify view: mark this tx as credited locally
@@ -558,7 +558,7 @@ function PaymentsTab({ tx }: { tx: any[] }) {
     if (!r?.id) return;
     if (!confirm(`Créditer automatiquement le paiement ${r.id} au portefeuille identifié ?`)) return;
     try {
-      const res: any = await creditExternalFn({ data: { yengaId: r.id, userId: r.matchedOwner?.id, note: "Crédit depuis vérification YengaPay" } });
+      const res: any = await creditExternalFn({ yengaId: r.id, userId: r.matchedOwner?.id, note: "Crédit depuis vérification YengaPay" });
       if (res?.alreadyCredited) toast.info("Déjà crédité");
       else toast.success(`Crédité (${Number(res?.amount || 0).toLocaleString("fr-FR")} XOF)`);
       setVerifyResults((prev) => prev?.map((it) => it.id === r.id ? { ...it, transaction: { ...(it.transaction || {}), id: res?.tx_id, status: "success", credited: true }, owner: it.owner || it.matchedOwner } : it) || null);
