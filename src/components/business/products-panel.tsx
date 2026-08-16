@@ -41,9 +41,18 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
   const [uploading, setUploading] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [advanced, setAdvanced] = useState(false);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [newCat, setNewCat] = useState("");
 
   async function refresh() {
-    try { setItems(await listBusinessProducts(businessId)); }
+    try { 
+      const [p, c] = await Promise.all([
+        listBusinessProducts(businessId),
+        listProductCategories(businessId)
+      ]);
+      setItems(p);
+      setCategories(c);
+    }
     catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   }
