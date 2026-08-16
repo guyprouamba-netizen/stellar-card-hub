@@ -813,3 +813,78 @@ function ShopProjectsPanel({ projects, onChanged, onGoProjects }: { projects: Pr
     </section>
   );
 }
+
+// ============================================================
+// Panneau : Sélection de Template Boutique
+// ============================================================
+function ShopTemplateSelector({ business, onUpdated }: { business: Biz & { template_id?: string | null }; onUpdated: () => void }) {
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  useEffect(() => {
+    listShopTemplates().then((r: any) => {
+      setTemplates(r.templates || []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  async function onApply(tid: string | null) {
+    setBusy(tid || "reset");
+    try {
+      await applyShopTemplate({ business_id: business.id, template_id: tid });
+      toast.success(tid ? "Template appliqué ✅" : "Template réinitialisé");
+      onUpdated();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(null); }
+  }
+
+  return (
+    <section className="mt-6 rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
+      <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><Palette className="h-5 w-5" /> Template de la boutique</h3>
+      <p className="mt-1 text-xs text-muted-foreground">Choisissez l'apparence visuelle de votre boutique en ligne.</p>
+      
+      {loading ? <div className="py-10 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div> : (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={`overflow-hidden rounded-2xl border transition ${!business.template_id ? 'border-primary ring-2 ring-primary/20' : 'border-border'}`}>
+            <div className="grid h-32 place-items-center bg-muted/30"><Store className="h-8 w-8 text-muted-foreground opacity-20" /></div>
+            <div className="p-4">
+              <p className="font-bold">Par défaut (Classique)</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">Le style épuré Faso-Invest Pay.</p>
+              <button onClick={() => onApply(null)} disabled={!business.template_id || busy === "reset"}
+                      className="mt-4 w-full rounded-full border border-border py-1.5 text-xs font-semibold hover:bg-muted disabled:opacity-50">
+                {busy === "reset" ? "..." : !business.template_id ? "Actuel ✓" : "Utiliser"}
+              </button>
+            </div>
+          </div>
+
+          {templates.map((t) => {
+            const active = business.template_id === t.id;
+            return (
+              <div key={t.id} className={`overflow-hidden rounded-2xl border transition ${active ? 'border-primary ring-2 ring-primary/20' : 'border-border'}`}>
+                {t.thumbnail_url ? <img src={t.thumbnail_url} className="h-32 w-full object-cover" alt="" /> : <div className="h-32 bg-muted/30" />}
+                <div className="p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold truncate">{t.name}</p>
+                    <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${t.is_free ? 'bg-emerald-500/10 text-emerald-500' : 'bg-primary/10 text-primary'}`}>
+                      {t.is_free ? 'Gratuit' : `${t.price} XOF`}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[10px] text-muted-foreground line-clamp-2">{t.description || "Pas de description."}</p>
+                  <div className="mt-4 flex gap-2">
+                    <button onClick={() => onApply(t.id)} disabled={active || !!busy}
+                            className={`flex-1 rounded-full py-1.5 text-xs font-semibold transition ${active ? 'bg-primary/10 text-primary' : 'border border-border hover:bg-muted'} disabled:opacity-50`}>
+                      {busy === t.id ? "..." : active ? "Actuel ✓" : "Appliquer"}
+                    </button>
+                    {t.preview_url && <a href={t.preview_url} target="_blank" rel="noreferrer" className="grid h-8 w-8 place-items-center rounded-full border border-border hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" /></a>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
