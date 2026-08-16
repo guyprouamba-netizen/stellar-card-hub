@@ -4137,14 +4137,18 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const { data: authUser, error: authErr } = await admin.auth.admin.getUserById(user.id);
     const phone = authUser?.user?.user_metadata?.phone || authUser?.user?.phone;
     
+    console.log(`[sendRegistrationOTP] User: ${user.id}, Extracted Phone: ${phone}`);
     if (!phone) {
       // Fallback sur le profil si metadata absent
       const { data: p } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
+      console.log(`[sendRegistrationOTP] Profile phone fallback: ${p?.phone}`);
       if (!p?.phone) throw new Error("Aucun numéro de téléphone trouvé pour l'envoi de l'OTP.");
       return await handleRegistrationOTP(admin, user.id, p.phone, "send");
     }
     
-    return await handleRegistrationOTP(admin, user.id, phone, "send");
+    const result = await handleRegistrationOTP(admin, user.id, phone, "send");
+    console.log(`[sendRegistrationOTP] Result:`, JSON.stringify(result));
+    return result;
   },
 
   async verifyRegistrationOTP({ data, user, admin }) {

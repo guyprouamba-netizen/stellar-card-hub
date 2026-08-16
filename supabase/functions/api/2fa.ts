@@ -18,14 +18,22 @@ export async function handle2FA(admin: any, userId: string, phone: string, actio
     });
     if (error) throw error;
 
+    console.log(`[handle2FA] Sending WhatsApp OTP to ${normalized} for purpose ${purpose}`);
     const r = await sendSmsRaw({
       recipient: normalized,
-      message: otp,
+      message: purpose === "registration" 
+        ? `Bienvenue sur FASO-INVEST PAY ! Votre code de confirmation est : ${otp}`
+        : `Votre code de sécurité FASO-INVEST PAY est : ${otp}`,
       sender_id: "FASOINVEST",
       type: "whatsapp"
     });
 
-    if (!r.ok) throw new Error("Erreur lors de l'envoi WhatsApp OTP");
+    console.log(`[handle2FA] BBG SMS response:`, JSON.stringify(r.body));
+
+    if (!r.ok) {
+      console.error(`[handle2FA] BBG SMS Error:`, r.body);
+      throw new Error(`Erreur lors de l'envoi WhatsApp OTP: ${r.body?.message || r.body?.error || "Erreur inconnue"}`);
+    }
     return { ok: true, expires_at: expiresAt };
   } else {
     if (!code) throw new Error("Code OTP requis");
@@ -82,8 +90,8 @@ export async function handleRegistrationOTP(admin: any, userId: string, phone: s
     });
 
     if (!r.ok) {
-      console.error("WhatsApp registration OTP failed:", r.body);
-      throw new Error("Erreur lors de l'envoi WhatsApp OTP");
+      console.error(`[handleRegistrationOTP] BBG SMS Error:`, JSON.stringify(r.body));
+      throw new Error(`Erreur lors de l'envoi WhatsApp OTP: ${r.body?.message || r.body?.error || "Réponse invalide de l'API"}`);
     }
     return { ok: true, expires_at: expiresAt };
   } else {

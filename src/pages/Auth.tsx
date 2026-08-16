@@ -151,9 +151,9 @@ function Auth() {
           toast.success("Code de bienvenue envoyé par WhatsApp");
         } catch (err: any) {
           // En cas d'erreur d'envoi OTP, on laisse l'utilisateur mais on affiche l'erreur
-          // (Optionnel: on pourrait le déconnecter si on veut forcer l'OTP)
-          console.error("OTP send failed", err);
-          toast.error("Impossible d'envoyer le code WhatsApp. Contactez le support.");
+          console.error("OTP send failed detailed:", err);
+          const errorMsg = err.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+          toast.error(`WhatsApp non reçu: ${errorMsg}. Contactez le support.`);
           await fastRedirect(signedInUser);
         } finally {
           setLoading(false);
