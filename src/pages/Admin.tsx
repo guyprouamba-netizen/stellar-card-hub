@@ -904,18 +904,8 @@ function SettingsTab() {
         {field("strowallet_fixed_fee_usd", "Frais fixe émetteur (USD)", "Frais émetteur par opération (ex: 1.90)", "0.01")}
         {field("strowallet_pct_fee", "Frais % émetteur", "Pourcentage émetteur en décimal (ex: 0.01 = 1%)", "0.001")}
         {field("referral_reward_xof", "Récompense parrainage (XOF)", "Montant crédité au parrain par carte achetée par un filleul (ex: 1000)", "1")}
-        <label className="block md:col-span-2">
-          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Lien groupe WhatsApp</span>
-          <input
-            type="url"
-            value={draft.whatsapp_group_url ?? ""}
-            onChange={(e) => setDraft((d: any) => ({ ...d, whatsapp_group_url: e.target.value }))}
-            placeholder="https://chat.whatsapp.com/..."
-            className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none"
-          />
-          <span className="mt-1 block text-[11px] text-muted-foreground">Affiché sur le tableau de bord de tous les utilisateurs et sur la page parrainage.</span>
-        </label>
-        <label className="block md:col-span-2">
+        
+        <label className="block">
           <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Alertes Admin (Téléphone)</span>
           <input
             type="text"
@@ -924,7 +914,19 @@ function SettingsTab() {
             placeholder="+22670000000"
             className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none"
           />
-          <span className="mt-1 block text-[11px] text-muted-foreground">Numéro recevant les notifications SMS critiques (demandes de Sender ID, etc.)</span>
+          <span className="mt-1 block text-[11px] text-muted-foreground">Numéro recevant les notifications SMS critiques.</span>
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Lien groupe WhatsApp</span>
+          <input
+            type="url"
+            value={draft.whatsapp_group_url ?? ""}
+            onChange={(e) => setDraft((d: any) => ({ ...d, whatsapp_group_url: e.target.value }))}
+            placeholder="https://chat.whatsapp.com/..."
+            className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none"
+          />
+          <span className="mt-1 block text-[11px] text-muted-foreground">Affiché sur le tableau de bord.</span>
         </label>
       </div>
       <div className="flex justify-end gap-2">

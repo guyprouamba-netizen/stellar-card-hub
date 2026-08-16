@@ -4068,7 +4068,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     // Alert admin via SMS
     try {
       const { data: cfg } = await admin.from("platform_config").select("value").eq("key", "admin_notification_phone").maybeSingle();
-      const rawPhone = cfg?.value || "+22670000000";
+      const rawPhone = cfg?.value || "+22607933364"; // Updated fallback
       const adminPhone = normalizeBfPhone(rawPhone);
       
       const { data: smsCfg } = await admin.from("sms_config").select("sender_id").limit(1).maybeSingle();
