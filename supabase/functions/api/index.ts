@@ -4180,11 +4180,12 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     }
     
     try {
+      console.log(`[sendRegistrationOTP] Calling handleRegistrationOTP with phone: ${phone}`);
       const result = await handleRegistrationOTP(admin, user.id, phone, "send");
       console.log(`[sendRegistrationOTP] Success:`, JSON.stringify(result));
       return result;
     } catch (e) {
-      console.error(`[sendRegistrationOTP] handleRegistrationOTP error:`, e);
+      console.error(`[sendRegistrationOTP] handleRegistrationOTP CRITICAL ERROR:`, e);
       throw e;
     }
   },
