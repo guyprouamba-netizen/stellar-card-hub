@@ -9,6 +9,8 @@ import { listInvoices } from "@/lib/business.functions";
 import { getAccountingSettings } from "@/lib/accounting.functions";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import InvoiceEditor from "@/components/business/invoice-editor";
+import { supabase } from "@/integrations/supabase/client";
 
 type Invoice = {
   id: string;
@@ -21,6 +23,7 @@ type Invoice = {
   status: "issued" | "paid" | "cancelled";
   created_at: string;
   items: any[];
+  template_slug?: string;
 };
 
 export default function ContractsAndInvoices() {
@@ -28,23 +31,29 @@ export default function ContractsAndInvoices() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<any>(null);
+  const [business, setBusiness] = useState<any>(null);
   const [filter, setFilter] = useState("");
+  const [showEditor, setShowEditor] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+
+  const load = async () => {
+    try {
+      const [invs, sett, { data: biz }] = await Promise.all([
+        listInvoices(businessId),
+        getAccountingSettings(businessId),
+        supabase.from('businesses').select('*').eq('id', businessId).single()
+      ]);
+      setInvoices(invs);
+      setSettings(sett);
+      setBusiness(biz);
+    } catch (e: any) {
+      toast.error("Erreur de chargement");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [invs, sett] = await Promise.all([
-          listInvoices(businessId),
-          getAccountingSettings(businessId)
-        ]);
-        setInvoices(invs);
-        setSettings(sett);
-      } catch (e: any) {
-        toast.error("Erreur de chargement");
-      } finally {
-        setLoading(false);
-      }
-    }
     if (businessId) load();
   }, [businessId]);
 
@@ -68,7 +77,13 @@ export default function ContractsAndInvoices() {
             <p className="text-sm text-muted-foreground">Gérez vos factures pro forma, reçus et contrats marchands.</p>
           </div>
           <div className="flex gap-2">
-            <button className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-glow">
+            <button 
+              onClick={() => {
+                setEditingInvoice(null);
+                setShowEditor(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-glow hover:scale-[1.02] transition-transform"
+            >
               <Plus className="h-4 w-4" /> Nouvelle facture
             </button>
           </div>
@@ -130,7 +145,10 @@ export default function ContractsAndInvoices() {
                   ) : filteredInvoices.length === 0 ? (
                     <tr><td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">Aucun document trouvé.</td></tr>
                   ) : filteredInvoices.map((inv) => (
-                    <tr key={inv.id} className="hover:bg-muted/30 transition-colors">
+                    <tr key={inv.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => {
+                      setEditingInvoice(inv);
+                      setShowEditor(true);
+                    }}>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -159,7 +177,7 @@ export default function ContractsAndInvoices() {
                           {inv.status === 'paid' ? 'Payé' : inv.status === 'issued' ? 'Émis' : 'Annulé'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-2">
                           <button className="p-2 hover:bg-muted rounded-full text-muted-foreground transition-colors" title="Télécharger PDF">
                             <Download className="h-4 w-4" />
@@ -180,6 +198,19 @@ export default function ContractsAndInvoices() {
           </div>
         </div>
       </div>
+
+      {showEditor && (
+        <InvoiceEditor 
+          business={business}
+          settings={settings}
+          invoice={editingInvoice}
+          onClose={() => setShowEditor(false)}
+          onSaved={() => {
+            setShowEditor(false);
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }
