@@ -266,11 +266,27 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted">
             {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
-            Photo du produit
-            <input type="file" accept="image/*" className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); e.target.value = ""; }} />
+            Images du produit ({draft.media.length}/5)
+            <input type="file" accept="image/*" className="hidden" multiple
+              onChange={(e) => { 
+                const files = Array.from(e.target.files || []);
+                files.forEach(f => onUpload(f));
+                e.target.value = ""; 
+              }} />
           </label>
-          {draft.image_url && <img src={draft.image_url} alt="" className="h-12 w-12 rounded-xl object-cover" />}
+          <div className="flex flex-wrap gap-2">
+            {draft.media.map((url, i) => (
+              <div key={i} className="relative group">
+                <img src={url} alt="" className="h-12 w-12 rounded-xl object-cover border border-border" />
+                <button 
+                  onClick={() => setDraft(d => ({ ...d, media: d.media.filter((_, idx) => idx !== i) }))}
+                  className="absolute -right-1 -top-1 hidden h-4 w-4 place-items-center rounded-full bg-destructive text-[10px] text-white group-hover:grid"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
           <button onClick={onCreate} disabled={saving}
             className="ml-auto inline-flex items-center gap-2 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Ajouter
