@@ -58,6 +58,7 @@ export function ProductDetailModal({
       if (!r?.reference) throw new Error("Paiement indisponible pour le moment");
       
       if (r.checkoutUrl) {
+        console.log("Redirecting to:", r.checkoutUrl);
         window.location.href = r.checkoutUrl;
         return;
       }
