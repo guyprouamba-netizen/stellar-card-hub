@@ -903,51 +903,56 @@ export const RetroTicket = ({ invoice, business, kind = "invoice" }: TemplatePro
 };
 
 // 19. CLEAN PHARMACY
-export const CleanPharmacy = ({ invoice, business, settings }: TemplateProps) => (
-  <div className="bg-white p-10 max-w-4xl mx-auto border-t-8 border-emerald-500 font-sans shadow-lg">
-    <div className="flex justify-between items-start mb-12">
-      <div className="flex items-center gap-3">
-        <div className="w-12 h-12 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-2xl">+</div>
-        <div>
-          <h1 className="text-xl font-black text-slate-900">{settings.legal_name || business.name}</h1>
-          <p className="text-xs text-emerald-600 font-bold uppercase tracking-widest">Pharmacie & Soins</p>
+export const CleanPharmacy = ({ invoice, business, settings, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
+  return (
+    <div className="bg-white p-10 max-w-4xl mx-auto border-t-8 border-emerald-500 font-sans shadow-lg">
+      <div className="flex justify-between items-start mb-12">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-2xl">+</div>
+          <div>
+            <h1 className="text-xl font-black text-slate-900">{settings.legal_name || business.name}</h1>
+            <p className="text-xs text-emerald-600 font-bold uppercase tracking-widest">Santé & Bien-être</p>
+          </div>
+        </div>
+        <div className="text-right text-sm">
+          <p className="font-bold">{title} N° {invoice.number}</p>
+          <p className="text-slate-400">{format(new Date(invoice.created_at), 'dd/MM/yyyy')}</p>
         </div>
       </div>
-      <div className="text-right text-sm">
-        <p className="font-bold">Facture N° {invoice.number}</p>
-        <p className="text-slate-400">{format(new Date(invoice.created_at), 'dd/MM/yyyy')}</p>
+      <div className="mb-10 bg-emerald-50 p-6 rounded-2xl">
+        <p className="text-xs font-bold text-emerald-800 uppercase mb-2">Informations Client</p>
+        <p className="text-xl font-bold text-slate-900">{invoice.customer_name}</p>
+        <p className="text-sm text-slate-500">{invoice.customer_email}</p>
       </div>
-    </div>
-    <div className="mb-10 bg-emerald-50 p-6 rounded-2xl">
-      <p className="text-xs font-bold text-emerald-800 uppercase mb-2">Patient / Client</p>
-      <p className="text-xl font-bold text-slate-900">{invoice.customer_name}</p>
-    </div>
-    <table className="w-full text-sm mb-12">
-      <thead className="text-emerald-800 font-bold border-b-2 border-emerald-100">
-        <tr className="text-left">
-          <th className="py-2">Médicament / Produit</th>
-          <th className="py-2 text-right">Qte</th>
-          <th className="py-2 text-right">Total</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-100">
-        {invoice.items.map((it, i) => (
-          <tr key={i}>
-            <td className="py-4 font-medium text-slate-700">{it.name}</td>
-            <td className="py-4 text-right text-slate-500">{it.qty}</td>
-            <td className="py-4 text-right font-bold text-slate-900">{(it.qty * it.price).toLocaleString()}</td>
+      <table className="w-full text-sm mb-12">
+        <thead className="text-emerald-800 font-bold border-b-2 border-emerald-100">
+          <tr className="text-left">
+            <th className="py-2">Description</th>
+            <th className="py-2 text-right">Qte</th>
+            <th className="py-2 text-right">Total</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
-    <div className="flex justify-end pt-8 border-t border-slate-100">
-      <div className="text-right">
-        <p className="text-xs font-bold text-slate-400 uppercase">Net à payer</p>
-        <p className="text-4xl font-black text-emerald-600">{invoice.total.toLocaleString()} {invoice.currency}</p>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {invoice.items.map((it, i) => (
+            <tr key={i}>
+              <td className="py-4 font-medium text-slate-700">{it.name}</td>
+              <td className="py-4 text-right text-slate-500">{it.qty}</td>
+              <td className="py-4 text-right font-bold text-slate-900">{(it.qty * it.price).toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="flex justify-between items-end pt-8 border-t border-slate-100">
+        <VerificationFooter business={business} invoice={invoice} />
+        <div className="text-right">
+          <p className="text-xs font-bold text-slate-400 uppercase">Net à payer</p>
+          <p className="text-4xl font-black text-emerald-600">{invoice.total.toLocaleString()} {invoice.currency}</p>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // 20. TECH STARTUP (Style Linear/Vercel)
 export const TechStartup = ({ invoice, business }: TemplateProps) => (
