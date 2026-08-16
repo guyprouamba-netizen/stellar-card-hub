@@ -1480,11 +1480,6 @@ INVOICE_TEMPLATES["bold-impact"] = BoldImpact;
 INVOICE_TEMPLATES["zen-minimal"] = ZenMinimal;
 
 RECEIPT_TEMPLATES["bistro-thermal"] = BistroThermal;
-RECEIPT_TEMPLATES["uber-receipt"] = UberReceipt;
-RECEIPT_TEMPLATES["retro-ticket"] = RetroTicket;
-RECEIPT_TEMPLATES["clean-pharmacy"] = CleanPharmacy;
-RECEIPT_TEMPLATES["coffee-shop"] = CoffeeShop;
-RECEIPT_TEMPLATES["luxe-maison"] = LuxeMaison;
 
 CONTRACT_TEMPLATES["notaire-officiel"] = NotaireOfficiel;
 CONTRACT_TEMPLATES["hotel-luxe"] = HotelLuxe;
