@@ -2303,6 +2303,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
         extrasMap[r.key] = String(val) === "true";
       } else if (allowedNumbers.includes(r.key)) {
         extrasMap[r.key] = Number(val);
+      } else if (allowedStrings.includes(r.key)) {
+        extrasMap[r.key] = String(val);
       } else {
         extrasMap[r.key] = val;
       }
