@@ -151,10 +151,10 @@ function Auth() {
           setMode("registration_otp");
           toast.success("Code de bienvenue envoyé par WhatsApp");
         } catch (err: any) {
-          // En cas d'erreur d'envoi OTP, on laisse l'utilisateur mais on affiche l'erreur
           console.error("OTP send failed detailed:", err);
-          toast.error("'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            FAIS LES TESTES ET DIS MOI LE RESULTAT");
-          await fastRedirect(signedInUser);
+          toast.error("Échec de l'envoi du code WhatsApp. Veuillez vérifier votre numéro ou réessayer.");
+          // IMPORTANT: Ne pas rediriger, rester en mode signup pour permettre de réessayer
+          setMode("signup");
         } finally {
           setLoading(false);
         }
