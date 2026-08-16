@@ -32,7 +32,7 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
     const newItems = [...data.items];
     newItems[index] = { ...newItems[index], [field]: value };
     
-    const subtotal = newItems.reduce((acc, it) => acc + (it.qty * it.price), 0);
+    const subtotal = newItems.reduce((acc: number, it: any) => acc + (it.qty * it.price), 0);
     const total = subtotal + data.tax;
     
     setData({ ...data, items: newItems, subtotal, total });
@@ -43,8 +43,8 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
   };
 
   const removeItem = (index: number) => {
-    const newItems = data.items.filter((_, i) => i !== index);
-    const subtotal = newItems.reduce((acc, it) => acc + (it.qty * it.price), 0);
+    const newItems = data.items.filter((_: any, i: number) => i !== index);
+    const subtotal = newItems.reduce((acc: number, it: any) => acc + (it.qty * it.price), 0);
     setData({ ...data, items: newItems, subtotal, total: subtotal + data.tax });
   };
 
@@ -103,7 +103,7 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
                 </button>
               </div>
               <div className="space-y-3">
-                {data.items.map((item, i) => (
+                {data.items.map((item: any, i: number) => (
                   <div key={i} className="flex gap-2 items-start bg-muted/30 p-3 rounded-xl">
                     <div className="flex-1 space-y-2">
                       <input 
