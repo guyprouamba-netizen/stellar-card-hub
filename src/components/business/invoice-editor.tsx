@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, Save, Download, Printer, Eye, Settings2, Trash2, Plus, User, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { INVOICE_TEMPLATES } from "./invoice-templates";
+import { createInvoice, updateInvoice } from "@/lib/business.functions";
 
 interface InvoiceEditorProps {
   business: any;
@@ -148,11 +149,24 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
           </div>
 
           <div className="mt-auto pt-6 border-t border-border flex gap-3">
-            <button className="flex-1 rounded-full border border-border py-3 text-sm font-bold hover:bg-muted transition-colors">
-              Brouillon
-            </button>
-            <button className="flex-1 rounded-full bg-gradient-primary py-3 text-sm font-bold text-primary-foreground shadow-glow hover:scale-[1.02] active:scale-[0.98] transition-all">
-              Générer
+            <button 
+              onClick={() => {
+                const toastId = toast.loading("Enregistrement...");
+                const action = data.id ? updateInvoice : createInvoice;
+                const payload = data.id ? data : { ...data, business_id: business.id };
+                
+                action({ ...payload, template_slug: template })
+                  .then(() => {
+                    toast.success("Facture enregistrée", { id: toastId });
+                    onSaved();
+                  })
+                  .catch((err) => {
+                    toast.error("Erreur: " + err.message, { id: toastId });
+                  });
+              }}
+              className="flex-1 rounded-full bg-gradient-primary py-3 text-sm font-bold text-primary-foreground shadow-glow hover:scale-[1.02] active:scale-[0.98] transition-all"
+            >
+              {data.id ? 'Mettre à jour' : 'Générer'}
             </button>
           </div>
         </div>
