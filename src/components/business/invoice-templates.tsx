@@ -1229,40 +1229,45 @@ export const DarkVanguard = ({ invoice, business }: TemplateProps) => (
 );
 
 // 28. ORGANIC KRAFT (Eco-friendly Retail)
-export const OrganicKraft = ({ invoice, business }: TemplateProps) => (
-  <div className="bg-[#e7d9c1] p-12 max-w-3xl mx-auto font-mono text-[#544a3d] border-[12px] border-[#cbbca1] shadow-inner relative">
-    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-40 pointer-events-none" />
-    <div className="text-center mb-16 relative z-10">
-      <div className="w-20 h-20 border-4 border-[#544a3d] rounded-full mx-auto flex items-center justify-center mb-6">
-        <div className="text-4xl font-black">O</div>
-      </div>
-      <h1 className="text-4xl font-black uppercase tracking-tighter italic">{business.name}</h1>
-      <p className="text-xs font-bold uppercase mt-2 italic opacity-60">Purely Authentic Goods</p>
-    </div>
-    <div className="space-y-6 mb-16 border-y-4 border-[#544a3d] border-dotted py-12 relative z-10">
-      {invoice.items.map((it, i) => (
-        <div key={i} className="flex justify-between items-start group">
-          <div className="flex-1">
-            <p className="text-xl font-black italic">{it.name.toUpperCase()}</p>
-            <p className="text-xs font-bold opacity-40 mt-1">QTY: {it.qty} × {it.price.toLocaleString()}</p>
-          </div>
-          <p className="text-2xl font-black">{(it.qty * it.price).toLocaleString()}</p>
+export const OrganicKraft = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
+  return (
+    <div className="bg-[#e7d9c1] p-12 max-w-3xl mx-auto font-mono text-[#544a3d] border-[12px] border-[#cbbca1] shadow-inner relative">
+      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cardboard-flat.png')] opacity-40 pointer-events-none" />
+      <div className="text-center mb-16 relative z-10">
+        <div className="w-20 h-20 border-4 border-[#544a3d] rounded-full mx-auto flex items-center justify-center mb-6">
+          <div className="text-4xl font-black">O</div>
         </div>
-      ))}
-    </div>
-    <div className="flex justify-between items-center text-4xl font-black italic border-4 border-[#544a3d] p-8 relative z-10">
-      <span>TOTAL</span>
-      <span>{invoice.total.toLocaleString()} {invoice.currency}</span>
-    </div>
-    <div className="mt-16 text-center text-xs font-bold uppercase tracking-widest relative z-10">
-      <p>Recipient: {invoice.customer_name}</p>
-      <p className="mt-2 italic opacity-40">Doc Ref: {invoice.number}</p>
-      <div className="mt-12 h-20 w-full bg-[#544a3d]/10 flex items-center justify-center border-2 border-[#544a3d]/20 border-dashed">
-        <span className="text-[10px] opacity-40 italic">Signature / Stamp</span>
+        <h1 className="text-4xl font-black uppercase tracking-tighter italic">{business.name}</h1>
+        <p className="text-xs font-bold uppercase mt-2 italic opacity-60">{title}</p>
       </div>
+      <div className="space-y-6 mb-16 border-y-4 border-[#544a3d] border-dotted py-12 relative z-10">
+        {invoice.items.map((it, i) => (
+          <div key={i} className="flex justify-between items-start group">
+            <div className="flex-1">
+              <p className="text-xl font-black italic">{it.name.toUpperCase()}</p>
+              <p className="text-xs font-bold opacity-40 mt-1">QTY: {it.qty} × {it.price.toLocaleString()}</p>
+            </div>
+            <p className="text-2xl font-black">{(it.qty * it.price).toLocaleString()}</p>
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-between items-center text-4xl font-black italic border-4 border-[#544a3d] p-8 relative z-10">
+        <span>TOTAL</span>
+        <span>{invoice.total.toLocaleString()} {invoice.currency}</span>
+      </div>
+      <div className="mt-16 text-center text-xs font-bold uppercase tracking-widest relative z-10">
+        <p>Recipient: {invoice.customer_name}</p>
+        <p className="mt-2 italic opacity-40">Doc Ref: {invoice.number}</p>
+        <div className="mt-12 h-20 w-full bg-[#544a3d]/10 flex items-center justify-center border-2 border-[#544a3d]/20 border-dashed">
+          <span className="text-[10px] opacity-40 italic">Signature / Stamp</span>
+        </div>
+      </div>
+      
+      <VerificationFooter business={business} invoice={invoice} />
     </div>
-  </div>
-);
+  );
+};
 
 // 29. BOLD IMPACT (Aggressive Marketing)
 export const BoldImpact = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
