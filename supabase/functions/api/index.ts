@@ -4133,21 +4133,38 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   },
 
   async sendRegistrationOTP({ user, admin }) {
-    // Lors de l'inscription, on récupère le numéro directement depuis auth.users via le service_role
-    const { data: authUser, error: authErr } = await admin.auth.admin.getUserById(user.id);
-    const phone = authUser?.user?.user_metadata?.phone || authUser?.user?.phone;
+    console.log(`[sendRegistrationOTP] Initiating for user: ${user.id}`);
     
-    console.log(`[sendRegistrationOTP] User: ${user.id}, Extracted Phone: ${phone}`);
+    // Attempt to get phone from metadata first
+    let phone = user.user_metadata?.phone;
+    console.log(`[sendRegistrationOTP] Metadata phone: ${phone}`);
+    
     if (!phone) {
-      // Fallback sur le profil si metadata absent
-      const { data: p } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
-      console.log(`[sendRegistrationOTP] Profile phone fallback: ${p?.phone}`);
-      if (!p?.phone) throw new Error("Aucun numéro de téléphone trouvé pour l'envoi de l'OTP.");
-      return await handleRegistrationOTP(admin, user.id, p.phone, "send");
+      // Direct fetch from auth.admin in case metadata isn't refreshed in current user object
+      const { data: authUser, error: authErr } = await admin.auth.admin.getUserById(user.id);
+      if (authErr) {
+        console.error(`[sendRegistrationOTP] auth.admin fetch error:`, authErr);
+      }
+      phone = authUser?.user?.user_metadata?.phone || authUser?.user?.phone;
+      console.log(`[sendRegistrationOTP] Auth.admin phone: ${phone}`);
+    }
+    
+    if (!phone) {
+      // Final fallback to profiles table
+      const { data: p, error: pErr } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
+      if (pErr) {
+        console.error(`[sendRegistrationOTP] Profile fetch error:`, pErr);
+      }
+      phone = p?.phone;
+      console.log(`[sendRegistrationOTP] Profile phone fallback: ${phone}`);
+    }
+    
+    if (!phone) {
+      throw new Error("Aucun numéro de téléphone trouvé. Assurez-vous d'avoir saisi votre numéro WhatsApp lors de l'inscription.");
     }
     
     const result = await handleRegistrationOTP(admin, user.id, phone, "send");
-    console.log(`[sendRegistrationOTP] Result:`, JSON.stringify(result));
+    console.log(`[sendRegistrationOTP] Success:`, JSON.stringify(result));
     return result;
   },
 
