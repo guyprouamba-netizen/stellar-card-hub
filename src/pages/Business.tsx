@@ -22,7 +22,7 @@ import { LayoutDashboard, Receipt, CreditCard, Settings2, BarChart3, BookOpen } 
 
 const NAV = [
   { id: "overview", label: "Tableau de bord", icon: LayoutDashboard },
-  { id: "gateway", label: "Passerelle Marchande", icon: ShieldCheck },
+  { id: "gateway", label: "Intégration API", icon: ShieldCheck },
   { id: "projects", label: "Projets", icon: FolderKanban },
   { id: "products", label: "Produits", icon: Package },
   { id: "links", label: "Liens de paiement", icon: Link2 },
@@ -411,7 +411,7 @@ export default function BusinessPage() {
                           <ShieldCheck className="h-6 w-6" />
                         </div>
                         <div>
-                          <h3 className="font-[Space_Grotesk] text-xl font-bold">Passerelle Marchande</h3>
+                          <h3 className="font-[Space_Grotesk] text-xl font-bold">Intégration API (Technique)</h3>
                           <p className="text-sm text-muted-foreground">Encaissez vos clients directement sur votre site via l'API YengaPay (Projet 31062).</p>
                         </div>
                       </div>
