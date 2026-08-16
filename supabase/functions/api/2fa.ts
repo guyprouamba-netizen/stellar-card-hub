@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { sendSmsRaw, normalizeBfPhone } from "../_shared/sms.ts";
 
-export async function handle2FA(admin: any, userId: string, phone: string, action: "send" | "verify", code?: string) {
+export async function handle2FA(admin: any, userId: string, phone: string, action: "send" | "verify", code?: string, purpose: "2fa" | "registration" = "2fa") {
   const normalized = normalizeBfPhone(phone);
   if (!normalized) throw new Error("Numéro de téléphone invalide");
 
@@ -14,7 +14,7 @@ export async function handle2FA(admin: any, userId: string, phone: string, actio
       phone: normalized,
       code: otp,
       expires_at: expiresAt,
-      purpose: "2fa"
+      purpose
     });
     if (error) throw error;
 
@@ -33,13 +33,22 @@ export async function handle2FA(admin: any, userId: string, phone: string, actio
       .select("*")
       .eq("user_id", userId)
       .eq("code", code)
-      .eq("purpose", "2fa")
+      .eq("purpose", purpose)
       .gt("expires_at", new Date().toISOString())
       .maybeSingle();
 
     if (error || !data) throw new Error("Code invalide ou expiré");
 
     await admin.from("user_otp").delete().eq("id", data.id);
+    
+    // Si c'est une inscription, on marque le téléphone comme vérifié
+    if (purpose === "registration") {
+      await admin.from("profiles").update({ 
+        phone_verified: true, 
+        phone_verified_at: new Date().toISOString() 
+      }).eq("id", userId);
+    }
+
     return { ok: true };
   }
 }

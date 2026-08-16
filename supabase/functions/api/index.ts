@@ -4122,14 +4122,27 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async send2FAOTP({ user, admin }) {
     const { data: p } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
     if (!p?.phone) throw new Error("Aucun numéro de téléphone configuré dans votre profil.");
-    return await handle2FA(admin, user.id, p.phone, "send");
+    return await handle2FA(admin, user.id, p.phone, "send", undefined, "2fa");
   },
 
   async verify2FAOTP({ data, user, admin }) {
     const { code } = data;
     const { data: p } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
     if (!p?.phone) throw new Error("Profil incomplet.");
-    return await handle2FA(admin, user.id, p.phone, "verify", code);
+    return await handle2FA(admin, user.id, p.phone, "verify", code, "2fa");
+  },
+
+  async sendRegistrationOTP({ user, admin }) {
+    const { data: p } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
+    if (!p?.phone) throw new Error("Aucun numéro de téléphone configuré.");
+    return await handle2FA(admin, user.id, p.phone, "send", undefined, "registration");
+  },
+
+  async verifyRegistrationOTP({ data, user, admin }) {
+    const { code } = data;
+    const { data: p } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
+    if (!p?.phone) throw new Error("Profil incomplet.");
+    return await handle2FA(admin, user.id, p.phone, "verify", code, "registration");
   },
 
   async update2FASettings({ data, user, admin }) {
