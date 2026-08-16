@@ -27,14 +27,7 @@ export function SettingsTab() {
   async function save() {
     setBusy(true);
     try {
-      // Logic for saving configuration:
-      // 1. First update platform_config via backend (adminUpdateConfig)
-      // 2. Also keep specialized config tables in sync (paypal_withdraw_config, etc.)
-      // 3. Update SMS config in public.sms_config
-      
       const payload = { ...draft };
-      
-      // Ensure numeric conversion for all number fields
       const allowedNumbers = [
         "card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee", "referral_reward_xof",
         "paypal_wd_fee_bps", "paypal_wd_fee_flat_xof", "paypal_wd_min_xof", "paypal_wd_max_xof",
@@ -42,13 +35,12 @@ export function SettingsTab() {
         "business_cashout_fee_bps", "business_cashout_fee_flat_xof", "business_cashout_min_xof"
       ];
       for (const k of allowedNumbers) {
-        if (payload[k] !== undefined) payload[k] = Number(payload[k]);
+        if (payload[k] !== undefined && payload[k] !== "") payload[k] = Number(payload[k]);
       }
 
       const r: any = await updCfg({ data: payload });
       if (r?.ok === false) throw new Error(r.error);
       
-      // Update global SMS settings to ensure persistence
       await supabase.from("sms_config").upsert({
         id: 'global',
         notify_admin_sender_request: !!payload.notify_admin_sender_request,
@@ -69,7 +61,6 @@ export function SettingsTab() {
       setBusy(false);
     }
   }
-
 
   if (!cfg) return <div className="p-12 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></div>;
 
@@ -106,7 +97,6 @@ export function SettingsTab() {
           <InputField k="strowallet_pct_fee" label="Frais % émetteur" hint="Ex: 0.01 = 1%" />
         </div>
 
-
         <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
           <h2 className="font-[Space_Grotesk] text-xl font-bold">Notifications Admin</h2>
           <InputField k="admin_notification_phone" label="Téléphone Admin (SMS)" hint="Numéro recevant les alertes" type="text" placeholder="+226..." />
@@ -137,10 +127,12 @@ export function SettingsTab() {
             </label>
           ))}
         </div>
-
         <div className="grid gap-6 md:grid-cols-2 pt-4">
           <InputField k="sender_request_admin_template" label="Template SMS Admin" hint="Vars: {name}, {sender_id}, {company}" type="text" />
           <InputField k="sender_request_user_template" label="Template SMS Marchand" hint="Vars: {name}, {sender_id}" type="text" />
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
         <h2 className="font-[Space_Grotesk] text-xl font-bold">Passerelle API & PayPal</h2>
         <div className="grid gap-6 md:grid-cols-2">
@@ -157,7 +149,6 @@ export function SettingsTab() {
               </label>
             </div>
           </div>
-
           <div className="space-y-4">
             <h3 className="text-sm font-bold opacity-70 uppercase tracking-widest">Retrait PayPal</h3>
             <div className="grid gap-3">
@@ -172,7 +163,6 @@ export function SettingsTab() {
             </div>
           </div>
         </div>
-
         <div className="mt-6 pt-6 border-t border-border">
           <h3 className="text-sm font-bold opacity-70 uppercase tracking-widest mb-4">Retrait Marchand (Cashout)</h3>
           <div className="grid gap-6 md:grid-cols-3">
@@ -182,6 +172,6 @@ export function SettingsTab() {
           </div>
         </div>
       </div>
-
+    </div>
   );
 }
