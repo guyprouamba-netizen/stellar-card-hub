@@ -311,6 +311,11 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
                 <div className="p-4">
                   <div className="flex items-center gap-2">
                     <p className="truncate font-bold">{p.name}</p>
+                    {p.product_categories && (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        {p.product_categories.name}
+                      </span>
+                    )}
                     {(p.downloadable || p.type === "digital") && (
                       <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                         <Download className="h-3 w-3" /> Digital
