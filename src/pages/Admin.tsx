@@ -1026,6 +1026,7 @@ function GatewayFeeSettings() {
       const c: any = await adminUpdateGatewayFeeConfig({
         fee_bps: Number(cfg.fee_bps), fee_flat_xof: Number(cfg.fee_flat_xof),
         min_xof: Number(cfg.min_xof), enabled: !!cfg.enabled,
+        admin_notification_phone: cfg.admin_notification_phone,
       });
       setCfg(c);
       toast.success("Frais de la passerelle mis à jour");
