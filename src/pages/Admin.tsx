@@ -1154,12 +1154,38 @@ function ShopTemplatesTab() {
                 <span className="text-xs font-medium uppercase text-muted-foreground">Preview (URL)</span>
                 <input value={modal.preview_url} onChange={(e) => setModal({ ...modal, preview_url: e.target.value })} className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-4 py-2 text-sm outline-none focus:border-primary" placeholder="https://..." />
               </label>
+              
+              <label className="block sm:col-span-2">
+                <span className="text-xs font-medium uppercase text-muted-foreground">Configuration JSON (Premium)</span>
+                <textarea 
+                  value={modal.config ? JSON.stringify(modal.config, null, 2) : ""} 
+                  onChange={(e) => {
+                    try {
+                      const val = e.target.value ? JSON.parse(e.target.value) : {};
+                      setModal({ ...modal, config: val });
+                    } catch (err) {
+                      // Allow typing invalid JSON temporarily
+                      setModal({ ...modal, config_raw: e.target.value });
+                    }
+                  }} 
+                  className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-4 py-2 text-[10px] font-mono outline-none focus:border-primary" 
+                  rows={8} 
+                  placeholder='{"layout": "grid", "animation": "fade", ...}'
+                />
+                <span className="mt-1 block text-[10px] text-muted-foreground">Supporte layout, animation, card_style, header_style et css_vars.</span>
+              </label>
+
             </div>
             <div className="mt-8 flex justify-end gap-3">
               <button onClick={() => setModal(null)} className="rounded-full border border-border px-6 py-2 text-sm font-semibold hover:bg-muted">Annuler</button>
               <button onClick={async () => {
                 try {
-                  await upsert({ data: modal });
+                  const toSave = { ...modal };
+                  if (toSave.config_raw) {
+                    try { toSave.config = JSON.parse(toSave.config_raw); delete toSave.config_raw; }
+                    catch(e) { throw new Error("JSON de configuration invalide"); }
+                  }
+                  await upsert({ data: toSave });
                   toast.success(modal.id ? "Template mis à jour" : "Template créé");
                   setModal(null);
                   refresh();

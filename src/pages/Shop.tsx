@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { getShop } from "@/lib/pay.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ShieldCheck, Store, Mail, Phone, Eye } from "lucide-react";
+import { Loader2, ShieldCheck, Store, Mail, Phone, Eye, ArrowRight, Star } from "lucide-react";
 
 import { ProductDetailModal } from "@/components/product-detail-modal";
 
@@ -13,7 +14,13 @@ type Biz = {
   logo_url: string | null; cover_url?: string | null; contact_email: string | null; contact_phone: string | null;
   theme?: { bg?: string; surface?: string; text?: string; muted?: string; primary?: string; primary_text?: string };
   template_id?: string | null;
-  template?: { config?: { css_vars?: Record<string, string> }; id: string; name: string } | null;
+  template?: { config?: { 
+    css_vars?: Record<string, string>;
+    layout?: 'grid' | 'bento' | 'split' | 'minimal';
+    animation?: 'fade' | 'slide' | 'zoom';
+    card_style?: 'glass' | 'neo' | 'flat';
+    header_style?: 'transparent' | 'glass' | 'floating';
+  } | null; id: string; name: string } | null;
 };
 type ShopProject = { id: string; name: string; description: string | null; cover_url: string | null; logo_url: string | null; products: Product[] };
 
@@ -51,15 +58,16 @@ export default function Shop() {
           description: "Ceci est une prévisualisation en temps réel de votre futur boutique avec le template sélectionné.",
           tagline: "Découvrez le rendu final de votre site",
           logo_url: null,
-          cover_url: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&auto=format&fit=crop",
+          cover_url: t?.thumbnail_url || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&auto=format&fit=crop",
           contact_email: "demo@faso-invest.com",
           contact_phone: "+226 00 00 00 00",
           template: t ? { id: t.id, name: t.name, config: t.config } : null
         });
         setProducts([
-          { id: "p1", name: "Produit Premium A", slug: "p1", description: "Une description élégante pour un produit de haute qualité.", price: 25000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800", type: "image" }] },
-          { id: "p2", name: "Service Exclusif B", slug: "p2", description: "Profitez de notre expertise avec ce service sur mesure.", price: 45000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800", type: "image" }] },
-          { id: "p3", name: "Accessoire Luxe C", slug: "p3", description: "Le détail qui fait toute la différence.", price: 12500, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1526170315870-ef6d99f494a3?w=800", type: "image" }] }
+          { id: "p1", name: "Smartphone Futuriste X", slug: "p1", description: "Le summum de la technologie mobile avec écran holographique.", price: 750000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800", type: "image" }] },
+          { id: "p2", name: "Montre Connectée Elite", slug: "p2", description: "Design luxueux allié à une intelligence artificielle avancée.", price: 250000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800", type: "image" }] },
+          { id: "p3", name: "Casque Audio Immersif", slug: "p3", description: "Une expérience sonore spatiale inégalée.", price: 185000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800", type: "image" }] },
+          { id: "p4", name: "Drone de Course Pro", slug: "p4", description: "Vitesse extrême et caméra 8K pour des prises de vue époustouflantes.", price: 450000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1527977966376-1c8408f9f108?w=800", type: "image" }] }
         ]);
         setLoading(false);
       });
@@ -84,10 +92,27 @@ export default function Shop() {
     };
   }, [biz?.template]);
 
-  if (loading) return <div className="grid min-h-screen place-items-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  if (loading) return (
+    <div className="grid min-h-screen place-items-center bg-[#050505]">
+      <motion.div 
+        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} 
+        transition={{ repeat: Infinity, duration: 2 }}
+      >
+        <Loader2 className="h-8 w-8 animate-spin text-[#d4af37]" />
+      </motion.div>
+    </div>
+  );
+
   if (error && !biz) return (
-    <div className="grid min-h-screen place-items-center px-6 text-center">
-      <div><Store className="mx-auto h-12 w-12 text-muted-foreground" /><h1 className="mt-4 text-2xl font-bold">Boutique introuvable</h1><p className="mt-2 text-sm text-muted-foreground">{error}</p></div>
+    <div className="grid min-h-screen place-items-center px-6 text-center bg-[#050505] text-white">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <Store className="mx-auto h-16 w-16 text-muted-foreground opacity-20" />
+        <h1 className="mt-6 text-3xl font-black tracking-tighter italic uppercase">Boutique introuvable</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+        <button onClick={() => navigate('/')} className="mt-8 rounded-full border border-white/10 px-6 py-2 text-xs font-bold hover:bg-white hover:text-black transition-colors">
+          Retour
+        </button>
+      </motion.div>
     </div>
   );
   if (!biz) return null;
@@ -106,57 +131,166 @@ export default function Shop() {
 
   const card = (p: Product) => {
     const img = p.media?.[0]?.url;
+    const cardStyle = biz.template?.config?.card_style || 'glass';
+    
     return (
-      <div key={p.id} id={`product-${p.id}`} className="overflow-hidden rounded-2xl transition hover:-translate-y-1"
-        style={{ background: th.surface, border: `1px solid ${th.primary}22` }}>
-        {img ? <img src={img} alt={p.name} className="h-56 w-full object-cover" loading="lazy" />
-          : <div className="grid h-56 w-full place-items-center" style={{ background: `${th.primary}12` }}><Store className="h-10 w-10" style={{ color: th.muted }} /></div>}
-        <div className="p-4">
-          <h3 className="font-bold">{p.name}</h3>
-          {p.description && <p className="mt-1 text-sm line-clamp-2" style={{ color: th.muted }}>{p.description}</p>}
-          <div className="mt-3 flex items-center justify-between gap-2">
-            <p className="text-lg font-bold tabular-nums">{Number(p.price).toLocaleString("fr-FR")} <span className="text-xs" style={{ color: th.muted }}>{p.currency}</span></p>
-            <button onClick={() => setSelectedProduct(p)} className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold transition transform active:scale-95"
-              style={{ background: th.primary, color: th.primary_text }}>
-              <Eye className="h-3.5 w-3.5" /> Voir
+      <motion.div
+        key={p.id}
+        layout
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        whileHover={{ y: -8, scale: 1.02 }}
+        className={`group overflow-hidden rounded-3xl transition-all duration-300 ${
+          cardStyle === 'glass' ? 'backdrop-blur-md bg-white/5 border border-white/10' :
+          cardStyle === 'neo' ? 'shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)] border-2' :
+          'border border-border'
+        }`}
+        style={{ 
+          background: cardStyle === 'glass' ? undefined : th.surface, 
+          borderColor: cardStyle === 'neo' ? th.primary : `${th.primary}22` 
+        }}
+      >
+        <div className="relative aspect-[4/5] overflow-hidden">
+          {img ? (
+            <motion.img 
+              src={img} 
+              alt={p.name} 
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" 
+              loading="lazy" 
+            />
+          ) : (
+            <div className="grid h-full w-full place-items-center" style={{ background: `${th.primary}12` }}>
+              <Store className="h-10 w-10" style={{ color: th.muted }} />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="absolute bottom-4 left-4 right-4 translate-y-4 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+             <button 
+              onClick={() => setSelectedProduct(p)} 
+              className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold shadow-lg"
+              style={{ background: th.primary, color: th.primary_text }}
+            >
+              <Eye className="h-4 w-4" /> Voir les détails
             </button>
           </div>
         </div>
-      </div>
+        <div className="p-5">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h3 className="font-bold text-lg leading-tight">{p.name}</h3>
+              {p.description && <p className="mt-1 text-xs line-clamp-2" style={{ color: th.muted }}>{p.description}</p>}
+            </div>
+            {p.price > 10000 && (
+              <div className="flex items-center gap-0.5 rounded-full bg-yellow-500/20 px-2 py-1 text-[10px] font-bold text-yellow-500">
+                <Star className="h-2.5 w-2.5 fill-current" /> PREMIUM
+              </div>
+            )}
+          </div>
+          <div className="mt-4 flex items-center justify-between border-t pt-4" style={{ borderColor: `${th.primary}11` }}>
+            <p className="text-xl font-black tracking-tight tabular-nums">
+              {Number(p.price).toLocaleString("fr-FR")} 
+              <span className="ml-1 text-xs font-medium" style={{ color: th.muted }}>{p.currency}</span>
+            </p>
+            <motion.button 
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setSelectedProduct(p)} 
+              className="rounded-full p-2 transition-colors hover:bg-white/10"
+              style={{ color: th.primary }}
+            >
+              <ArrowRight className="h-5 w-5" />
+            </motion.button>
+          </div>
+        </div>
+      </motion.div>
     );
   };
 
+
   return (
-    <div className="min-h-screen" style={{ background: th.bg, color: th.text }}>
-      <nav className="sticky top-0 z-40 w-full border-b backdrop-blur-xl" style={{ backgroundColor: `${th.bg}cc`, borderColor: `${th.primary}22` }}>
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            {biz.logo_url ? (
-              <img src={biz.logo_url} alt={biz.name} className="h-9 w-9 rounded-xl object-cover" />
-            ) : (
-              <div className="grid h-9 w-9 place-items-center rounded-xl text-lg font-bold" style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
-            )}
-            <span className="text-lg font-bold tracking-tight">{biz.name}</span>
+    <div className="min-h-screen selection:bg-primary selection:text-primary-foreground" style={{ background: th.bg, color: th.text }}>
+      <AnimatePresence mode="wait">
+        <motion.nav 
+          initial={{ y: -100 }}
+          animate={{ y: 0 }}
+          className={`sticky top-0 z-40 w-full transition-all duration-500 ${
+            biz.template?.config?.header_style === 'floating' ? 'mt-4 px-4 sm:px-8' : ''
+          }`}
+        >
+          <div className={`mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 transition-all duration-500 ${
+            biz.template?.config?.header_style === 'glass' ? 'backdrop-blur-2xl bg-white/5 border-b border-white/10 h-20' :
+            biz.template?.config?.header_style === 'floating' ? 'rounded-2xl backdrop-blur-2xl bg-white/5 border border-white/10 shadow-2xl h-16' :
+            'bg-transparent border-b border-white/5 h-24'
+          } flex items-center justify-between`}>
+            <div className="flex items-center gap-4 group cursor-pointer">
+              {biz.logo_url ? (
+                <div className="relative">
+                  <div className="absolute -inset-1 rounded-xl bg-gradient-to-tr from-primary to-transparent opacity-0 group-hover:opacity-100 transition-opacity blur-sm" style={{ backgroundColor: th.primary }} />
+                  <img src={biz.logo_url} alt={biz.name} className="relative h-10 w-10 rounded-xl object-cover" />
+                </div>
+              ) : (
+                <div className="grid h-10 w-10 place-items-center rounded-xl text-lg font-black italic shadow-lg" style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
+              )}
+              <span className="text-xl font-black tracking-tighter uppercase italic group-hover:tracking-widest transition-all duration-500">{biz.name}</span>
+            </div>
+            
+            <div className="hidden md:flex items-center gap-8 text-[10px] font-black uppercase tracking-widest opacity-60">
+              <a href="#" className="hover:opacity-100 transition-opacity">Accueil</a>
+              <a href="#products" className="hover:opacity-100 transition-opacity">Produits</a>
+              <a href="#footer" className="hover:opacity-100 transition-opacity">Contact</a>
+            </div>
+
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-2 rounded-full bg-white/5 border border-white/10 px-5 py-2 text-[10px] font-black uppercase tracking-widest"
+            >
+              Panier (0)
+            </motion.button>
           </div>
-        </div>
-      </nav>
+        </motion.nav>
+      </AnimatePresence>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <section className="relative mb-12 overflow-hidden rounded-[2rem] shadow-2xl" style={{ backgroundColor: th.surface }}>
-          <div className="absolute inset-0 z-0">
+        <section className="relative mb-20 overflow-hidden rounded-[2.5rem] shadow-2xl" style={{ backgroundColor: th.surface }}>
+          <motion.div 
+            initial={{ scale: 1.1, opacity: 0 }}
+            animate={{ scale: 1, opacity: 0.6 }}
+            transition={{ duration: 1.5 }}
+            className="absolute inset-0 z-0"
+          >
             {biz.cover_url ? (
-              <img src={biz.cover_url} className="h-full w-full object-cover opacity-60" alt="" />
+              <img src={biz.cover_url} className="h-full w-full object-cover" alt="" />
             ) : (
-              <div className="h-full w-full opacity-20" style={{ background: `linear-gradient(135deg, ${th.primary}, ${th.surface})` }} />
+              <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${th.primary}, ${th.surface})` }} />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-          </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+          </motion.div>
 
-          <div className="relative z-10 flex flex-col justify-end p-8 pt-48 sm:p-12 sm:pt-64">
-            <div className="max-w-2xl">
-              <h1 className="font-[Space_Grotesk] text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">{biz.name}</h1>
-              <p className="mt-4 text-lg sm:text-xl" style={{ color: th.muted }}>{biz.tagline || biz.description || "Votre destination shopping premium."}</p>
-            </div>
+          <div className="relative z-10 flex flex-col justify-end p-8 pt-48 sm:p-16 sm:pt-80">
+            <motion.div 
+              initial={{ y: 30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.8 }}
+              className="max-w-3xl"
+            >
+              <h1 className="font-[Space_Grotesk] text-5xl font-black tracking-tighter sm:text-7xl lg:text-8xl text-white uppercase italic leading-[0.9]">
+                {biz.name}
+              </h1>
+              <div className="mt-6 flex flex-wrap items-center gap-4">
+                <p className="text-xl sm:text-2xl font-medium" style={{ color: th.muted }}>
+                  {biz.tagline || biz.description || "L'excellence à portée de main."}
+                </p>
+                <div className="h-px w-12 bg-white/20 hidden sm:block" />
+                <motion.button 
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="rounded-full bg-white px-6 py-2 text-sm font-bold text-black"
+                >
+                  Explorer
+                </motion.button>
+              </div>
+            </motion.div>
           </div>
         </section>
 
@@ -185,68 +319,94 @@ export default function Shop() {
           </div>
         ) : (
           grouped.filter((g) => g.products.length > 0).map((g) => (
-            <section key={g.id} className="mb-12">
-              <div className="mb-5 flex items-center gap-3 border-b pb-3" style={{ borderColor: `${th.primary}33` }}>
-                {g.logo_url && <img src={g.logo_url} alt={g.name} className="h-10 w-10 rounded-xl object-cover" />}
+            <section key={g.id} className="mb-20">
+              <motion.div 
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                className="mb-8 flex items-end justify-between gap-4 border-b-2 pb-4" 
+                style={{ borderColor: `${th.primary}22` }}
+              >
                 <div>
-                  <h2 className="text-2xl font-bold">{g.name}</h2>
-                  {g.description && <p className="text-sm" style={{ color: th.muted }}>{g.description}</p>}
+                  <div className="flex items-center gap-3">
+                    {g.logo_url && <img src={g.logo_url} alt={g.name} className="h-8 w-8 rounded-lg object-cover" />}
+                    <h2 className="text-3xl font-black tracking-tight uppercase italic">{g.name}</h2>
+                  </div>
+                  {g.description && <p className="mt-1 text-sm font-medium" style={{ color: th.muted }}>{g.description}</p>}
                 </div>
-                <span className="ml-auto text-xs" style={{ color: th.muted }}>{g.products.length} produit(s)</span>
+                <div className="text-right">
+                  <span className="text-4xl font-black opacity-10" style={{ color: th.text }}>{String(g.products.length).padStart(2, '0')}</span>
+                </div>
+              </motion.div>
+              <div className={`grid gap-8 ${
+                biz.template?.config?.layout === 'bento' ? 'grid-cols-2 lg:grid-cols-4' : 
+                biz.template?.config?.layout === 'split' ? 'grid-cols-1 lg:grid-cols-2' : 
+                'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+              }`}>
+                {g.products.map(card)}
               </div>
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{g.products.map(card)}</div>
             </section>
           ))
         )}
 
-        <footer className="mt-16 overflow-hidden rounded-3xl p-8 sm:p-12" style={{ background: th.surface, border: `1px solid ${th.primary}22` }}>
-          <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-3">
-            <div>
-              <div className="flex items-center gap-3">
+        <footer id="footer" className="mt-32 overflow-hidden rounded-[3rem] p-8 sm:p-20 relative" style={{ background: th.surface, border: `1px solid ${th.primary}11` }}>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] rounded-full -mr-32 -mt-32" style={{ backgroundColor: `${th.primary}05` }} />
+          
+          <div className="grid gap-16 lg:grid-cols-4">
+            <div className="lg:col-span-2">
+              <div className="flex items-center gap-4">
                 {biz.logo_url ? (
-                  <img src={biz.logo_url} alt={biz.name} className="h-10 w-10 rounded-xl object-cover" />
+                  <img src={biz.logo_url} alt={biz.name} className="h-12 w-12 rounded-2xl object-cover" />
                 ) : (
-                  <div className="grid h-10 w-10 place-items-center rounded-xl text-lg font-bold" style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl text-xl font-black italic shadow-2xl" style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
                 )}
-                <span className="text-xl font-bold">{biz.name}</span>
+                <span className="text-3xl font-black tracking-tighter uppercase italic">{biz.name}</span>
               </div>
-              <p className="mt-4 text-sm leading-relaxed" style={{ color: th.muted }}>{biz.description || biz.tagline || "Votre boutique de confiance pour des achats en toute sécurité."}</p>
+              <p className="mt-8 text-lg font-medium max-w-md leading-relaxed" style={{ color: th.muted }}>
+                {biz.description || biz.tagline || "Redéfinir le futur du commerce avec élégance et performance."}
+              </p>
             </div>
 
             <div>
-              <h4 className="font-bold uppercase tracking-wider text-xs mb-4" style={{ color: th.primary }}>Navigation</h4>
-              <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:opacity-80 transition">Accueil</a></li>
+              <h4 className="font-black uppercase tracking-[0.2em] text-[10px] mb-8" style={{ color: th.primary }}>Navigation</h4>
+              <ul className="space-y-4 text-sm font-bold">
+                <li><a href="#" className="hover:opacity-60 transition-opacity">Accueil</a></li>
                 {projects.map(p => (
-                  <li key={p.id}><a href={`#project-${p.id}`} className="hover:opacity-80 transition">{p.name}</a></li>
+                  <li key={p.id}><a href={`#project-${p.id}`} className="hover:opacity-60 transition-opacity uppercase italic">{p.name}</a></li>
                 ))}
               </ul>
             </div>
 
             <div>
-              <h4 className="font-bold uppercase tracking-wider text-xs mb-4" style={{ color: th.primary }}>Contact</h4>
-              <div className="space-y-4 text-sm" style={{ color: th.muted }}>
+              <h4 className="font-black uppercase tracking-[0.2em] text-[10px] mb-8" style={{ color: th.primary }}>Contact</h4>
+              <div className="space-y-6 text-sm font-bold" style={{ color: th.text }}>
                 {biz.contact_email && (
-                  <a href={`mailto:${biz.contact_email}`} className="flex items-center gap-2 hover:text-foreground transition">
-                    <Mail className="h-4 w-4" /> {biz.contact_email}
+                  <a href={`mailto:${biz.contact_email}`} className="flex items-center gap-3 hover:opacity-60 transition-opacity">
+                    <Mail className="h-5 w-5 opacity-40" /> {biz.contact_email}
                   </a>
                 )}
                 {biz.contact_phone && (
-                  <a href={`tel:${biz.contact_phone}`} className="flex items-center gap-2 hover:text-foreground transition">
-                    <Phone className="h-4 w-4" /> {biz.contact_phone}
+                  <a href={`tel:${biz.contact_phone}`} className="flex items-center gap-3 hover:opacity-60 transition-opacity">
+                    <Phone className="h-5 w-5 opacity-40" /> {biz.contact_phone}
                   </a>
                 )}
-                <div className="flex items-center gap-2 pt-2">
-                  <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                  <span className="text-[11px]">Paiements sécurisés Mobile Money</span>
+                <div className="flex items-center gap-3 pt-4">
+                  <div className="h-10 w-10 rounded-full border border-white/5 flex items-center justify-center">
+                    <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Paiements Sécurisés</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-12 border-t pt-8 text-center text-[11px]" style={{ borderColor: `${th.primary}22`, color: th.muted }}>
-            <p>© {new Date().getFullYear()} {biz.name}. Tous droits réservés.</p>
-            <p className="mt-1 opacity-60">Propulsé par FASO-INVEST PAY</p>
+          <div className="mt-20 border-t pt-10 flex flex-col sm:flex-row items-center justify-between gap-4" style={{ borderColor: `${th.primary}11` }}>
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">© {new Date().getFullYear()} {biz.name}.</p>
+            <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest opacity-40">
+              <a href="#" className="hover:opacity-100 transition-opacity">Privacy</a>
+              <a href="#" className="hover:opacity-100 transition-opacity">Terms</a>
+              <span className="text-white italic">FASO-INVEST PAY</span>
+            </div>
           </div>
         </footer>
       </main>
