@@ -262,7 +262,7 @@ function Auth() {
             {mode === "login" ? "Bon retour 👋" : "Créer un compte"}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {mode === "login" ? "Connectez-vous à votre espace FASO INVEST PAY." : "'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            unknown fn: listProductCategories (total: 170, samples: adminListShopTemplates, adminUpsertShopTemplate, adminDeleteShopTemplate...adminUpdateSenderRequest, listSmsCredits, purchaseSmsCredits)\n\n\n IL FAUT CORRIGER C'et au nivequ de produit"}
+            {mode === "login" ? "Connectez-vous à votre espace FASO INVEST PAY." : "'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            l'erreur persiste unknown fn: listProductCategories (total: 170, samples: adminListShopTemplates, adminUpsertShopTemplate, adminDeleteShopTemplate...adminUpdateSenderRequest, listSmsCredits, purchaseSmsCredits)"}
           </p>
 
           {mode === "2fa" || mode === "registration_otp" ? (
