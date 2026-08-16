@@ -615,6 +615,126 @@ export const WiseBorderless = ({ invoice, business, settings }: TemplateProps) =
   </div>
 );
 
+// 14. MICROSOFT AZURE
+export const MicrosoftAzure = ({ invoice, business, settings }: TemplateProps) => (
+  <div className="bg-white p-12 max-w-4xl mx-auto border border-slate-200 font-sans text-slate-900">
+    <div className="flex justify-between items-start mb-12">
+      <div className="flex items-center gap-3">
+        <div className="grid grid-cols-2 w-8 h-8 gap-0.5">
+          <div className="bg-[#f25022]"></div>
+          <div className="bg-[#7fba00]"></div>
+          <div className="bg-[#00a4ef]"></div>
+          <div className="bg-[#ffb900]"></div>
+        </div>
+        <span className="text-xl font-bold text-slate-600">Microsoft Azure</span>
+      </div>
+      <div className="text-right">
+        <h1 className="text-3xl font-light">Facture</h1>
+        <p className="text-slate-500">ID de facture : {invoice.number}</p>
+      </div>
+    </div>
+    <div className="grid grid-cols-2 gap-20 mb-12">
+      <div>
+        <p className="text-xs font-bold text-slate-400 uppercase mb-2">Vendu à</p>
+        <p className="font-bold">{invoice.customer_name}</p>
+        <p className="text-sm text-slate-500">{invoice.customer_email}</p>
+      </div>
+      <div className="text-right">
+        <p className="text-xs font-bold text-slate-400 uppercase mb-2">Total de la facture</p>
+        <p className="text-4xl font-light text-blue-600">{invoice.total.toLocaleString()} {invoice.currency}</p>
+      </div>
+    </div>
+    <table className="w-full text-sm border-t border-b border-slate-200">
+      <thead>
+        <tr className="text-left bg-slate-50">
+          <th className="py-3 px-4">Service</th>
+          <th className="py-3 px-4 text-right">Quantité</th>
+          <th className="py-3 px-4 text-right">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {invoice.items.map((it, i) => (
+          <tr key={i} className="border-b border-slate-100 last:border-0">
+            <td className="py-4 px-4 font-medium">{it.name}</td>
+            <td className="py-4 px-4 text-right">{it.qty} unit(s)</td>
+            <td className="py-4 px-4 text-right font-bold">{(it.qty * it.price).toLocaleString()}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    <div className="mt-12 text-[10px] text-slate-400 uppercase tracking-widest leading-relaxed">
+      Microsoft Azure - {settings.legal_name || business.name} - Tous droits réservés.
+    </div>
+  </div>
+);
+
+// 15. REVOLUT BUSINESS
+export const RevolutBusiness = ({ invoice, business, settings }: TemplateProps) => (
+  <div className="bg-[#0e0e10] p-12 max-w-4xl mx-auto text-white font-sans border border-white/5 rounded-[2rem]">
+    <div className="flex justify-between items-center mb-20">
+      <div className="text-2xl font-black italic tracking-tighter">Revolut <span className="text-white/40 font-normal">Business</span></div>
+      <div className="bg-white/10 px-4 py-2 rounded-full text-xs font-bold uppercase">Transaction réussie</div>
+    </div>
+    <div className="mb-20">
+      <h2 className="text-6xl font-black tracking-tight mb-4">{invoice.total.toLocaleString()} {invoice.currency}</h2>
+      <p className="text-white/40 font-bold uppercase tracking-widest text-sm">Destinataire : {invoice.customer_name}</p>
+    </div>
+    <div className="grid grid-cols-2 gap-10 border-t border-white/10 pt-10">
+      <div>
+        <p className="text-white/40 text-xs font-bold uppercase mb-2">Expéditeur</p>
+        <p className="font-bold text-lg">{settings.legal_name || business.name}</p>
+        <p className="text-white/60 text-sm mt-1">IFU: {settings.ifu}</p>
+      </div>
+      <div className="text-right">
+        <p className="text-white/40 text-xs font-bold uppercase mb-2">Référence</p>
+        <p className="font-bold text-lg">{invoice.number}</p>
+        <p className="text-white/60 text-sm mt-1">{format(new Date(invoice.created_at), 'dd MMM yyyy')}</p>
+      </div>
+    </div>
+    <div className="mt-20 pt-10 border-t border-white/10 flex justify-center">
+      <div className="h-20 w-20 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center font-bold text-4xl shadow-2xl">R</div>
+    </div>
+  </div>
+);
+
+// 16. NOTAIRE OFFICIEL (Minimalisme strict)
+export const NotaireOfficiel = ({ invoice, business, settings }: TemplateProps) => (
+  <div className="bg-[#fdfcf9] p-20 max-w-5xl mx-auto text-[#1a1a1a] font-serif border-x border-slate-200">
+    <div className="text-center mb-20">
+      <h1 className="text-3xl font-light uppercase tracking-[0.5em] border-b border-black pb-8 inline-block">Office Notarial</h1>
+      <p className="mt-8 text-sm italic">{settings.legal_name || business.name}</p>
+      <p className="text-xs uppercase tracking-widest mt-2">{settings.address}</p>
+    </div>
+    <div className="flex justify-between items-end mb-20 text-sm italic">
+      <div>
+        <p>A l'attention de M/Mme</p>
+        <p className="font-bold text-lg not-italic">{invoice.customer_name}</p>
+      </div>
+      <div className="text-right">
+        <p>Ouagadougou, le {format(new Date(invoice.created_at), 'dd MMMM yyyy', { locale: fr })}</p>
+        <p className="mt-1 font-bold not-italic">Facture de Frais N°{invoice.number}</p>
+      </div>
+    </div>
+    <div className="space-y-6 text-sm leading-loose mb-20">
+      {invoice.items.map((it, i) => (
+        <div key={i} className="flex justify-between border-b border-slate-100 pb-2">
+          <span>{it.name} (Qte: {it.qty})</span>
+          <span className="font-bold">{(it.qty * it.price).toLocaleString()} {invoice.currency}</span>
+        </div>
+      ))}
+    </div>
+    <div className="flex justify-end pt-10 border-t-2 border-black">
+      <div className="text-right">
+        <p className="text-xs uppercase tracking-widest opacity-50">Total Honoraires TTC</p>
+        <p className="text-3xl font-bold">{invoice.total.toLocaleString()} {invoice.currency}</p>
+      </div>
+    </div>
+    <div className="mt-32 text-center text-[10px] uppercase tracking-widest opacity-40">
+      Document certifié par l'Office Notarial {business.name} - YengaPay Ecosystem.
+    </div>
+  </div>
+);
+
 // Map of all templates
 export const INVOICE_TEMPLATES: Record<string, React.FC<TemplateProps>> = {
   "stripe-modern": StripeModern,
@@ -630,4 +750,7 @@ export const INVOICE_TEMPLATES: Record<string, React.FC<TemplateProps>> = {
   "google-cloud": GoogleCloud,
   "airbnb-host": AirbnbHost,
   "wise-borderless": WiseBorderless,
+  "microsoft-azure": MicrosoftAzure,
+  "revolut-business": RevolutBusiness,
+  "notaire-officiel": NotaireOfficiel,
 };
