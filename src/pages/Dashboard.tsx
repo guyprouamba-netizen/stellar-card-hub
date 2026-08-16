@@ -178,7 +178,7 @@ function Dashboard() {
               {tab === "tx" && <TxTab transactions={data.transactions} />}
               {tab === "purchases" && <PurchasesTab userId={session.user.id} />}
               {tab === "referrals" && <ReferralsTab />}
-              {tab === "profile" && <ProfileTab profile={data.profile} onDone={() => refetch()} setTab={setTab} />}
+              {tab === "profile" && <ProfileTab profile={data.profile} onDone={() => refetch()} setTab={setTab} onRefetch={() => refetch()} />}
             </>
           )}
         </main>
@@ -679,7 +679,7 @@ function TxTab({ transactions }: { transactions: any[] }) {
   );
 }
 
-function ProfileTab({ profile, onDone, setTab }: { profile: any; onDone: () => void; setTab: (t: Tab) => void }) {
+function ProfileTab({ profile, onDone, setTab, onRefetch }: { profile: any; onDone: () => void; setTab: (t: Tab) => void; onRefetch: () => Promise<any> }) {
   const [fullName, setFullName] = useState<string>(profile?.full_name || "");
   const [phone, setPhone] = useState<string>(profile?.phone || "");
   const [avatarUrl, setAvatarUrl] = useState<string>(profile?.avatar_url || "");
@@ -722,8 +722,10 @@ function ProfileTab({ profile, onDone, setTab }: { profile: any; onDone: () => v
   async function saveProfile() {
     setSavingProfile(true);
     try {
-      await upd({ data: { full_name: fullName, phone, avatar_url: avatarUrl } });
+      const r: any = await upd({ data: { full_name: fullName, phone, avatar_url: avatarUrl } });
+      if (r?.ok === false) throw new Error(r.error || "Échec de la mise à jour");
       toast.success("Profil mis à jour");
+      await onRefetch();
       onDone();
     } catch (e) { toast.error((e as Error).message); } finally { setSavingProfile(false); }
   }
