@@ -1,6 +1,6 @@
 // Universal authenticated API dispatcher.
 // Body shape: { fn: string, data?: any }
-// Auth: requires a valid Supabase JWT in Authorization header.
+// Auth: requires a valid Supabase JWT in Authorization header. v: 2026-08-16-2350
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import * as SW from "../_shared/strowallet.ts";
