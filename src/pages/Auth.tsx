@@ -1,5 +1,5 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Mail, Lock, ArrowRight, User, Phone, Loader2, AlertCircle } from "lucide-react";
+import { Mail, Lock, ArrowRight, User, Phone, Loader2, AlertCircle, Smartphone, CheckCircle2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { PinLock } from "@/components/pin-lock";
 import { getPinStatus, markPinEnabledOnDevice, setLastEmail, setSessionLocked } from "@/lib/pin";
