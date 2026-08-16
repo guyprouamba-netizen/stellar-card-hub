@@ -32,6 +32,7 @@ const NAV = [
   { id: "docs", label: "Documentation API", icon: BookOpen },
   { id: "settings", label: "Ma boutique", icon: Settings2 },
 ] as const;
+const TabIdSet = new Set(NAV.map(n => n.id));
 type TabId = typeof NAV[number]["id"];
 
 type Biz = { id: string; name: string; slug: string; status: string; balance: number; fee_bps: number };
@@ -402,7 +403,7 @@ export default function BusinessPage() {
                   </div>
                 </div>
 
-                {tab === "gateway" && (
+                {(tab as any) === "gateway" && (
                   <div className="space-y-6">
                     <div className="rounded-3xl border border-border bg-card p-6 shadow-card-premium">
                       <div className="flex items-center gap-3">
