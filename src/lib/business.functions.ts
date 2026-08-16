@@ -48,6 +48,7 @@ export const createProductCategory = (data: { business_id: string; name: string;
   callApi("createProductCategory", data);
 export const deleteProductCategory = (id: string) => callApi("deleteProductCategory", { id });
 
+
 // --- Project API keys / webhooks (passerelle) ---
 export const getProjectIntegration = (project_id: string) => callApi("getProjectIntegration", { project_id });
 export const createProjectApiKeys = (data: { project_id: string; mode?: "live" | "test"; webhook_url?: string }) =>
