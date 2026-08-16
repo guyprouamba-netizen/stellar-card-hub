@@ -154,12 +154,12 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
             <section>
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 block">Choisir un style professionnel</label>
               <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto p-1 border border-border rounded-xl scrollbar-hide">
-                {Object.keys(INVOICE_TEMPLATES).map(k => (
+                {availableKeys.map(k => (
                   <button
                     key={k}
                     onClick={() => setTemplate(k)}
                     className={`group relative overflow-hidden rounded-xl border-2 p-3 text-left transition-all ${
-                      template === k 
+                      activeTemplate === k 
                         ? "border-primary bg-primary/5 ring-2 ring-primary/20" 
                         : "border-border hover:border-primary/50 bg-card"
                     }`}
@@ -167,7 +167,7 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
                     <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground group-hover:text-primary transition-colors">
                       {k.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')}
                     </div>
-                    {template === k && (
+                    {activeTemplate === k && (
                       <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary animate-pulse" />
                     )}
                   </button>
