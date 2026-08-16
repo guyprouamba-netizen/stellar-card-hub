@@ -15,23 +15,6 @@ interface InvoiceEditorProps {
 }
 
 export default function InvoiceEditor({ business, settings, invoice: initialInvoice, onClose, onSaved }: InvoiceEditorProps) {
-  const [template, setTemplate] = useState(initialInvoice?.template_slug || "");
-  
-  // Choose correct template list based on kind
-  const currentTemplates = data.kind === 'receipt' 
-    ? RECEIPT_TEMPLATES 
-    : data.kind === 'contract' 
-      ? CONTRACT_TEMPLATES 
-      : INVOICE_TEMPLATES;
-
-  // Set default template if none selected or if kind changed
-  const availableKeys = Object.keys(currentTemplates);
-  const activeTemplate = template && currentTemplates[template] 
-    ? template 
-    : availableKeys[0];
-
-  const [loading, setLoading] = useState(false);
-  const previewRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState(initialInvoice || {
     number: `INV-${Date.now().toString().slice(-6)}`,
     created_at: new Date().toISOString(),
@@ -46,6 +29,24 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
     kind: initialInvoice?.kind || "invoice",
     status: initialInvoice?.status || "issued"
   });
+  
+  const [template, setTemplate] = useState(initialInvoice?.template_slug || "");
+  const [loading, setLoading] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  // Choose correct template list based on kind
+  const currentTemplates = data.kind === 'receipt' 
+    ? RECEIPT_TEMPLATES 
+    : data.kind === 'contract' 
+      ? CONTRACT_TEMPLATES 
+      : INVOICE_TEMPLATES;
+
+  // Set default template if none selected or if kind changed
+  const availableKeys = Object.keys(currentTemplates);
+  const activeTemplate = template && currentTemplates[template] 
+    ? template 
+    : availableKeys[0];
+
 
   const updateItem = (index: number, field: string, value: any) => {
     const newItems = [...data.items];
