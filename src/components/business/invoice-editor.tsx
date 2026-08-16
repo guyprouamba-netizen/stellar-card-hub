@@ -86,10 +86,15 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
       });
       
       const imgData = canvas.toDataURL("image/png");
+      
+      // Calculate dimensions in px (96 DPI standard)
+      const pdfWidth = canvas.width;
+      const pdfHeight = canvas.height;
+      
       const pdf = new jsPDF({
-        orientation: "portrait",
+        orientation: pdfWidth > pdfHeight ? "landscape" : "portrait",
         unit: "px",
-        format: [canvas.width, canvas.height]
+        format: [pdfWidth, pdfHeight]
       });
       
       pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
@@ -97,7 +102,7 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
       toast.success("Téléchargement réussi", { id: toastId });
     } catch (error) {
       console.error("PDF Error:", error);
-      toast.error("'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            Erreur lors de la génération du PDF", { id: toastId });
+      toast.error("'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.''' Erreur lors de la génération du PDF\n\n je tente de faire de telecharger mes recus mais probleme corrige stp", { id: toastId });
     } finally {
       setLoading(false);
     }

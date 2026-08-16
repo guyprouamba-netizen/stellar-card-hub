@@ -237,7 +237,7 @@ export const AppleMinimal = ({ invoice, business, settings, kind = "invoice" }: 
 // 3. POS THERMAL (Ticket de caisse)
 export const BistroThermal = ({ invoice, business, settings, kind = "receipt" }: TemplateProps) => {
   return (
-    <div className="bg-white p-6 text-black font-mono max-w-[320px] mx-auto text-xs border border-dashed border-slate-300">
+    <div className="bg-white p-6 text-black font-mono w-[300px] mx-auto text-[11px] border border-dashed border-slate-300">
       <div className="text-center mb-6 flex flex-col items-center">
         {business.logo_url ? (
           <img src={business.logo_url} alt="Logo" className="h-10 w-auto mb-2 grayscale contrast-200" />
