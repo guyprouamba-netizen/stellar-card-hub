@@ -5,19 +5,19 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Users, TrendingUp, CreditCard, ShieldCheck, ArrowDownUp, LogOut, RefreshCw,
   Loader2, CheckCircle2, XCircle, Wallet, Server, Eye, SlidersHorizontal, Share2,
-  AlertTriangle, BarChart3, Sparkles,
+  AlertTriangle, BarChart3, Sparkles, Store, Plus, Trash2, ExternalLink
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
-import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminYengapayVerifyBatch, adminCreditYengapayExternal, adminCreditPendingDeposit, adminSyncCards, adminCardTransactions } from "@/lib/admin.functions";
+import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminYengapayVerifyBatch, adminCreditYengapayExternal, adminCreditPendingDeposit, adminSyncCards, adminCardTransactions, adminListShopTemplates, adminUpsertShopTemplate, adminDeleteShopTemplate } from "@/lib/admin.functions";
 import { getPaypalWithdrawConfig, adminUpdatePaypalWithdrawConfig } from "@/lib/paypal.functions";
 import { getGatewayFeeConfig, adminUpdateGatewayFeeConfig } from "@/lib/business.functions";
 import { toast } from "sonner";
 import { AnalyticsSection } from "@/components/admin/analytics-section";
 import { DashboardAiAssistant } from "@/components/admin/ai-assistant";
 
-type Tab = "users" | "flow" | "analytics" | "assistant" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "businesses" | "settings";
+type Tab = "users" | "flow" | "analytics" | "assistant" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "businesses" | "shop-templates" | "settings";
 
 function AdminPage() {
   const navigate = useNavigate();
@@ -75,6 +75,7 @@ function AdminPage() {
               {tab === "withdrawals" && <WithdrawalsTab withdrawals={data.withdrawals} onAction={refetch} />}
               {tab === "referrals" && <ReferralsAdminTab adjust={undefined} refetchOverview={refetch} />}
               {tab === "businesses" && <BusinessesTab businesses={data.businesses ?? []} />}
+              {tab === "shop-templates" && <ShopTemplatesTab />}
               {tab === "settings" && <SettingsTab />}
             </>
           )}
@@ -114,6 +115,7 @@ function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "withdrawals", label: "Retraits à valider", Icon: ArrowDownUp },
     { id: "referrals", label: "Parrainages", Icon: Share2 },
     { id: "businesses", label: "Entreprises", Icon: Server },
+    { id: "shop-templates", label: "Templates Boutique", Icon: Store },
     { id: "settings", label: "Paramètres", Icon: SlidersHorizontal },
   ];
   async function logout() { await supabase.auth.signOut(); navigate("/"); }
@@ -1030,6 +1032,129 @@ function GatewayFeeSettings() {
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
         </button>
       </div>
+    </div>
+  );
+}
+
+function ShopTemplatesTab() {
+  const list = useServerFn(adminListShopTemplates);
+  const upsert = useServerFn(adminUpsertShopTemplate);
+  const del = useServerFn(adminDeleteShopTemplate);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState<any | null>(null);
+
+  const refresh = () => {
+    setLoading(true);
+    list().then((r: any) => { setTemplates(r.templates || []); setLoading(false); }).catch(() => setLoading(false));
+  };
+
+  useEffect(() => { refresh(); }, []);
+
+  async function remove(id: string) {
+    if (!confirm("Supprimer ce template ?")) return;
+    try {
+      await del({ data: { id } });
+      toast.success("Template supprimé");
+      refresh();
+    } catch (e) { toast.error((e as Error).message); }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Templates Boutique</h1>
+          <p className="text-sm text-muted-foreground">Gérez les modèles de boutique disponibles pour les marchands.</p>
+        </div>
+        <button onClick={() => setModal({ name: "", slug: "", description: "", price: 0, is_free: true, category: "ecommerce" })} className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-glow">
+          <Plus className="h-4 w-4" /> Nouveau Template
+        </button>
+      </div>
+
+      {loading ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {templates.map((t) => (
+            <div key={t.id} className="overflow-hidden rounded-2xl border border-border bg-card">
+              {t.thumbnail_url ? <img src={t.thumbnail_url} className="h-40 w-full object-cover" alt="" /> : <div className="grid h-40 w-full place-items-center bg-muted"><Store className="h-8 w-8 text-muted-foreground" /></div>}
+              <div className="p-5">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold">{t.name}</h3>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${t.is_free ? "bg-success/10 text-success" : "bg-primary/10 text-primary"}`}>{t.is_free ? "Gratuit" : `${t.price} XOF`}</span>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{t.description || "Aucune description."}</p>
+                <div className="mt-4 flex items-center justify-between gap-2">
+                  <button onClick={() => setModal(t)} className="text-xs font-semibold text-primary hover:underline">Modifier</button>
+                  <div className="flex gap-2">
+                    {t.preview_url && <a href={t.preview_url} target="_blank" rel="noreferrer" className="grid h-7 w-7 place-items-center rounded-full bg-surface-2 hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" /></a>}
+                    <button onClick={() => remove(t.id)} className="grid h-7 w-7 place-items-center rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20"><Trash2 className="h-3.5 w-3.5" /></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+          {templates.length === 0 && <p className="col-span-full py-12 text-center text-sm text-muted-foreground">Aucun template créé.</p>}
+        </div>
+      )}
+
+      {modal && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
+          <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-6 shadow-2xl">
+            <h3 className="text-xl font-bold">{modal.id ? "Modifier le template" : "Nouveau template"}</h3>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <label className="block sm:col-span-2">
+                <span className="text-xs font-medium uppercase text-muted-foreground">Nom</span>
+                <input value={modal.name} onChange={(e) => setModal({ ...modal, name: e.target.value })} className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-4 py-2 text-sm outline-none focus:border-primary" placeholder="Boutique E-commerce" />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium uppercase text-muted-foreground">Slug</span>
+                <input value={modal.slug} onChange={(e) => setModal({ ...modal, slug: e.target.value })} className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-4 py-2 text-sm outline-none focus:border-primary" placeholder="ecommerce-pro" />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium uppercase text-muted-foreground">Catégorie</span>
+                <select value={modal.category} onChange={(e) => setModal({ ...modal, category: e.target.value })} className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-4 py-2 text-sm outline-none focus:border-primary">
+                  <option value="ecommerce">E-commerce</option>
+                  <option value="service">Services</option>
+                  <option value="portfolio">Portfolio</option>
+                  <option value="food">Restauration</option>
+                  <option value="luxury">Luxe</option>
+                </select>
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="text-xs font-medium uppercase text-muted-foreground">Description</span>
+                <textarea value={modal.description} onChange={(e) => setModal({ ...modal, description: e.target.value })} className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-4 py-2 text-sm outline-none focus:border-primary" rows={2} />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium uppercase text-muted-foreground">Prix (XOF)</span>
+                <input type="number" value={modal.price} onChange={(e) => setModal({ ...modal, price: e.target.value })} className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-4 py-2 text-sm outline-none focus:border-primary" />
+              </label>
+              <label className="flex items-center gap-3 pt-6">
+                <input type="checkbox" checked={modal.is_free} onChange={(e) => setModal({ ...modal, is_free: e.target.checked })} className="h-4 w-4 rounded border-border text-primary focus:ring-primary" />
+                <span className="text-sm font-medium">Template Gratuit</span>
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="text-xs font-medium uppercase text-muted-foreground">Image (URL)</span>
+                <input value={modal.thumbnail_url} onChange={(e) => setModal({ ...modal, thumbnail_url: e.target.value })} className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-4 py-2 text-sm outline-none focus:border-primary" placeholder="https://..." />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="text-xs font-medium uppercase text-muted-foreground">Preview (URL)</span>
+                <input value={modal.preview_url} onChange={(e) => setModal({ ...modal, preview_url: e.target.value })} className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-4 py-2 text-sm outline-none focus:border-primary" placeholder="https://..." />
+              </label>
+            </div>
+            <div className="mt-8 flex justify-end gap-3">
+              <button onClick={() => setModal(null)} className="rounded-full border border-border px-6 py-2 text-sm font-semibold hover:bg-muted">Annuler</button>
+              <button onClick={async () => {
+                try {
+                  await upsert({ data: modal });
+                  toast.success(modal.id ? "Template mis à jour" : "Template créé");
+                  setModal(null);
+                  refresh();
+                } catch (e) { toast.error((e as Error).message); }
+              }} className="rounded-full bg-gradient-primary px-8 py-2 text-sm font-semibold text-primary-foreground shadow-glow">Enregistrer</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
