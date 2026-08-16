@@ -995,37 +995,43 @@ export const TechStartup = ({ invoice, business, kind = "invoice" }: TemplatePro
 };
 
 // 21. COFFEE SHOP
-export const CoffeeShop = ({ invoice, business }: TemplateProps) => (
-  <div className="bg-[#fff9f0] p-8 max-w-[380px] mx-auto font-mono text-[#5d4037] border-2 border-[#d7ccc8] shadow-sm rounded-lg relative overflow-hidden">
-    <div className="absolute top-0 left-0 w-full h-1 bg-[#5d4037]" />
-    <div className="text-center mb-10">
-      <h1 className="text-2xl font-black uppercase italic tracking-tighter mb-1">{business.name}</h1>
-      <p className="text-[10px] uppercase opacity-60 italic">Handcrafted Experiences</p>
-    </div>
-    <div className="space-y-4 mb-10 text-sm">
-      <div className="flex justify-between border-b border-[#d7ccc8] border-dashed pb-2">
-        <span>#{invoice.number.slice(-5)}</span>
-        <span>{format(new Date(invoice.created_at), 'HH:mm')}</span>
+export const CoffeeShop = ({ invoice, business, kind = "receipt" }: TemplateProps) => {
+  const title = kind === "receipt" ? "RECEIPT" : kind === "contract" ? "CONTRACT" : "INVOICE";
+  return (
+    <div className="bg-[#fff9f0] p-8 max-w-[380px] mx-auto font-mono text-[#5d4037] border-2 border-[#d7ccc8] shadow-sm rounded-lg relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-full h-1 bg-[#5d4037]" />
+      <div className="text-center mb-10">
+        <h1 className="text-2xl font-black uppercase italic tracking-tighter mb-1">{business.name}</h1>
+        <p className="text-[10px] uppercase opacity-60 italic">{title}</p>
       </div>
-      {invoice.items.map((it, i) => (
-        <div key={i} className="flex justify-between items-center group">
-          <span className="font-bold">{it.name.toUpperCase()} <span className="text-[10px] font-normal opacity-60">× {it.qty}</span></span>
-          <span className="font-bold">{(it.qty * it.price).toLocaleString()}</span>
+      <div className="space-y-4 mb-8 text-sm">
+        <div className="flex justify-between border-b border-[#d7ccc8] border-dashed pb-2">
+          <span>#{invoice.number.slice(-5)}</span>
+          <span>{format(new Date(invoice.created_at), 'HH:mm')}</span>
         </div>
-      ))}
-    </div>
-    <div className="border-t-2 border-[#5d4037] pt-4 mb-6">
-      <div className="flex justify-between items-center text-xl font-black">
-        <span>TOTAL DUE</span>
-        <span>{invoice.total.toLocaleString()} {invoice.currency}</span>
+        {invoice.items.map((it, i) => (
+          <div key={i} className="flex justify-between items-center group">
+            <span className="font-bold">{it.name.toUpperCase()} <span className="text-[10px] font-normal opacity-60">× {it.qty}</span></span>
+            <span className="font-bold">{(it.qty * it.price).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+      <div className="border-t-2 border-[#5d4037] pt-4 mb-6">
+        <div className="flex justify-between items-center text-xl font-black">
+          <span>TOTAL DUE</span>
+          <span>{invoice.total.toLocaleString()} {invoice.currency}</span>
+        </div>
+      </div>
+      <div className="mb-6 flex justify-center scale-75">
+        <VerificationFooter business={business} invoice={invoice} />
+      </div>
+      <div className="text-center text-[10px] opacity-60 italic leading-relaxed">
+        <p>Merci de votre visite !</p>
+        <p className="mt-2 text-[8px] uppercase not-italic font-bold">Processed via Faso-Invest Pay</p>
       </div>
     </div>
-    <div className="text-center text-[10px] opacity-60 italic leading-relaxed">
-      <p>Enjoy your break!</p>
-      <p className="mt-2 text-[8px] uppercase not-italic font-bold">Processed by YengaPay</p>
-    </div>
-  </div>
-);
+  );
+};
 
 // 22. HOTEL LUXE (Conciergerie)
 export const HotelLuxe = ({ invoice, business, settings }: TemplateProps) => (
