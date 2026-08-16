@@ -410,7 +410,7 @@ function StrowalletTab({ cards, onAction }: { cards: any[]; onAction?: () => voi
   async function sync(card_id?: string) {
     setSyncing(true); setSyncSummary(null);
     try {
-      const r: any = await syncFn(card_id);
+      const r: any = await syncFn();
       const changed = (r?.results ?? []).filter((x: any) => x.changed);
       setSyncSummary(
         `${r?.count ?? 0} carte(s) vérifiée(s) · ${changed.length} mise(s) à jour` +
