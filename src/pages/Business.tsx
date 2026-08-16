@@ -59,7 +59,7 @@ export default function BusinessPage() {
   const [postDraft, setPostDraft] = useState<{ title: string; body: string; image_url: string }>({ title: "", body: "", image_url: "" });
   const [uploadingImg, setUploadingImg] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TabId>("overview");
+  const [tab, setTab] = useState<string>("overview");
   const [configProject, setConfigProject] = useState<Project | null>(null);
 
   useEffect(() => {
