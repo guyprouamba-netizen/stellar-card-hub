@@ -2285,10 +2285,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone", "notify_admin_sender_request", "sender_request_admin_template", "sender_request_user_template"]);
     const extrasMap: Record<string, any> = {};
     for (const r of extras ?? []) {
-      if (r.key === "notify_admin_sender_request") {
-        extrasMap[r.key] = r.value === "true";
-      } else {
-        // Plain string or number
+      try {
+        extrasMap[r.key] = (typeof r.value === 'string') ? JSON.parse(r.value) : r.value;
+      } catch (e) {
         extrasMap[r.key] = r.value;
       }
     }
@@ -2301,6 +2300,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const allowedStrings = ["whatsapp_group_url", "admin_notification_phone", "sender_request_admin_template", "sender_request_user_template"];
     const allowedBools = ["notify_admin_sender_request"];
     const updates: Array<{ key: string; value: any }> = [];
+    
+    console.log("[adminUpdateConfig] Received data:", JSON.stringify(data));
     for (const k of allowedNumbers) {
       if (data?.[k] !== undefined && data[k] !== null && data[k] !== "") {
         const n = Number(data[k]);
@@ -2320,23 +2321,35 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     }
     for (const u of updates) {
       // Force JSON stringification for jsonb column
+      // Note: newValue will be a string like '"value"' for jsonb storage
       const jsonValue = JSON.stringify(u.value);
-      const { error: upsertError } = await admin.from("platform_config").upsert({ key: u.key, value: jsonValue }, { onConflict: "key" });
+      
+      const { data: updated, error: upsertError } = await admin.from("platform_config")
+        .upsert({ key: u.key, value: jsonValue }, { onConflict: "key" })
+        .select("value")
+        .maybeSingle();
+        
       if (upsertError) throw new Error(`Erreur lors de la mise à jour de ${u.key}: ${upsertError.message}`);
       
       // Strict post-upsert verification
-      const { data: verify, error: verifyError } = await admin.from("platform_config").select("value").eq("key", u.key).maybeSingle();
-      if (verifyError || !verify || JSON.stringify(verify.value) !== jsonValue) {
-        throw new Error(`Échec de vérification après écriture pour ${u.key}. Attendu: ${jsonValue}, Obtenu: ${verify ? JSON.stringify(verify.value) : 'null'}`);
+      if (!updated || JSON.stringify(updated.value) !== jsonValue) {
+        throw new Error(`Échec de vérification après écriture pour ${u.key}. Attendu: ${jsonValue}, Obtenu: ${updated ? JSON.stringify(updated.value) : 'null'}`);
       }
+      console.log(`[ConfigUpdate] ${u.key} updated and verified to ${jsonValue}`);
     }
     const cfg = await loadPricingConfig(admin);
     const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone", "notify_admin_sender_request", "sender_request_admin_template", "sender_request_user_template"]);
     const extrasMap: Record<string, any> = {};
     for (const r of extras ?? []) {
-      if (r.key === "notify_admin_sender_request") {
-        extrasMap[r.key] = r.value === "true";
-      } else {
+      try {
+        // If it's already a JS object (shouldn't be, but for safety)
+        if (typeof r.value !== 'string') {
+          extrasMap[r.key] = r.value;
+        } else {
+          extrasMap[r.key] = JSON.parse(r.value);
+        }
+      } catch (e) {
+        // Fallback for unquoted old values
         extrasMap[r.key] = r.value;
       }
     }
@@ -2348,7 +2361,13 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const { data } = await admin.from("platform_config").select("key,value")
       .in("key", ["whatsapp_group_url", "referral_reward_xof"]);
     const out: Record<string, any> = {};
-    for (const r of data ?? []) out[r.key] = r.value;
+    for (const r of data ?? []) {
+      try {
+        out[r.key] = (typeof r.value === 'string') ? JSON.parse(r.value) : r.value;
+      } catch (e) {
+        out[r.key] = r.value;
+      }
+    }
     return { ok: true, ...out };
   },
 
