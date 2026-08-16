@@ -68,16 +68,27 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
 
           <div className="space-y-6">
             <section>
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Choix du template</label>
-              <select 
-                value={template} 
-                onChange={(e) => setTemplate(e.target.value)}
-                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
-              >
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 block">Choisir un style professionnel</label>
+              <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto p-1 border border-border rounded-xl scrollbar-hide">
                 {Object.keys(INVOICE_TEMPLATES).map(k => (
-                  <option key={k} value={k}>{k.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')}</option>
+                  <button
+                    key={k}
+                    onClick={() => setTemplate(k)}
+                    className={`group relative overflow-hidden rounded-xl border-2 p-3 text-left transition-all ${
+                      template === k 
+                        ? "border-primary bg-primary/5 ring-2 ring-primary/20" 
+                        : "border-border hover:border-primary/50 bg-card"
+                    }`}
+                  >
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground group-hover:text-primary transition-colors">
+                      {k.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')}
+                    </div>
+                    {template === k && (
+                      <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary animate-pulse" />
+                    )}
+                  </button>
                 ))}
-              </select>
+              </div>
             </section>
 
             <section className="space-y-3">
