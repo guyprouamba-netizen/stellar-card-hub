@@ -693,32 +693,52 @@ const H1: Record<string, any> = {
   },
 
   async listProductCategories(args: any) {
-    await assertBusinessOwner(args.admin, args.user.id, args.data.business_id);
     const { data: rows, error } = await args.admin.from("product_categories")
       .select("*")
-      .eq("business_id", args.data.business_id)
-      .order("position", { ascending: true });
+      .is("business_id", null)
+      .eq("is_active", true)
+      .order("position", { ascending: true })
+      .order("name", { ascending: true });
     if (error) throw new Error(error.message);
     return rows ?? [];
   },
-  async createProductCategory(args: any) {
-    await assertBusinessOwner(args.admin, args.user.id, args.data.business_id);
-    const name = String(args.data?.name || "").trim();
-    if (name.length < 2) throw new Error("Nom de catégorie requis");
-    const slug = slugify(name) + "-" + randomHex(2);
-    const { data: row, error } = await args.admin.from("product_categories").insert({
-      business_id: args.data.business_id, name, slug, 
-      description: args.data.description || null,
-      position: args.data.position || 0
-    }).select("*").single();
+  async adminListProductCategories(args: any) {
+    if (!(await isAdmin(args.admin, args.user.id))) throw new Error("Forbidden");
+    const { data: rows, error } = await args.admin.from("product_categories")
+      .select("*")
+      .is("business_id", null)
+      .order("position", { ascending: true })
+      .order("name", { ascending: true });
     if (error) throw new Error(error.message);
-    return row;
+    return rows ?? [];
   },
-  async deleteProductCategory(args: any) {
-    const { data: cat } = await args.admin.from("product_categories").select("business_id").eq("id", args.data.id).maybeSingle();
-    if (!cat) throw new Error("Catégorie introuvable");
-    await assertBusinessOwner(args.admin, args.user.id, cat.business_id);
-    await args.admin.from("product_categories").delete().eq("id", args.data.id);
+  async adminUpsertProductCategory(args: any) {
+    if (!(await isAdmin(args.admin, args.user.id))) throw new Error("Forbidden");
+    const d = args.data || {};
+    const name = String(d.name || "").trim();
+    if (name.length < 2) throw new Error("Nom de catégorie requis");
+    const row: any = {
+      business_id: null,
+      name,
+      description: d.description || null,
+      position: Number(d.position) || 0,
+      is_active: d.is_active === false ? false : true,
+    };
+    if (d.id) {
+      const { data: up, error } = await args.admin.from("product_categories")
+        .update(row).eq("id", d.id).select("*").single();
+      if (error) throw new Error(error.message);
+      return up;
+    }
+    row.slug = slugify(name) + "-" + randomHex(2);
+    const { data: ins, error } = await args.admin.from("product_categories").insert(row).select("*").single();
+    if (error) throw new Error(error.message);
+    return ins;
+  },
+  async adminDeleteProductCategory(args: any) {
+    if (!(await isAdmin(args.admin, args.user.id))) throw new Error("Forbidden");
+    const { error } = await args.admin.from("product_categories").delete().eq("id", args.data.id).is("business_id", null);
+    if (error) throw new Error(error.message);
     return { ok: true };
   },
 
