@@ -515,21 +515,6 @@ export const QontoModern = ({ invoice, business, settings, kind = "invoice" }: T
     </div>
   );
 };
-        <p className="text-slate-400 text-xs font-bold uppercase mb-4">Client</p>
-        <p className="font-bold">{invoice.customer_name}</p>
-        <p className="text-slate-500 text-sm">{invoice.customer_email}</p>
-      </div>
-    </div>
-    <div className="space-y-4">
-      {invoice.items.map((it, i) => (
-        <div key={i} className="flex justify-between py-4 border-b border-slate-100">
-          <span className="font-medium">{it.name} <span className="text-slate-400 ml-2">x{it.qty}</span></span>
-          <span className="font-bold">{(it.qty * it.price).toLocaleString()}</span>
-        </div>
-      ))}
-    </div>
-  </div>
-);
 
 // 9. UBER RECEIPT
 export const UberReceipt = ({ invoice, business }: TemplateProps) => (
