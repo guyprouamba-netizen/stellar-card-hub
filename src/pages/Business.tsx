@@ -361,7 +361,7 @@ export default function BusinessPage() {
                       <p className="text-xs uppercase tracking-wider text-muted-foreground">Solde encaissé</p>
                       <p className="mt-1 font-[Space_Grotesk] text-2xl font-bold tabular-nums sm:text-3xl">{Number(current.balance).toLocaleString("fr-FR")} <span className="text-sm text-muted-foreground">XOF</span></p>
                       <button onClick={onCashout} disabled={Number(current.balance) <= 0}
-                        className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background disabled:opacity-40">
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background disabled:opacity-40 transition-all hover:scale-105 active:scale-95">
                         <Wallet className="h-3.5 w-3.5" /> Transférer vers mon wallet
                       </button>
                     </div>
@@ -395,69 +395,70 @@ export default function BusinessPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button onClick={() => copy(`${window.location.origin}/shop/${current.slug}`)} className="grid h-9 w-9 place-items-center rounded-full border border-border hover:bg-muted"><Copy className="h-4 w-4" /></button>
-                      <Link to={`/shop/${encodeURIComponent(current.slug)}`} className="inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow">
+                      <button onClick={() => copy(`${window.location.origin}/shop/${current.slug}`)} className="grid h-9 w-9 place-items-center rounded-full border border-border hover:bg-muted transition-colors"><Copy className="h-4 w-4" /></button>
+                      <Link to={`/shop/${encodeURIComponent(current.slug)}`} className="inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow transition-all hover:scale-105 active:scale-95">
                         <ExternalLink className="h-3.5 w-3.5" /> Ouvrir
                       </Link>
                     </div>
                   </div>
                 </div>
+                </>
+              )}
 
-                {(tab as any) === "gateway" && (
-                  <div className="space-y-6">
-                    <div className="rounded-3xl border border-border bg-card p-6 shadow-card-premium">
-                      <div className="flex items-center gap-3">
-                        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary">
-                          <ShieldCheck className="h-6 w-6" />
-                        </div>
-                        <div>
-                          <h3 className="font-[Space_Grotesk] text-xl font-bold">Intégration API (Technique)</h3>
-                          <p className="text-sm text-muted-foreground">Encaissez vos clients directement sur votre site via l'API YengaPay (Projet 31062).</p>
+              {tab === "gateway" && (
+                <div className="space-y-6">
+                  <div className="rounded-3xl border border-border bg-card p-6 shadow-card-premium">
+                    <div className="flex items-center gap-3">
+                      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+                        <ShieldCheck className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-[Space_Grotesk] text-xl font-bold">Intégration API (Technique)</h3>
+                        <p className="text-sm text-muted-foreground">Encaissez vos clients directement sur votre site via l'API YengaPay (Projet 31062).</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-8 grid gap-6 md:grid-cols-2">
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Configuration YengaPay</h4>
+                        <div className="rounded-2xl border border-border bg-surface-2 p-5 space-y-4">
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Projet ID</p>
+                            <p className="mt-1 font-mono text-sm font-bold">31062</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Webhook URL (à copier dans YengaPay)</p>
+                            <div className="mt-1 flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs">
+                              <span className="flex-1 truncate font-mono text-primary">{`${window.location.origin.replace("lovable.app", "supabase.co")}/functions/v1/yengapay-webhook`}</span>
+                              <button onClick={() => copy(`${window.location.origin.replace("lovable.app", "supabase.co")}/functions/v1/yengapay-webhook`)} className="text-muted-foreground hover:text-foreground"><Copy className="h-3.5 w-3.5" /></button>
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Secret Webhook (Auto-configuré)</p>
+                            <p className="mt-1 font-mono text-sm font-bold text-emerald-500">9dea2ad9-••••••••-acfa-••••••••</p>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="mt-8 grid gap-6 md:grid-cols-2">
-                        <div className="space-y-4">
-                          <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Configuration YengaPay</h4>
-                          <div className="rounded-2xl border border-border bg-surface-2 p-5 space-y-4">
-                            <div>
-                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Projet ID</p>
-                              <p className="mt-1 font-mono text-sm font-bold">31062</p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Webhook URL (à copier dans YengaPay)</p>
-                              <div className="mt-1 flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs">
-                                <span className="flex-1 truncate font-mono text-primary">{`${window.location.origin.replace("lovable.app", "supabase.co")}/functions/v1/yengapay-webhook`}</span>
-                                <button onClick={() => copy(`${window.location.origin.replace("lovable.app", "supabase.co")}/functions/v1/yengapay-webhook`)} className="text-muted-foreground hover:text-foreground"><Copy className="h-3.5 w-3.5" /></button>
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Test & Documentation</h4>
+                        <div className="space-y-2">
+                          <button onClick={() => setTab("docs")} className="w-full flex items-center justify-between rounded-2xl border border-border bg-card p-4 hover:border-primary/40 transition">
+                            <div className="flex items-center gap-3">
+                              <BookOpen className="h-5 w-5 text-primary" />
+                              <div className="text-left">
+                                <p className="font-semibold">Documentation API</p>
+                                <p className="text-xs text-muted-foreground">Intégration technique pas à pas</p>
                               </div>
                             </div>
-                            <div>
-                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Secret Webhook (Auto-configuré)</p>
-                              <p className="mt-1 font-mono text-sm font-bold text-emerald-500">9dea2ad9-••••••••-acfa-••••••••</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Test & Documentation</h4>
-                          <div className="space-y-2">
-                            <button onClick={() => setTab("docs")} className="w-full flex items-center justify-between rounded-2xl border border-border bg-card p-4 hover:border-primary/40 transition">
-                              <div className="flex items-center gap-3">
-                                <BookOpen className="h-5 w-5 text-primary" />
-                                <div className="text-left">
-                                  <p className="font-semibold">Documentation API</p>
-                                  <p className="text-xs text-muted-foreground">Intégration technique pas à pas</p>
-                                </div>
-                              </div>
-                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                            </button>
-                            <div className="rounded-2xl border border-border bg-card p-4">
-                              <div className="flex items-center gap-3">
-                                <Activity className="h-5 w-5 text-amber-500" />
-                                <div>
-                                  <p className="font-semibold text-sm">Statut du service</p>
-                                  <p className="text-xs text-muted-foreground">Opérationnel · Temps de réponse ~200ms</p>
-                                </div>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                          <div className="rounded-2xl border border-border bg-card p-4">
+                            <div className="flex items-center gap-3">
+                              <Activity className="h-5 w-5 text-amber-500" />
+                              <div>
+                                <p className="font-semibold text-sm">Statut du service</p>
+                                <p className="text-xs text-muted-foreground">Opérationnel · Temps de réponse ~200ms</p>
                               </div>
                             </div>
                           </div>
@@ -465,9 +466,7 @@ export default function BusinessPage() {
                       </div>
                     </div>
                   </div>
-                )}
-
-                </>
+                </div>
               )}
 
               {tab === "settings" && (
@@ -505,75 +504,75 @@ export default function BusinessPage() {
                       <p className="mt-3 text-sm text-muted-foreground">Créez votre premier projet pour ajouter produits, liens, QR codes, factures et un coach IA dédié.</p>
                     </div>
                   ) : (
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
                       {projects.map((p) => {
-                        const pct = p.financial_goal > 0 ? Math.min(100, (Number(p.balance) / Number(p.financial_goal)) * 100) : 0;
-                        const vitrineUrl = `${window.location.origin}/vitrine/${p.id}`;
                          return (
-                           <div key={p.id} className="group relative flex flex-col overflow-hidden rounded-3xl border border-border bg-card transition-all hover:border-primary/40 hover:shadow-card-premium">
+                           <div key={p.id} className="group relative flex flex-col overflow-hidden rounded-[2.5rem] border border-border bg-card transition-all hover:border-primary/40 hover:shadow-card-premium min-h-[480px]">
                              {/* Badge de Type */}
-                             <div className="absolute left-4 top-4 z-10">
-                               <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-500 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
-                                 <Megaphone className="h-3 w-3" /> Payout
+                             <div className="absolute left-6 top-6 z-10">
+                               <span className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-3 py-1.5 text-[11px] font-black uppercase tracking-widest text-white shadow-lg">
+                                 <Building2 className="h-3.5 w-3.5" /> Marchand
                                </span>
                              </div>
 
                              {/* Logo & Status */}
-                             <div className="p-5 pb-0">
+                             <div className="p-8 pb-0">
                                <div className="flex items-start justify-between">
-                                 <div className="flex flex-1 items-center gap-4">
+                                 <div className="flex flex-1 items-center gap-5">
                                    {p.logo_url ? (
-                                     <img src={p.logo_url} className="h-16 w-16 rounded-2xl object-cover shadow-sm" alt="" />
+                                     <img src={p.logo_url} className="h-20 w-20 rounded-[1.5rem] object-cover shadow-md border border-border/50" alt="" />
                                    ) : (
-                                     <div className="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 text-2xl font-black text-primary">
+                                     <div className="grid h-20 w-20 place-items-center rounded-[1.5rem] bg-gradient-to-br from-primary/20 to-primary/5 text-3xl font-black text-primary border border-primary/10">
                                        {p.name[0]}
                                      </div>
                                    )}
                                    <div className="min-w-0 flex-1">
                                      <div className="flex items-center gap-2">
-                                       <h4 className="truncate font-[Space_Grotesk] text-lg font-bold">{p.name}</h4>
-                                       <span className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-500">Actif</span>
+                                       <h4 className="truncate font-[Space_Grotesk] text-xl font-bold tracking-tight">{p.name}</h4>
+                                       <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-500 border border-emerald-500/20">Actif</span>
                                      </div>
-                                     <p className="mt-1 text-xs text-muted-foreground line-clamp-1">{p.description || "Compte de paiements sortants"}</p>
-                                     <p className="mt-0.5 text-[10px] uppercase tracking-tighter text-muted-foreground/60">Projet payout GUY ROUAMBA</p>
+                                     <p className="mt-1 text-sm text-muted-foreground line-clamp-1">{p.description || "Compte de paiements marchands"}</p>
+                                     <p className="mt-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">
+                                       Projet marchand {session?.user?.user_metadata?.full_name || "Utilisateur"}
+                                     </p>
                                    </div>
                                  </div>
                                </div>
                              </div>
 
                              {/* Stats Grid */}
-                             <div className="mt-6 grid grid-cols-2 gap-3 px-5">
-                               <div className="rounded-2xl border border-orange-500/10 bg-orange-500/5 p-3 text-center">
-                                 <p className="text-[10px] font-semibold text-orange-600 uppercase">Solde disponible</p>
-                                 <p className="mt-1 font-[Space_Grotesk] text-lg font-bold text-orange-700">{Number(p.balance).toLocaleString("fr-FR")} <span className="text-[10px]">XOF</span></p>
+                             <div className="mt-8 grid grid-cols-2 gap-4 px-8">
+                               <div className="rounded-[2rem] border border-orange-500/10 bg-orange-500/5 p-5 text-center transition-colors hover:bg-orange-500/10">
+                                 <p className="text-[10px] font-bold text-orange-600 uppercase tracking-widest">Solde disponible</p>
+                                 <p className="mt-2 font-[Space_Grotesk] text-2xl font-black text-orange-700">{Number(p.balance).toLocaleString("fr-FR")} <span className="text-xs">XOF</span></p>
                                </div>
-                               <div className="rounded-2xl border border-orange-500/10 bg-orange-500/5 p-3 text-center">
-                                 <p className="text-[10px] font-semibold text-orange-600 uppercase">Transactions envoyées</p>
-                                 <p className="mt-1 font-[Space_Grotesk] text-lg font-bold text-orange-700">0</p>
+                               <div className="rounded-[2rem] border border-orange-500/10 bg-orange-500/5 p-5 text-center transition-colors hover:bg-orange-500/10">
+                                 <p className="text-[10px] font-bold text-orange-600 uppercase tracking-widest">Transactions envoyées</p>
+                                 <p className="mt-2 font-[Space_Grotesk] text-2xl font-black text-orange-700">0</p>
                                </div>
                              </div>
 
                              {/* ID Footer */}
-                             <div className="mt-6 border-t border-border/40 bg-muted/30 px-5 py-3">
-                               <div className="flex items-center justify-between text-[10px]">
-                                 <span className="font-bold text-red-500/70 uppercase tracking-widest">ID Projet: {p.id.split('-')[0]}</span>
-                                 <div className="flex items-center gap-1 opacity-40">
-                                   <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
-                                   <span className="h-1.5 w-1.5 rounded-full bg-orange-300" />
+                             <div className="mt-auto border-t border-border/40 bg-muted/20 px-8 py-4">
+                               <div className="flex items-center justify-between text-[11px]">
+                                 <span className="font-black text-red-500/70 uppercase tracking-[0.2em]">ID Projet: {p.id.split('-')[0]}</span>
+                                 <div className="flex items-center gap-1.5">
+                                   <span className="h-2 w-2 rounded-full bg-orange-500 shadow-sm" />
+                                   <span className="h-2 w-2 rounded-full bg-orange-300 shadow-sm" />
                                  </div>
                                </div>
                              </div>
 
                              {/* Actions Menu */}
-                             <div className="grid grid-cols-3 divide-x divide-border border-t border-border text-[10px] font-bold uppercase tracking-tighter">
-                               <button onClick={() => setTab("payments")} className="flex items-center justify-center gap-1.5 py-4 hover:bg-muted transition">
-                                 <Activity className="h-3.5 w-3.5 text-orange-500" /> Transactions
+                             <div className="grid grid-cols-3 divide-x divide-border border-t border-border text-[11px] font-black uppercase tracking-widest bg-card">
+                               <button onClick={() => setTab("payments")} className="flex items-center justify-center gap-2 py-5 hover:bg-muted transition-all hover:text-orange-600">
+                                 <Activity className="h-4 w-4 text-orange-500" /> Transactions
                                </button>
-                               <button className="flex items-center justify-center gap-1.5 py-4 hover:bg-muted transition">
-                                 <Megaphone className="h-3.5 w-3.5 text-orange-500 rotate-[-20deg]" /> Envoi masse
+                               <button className="flex items-center justify-center gap-2 py-5 hover:bg-muted transition-all hover:text-orange-600">
+                                 <Megaphone className="h-4 w-4 text-orange-500 rotate-[-20deg]" /> Envoi masse
                                </button>
-                               <button onClick={() => setConfigProject(p)} className="flex items-center justify-center gap-1.5 py-4 hover:bg-muted transition">
-                                 <ExternalLink className="h-3.5 w-3.5 text-orange-500" /> Payout
+                               <button onClick={() => setConfigProject(p)} className="flex items-center justify-center gap-2 py-5 hover:bg-muted transition-all hover:text-orange-600">
+                                 <Settings2 className="h-4 w-4 text-orange-500" /> Paramètres
                                </button>
                              </div>
                            </div>
@@ -582,7 +581,6 @@ export default function BusinessPage() {
                     </div>
                   )}
                 </section>
-
                 )}
 
                 {/* Payment links */}
@@ -701,8 +699,8 @@ export default function BusinessPage() {
 
 
                 {/* Section « Clés API » masquée volontairement — accès interne uniquement */}
-            </div>
-            )}
+                </div>
+              )}
             </div>
           </div>
         )}
