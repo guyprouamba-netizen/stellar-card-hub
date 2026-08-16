@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getShop, initShopCheckout } from "@/lib/pay.functions";
-import { MomoPayment } from "@/components/momo-payment";
-import { Loader2, ShoppingCart, Plus, Minus, X, ShieldCheck, Store, Mail, Phone } from "lucide-react";
+import { getShop } from "@/lib/pay.functions";
+import { Loader2, ShieldCheck, Store, Mail, Phone, Eye } from "lucide-react";
+import { ProductDetailModal } from "@/components/product-detail-modal";
 
 type Product = { id: string; name: string; slug: string; description: string | null; price: number; currency: string; project_id?: string | null; media?: Array<{ url: string; type: string }> };
 type Post = { id: string; title: string; body: string | null; image_url: string | null; product_id: string | null; published_at: string };
@@ -24,11 +24,7 @@ export default function Shop() {
   const [products, setProducts] = useState<Product[]>([]);
   const [projects, setProjects] = useState<ShopProject[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [cart, setCart] = useState<Record<string, number>>({});
-  const [cartOpen, setCartOpen] = useState(false);
-  const [customer, setCustomer] = useState({ name: "", email: "", phone: "", address: "", note: "" });
-  const [submitting, setSubmitting] = useState(false);
-  const [pay, setPay] = useState<{ reference: string; amount: number; currency: string; order_token: string; checkoutUrl?: string } | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     // Retour depuis paiement : rediriger vers le suivi de commande
