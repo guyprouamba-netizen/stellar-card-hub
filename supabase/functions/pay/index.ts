@@ -467,6 +467,7 @@ async function payDirect(payload: any) {
     
     if (checkoutUrl) {
       console.log("Redirecting to YengaPay checkout:", { reference, checkoutUrl });
+      // Mise à jour de l'intention de paiement avec le nouvel ID de YengaPay
       await admin().from("payment_link_payments").update({ payment_intent_id: paymentIntentId }).eq("reference", reference);
       return { ok: true, reference, amount: total, currency: tx.currency, checkoutUrl };
     } else {
