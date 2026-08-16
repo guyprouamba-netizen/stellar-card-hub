@@ -20,7 +20,14 @@ import DocsPanel from "@/components/business/docs-panel";
 import { ArrowLeft, Building2, Copy, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Palette, Loader2, MessageSquare, ShieldCheck, Activity } from "lucide-react";
 import { LayoutDashboard, Receipt, CreditCard, Settings2, BarChart3, BookOpen } from "lucide-react";
 
-const NAV = [
+interface NavItem {
+  id: string;
+  label: string;
+  icon?: any;
+  sub?: NavItem[];
+}
+
+const NAV: NavItem[] = [
   { id: "overview", label: "Tableau de bord", icon: LayoutDashboard },
   { id: "projects", label: "Projets", icon: FolderKanban },
   { id: "products", label: "Produits", icon: Package },
@@ -38,9 +45,9 @@ const NAV = [
       { id: "shop_branding", label: "Personnaliser" },
     ]
   },
-] as const;
-const TabIdSet = new Set(NAV.map(n => n.id));
-type TabId = typeof NAV[number]["id"];
+];
+const TabIdSet = new Set(NAV.flatMap(n => [n.id, ...(n.sub?.map(s => s.id) || [])]));
+type TabId = string;
 
 type Biz = { id: string; name: string; slug: string; status: string; balance: number; fee_bps: number };
 type PLink = { id: string; slug: string; title: string; amount: number | null; currency: string; status: string };
