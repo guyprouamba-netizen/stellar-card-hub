@@ -233,7 +233,7 @@ export function MomoPayment({ reference, amount, currency = "XOF", defaultPhone 
       )}
 
       <p className="mt-5 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
-        <ShieldCheck className="h-3 w-3" /> Paiement sécurisé par FASO-INVEST PAY
+        <ShieldCheck className="h-3 w-3" /> Paiement 100% sécurisé
       </p>
     </div>
   );
