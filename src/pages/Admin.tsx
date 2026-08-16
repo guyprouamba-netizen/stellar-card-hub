@@ -10,14 +10,14 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
-import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminYengapayVerifyBatch, adminCreditYengapayExternal, adminCreditPendingDeposit, adminSyncCards, adminCardTransactions, adminListShopTemplates, adminUpsertShopTemplate, adminDeleteShopTemplate } from "@/lib/admin.functions";
+import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminYengapayVerifyBatch, adminCreditYengapayExternal, adminCreditPendingDeposit, adminSyncCards, adminCardTransactions, adminListShopTemplates, adminUpsertShopTemplate, adminDeleteShopTemplate, adminListSenderRequests, adminUpdateSenderRequest } from "@/lib/admin.functions";
 import { getPaypalWithdrawConfig, adminUpdatePaypalWithdrawConfig } from "@/lib/paypal.functions";
 import { getGatewayFeeConfig, adminUpdateGatewayFeeConfig } from "@/lib/business.functions";
 import { toast } from "sonner";
 import { AnalyticsSection } from "@/components/admin/analytics-section";
 import { DashboardAiAssistant } from "@/components/admin/ai-assistant";
 
-type Tab = "users" | "flow" | "analytics" | "assistant" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "businesses" | "shop-templates" | "settings";
+type Tab = "users" | "flow" | "analytics" | "assistant" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "businesses" | "shop-templates" | "sms-requests" | "settings";
 
 function AdminPage() {
   const navigate = useNavigate();
@@ -76,6 +76,7 @@ function AdminPage() {
               {tab === "referrals" && <ReferralsAdminTab adjust={undefined} refetchOverview={refetch} />}
               {tab === "businesses" && <BusinessesTab businesses={data.businesses ?? []} />}
               {tab === "shop-templates" && <ShopTemplatesTab />}
+              {tab === "sms-requests" && <SmsRequestsTab />}
               {tab === "settings" && <SettingsTab />}
             </>
           )}
@@ -116,6 +117,7 @@ function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "referrals", label: "Parrainages", Icon: Share2 },
     { id: "businesses", label: "Entreprises", Icon: Server },
     { id: "shop-templates", label: "Templates Boutique", Icon: Store },
+    { id: "sms-requests", label: "Demandes Sender ID", Icon: MessageSquare },
     { id: "settings", label: "Paramètres", Icon: SlidersHorizontal },
   ];
   async function logout() { await supabase.auth.signOut(); navigate("/"); }
