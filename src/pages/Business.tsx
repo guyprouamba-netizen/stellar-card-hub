@@ -326,8 +326,9 @@ export default function BusinessPage() {
             </div>
 
             {current && (
-              <>
-              {tab === "overview" && (<>
+              <div className="space-y-6">
+              {tab === "overview" && (
+                <>
                 {/* Barre de statistiques (style tableau de bord marchand) */}
                 <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {[
