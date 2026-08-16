@@ -52,3 +52,59 @@ export async function handle2FA(admin: any, userId: string, phone: string, actio
     return { ok: true };
   }
 }
+
+/**
+ * Version simplifiée spécifique pour l'inscription (registration) 
+ * pour éviter les conflits de types ou de paramètres optionnels.
+ */
+export async function handleRegistrationOTP(admin: any, userId: string, phone: string, action: "send" | "verify", code?: string) {
+  const normalized = normalizeBfPhone(phone);
+  if (!normalized) throw new Error("Numéro de téléphone invalide");
+
+  if (action === "send") {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60000).toISOString();
+
+    const { error } = await admin.from("user_otp").upsert({
+      user_id: userId,
+      phone: normalized,
+      code: otp,
+      expires_at: expiresAt,
+      purpose: "registration"
+    });
+    if (error) throw error;
+
+    const r = await sendSmsRaw({
+      recipient: normalized,
+      message: `Bienvenue sur FASO-INVEST PAY ! Votre code de confirmation est : ${otp}`,
+      sender_id: "FASOINVEST",
+      type: "whatsapp"
+    });
+
+    if (!r.ok) {
+      console.error("WhatsApp registration OTP failed:", r.body);
+      throw new Error("Erreur lors de l'envoi WhatsApp OTP");
+    }
+    return { ok: true, expires_at: expiresAt };
+  } else {
+    if (!code) throw new Error("Code OTP requis");
+    const { data, error } = await admin.from("user_otp")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("code", code)
+      .eq("purpose", "registration")
+      .gt("expires_at", new Date().toISOString())
+      .maybeSingle();
+
+    if (error || !data) throw new Error("Code invalide ou expiré");
+
+    await admin.from("user_otp").delete().eq("id", data.id);
+    
+    await admin.from("profiles").update({ 
+      phone_verified: true, 
+      phone_verified_at: new Date().toISOString() 
+    }).eq("id", userId);
+
+    return { ok: true };
+  }
+}
