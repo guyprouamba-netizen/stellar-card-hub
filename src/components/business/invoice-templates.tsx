@@ -835,38 +835,42 @@ export const NotaireOfficiel = ({ invoice, business, settings, kind = "invoice" 
 };
 
 // 17. DIGITAL NOMAD (Style Indie Hackers)
-export const DigitalNomad = ({ invoice, business }: TemplateProps) => (
-  <div className="bg-[#f4f7f6] p-12 max-w-3xl mx-auto font-mono text-slate-800 border-2 border-slate-800 shadow-[8px_8px_0px_0px_rgba(30,41,59,1)]">
-    <div className="flex justify-between items-start mb-12 border-b-2 border-slate-800 pb-8">
-      <div>
-        <h1 className="text-2xl font-black bg-yellow-300 px-2 inline-block mb-2">INVOICE</h1>
-        <p className="font-bold">#{invoice.number}</p>
+export const DigitalNomad = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "RECEIPT" : kind === "contract" ? "CONTRACT" : "INVOICE";
+  return (
+    <div className="bg-[#f4f7f6] p-12 max-w-3xl mx-auto font-mono text-slate-800 border-2 border-slate-800 shadow-[8px_8px_0px_0px_rgba(30,41,59,1)]">
+      <div className="flex justify-between items-start mb-12 border-b-2 border-slate-800 pb-8">
+        <div>
+          <h1 className="text-2xl font-black bg-yellow-300 px-2 inline-block mb-2">{title}</h1>
+          <p className="font-bold">#{invoice.number}</p>
+        </div>
+        <div className="text-right font-bold uppercase text-xs">
+          <p>{business.name}</p>
+          <p className="bg-slate-800 text-white px-2 mt-1">Paid via YengaPay</p>
+        </div>
       </div>
-      <div className="text-right font-bold uppercase text-xs">
-        <p>{business.name}</p>
-        <p className="bg-slate-800 text-white px-2 mt-1">Paid via YengaPay</p>
+      <div className="space-y-8 mb-12">
+        <div>
+          <p className="text-xs uppercase opacity-50 mb-2">Client // Destination</p>
+          <p className="text-xl font-black">{invoice.customer_name}</p>
+        </div>
+        <div className="bg-white border-2 border-slate-800 p-6 space-y-4">
+          {invoice.items.map((it, i) => (
+            <div key={i} className="flex justify-between items-center border-b border-slate-100 last:border-0 pb-2">
+              <span>{it.name} <span className="text-xs opacity-50">x{it.qty}</span></span>
+              <span className="font-black">{(it.qty * it.price).toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
       </div>
+      <div className="flex justify-between items-center font-black text-2xl bg-yellow-300 p-4 border-2 border-slate-800 mb-8">
+        <span>TOTAL</span>
+        <span>{invoice.total.toLocaleString()} {invoice.currency}</span>
+      </div>
+      <VerificationFooter business={business} invoice={invoice} />
     </div>
-    <div className="space-y-8 mb-12">
-      <div>
-        <p className="text-xs uppercase opacity-50 mb-2">Client // Destination</p>
-        <p className="text-xl font-black">{invoice.customer_name}</p>
-      </div>
-      <div className="bg-white border-2 border-slate-800 p-6 space-y-4">
-        {invoice.items.map((it, i) => (
-          <div key={i} className="flex justify-between items-center border-b border-slate-100 last:border-0 pb-2">
-            <span>{it.name} <span className="text-xs opacity-50">x{it.qty}</span></span>
-            <span className="font-black">{(it.qty * it.price).toLocaleString()}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-    <div className="flex justify-between items-center font-black text-2xl bg-yellow-300 p-4 border-2 border-slate-800">
-      <span>TOTAL</span>
-      <span>{invoice.total.toLocaleString()} {invoice.currency}</span>
-    </div>
-  </div>
-);
+  );
+};
 
 // 18. RETRO TICKET (80s Style)
 export const RetroTicket = ({ invoice, business }: TemplateProps) => (
