@@ -3056,6 +3056,9 @@ const H2: Record<string, any> = {
   // ===========================================================
   // ORDERS (merchant order management)
   // ===========================================================
+};
+
+const H3: Record<string, any> = {
   async listOrders({ data, user, admin }) {
     await assertBusinessOwner(admin, user.id, data.business_id);
     let q: any = admin.from("orders")
