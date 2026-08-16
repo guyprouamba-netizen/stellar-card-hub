@@ -2766,6 +2766,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       gateway_fee_flat_xof: data?.fee_flat_xof,
       gateway_min_xof: data?.min_xof,
       gateway_enabled: data?.enabled,
+      admin_notification_phone: data?.admin_notification_phone,
     };
     for (const [k, v] of Object.entries(map)) {
       if (v === undefined || v === null) continue;
