@@ -853,17 +853,11 @@ function ReferralsAdminTab(_props: { adjust?: any; refetchOverview: () => void }
   );
 }
 
-function SettingsTab() {
-  const getCfg = useServerFn(adminGetConfig);
-  const updCfg = useServerFn(adminUpdateConfig);
-  const [cfg, setCfg] = useState<any>(null);
-  const [busy, setBusy] = useState(false);
-  const [draft, setDraft] = useState<any>({});
+import { SettingsTab } from "./AdminSettingsRefactor";
 
-  useEffect(() => { (async () => {
-    try { const r: any = await getCfg(); setCfg(r.config); setDraft(r.config); }
-    catch (e) { toast.error((e as Error).message); }
-  })(); }, []);
+/* The old SettingsTab content was here, now refactored */
+function OldSettingsTab() {
+
 
   function field(k: string, label: string, hint: string, step = "any") {
     return (
