@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { X, Save, Download, Printer, Eye, Settings2, Trash2, Plus, User, FileText, Receipt, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { INVOICE_TEMPLATES } from "./invoice-templates";
+import { INVOICE_TEMPLATES, RECEIPT_TEMPLATES, CONTRACT_TEMPLATES } from "./invoice-templates";
 import { createInvoice, updateInvoice } from "@/lib/business.functions";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
