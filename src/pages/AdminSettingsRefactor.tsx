@@ -122,7 +122,48 @@ export function SettingsTab() {
         <div className="grid gap-6 md:grid-cols-2 pt-4">
           <InputField k="sender_request_admin_template" label="Template SMS Admin" hint="Vars: {name}, {sender_id}, {company}" type="text" />
           <InputField k="sender_request_user_template" label="Template SMS Marchand" hint="Vars: {name}, {sender_id}" type="text" />
+      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+        <h2 className="font-[Space_Grotesk] text-xl font-bold">Passerelle API & PayPal</h2>
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold opacity-70 uppercase tracking-widest">Passerelle API (Marchands)</h3>
+            <div className="grid gap-3">
+              <InputField k="gateway_fee_bps" label="Commission API (BPS)" hint="200 = 2%" />
+              <InputField k="gateway_fee_flat_xof" label="Frais fixe API (XOF)" />
+              <InputField k="gateway_min_xof" label="Montant min API (XOF)" />
+              <InputField k="sms_price" label="Prix SMS Marchand (XOF)" />
+              <label className="flex items-center gap-3 rounded-xl border border-border bg-surface-2 p-3 cursor-pointer">
+                <input type="checkbox" checked={!!draft.gateway_enabled} onChange={(e) => setDraft((d: any) => ({ ...d, gateway_enabled: e.target.checked }))} className="h-4 w-4 rounded accent-primary" />
+                <span className="text-sm">Activer la passerelle API</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold opacity-70 uppercase tracking-widest">Retrait PayPal</h3>
+            <div className="grid gap-3">
+              <InputField k="paypal_wd_fee_bps" label="Commission PayPal (BPS)" hint="500 = 5%" />
+              <InputField k="paypal_wd_fee_flat_xof" label="Frais fixe PayPal (XOF)" />
+              <InputField k="paypal_wd_min_xof" label="Min retrait PayPal (XOF)" />
+              <InputField k="paypal_wd_max_xof" label="Max retrait PayPal (XOF)" />
+              <label className="flex items-center gap-3 rounded-xl border border-border bg-surface-2 p-3 cursor-pointer">
+                <input type="checkbox" checked={!!draft.paypal_wd_enabled} onChange={(e) => setDraft((d: any) => ({ ...d, paypal_wd_enabled: e.target.checked }))} className="h-4 w-4 rounded accent-primary" />
+                <span className="text-sm">Activer retraits PayPal</span>
+              </label>
+            </div>
+          </div>
         </div>
+
+        <div className="mt-6 pt-6 border-t border-border">
+          <h3 className="text-sm font-bold opacity-70 uppercase tracking-widest mb-4">Retrait Marchand (Cashout)</h3>
+          <div className="grid gap-6 md:grid-cols-3">
+            <InputField k="business_cashout_fee_bps" label="Commission Cashout (BPS)" hint="100 = 1%" />
+            <InputField k="business_cashout_fee_flat_xof" label="Frais fixe Cashout (XOF)" />
+            <InputField k="business_cashout_min_xof" label="Min Cashout (XOF)" />
+          </div>
+        </div>
+      </div>
+
       </div>
     </div>
   );
