@@ -5,19 +5,19 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Users, TrendingUp, CreditCard, ShieldCheck, ArrowDownUp, LogOut, RefreshCw,
   Loader2, CheckCircle2, XCircle, Wallet, Server, Eye, SlidersHorizontal, Share2,
-  AlertTriangle, BarChart3, Sparkles, Store, Plus, Trash2, ExternalLink
+  AlertTriangle, BarChart3, Sparkles, Store, Plus, Trash2, ExternalLink, MessageSquare
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
 import logo from "@/assets/logo.png";
-import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminYengapayVerifyBatch, adminCreditYengapayExternal, adminCreditPendingDeposit, adminSyncCards, adminCardTransactions, adminListShopTemplates, adminUpsertShopTemplate, adminDeleteShopTemplate } from "@/lib/admin.functions";
+import { adminOverview, adminStrowalletBalance, adminToggleUser, adminReviewKyc, adminReviewWithdrawal, adminDeleteUser, adminAdjustWallet, adminGetConfig, adminUpdateConfig, adminUpdateUser, adminReferralsOverview, adminYengapayInspect, adminYengapayVerifyBatch, adminCreditYengapayExternal, adminCreditPendingDeposit, adminSyncCards, adminCardTransactions, adminListShopTemplates, adminUpsertShopTemplate, adminDeleteShopTemplate, adminListSenderRequests, adminUpdateSenderRequest } from "@/lib/admin.functions";
 import { getPaypalWithdrawConfig, adminUpdatePaypalWithdrawConfig } from "@/lib/paypal.functions";
 import { getGatewayFeeConfig, adminUpdateGatewayFeeConfig } from "@/lib/business.functions";
 import { toast } from "sonner";
 import { AnalyticsSection } from "@/components/admin/analytics-section";
 import { DashboardAiAssistant } from "@/components/admin/ai-assistant";
 
-type Tab = "users" | "flow" | "analytics" | "assistant" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "businesses" | "shop-templates" | "settings";
+type Tab = "users" | "flow" | "analytics" | "assistant" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "businesses" | "shop-templates" | "sms-requests" | "settings";
 
 function AdminPage() {
   const navigate = useNavigate();
@@ -76,6 +76,7 @@ function AdminPage() {
               {tab === "referrals" && <ReferralsAdminTab adjust={undefined} refetchOverview={refetch} />}
               {tab === "businesses" && <BusinessesTab businesses={data.businesses ?? []} />}
               {tab === "shop-templates" && <ShopTemplatesTab />}
+              {tab === "sms-requests" && <SmsRequestsTab />}
               {tab === "settings" && <SettingsTab />}
             </>
           )}
@@ -116,6 +117,7 @@ function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "referrals", label: "Parrainages", Icon: Share2 },
     { id: "businesses", label: "Entreprises", Icon: Server },
     { id: "shop-templates", label: "Templates Boutique", Icon: Store },
+    { id: "sms-requests", label: "Demandes Sender ID", Icon: MessageSquare },
     { id: "settings", label: "Paramètres", Icon: SlidersHorizontal },
   ];
   async function logout() { await supabase.auth.signOut(); navigate("/"); }
@@ -242,13 +244,13 @@ function UsersTab({ users, onAction }: { users: any[]; onAction: () => void }) {
   const [adjustFor, setAdjustFor] = useState<any | null>(null);
   const [editFor, setEditFor] = useState<any | null>(null);
   async function flip(u: any) {
-    try { await toggle({ data: { user_id: u.id, is_active: !u.is_active } }); toast.success("Utilisateur mis à jour"); onAction(); }
+    try { await toggle({ user_id: u.id, is_active: !u.is_active }); toast.success("Utilisateur mis à jour"); onAction(); }
     catch (e) { toast.error((e as Error).message); }
   }
   async function remove(u: any) {
     const ok = window.confirm(`Supprimer définitivement le compte de ${u.full_name || u.email} ? Cette action est irréversible et supprimera ses portefeuilles, cartes et transactions.`);
     if (!ok) return;
-    try { await del({ data: { user_id: u.id } }); toast.success("Compte supprimé"); onAction(); }
+    try { await del({ user_id: u.id }); toast.success("Compte supprimé"); onAction(); }
     catch (e) { toast.error((e as Error).message); }
   }
   return (
@@ -316,7 +318,7 @@ function EditUserModal({ user, onClose, onDone, edit }: { user: any; onClose: ()
     try {
       const patch: any = { user_id: user.id, full_name: fullName, email };
       if (password && password.length >= 6) patch.password = password;
-      await edit({ data: patch });
+      await edit(patch);
       toast.success("Utilisateur mis à jour");
       onDone();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
@@ -358,7 +360,7 @@ function AdjustWalletModal({ user, onClose, onDone, adjust }: { user: any; onClo
     setBusy(true);
     try {
       const signed = direction === "credit" ? amount : -amount;
-      await adjust({ data: { user_id: user.id, currency, amount: signed, note } });
+      await adjust({ user_id: user.id, currency, amount: signed, note });
       toast.success(direction === "credit" ? "Solde crédité" : "Solde débité");
       onDone();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
@@ -408,7 +410,7 @@ function StrowalletTab({ cards, onAction }: { cards: any[]; onAction?: () => voi
   async function sync(card_id?: string) {
     setSyncing(true); setSyncSummary(null);
     try {
-      const r: any = await syncFn({ data: card_id ? { card_id } : {} });
+      const r: any = await syncFn();
       const changed = (r?.results ?? []).filter((x: any) => x.changed);
       setSyncSummary(
         `${r?.count ?? 0} carte(s) vérifiée(s) · ${changed.length} mise(s) à jour` +
@@ -424,7 +426,7 @@ function StrowalletTab({ cards, onAction }: { cards: any[]; onAction?: () => voi
     if (openTx === provider_card_id) { setOpenTx(null); return; }
     setOpenTx(provider_card_id); setTxItems(null); setTxLoading(true);
     try {
-      const r: any = await txFn({ data: { card_id: provider_card_id } });
+      const r: any = await txFn(provider_card_id);
       setTxItems(r?.items ?? []);
     } catch (e) { toast.error((e as Error).message); setTxItems([]); }
     finally { setTxLoading(false); }
@@ -518,7 +520,7 @@ function PaymentsTab({ tx }: { tx: any[] }) {
     if (!confirm("Confirmer le crédit manuel de cette recharge ?")) return;
     setBusyId(txId);
     try {
-      const r: any = await creditFn({ data: { txId } });
+      const r: any = await creditFn(txId);
       if (r?.alreadyCredited) toast.info("Déjà crédité");
       else toast.success(`Crédité (${r?.amount} XOF)`);
       setTimeout(() => window.location.reload(), 600);
@@ -528,7 +530,7 @@ function PaymentsTab({ tx }: { tx: any[] }) {
   async function inspect() {
     if (!inspectId.trim()) return;
     setInspecting(true); setInspectResult(null);
-    try { setInspectResult(await inspectFn({ data: { id: inspectId.trim() } })); }
+    try { setInspectResult(await inspectFn(inspectId.trim())); }
     catch (e) { toast.error((e as Error).message); }
     finally { setInspecting(false); }
   }
@@ -537,7 +539,7 @@ function PaymentsTab({ tx }: { tx: any[] }) {
     if (ids.length === 0) { toast.error("Collez au moins un ID YengaPay"); return; }
     setVerifying(true); setVerifyResults(null);
     try {
-      const r: any = await verifyBatchFn({ data: { ids } });
+      const r: any = await verifyBatchFn(ids);
       setVerifyResults(r?.results || []);
     } catch (e) { toast.error((e as Error).message); }
     finally { setVerifying(false); }
@@ -545,7 +547,7 @@ function PaymentsTab({ tx }: { tx: any[] }) {
   async function creditFromVerify(txId: string) {
     if (!confirm("Créditer cette recharge maintenant ?")) return;
     try {
-      const r: any = await creditFn({ data: { txId } });
+      const r: any = await creditFn(txId);
       if (r?.alreadyCredited) toast.info("Déjà crédité");
       else toast.success(`Crédité (${r?.amount} XOF)`);
       // refresh verify view: mark this tx as credited locally
@@ -556,7 +558,7 @@ function PaymentsTab({ tx }: { tx: any[] }) {
     if (!r?.id) return;
     if (!confirm(`Créditer automatiquement le paiement ${r.id} au portefeuille identifié ?`)) return;
     try {
-      const res: any = await creditExternalFn({ data: { yengaId: r.id, userId: r.matchedOwner?.id, note: "Crédit depuis vérification YengaPay" } });
+      const res: any = await creditExternalFn({ yengaId: r.id, userId: r.matchedOwner?.id, note: "Crédit depuis vérification YengaPay" });
       if (res?.alreadyCredited) toast.info("Déjà crédité");
       else toast.success(`Crédité (${Number(res?.amount || 0).toLocaleString("fr-FR")} XOF)`);
       setVerifyResults((prev) => prev?.map((it) => it.id === r.id ? { ...it, transaction: { ...(it.transaction || {}), id: res?.tx_id, status: "success", credited: true }, owner: it.owner || it.matchedOwner } : it) || null);
@@ -719,7 +721,7 @@ function BusinessesTab({ businesses }: { businesses: any[] }) {
 function KycTab({ kyc, onAction }: { kyc: any[]; onAction: () => void }) {
   const review = useServerFn(adminReviewKyc);
   async function decide(user_id: string, decision: "approved" | "rejected") {
-    try { await review({ data: { user_id, decision } }); toast.success("KYC mis à jour"); onAction(); }
+    try { await review({ id: user_id, status: decision }); toast.success("KYC mis à jour"); onAction(); }
     catch (e) { toast.error((e as Error).message); }
   }
   return (
@@ -751,8 +753,8 @@ function KycTab({ kyc, onAction }: { kyc: any[]; onAction: () => void }) {
 
 function WithdrawalsTab({ withdrawals, onAction }: { withdrawals: any[]; onAction: () => void }) {
   const review = useServerFn(adminReviewWithdrawal);
-  async function decide(id: string, decision: "approved" | "rejected" | "paid") {
-    try { await review({ data: { id, decision } }); toast.success("Retrait mis à jour"); onAction(); }
+  async function decide(id: string, decision: "completed" | "failed") {
+    try { await review({ id, status: decision }); toast.success("Retrait mis à jour"); onAction(); }
     catch (e) { toast.error((e as Error).message); }
   }
   return (
@@ -769,8 +771,8 @@ function WithdrawalsTab({ withdrawals, onAction }: { withdrawals: any[]; onActio
               </div>
               {w.status === "pending" && (
                 <div className="flex gap-2">
-                  <button onClick={() => decide(w.id, "paid")} className="rounded-full bg-success px-3 py-1 text-xs font-semibold text-success-foreground">Marquer payé</button>
-                  <button onClick={() => decide(w.id, "rejected")} className="rounded-full bg-destructive px-3 py-1 text-xs font-semibold text-destructive-foreground">Rejeter (rembourser)</button>
+                  <button onClick={() => decide(w.id, "completed")} className="rounded-full bg-success px-3 py-1 text-xs font-semibold text-success-foreground">Marquer payé</button>
+                  <button onClick={() => decide(w.id, "failed")} className="rounded-full bg-destructive px-3 py-1 text-xs font-semibold text-destructive-foreground">Rejeter (rembourser)</button>
                 </div>
               )}
             </div>
@@ -783,7 +785,6 @@ function WithdrawalsTab({ withdrawals, onAction }: { withdrawals: any[]; onActio
 }
 
 
-export default AdminPage;
 
 function ReferralsAdminTab(_props: { adjust?: any; refetchOverview: () => void }) {
   const fetchList = useServerFn(adminReferralsOverview);
@@ -794,7 +795,7 @@ function ReferralsAdminTab(_props: { adjust?: any; refetchOverview: () => void }
   const groups = (data as any)?.groups ?? [];
   async function suspend(userId: string) {
     if (!confirm("Suspendre ce parrain ? Il ne pourra plus se connecter.")) return;
-    try { await toggle({ data: { user_id: userId, is_active: false } }); toast.success("Utilisateur suspendu"); refetch(); }
+    try { await toggle({ user_id: userId, is_active: false }); toast.success("Utilisateur suspendu"); refetch(); }
     catch (e) { toast.error((e as Error).message); }
   }
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin" />;
@@ -1066,7 +1067,7 @@ function ShopTemplatesTab() {
   async function remove(id: string) {
     if (!confirm("Supprimer ce template ?")) return;
     try {
-      await del({ data: { id } });
+      await del(id);
       toast.success("Template supprimé");
       refresh();
     } catch (e) { toast.error((e as Error).message); }
@@ -1185,7 +1186,7 @@ function ShopTemplatesTab() {
                     try { toSave.config = JSON.parse(toSave.config_raw); delete toSave.config_raw; }
                     catch(e) { throw new Error("JSON de configuration invalide"); }
                   }
-                  await upsert({ data: toSave });
+                  await upsert(toSave);
                   toast.success(modal.id ? "Template mis à jour" : "Template créé");
                   setModal(null);
                   refresh();
@@ -1198,3 +1199,107 @@ function ShopTemplatesTab() {
     </div>
   );
 }
+
+function SmsRequestsTab() {
+  const listFn = useServerFn(adminListSenderRequests);
+  const updateFn = useServerFn(adminUpdateSenderRequest);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const refresh = () => {
+    setLoading(true);
+    listFn().then((r: any) => {
+      setRequests(r || []);
+      setLoading(false);
+    }).catch(e => {
+      toast.error(e.message);
+      setLoading(false);
+    });
+  };
+
+  useEffect(() => { refresh(); }, []);
+
+  async function updateStatus(id: string, status: "approved" | "rejected") {
+    const note = prompt(status === "approved" ? "Note (optionnel)" : "Motif du refus (requis)");
+    if (status === "rejected" && !note) return;
+    setBusy(id);
+    try {
+      await updateFn({ id, status, admin_note: note || undefined });
+      toast.success("Demande mise à jour ✅");
+      refresh();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Demandes de Sender ID</h1>
+        <p className="text-sm text-muted-foreground">Approuvez ou refusez les noms d'envoi demandés par les marchands.</p>
+      </div>
+
+      {loading ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : (
+        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+          <table className="w-full text-sm">
+            <thead className="bg-surface-2 text-left text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3">Entreprise</th>
+                <th className="px-4 py-3">Sender ID</th>
+                <th className="px-4 py-3">Statut</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {requests.map((r) => (
+                <tr key={r.id}>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString()}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-bold">{r.company_name}</div>
+                    <div className="text-[10px] text-muted-foreground">Business: {r.business_id?.slice(0,8)}</div>
+                  </td>
+                  <td className="px-4 py-3 font-mono font-bold uppercase">{r.sender_id}</td>
+                  <td className="px-4 py-3">
+                    {r.status === 'pending' && <span className="text-amber-500">En attente</span>}
+                    {r.status === 'approved' && <span className="text-emerald-500">Approuvé</span>}
+                    {r.status === 'rejected' && <span className="text-red-500">Refusé</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {r.status === 'pending' && (
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => updateStatus(r.id, "approved")}
+                          disabled={busy === r.id}
+                          className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-500 hover:bg-emerald-500/20"
+                        >
+                          Approuver
+                        </button>
+                        <button 
+                          onClick={() => updateStatus(r.id, "rejected")}
+                          disabled={busy === r.id}
+                          className="rounded-full bg-red-500/10 px-3 py-1 text-xs font-bold text-red-500 hover:bg-red-500/20"
+                        >
+                          Refuser
+                        </button>
+                      </div>
+                    )}
+                    {r.admin_note && <div className="mt-1 text-[10px] italic text-muted-foreground">Note: {r.admin_note}</div>}
+                  </td>
+                </tr>
+              ))}
+              {requests.length === 0 && (
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">Aucune demande en attente.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default AdminPage;

@@ -14,9 +14,10 @@ import {
 } from "@/lib/orders.functions";
 import { uploadBusinessMedia } from "@/lib/upload";
 import ProductsPanel from "@/components/business/products-panel";
+import { SmsMerchantPanel } from "@/components/business/sms-merchant-panel";
 import ProjectConfigSheet from "@/components/business/project-config-sheet";
 import DocsPanel from "@/components/business/docs-panel";
-import { ArrowLeft, Building2, Copy, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Palette, Loader2 } from "lucide-react";
+import { ArrowLeft, Building2, Copy, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Palette, Loader2, MessageSquare } from "lucide-react";
 import { LayoutDashboard, Receipt, CreditCard, Settings2, BarChart3, BookOpen } from "lucide-react";
 
 const NAV = [
@@ -26,6 +27,7 @@ const NAV = [
   { id: "links", label: "Liens de paiement", icon: Link2 },
   { id: "payments", label: "Paiements", icon: CreditCard },
   { id: "orders", label: "Commandes", icon: Package },
+  { id: "sms", label: "SMS Marketing", icon: MessageSquare },
   { id: "docs", label: "Documentation API", icon: BookOpen },
   { id: "settings", label: "Ma boutique", icon: Settings2 },
 ] as const;
@@ -408,6 +410,15 @@ export default function BusinessPage() {
 
                 {tab === "products" && (
                   <ProductsPanel businessId={current.id} shopSlug={current.slug} />
+                )}
+
+                {tab === "sms" && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-[Space_Grotesk] text-xl font-bold inline-flex items-center gap-2"><MessageSquare className="h-5 w-5" /> Marketing SMS</h3>
+                    </div>
+                    <SmsMerchantPanel businessId={current.id} />
+                  </div>
                 )}
 
                 {/* Projects */}
@@ -877,10 +888,17 @@ function ShopTemplateSelector({ business, onUpdated }: { business: Biz & { templ
                     </span>
                   </div>
                   <p className="mt-1 text-[10px] text-muted-foreground line-clamp-2">{t.description || "Pas de description."}</p>
-                  <div className="mt-4 flex gap-2">
+                  <div className="mt-4 flex flex-wrap gap-2">
                     <button onClick={() => onApply(t.id)} disabled={active || !!busy}
                             className={`flex-1 rounded-full py-1.5 text-xs font-semibold transition ${active ? 'bg-primary/10 text-primary' : 'border border-border hover:bg-muted'} disabled:opacity-50`}>
-                      {busy === t.id ? "..." : active ? "Actuel ✓" : "Appliquer"}
+                      {busy === t.id ? "..." : active ? "Appliquer" : "Appliquer"}
+                    </button>
+                    <button 
+                      onClick={() => window.open(`/shop/demo?template_id=${t.id}&biz_id=${business.id}`, '_blank')}
+                      className="grid h-8 w-8 place-items-center rounded-full border border-border hover:bg-muted"
+                      title="Prévisualiser"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
                     </button>
                     {t.preview_url && <a href={t.preview_url} target="_blank" rel="noreferrer" className="grid h-8 w-8 place-items-center rounded-full border border-border hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" /></a>}
                   </div>
