@@ -935,18 +935,28 @@ function PurchasesTab({ userId }: { userId: string }) {
         return;
       }
 
-      const { data } = await supabase.from("shop_orders")
+      const { data } = await supabase.from("shop_orders" as any)
         .select("*, business:businesses(name, logo_url)")
         .eq("customer_email", email)
         .order("created_at", { ascending: false });
 
-      if (data) setOrders(data);
+      if (data) setOrders(data as any[]);
       setLoading(false);
     }
     load();
   }, [userId]);
 
   if (loading) return <div className="grid h-64 place-items-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+
+  const labels: Record<string, string> = {
+    pending_payment: "En attente",
+    paid: "Payée",
+    preparing: "Préparation",
+    shipped: "Expédiée",
+    delivered: "Livrée",
+    cancelled: "Annulée",
+    refunded: "Remboursée",
+  };
 
   return (
     <div className="space-y-6">
@@ -978,7 +988,7 @@ function PurchasesTab({ userId }: { userId: string }) {
               <div className="flex-1 overflow-hidden">
                 <h3 className="truncate font-bold text-sm">{order.business?.name || "Boutique"}</h3>
                 <p className="text-xs text-muted-foreground">N° {order.order_number}</p>
-                <p className="mt-1 text-xs font-medium text-primary uppercase">{STATUS_LABEL[order.status] || order.status}</p>
+                <p className="mt-1 text-xs font-medium text-primary uppercase">{labels[order.status] || order.status}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm font-bold tabular-nums">{Number(order.total_amount).toLocaleString("fr-FR")} {order.currency}</p>
