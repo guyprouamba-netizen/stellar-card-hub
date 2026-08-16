@@ -90,8 +90,8 @@ export async function handleRegistrationOTP(admin: any, userId: string, phone: s
     });
 
     if (!r.ok) {
-      console.error("WhatsApp registration OTP failed:", r.body);
-      throw new Error("Erreur lors de l'envoi WhatsApp OTP");
+      console.error(`[handleRegistrationOTP] BBG SMS Error:`, JSON.stringify(r.body));
+      throw new Error(`Erreur lors de l'envoi WhatsApp OTP: ${r.body?.message || r.body?.error || "Réponse invalide de l'API"}`);
     }
     return { ok: true, expires_at: expiresAt };
   } else {
