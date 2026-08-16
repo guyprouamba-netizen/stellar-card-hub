@@ -196,9 +196,9 @@ export function MomoPayment({ reference, amount, currency = "XOF", defaultPhone 
           <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {ussd ? "Étape 2 : saisissez le code obtenu" : "Code de confirmation"}
           </p>
-          <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric"
+          <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 12))} inputMode="numeric"
             placeholder="Code de confirmation"
-            className="mt-2 w-full rounded-2xl border border-border bg-surface-2 px-4 py-3 text-center font-[Space_Grotesk] text-xl font-bold tracking-[0.4em] outline-none focus:border-primary" />
+            className="mt-2 w-full rounded-2xl border border-border bg-surface-2 px-4 py-3 text-center font-[Space_Grotesk] text-xl font-bold tracking-[0.2em] outline-none focus:border-primary" />
           <div className="mt-4 space-y-1 rounded-2xl border border-border bg-surface-2 p-3 text-xs">
             <div className="flex justify-between text-muted-foreground"><span>Montant</span><span className="tabular-nums">{money}</span></div>
             {fees > 0 && <div className="flex justify-between text-muted-foreground"><span>Frais opérateur</span><span className="tabular-nums">{fees.toLocaleString("fr-FR")} {unit}</span></div>}
