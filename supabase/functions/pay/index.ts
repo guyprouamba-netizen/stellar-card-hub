@@ -475,14 +475,9 @@ async function payDirect(payload: any) {
     // ...
 
 
-  let r: any;
-  try { r = await YP.payDirectPayment({ reference, phone, operator: op.code, paymentIntentId: intent! }); }
-  catch { throw new Error("Impossible de joindre l'opérateur. Réessayez."); }
-  if (!r.ok) { console.error("[direct pay]", reference, r.status, JSON.stringify(r.body).slice(0, 800)); throw new Error(providerMessage(r.body) || "L'opérateur a refusé l'opération. Vérifiez votre numéro et votre solde."); }
-  const st = YP.extractProviderStatus(r.body);
-  if (st === "success") { await settlePayment(db, tx.id, r.body); return { ok: true, requiresOtp: false, status: "success" }; }
-  if (st === "failed") { await markFailed(db, tx, r.body); return { ok: true, requiresOtp: false, status: "failed" }; }
-  return { ok: true, requiresOtp: false, status: "pending", fees, total, message: r.body?.message || op.hint || "Confirmez le paiement sur votre téléphone." };
+  // Code précédemment utilisé pour le push/direct, maintenant bypassé par la redirection au-dessus
+  return { ok: true, reference, amount: total, currency: tx.currency, message: "Redirection vers la page de paiement..." };
+
 }
 
 /** Message d'erreur lisible renvoyé par la passerelle, sans exposer le partenaire. */
