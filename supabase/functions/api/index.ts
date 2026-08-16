@@ -682,8 +682,8 @@ async function dispatchProjectWebhook(admin: any, opts: {
 // ============= Handlers =============
 // v: internal-transfer-3
 const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userClient: any }) => Promise<any>> = {
-  listProductCategories({ data, user, admin }: any) {
-    return HANDLERS.listProductCategoriesInternal({ data, user, admin });
+  async listProductCategories({ data, user, admin }: any) {
+    return await HANDLERS.listProductCategoriesInternal({ data, user, admin });
   },
   listProductCategoriesInternal: async ({ data, user, admin }: any) => {
     await assertBusinessOwner(admin, user.id, data.business_id);
