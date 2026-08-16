@@ -6,7 +6,7 @@ import {
   listMyBusinesses, createBusiness, listPaymentLinks, createPaymentLink,
   updatePaymentLink, listLinkPayments, listApiKeys, createApiKey, revokeApiKey,
   cashoutBusinessBalance, listProjects, createProject, getBusinessDashboard,
-  updateBusiness, updateProject,
+  updateBusiness, updateProject, listShopTemplates, applyShopTemplate,
 } from "@/lib/business.functions";
 import {
   listOrders, updateOrderStatus,
