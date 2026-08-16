@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard, ArrowDownLeft, ArrowUpRight, CreditCard, History,
   UserCircle, LogOut, Plus, Snowflake, Loader2,
-  AlertTriangle, Wallet, Building2, Users, Share2, MessageCircle, Copy, Check, Repeat,
+  AlertTriangle, Wallet, Building2, Users, Share2, MessageCircle, Copy, Check, Repeat, ShoppingBag,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
@@ -23,7 +23,7 @@ import { IssueCardSheet } from "@/components/issue-card-sheet";
 import { VirtualCard } from "@/components/virtual-card";
 import { toast } from "sonner";
 
-type Tab = "home" | "deposit" | "withdraw" | "cards" | "tx" | "referrals" | "profile";
+type Tab = "home" | "deposit" | "withdraw" | "cards" | "tx" | "referrals" | "profile" | "purchases";
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -173,6 +173,7 @@ function Dashboard() {
                {tab === "withdraw" && (offline ? <OfflineAction /> : <WithdrawTab balance={Number(data.wallets.find((w: any) => w.currency === "XOF")?.balance ?? 0)} profile={data.profile} onDone={() => refetch()} />)}
               {tab === "cards" && <CardsTab cards={data.cards} onAction={() => refetch()} />}
               {tab === "tx" && <TxTab transactions={data.transactions} />}
+              {tab === "purchases" && <PurchasesTab userId={session.user.id} />}
               {tab === "referrals" && <ReferralsTab />}
               {tab === "profile" && <ProfileTab profile={data.profile} onDone={() => refetch()} setTab={setTab} />}
             </>
@@ -224,6 +225,7 @@ function MobileNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "deposit", label: "Dépôt", Icon: ArrowDownLeft },
     { id: "withdraw", label: "Retrait", Icon: ArrowUpRight },
     { id: "cards", label: "Cartes", Icon: CreditCard },
+    { id: "purchases", label: "Achats", Icon: ShoppingBag },
     { id: "profile", label: "Profil", Icon: UserCircle },
   ];
   async function logout() {
@@ -272,6 +274,7 @@ function Sidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "withdraw", label: "Retrait d'argent", Icon: ArrowUpRight },
     { id: "cards", label: "Mes cartes", Icon: CreditCard },
     { id: "tx", label: "Mes transactions", Icon: History },
+    { id: "purchases", label: "Mes achats", Icon: ShoppingBag },
     { id: "referrals", label: "Parrainage", Icon: Users },
     { id: "profile", label: "Mon profil", Icon: UserCircle },
   ];

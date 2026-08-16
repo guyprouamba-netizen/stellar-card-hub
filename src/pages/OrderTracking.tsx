@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getOrder, verifyPayment } from "@/lib/pay.functions";
-import { Loader2, Package, Check, X, Truck, Clock, CreditCard, ShieldCheck } from "lucide-react";
+import { Loader2, Package, Check, X, Truck, Clock, CreditCard, ShieldCheck, UserPlus, ShoppingBag } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const STATUS_LABEL: Record<string, string> = {
   pending_payment: "En attente de paiement",
@@ -129,9 +130,25 @@ export default function OrderTracking() {
             </div>
           )}
 
-          <p className="mt-8 flex items-center justify-center gap-1 text-[11px] text-muted-foreground">
-            <ShieldCheck className="h-3 w-3" /> Suivi propulsé par FASO-INVEST PAY
-          </p>
+          <div className="mt-8 space-y-4">
+            <div className="rounded-2xl bg-primary/10 border border-primary/20 p-6 text-center">
+              <UserPlus className="mx-auto h-8 w-8 text-primary mb-3" />
+              <h3 className="text-lg font-bold mb-2">Suivez tous vos achats</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Créez un compte pour retrouver l'historique complet de vos commandes, gérer vos cartes virtuelles et vos paiements.
+              </p>
+              <Link 
+                to="/auth" 
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-bold text-primary-foreground shadow-lg transition hover:bg-primary/90"
+              >
+                Créer mon compte
+              </Link>
+            </div>
+
+            <p className="flex items-center justify-center gap-1 text-[11px] text-muted-foreground">
+              <ShieldCheck className="h-3 w-3" /> Suivi propulsé par FASO-INVEST PAY
+            </p>
+          </div>
         </div>
       </main>
     </div>
