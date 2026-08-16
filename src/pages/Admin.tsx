@@ -915,7 +915,7 @@ function SettingsTab() {
           event_withdrawal_paid: !!draft.event_withdrawal_paid,
           event_sender_request: !!draft.event_sender_request,
           admin_phones: draft.admin_notification_phone ? [draft.admin_notification_phone.replace(/\D/g, '')] : []
-        })
+        } as any)
       ]);
 
       const fresh: any = await getCfg();
