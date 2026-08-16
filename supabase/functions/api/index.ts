@@ -4097,13 +4097,95 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   },
 
   async adminListSenderRequests({ user, admin }) {
-    const { data: isAdmin } = await admin.rpc("has_role", { _user_id: user.id, _role: "admin" });
-    if (!isAdmin) throw new Error("Forbidden");
-    const { data: rows, error } = await admin.from("sms_sender_requests")
-      .select("*").order("created_at", { ascending: false }).limit(200);
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const { data: rows, error } = await admin.from("sms_sender_requests").select("*").order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return rows ?? [];
   },
+
+  async adminUpdateSenderRequest({ data, user, admin }) {
+    if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
+    const { id, status, admin_note } = data;
+    if (!id) throw new Error("ID requis");
+    const patch: any = {};
+    if (status) patch.status = status;
+    if (admin_note !== undefined) patch.admin_note = admin_note;
+    patch.updated_at = new Date().toISOString();
+
+    const { data: row, error } = await admin.from("sms_sender_requests")
+      .update(patch)
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+
+    // Si approuvé, notifier l'utilisateur par SMS
+    if (status === "approved" && row.user_id) {
+      try {
+        const { data: p } = await admin.from("profiles").select("phone").eq("id", row.user_id).maybeSingle();
+        if (p?.phone) {
+          const userPhone = normalizeBfPhone(p.phone);
+          const { data: smsCfg } = await admin.from("sms_config").select("sender_id").limit(1).maybeSingle();
+          const senderId = (smsCfg as any)?.sender_id || "FASOPAY";
+          
+          await sendSmsRaw({
+            recipient: userPhone,
+            message: `[FASO-PAY] Votre demande de Sender ID "${row.sender_id}" a été APPROUVÉE. Vous pouvez désormais l'utiliser pour vos campagnes SMS.`,
+            sender_id: senderId
+          });
+        }
+      } catch (e) {
+        console.error("Notify user approved sender ID failed", e);
+      }
+    }
+
+    return row;
+  },
+
+  async listSmsCredits({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { data: row, error } = await admin.from("sms_wallets")
+      .select("*").eq("business_id", data.business_id).maybeSingle();
+    if (error) throw new Error(error.message);
+    return row || { business_id: data.business_id, credits: 0 };
+  },
+
+  async purchaseSmsCredits({ data, user, admin }) {
+    await assertBusinessOwner(admin, user.id, data.business_id);
+    const { quantity, sender_id } = data;
+    if (!quantity || quantity <= 0) throw new Error("Quantité invalide");
+    
+    // Get SMS price from config
+    const { data: cfg } = await admin.from("platform_config").select("value").eq("key", "sms_price").maybeSingle();
+    const pricePerSms = Number(cfg?.value || 25);
+    const totalCost = quantity * pricePerSms;
+
+    // Check wallet
+    const { data: w } = await admin.from("wallets").select("id,balance").eq("user_id", user.id).eq("currency", "XOF").maybeSingle();
+    if (!w || Number(w.balance) < totalCost) throw new Error(`Solde insuffisant (${totalCost} XOF requis)`);
+
+    // Deduct from wallet
+    await admin.from("wallets").update({ balance: Number(w.balance) - totalCost }).eq("id", w.id);
+    
+    // Add transaction
+    await admin.from("transactions").insert({
+      user_id: user.id, type: "sms_purchase", status: "success",
+      amount: totalCost, currency: "XOF", provider: "internal",
+      description: `Achat de ${quantity} crédits SMS (${sender_id})`,
+      metadata: { business_id: data.business_id, quantity, sender_id }
+    });
+
+    // Update SMS wallet
+    const { data: sw } = await admin.from("sms_wallets").select("id,credits").eq("business_id", data.business_id).maybeSingle();
+    if (sw) {
+      await admin.from("sms_wallets").update({ credits: Number(sw.credits) + quantity }).eq("id", sw.id);
+    } else {
+      await admin.from("sms_wallets").insert({ business_id: data.business_id, credits: quantity });
+    }
+
+    return { ok: true, quantity, cost: totalCost };
+  },
+
 
   async adminUpdateSenderRequest({ data, user, admin }) {
     const { data: isAdmin } = await admin.rpc("has_role", { _user_id: user.id, _role: "admin" });
