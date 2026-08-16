@@ -671,7 +671,7 @@ export default function BusinessPage() {
 
 
                 {/* Section « Clés API » masquée volontairement — accès interne uniquement */}
-              </>
+            </div>
             )}
             </div>
           </div>
