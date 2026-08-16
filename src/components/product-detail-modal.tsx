@@ -116,6 +116,16 @@ export function ProductDetailModal({
                   <p className="mt-6 font-bold text-lg">Redirection vers YengaPay...</p>
                   <p className="mt-2 text-sm" style={{ color: th.muted }}>Veuillez patienter...</p>
                   <a href={pay.checkoutUrl} className="mt-8 inline-block text-sm underline" style={{ color: th.primary }}>Cliquer ici si la redirection ne fonctionne pas</a>
+                  
+                  <div className="mt-12 p-4 rounded-2xl bg-white/5 border border-white/10 text-xs text-left">
+                    <p className="font-bold mb-2">Instructions de paiement :</p>
+                    <ol className="list-decimal list-inside space-y-2 opacity-70">
+                      <li>Vous allez être redirigé vers la page sécurisée.</li>
+                      <li>Choisissez votre mode de paiement (Orange, Moov, etc.).</li>
+                      <li>Suivez les instructions sur la page de paiement.</li>
+                      <li>Une fois terminé, vous recevrez votre reçu par email.</li>
+                    </ol>
+                  </div>
                 </div>
               ) : (
                 <div className="flex-1">
