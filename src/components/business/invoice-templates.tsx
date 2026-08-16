@@ -735,6 +735,147 @@ export const NotaireOfficiel = ({ invoice, business, settings }: TemplateProps) 
   </div>
 );
 
+// 17. DIGITAL NOMAD (Style Indie Hackers)
+export const DigitalNomad = ({ invoice, business }: TemplateProps) => (
+  <div className="bg-[#f4f7f6] p-12 max-w-3xl mx-auto font-mono text-slate-800 border-2 border-slate-800 shadow-[8px_8px_0px_0px_rgba(30,41,59,1)]">
+    <div className="flex justify-between items-start mb-12 border-b-2 border-slate-800 pb-8">
+      <div>
+        <h1 className="text-2xl font-black bg-yellow-300 px-2 inline-block mb-2">INVOICE</h1>
+        <p className="font-bold">#{invoice.number}</p>
+      </div>
+      <div className="text-right font-bold uppercase text-xs">
+        <p>{business.name}</p>
+        <p className="bg-slate-800 text-white px-2 mt-1">Paid via YengaPay</p>
+      </div>
+    </div>
+    <div className="space-y-8 mb-12">
+      <div>
+        <p className="text-xs uppercase opacity-50 mb-2">Client // Destination</p>
+        <p className="text-xl font-black">{invoice.customer_name}</p>
+      </div>
+      <div className="bg-white border-2 border-slate-800 p-6 space-y-4">
+        {invoice.items.map((it, i) => (
+          <div key={i} className="flex justify-between items-center border-b border-slate-100 last:border-0 pb-2">
+            <span>{it.name} <span className="text-xs opacity-50">x{it.qty}</span></span>
+            <span className="font-black">{(it.qty * it.price).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+    <div className="flex justify-between items-center font-black text-2xl bg-yellow-300 p-4 border-2 border-slate-800">
+      <span>TOTAL</span>
+      <span>{invoice.total.toLocaleString()} {invoice.currency}</span>
+    </div>
+  </div>
+);
+
+// 18. RETRO TICKET (80s Style)
+export const RetroTicket = ({ invoice, business }: TemplateProps) => (
+  <div className="bg-[#121212] p-8 max-w-2xl mx-auto font-mono text-[#39ff14] border-4 border-[#39ff14] shadow-[0_0_20px_rgba(57,255,20,0.3)]">
+    <div className="text-center mb-10">
+      <h1 className="text-3xl font-black uppercase tracking-tighter mb-2 italic">** TRANSACTION COMPLETE **</h1>
+      <p className="text-xs opacity-70">TERMINAL: {business.name.toUpperCase()}</p>
+    </div>
+    <div className="space-y-4 border-y-2 border-[#39ff14] border-dashed py-8 mb-8">
+      {invoice.items.map((it, i) => (
+        <div key={i} className="flex justify-between items-center text-xl">
+          <span>{it.name.toUpperCase()}</span>
+          <span>{(it.qty * it.price).toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+    <div className="flex justify-between items-center text-4xl font-black border-2 border-[#39ff14] p-4">
+      <span>TOTAL</span>
+      <span>{invoice.total.toLocaleString()} {invoice.currency}</span>
+    </div>
+    <div className="mt-10 text-center animate-pulse text-xs">
+      <p>REF: {invoice.number}</p>
+      <p>THANK YOU FOR YOUR BUSINESS</p>
+    </div>
+  </div>
+);
+
+// 19. CLEAN PHARMACY
+export const CleanPharmacy = ({ invoice, business, settings }: TemplateProps) => (
+  <div className="bg-white p-10 max-w-4xl mx-auto border-t-8 border-emerald-500 font-sans shadow-lg">
+    <div className="flex justify-between items-start mb-12">
+      <div className="flex items-center gap-3">
+        <div className="w-12 h-12 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-2xl">+</div>
+        <div>
+          <h1 className="text-xl font-black text-slate-900">{settings.legal_name || business.name}</h1>
+          <p className="text-xs text-emerald-600 font-bold uppercase tracking-widest">Pharmacie & Soins</p>
+        </div>
+      </div>
+      <div className="text-right text-sm">
+        <p className="font-bold">Facture N° {invoice.number}</p>
+        <p className="text-slate-400">{format(new Date(invoice.created_at), 'dd/MM/yyyy')}</p>
+      </div>
+    </div>
+    <div className="mb-10 bg-emerald-50 p-6 rounded-2xl">
+      <p className="text-xs font-bold text-emerald-800 uppercase mb-2">Patient / Client</p>
+      <p className="text-xl font-bold text-slate-900">{invoice.customer_name}</p>
+    </div>
+    <table className="w-full text-sm mb-12">
+      <thead className="text-emerald-800 font-bold border-b-2 border-emerald-100">
+        <tr className="text-left">
+          <th className="py-2">Médicament / Produit</th>
+          <th className="py-2 text-right">Qte</th>
+          <th className="py-2 text-right">Total</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {invoice.items.map((it, i) => (
+          <tr key={i}>
+            <td className="py-4 font-medium text-slate-700">{it.name}</td>
+            <td className="py-4 text-right text-slate-500">{it.qty}</td>
+            <td className="py-4 text-right font-bold text-slate-900">{(it.qty * it.price).toLocaleString()}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    <div className="flex justify-end pt-8 border-t border-slate-100">
+      <div className="text-right">
+        <p className="text-xs font-bold text-slate-400 uppercase">Net à payer</p>
+        <p className="text-4xl font-black text-emerald-600">{invoice.total.toLocaleString()} {invoice.currency}</p>
+      </div>
+    </div>
+  </div>
+);
+
+// 20. TECH STARTUP (Style Linear/Vercel)
+export const TechStartup = ({ invoice, business }: TemplateProps) => (
+  <div className="bg-[#000000] p-12 max-w-4xl mx-auto text-white font-sans border border-white/10 rounded-xl overflow-hidden relative">
+    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 blur-[100px]" />
+    <div className="flex justify-between items-center mb-24 relative z-10">
+      <div className="flex items-center gap-2">
+        <div className="w-6 h-6 bg-white rounded-full" />
+        <span className="font-bold text-lg tracking-tight">{business.name}</span>
+      </div>
+      <div className="text-xs font-medium text-white/40 uppercase tracking-[0.2em]">{invoice.number}</div>
+    </div>
+    <div className="mb-24 relative z-10">
+      <h2 className="text-5xl font-medium tracking-tighter leading-tight mb-4 italic">Confirming your purchase,<br /><span className="text-white/40">{invoice.customer_name}.</span></h2>
+    </div>
+    <div className="space-y-4 mb-24 relative z-10">
+      {invoice.items.map((it, i) => (
+        <div key={i} className="flex justify-between items-center py-4 border-b border-white/5">
+          <span className="text-white/60 font-medium">{it.name} <span className="text-white/20 ml-2">× {it.qty}</span></span>
+          <span className="font-bold tracking-tight text-xl">{(it.qty * it.price).toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+    <div className="flex justify-between items-end relative z-10">
+      <div>
+        <p className="text-xs text-white/40 font-bold uppercase tracking-widest mb-1">Total Paid</p>
+        <p className="text-4xl font-bold tracking-tighter">{invoice.total.toLocaleString()} <span className="text-white/40 text-2xl">{invoice.currency}</span></p>
+      </div>
+      <div className="text-right text-[10px] text-white/20 uppercase font-bold tracking-[0.3em]">
+        Secured by YengaPay Engine
+      </div>
+    </div>
+  </div>
+);
+
 // Map of all templates
 export const INVOICE_TEMPLATES: Record<string, React.FC<TemplateProps>> = {
   "stripe-modern": StripeModern,
@@ -753,4 +894,8 @@ export const INVOICE_TEMPLATES: Record<string, React.FC<TemplateProps>> = {
   "microsoft-azure": MicrosoftAzure,
   "revolut-business": RevolutBusiness,
   "notaire-officiel": NotaireOfficiel,
+  "digital-nomad": DigitalNomad,
+  "retro-ticket": RetroTicket,
+  "clean-pharmacy": CleanPharmacy,
+  "tech-startup": TechStartup,
 };
