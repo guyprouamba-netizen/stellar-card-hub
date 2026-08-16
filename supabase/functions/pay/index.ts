@@ -630,7 +630,7 @@ async function getPublicShop(slug: string) {
     db.from("product_media").select("product_id,type,url,position").order("position", { ascending: true }),
     db.from("projects").select("id,name,slug,description,logo_url,cover_url,currency")
       .eq("business_id", biz.id).eq("show_in_shop", true).order("created_at", { ascending: false }),
-    biz.template_id ? db.from("shop_templates").select("id,name,css_vars,config").eq("id", biz.template_id).maybeSingle() : Promise.resolve({ data: null }),
+    biz.template_id ? db.from("shop_templates").select("id,name,config").eq("id", biz.template_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
   const mediaByProduct: Record<string, any[]> = {};
   for (const m of (media || [])) {
