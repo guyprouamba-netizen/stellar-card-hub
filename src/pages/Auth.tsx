@@ -262,7 +262,7 @@ function Auth() {
             {mode === "login" ? "Bon retour 👋" : "Créer un compte"}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {mode === "login" ? "Connectez-vous à votre espace FASO INVEST PAY." : "'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            je vais te demander de faire des templates de recu ou de facture au minimun 30 pour chaque cas; des recus tirés des grandes entreprises en lignes; des factures pro format; editable; des exemplaire prmiums, extremement pro. Ajoute egalement le support pour les templates dans la base de données."}
+            {mode === "login" ? "Connectez-vous à votre espace FASO INVEST PAY." : "'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            je ne vois pas les templates de recus et de factures demandé"}
           </p>
 
           {mode === "2fa" || mode === "registration_otp" ? (
