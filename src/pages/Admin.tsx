@@ -771,8 +771,8 @@ function WithdrawalsTab({ withdrawals, onAction }: { withdrawals: any[]; onActio
               </div>
               {w.status === "pending" && (
                 <div className="flex gap-2">
-                  <button onClick={() => decide(w.id, "paid")} className="rounded-full bg-success px-3 py-1 text-xs font-semibold text-success-foreground">Marquer payé</button>
-                  <button onClick={() => decide(w.id, "rejected")} className="rounded-full bg-destructive px-3 py-1 text-xs font-semibold text-destructive-foreground">Rejeter (rembourser)</button>
+                  <button onClick={() => decide(w.id, "completed")} className="rounded-full bg-success px-3 py-1 text-xs font-semibold text-success-foreground">Marquer payé</button>
+                  <button onClick={() => decide(w.id, "failed")} className="rounded-full bg-destructive px-3 py-1 text-xs font-semibold text-destructive-foreground">Rejeter (rembourser)</button>
                 </div>
               )}
             </div>
