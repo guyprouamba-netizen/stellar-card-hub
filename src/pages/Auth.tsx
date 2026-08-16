@@ -262,7 +262,7 @@ function Auth() {
             {mode === "login" ? "Bon retour 👋" : "Créer un compte"}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {mode === "login" ? "Connectez-vous à votre espace FASO INVEST PAY." : "'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            l'erreur persiste unknown fn: listProductCategories (total: 170, samples: adminListShopTemplates, adminUpsertShopTemplate, adminDeleteShopTemplate...adminUpdateSenderRequest, listSmsCredits, purchaseSmsCredits)"}
+            {mode === "login" ? "Connectez-vous à votre espace FASO INVEST PAY." : "'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                        \n                                            \n                                            je voudrais que tu met Template de la boutique en sous menu de la boutique; c'est quand on clique sur boutique que les sous menus apparaiisent, en plus de il faut mettre personnaliser egalement en sous menu; couleur de la boutique, il faut faire de sorte que pendant que l'on fais les modifications que l'on puisse voir en meme temps les modifications en live au lieu d'aller cliquer sur le lien de la boutique pour voir et revenir"}
           </p>
 
           {mode === "2fa" || mode === "registration_otp" ? (

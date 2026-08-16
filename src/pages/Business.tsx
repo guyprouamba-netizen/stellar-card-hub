@@ -20,9 +20,15 @@ import DocsPanel from "@/components/business/docs-panel";
 import { ArrowLeft, Building2, Copy, Link2, Plus, Trash2, Wallet, FolderKanban, TrendingUp, TrendingDown, ChevronRight, Sparkles, Store, Package, Megaphone, Image as ImageIcon, ExternalLink, Eye, EyeOff, Palette, Loader2, MessageSquare, ShieldCheck, Activity } from "lucide-react";
 import { LayoutDashboard, Receipt, CreditCard, Settings2, BarChart3, BookOpen } from "lucide-react";
 
-const NAV = [
+interface NavItem {
+  id: string;
+  label: string;
+  icon?: any;
+  sub?: NavItem[];
+}
+
+const NAV: NavItem[] = [
   { id: "overview", label: "Tableau de bord", icon: LayoutDashboard },
-  
   { id: "projects", label: "Projets", icon: FolderKanban },
   { id: "products", label: "Produits", icon: Package },
   { id: "links", label: "Liens de paiement", icon: Link2 },
@@ -30,10 +36,18 @@ const NAV = [
   { id: "orders", label: "Commandes", icon: Package },
   { id: "sms", label: "SMS Marketing", icon: MessageSquare },
   { id: "docs", label: "Documentation API", icon: BookOpen },
-  { id: "settings", label: "Ma boutique", icon: Settings2 },
-] as const;
-const TabIdSet = new Set(NAV.map(n => n.id));
-type TabId = typeof NAV[number]["id"];
+  { 
+    id: "shop", 
+    label: "Boutique", 
+    icon: Store,
+    sub: [
+      { id: "shop_templates", label: "Templates" },
+      { id: "shop_branding", label: "Personnaliser" },
+    ]
+  },
+];
+const TabIdSet = new Set(NAV.flatMap(n => [n.id, ...(n.sub?.map(s => s.id) || [])]));
+type TabId = string;
 
 type Biz = { id: string; name: string; slug: string; status: string; balance: number; fee_bps: number };
 type PLink = { id: string; slug: string; title: string; amount: number | null; currency: string; status: string };
@@ -290,16 +304,29 @@ export default function BusinessPage() {
         ) : (
           <div className="flex gap-6">
             {/* Menu vertical */}
-            <aside className="hidden w-60 shrink-0 lg:block">
+            <aside className="hidden w-64 shrink-0 lg:block">
               <nav className="sticky top-20 space-y-1 rounded-2xl border border-border bg-card p-3">
                 {NAV.map((n) => {
                   const Icon = n.icon;
-                  const active = tab === n.id;
+                  const isMainActive = tab === n.id || (n.sub?.some(s => tab === s.id));
                   return (
-                    <button key={n.id} onClick={() => setTab(n.id)}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
-                      <Icon className="h-4 w-4" /> {n.label}
-                    </button>
+                    <div key={n.id} className="space-y-1">
+                      <button onClick={() => setTab(n.id)}
+                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${isMainActive ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+                        <Icon className="h-4 w-4" /> {n.label}
+                      </button>
+                      
+                      {n.sub && isMainActive && (
+                        <div className="ml-9 space-y-1">
+                          {n.sub.map((s) => (
+                            <button key={s.id} onClick={() => setTab(s.id)}
+                              className={`flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-xs font-medium transition ${tab === s.id ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
                 {current && (
@@ -318,7 +345,7 @@ export default function BusinessPage() {
             <div className="min-w-0 flex-1">
             {/* Menu horizontal (mobile) */}
             <div className="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-1 lg:hidden">
-              {NAV.map((n) => (
+              {NAV.flatMap(n => [n, ...(n.sub || [])]).map((n) => (
                 <button key={n.id} onClick={() => setTab(n.id)}
                   className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${tab === n.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-surface-2 text-muted-foreground"}`}>
                   {n.label}
@@ -406,12 +433,21 @@ export default function BusinessPage() {
               )}
 
 
-              {tab === "settings" && (
-                <>
+              {tab === "shop" && (
+                <div className="space-y-6">
+                  <ShopProjectsPanel projects={projects} onChanged={() => refreshCurrent(current.id)} onGoProjects={() => setTab("projects")} />
+                  <ShopTemplateSelector business={current as any} onUpdated={refreshAll} />
+                  <ShopBrandingPanel biz={current} onUpdated={refreshAll} />
+                </div>
+              )}
+
+              {tab === "shop_templates" && (
                 <ShopTemplateSelector business={current as any} onUpdated={refreshAll} />
+              )}
+
+              {tab === "shop_branding" && (
                 <ShopBrandingPanel biz={current} onUpdated={refreshAll} />
-                <ShopProjectsPanel projects={projects} onChanged={() => refreshCurrent(current.id)} onGoProjects={() => setTab("projects")} />
-                </>)}
+              )}
 
                 {tab === "products" && (
                   <ProductsPanel businessId={current.id} shopSlug={current.slug} />
@@ -715,12 +751,18 @@ function ShopBrandingPanel({ biz, onUpdated }: { biz: Biz & { logo_url?: string;
   }
 
   return (
-    <section className="mt-6 rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
+    <section id="shop-branding-panel" className="mt-6 rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
       <div className="flex items-center justify-between">
         <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><Store className="h-5 w-5" /> Personnalisation boutique</h3>
-        <button onClick={saveText} disabled={saving} className="rounded-full bg-gradient-primary px-6 py-1.5 text-xs font-bold text-primary-foreground shadow-glow hover:scale-105 active:scale-95 disabled:opacity-50 transition">
-          {saving ? "Enregistrement..." : "Enregistrer"}
-        </button>
+        <div className="flex items-center gap-2">
+          <a href={`${window.location.origin}/shop/${biz.slug}`} target="_blank" rel="noreferrer" 
+             className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-1.5 text-xs font-semibold hover:bg-muted transition">
+            <ExternalLink className="h-3.5 w-3.5" /> Voir en direct
+          </a>
+          <button onClick={saveText} disabled={saving} className="rounded-full bg-gradient-primary px-6 py-1.5 text-xs font-bold text-primary-foreground shadow-glow hover:scale-105 active:scale-95 disabled:opacity-50 transition">
+            {saving ? "Enregistrement..." : "Enregistrer"}
+          </button>
+        </div>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">Ces éléments apparaissent sur votre page boutique publique et sur vos reçus/factures.</p>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -825,8 +867,10 @@ function ShopProjectsPanel({ projects, onChanged, onGoProjects }: { projects: Pr
   }
 
   return (
-    <section className="mt-6 rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
-      <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><FolderKanban className="h-5 w-5" /> Ajouter des projets / produits à la boutique</h3>
+    <section id="shop-projects-panel" className="mt-6 rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><FolderKanban className="h-5 w-5" /> Ajouter des projets / produits à la boutique</h3>
+      </div>
       <p className="mt-1 text-xs text-muted-foreground">
         Seuls les projets déjà créés et configurés (paiements) peuvent être affichés. Créez d'abord le projet dans l'onglet « Projets », ajoutez-y vos produits, puis activez-le ici.
       </p>
@@ -890,7 +934,14 @@ function ShopTemplateSelector({ business, onUpdated }: { business: Biz & { templ
   }
 
   return (
-    <section className="mt-6 rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
+    <section id="shop-template-selector" className="mt-6 rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><Palette className="h-5 w-5" /> Templates de la boutique</h3>
+        <a href={`${window.location.origin}/shop/${business.slug}`} target="_blank" rel="noreferrer" 
+           className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-1.5 text-xs font-semibold hover:bg-muted transition">
+          <ExternalLink className="h-3.5 w-3.5" /> Voir en direct
+        </a>
+      </div>
       <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><Palette className="h-5 w-5" /> Template de la boutique</h3>
       <p className="mt-1 text-xs text-muted-foreground">Choisissez l'apparence visuelle de votre boutique en ligne.</p>
       
