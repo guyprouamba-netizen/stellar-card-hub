@@ -424,41 +424,12 @@ async function payDirect(payload: any) {
   if (tx.status !== "pending") return { ok: true, status: tx.status, requiresOtp: false };
 
   const meta = (tx.metadata as any) || {};
-  let intent = tx.payment_intent_id || meta.intent || null;
-  // Une intention de paiement a une durée de vie courte : on en recrée une au-delà de 8 minutes.
-  // Une intention de paiement Orange Money est très courte (environ 3-4 minutes).
-  // On réduit le seuil de rafraîchissement à 3 minutes pour garantir la validité du code OTP.
-  const intentAge = meta.intent_at ? Date.now() - new Date(meta.intent_at).getTime() : Infinity;
-  if (intent && intentAge > 2 * 60 * 1000) intent = null;
-  if (!intent) {
-    let init: any;
-    try {
-      init = await YP.initDirectPayment({
-        amount: Number(tx.amount), reference,
-        callbackUrl: `${SUPABASE_URL}/functions/v1/yengapay-webhook`,
-        description: meta.description || "Paiement",
-      });
-    } catch { throw new Error("Service de paiement momentanément indisponible. Réessayez."); }
-      if (!init.ok) { console.error("[direct init]", reference, init.status, JSON.stringify(init.body).slice(0, 800)); throw new Error("Le paiement n'a pas pu être initié. Vérifiez le montant et réessayez."); }
-    intent = YP.extractIntentId(init.body);
-    const avail = YP.extractAvailableOperators(init.body);
-    if (avail.length) meta.available = avail;
-    if (!intent) { console.error("[direct init] no intent", reference, JSON.stringify(init.body).slice(0, 800)); throw new Error("Le paiement n'a pas pu être initié. Réessayez."); }
-  }
-  // Frais et total réels renvoyés par la passerelle pour cet opérateur.
-  const availOp = (meta.available || []).find((a: any) => String(a?.code).toUpperCase() === op.ypCode);
-  const fees = availOp ? Number(availOp.fees || 0) : 0;
-  const total = availOp ? Number(availOp.totalAmount || tx.amount) : Number(tx.amount);
-  await db.from("payment_link_payments").update({
-    payment_intent_id: intent,
-    customer_phone: phone,
-    metadata: { ...meta, direct: true, operator: op.code, phone, intent, fees, total, intent_at: new Date().toISOString() },
-  }).eq("id", tx.id);
 
   // Redirection forcée vers YengaPay (Checkout externe) pour tous les flux
   try {
     const { checkoutUrl, paymentIntentId } = await createYengaPayIntent({
-      amount: total, reference,
+      amount: Number(tx.amount), 
+      reference,
       title: meta.description || "Paiement",
       description: meta.description || "Paiement sécurisé",
       callbackUrl: `${SUPABASE_URL}/functions/v1/yengapay-webhook`,
@@ -467,23 +438,18 @@ async function payDirect(payload: any) {
     
     if (checkoutUrl) {
       console.log("Redirecting to YengaPay checkout:", { reference, checkoutUrl });
-      await admin().from("payment_link_payments").update({ payment_intent_id: paymentIntentId }).eq("reference", reference);
-      return { ok: true, reference, amount: total, currency: tx.currency, checkoutUrl };
-    } else {
-      console.error("No checkoutUrl returned from createYengaPayIntent", reference);
+      await admin().from("payment_link_payments").update({ 
+        payment_intent_id: paymentIntentId,
+        customer_phone: phone,
+        metadata: { ...meta, direct: true, operator: op.code, phone, intent: paymentIntentId }
+      }).eq("reference", reference);
+      return { ok: true, reference, amount: tx.amount, currency: tx.currency, checkoutUrl };
     }
   } catch (e) {
     console.error("YengaPay redirect init failed", e);
   }
 
-  // Fallback direct si la redirection échoue (pourrait être supprimé si on veut être strict)
-  if (op.flow === "otp") {
-    // ...
-
-
-  // Code précédemment utilisé pour le push/direct, maintenant bypassé par la redirection au-dessus
-  return { ok: true, reference, amount: total, currency: tx.currency, message: "Redirection vers la page de paiement..." };
-
+  return { ok: true, reference, amount: tx.amount, currency: tx.currency, message: "Redirection vers la page de paiement..." };
 }
 
 /** Message d'erreur lisible renvoyé par la passerelle, sans exposer le partenaire. */

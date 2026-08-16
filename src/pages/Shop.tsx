@@ -290,9 +290,10 @@ export default function Shop() {
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('#products')}
               className="flex items-center gap-2 rounded-full bg-white/5 border border-white/10 px-5 py-2 text-[10px] font-black uppercase tracking-widest"
             >
-              Panier (0)
+              Boutique
             </motion.button>
           </div>
         </motion.nav>
@@ -448,7 +449,7 @@ export default function Shop() {
             <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest opacity-40">
               <a href="#" className="hover:opacity-100 transition-opacity">Privacy</a>
               <a href="#" className="hover:opacity-100 transition-opacity">Terms</a>
-              <span className="text-white italic">FASO-INVEST PAY</span>
+              <span className="text-white italic">Paiement Sécurisé</span>
             </div>
           </div>
         </footer>
