@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Package, Plus, Trash2, Eye, EyeOff, Image as ImageIcon, Loader2, ExternalLink, Download, Settings2, FileUp } from "lucide-react";
+import { Package, Plus, Trash2, Eye, EyeOff, Image as ImageIcon, Loader2, ExternalLink, Download, Settings2, FileUp, FolderPlus } from "lucide-react";
 import {
   listBusinessProducts, createProduct, updateProduct, deleteProduct,
+  listProductCategories, createProductCategory, deleteProductCategory,
+  addProductMedia, deleteProductMedia,
 } from "@/lib/business.functions";
 import { uploadBusinessMedia } from "@/lib/upload";
 
