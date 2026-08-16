@@ -2049,7 +2049,9 @@ const H1: Record<string, any> = {
     });
     return { ok: true, new_balance: newBalance };
   },
+};
 
+const H2: Record<string, any> = {
   async adminReviewKyc({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const { error } = await admin.from("kyc_submissions").update({
