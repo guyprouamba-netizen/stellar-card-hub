@@ -122,7 +122,7 @@ export function MomoPayment({ reference, amount, currency = "XOF", defaultPhone 
     <div className="text-center">
       <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-destructive/15 text-destructive"><X className="h-8 w-8" /></div>
       <h3 className="mt-4 font-[Space_Grotesk] text-xl font-bold">Paiement échoué</h3>
-      <p className="mt-1 text-sm text-muted-foreground">L'opération n'a pas abouti. Vous pouvez réessayer.</p>
+      <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">{error || "L'opération n'a pas abouti. Vous pouvez réessayer."}</p>
       <button onClick={() => { setStep("form"); setOtp(""); setError(null); setInfo(null); }}
         className="mt-5 rounded-full bg-gradient-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground">Réessayer</button>
     </div>
