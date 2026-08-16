@@ -1037,68 +1037,72 @@ export const MinimalistBento = ({ invoice, business }: TemplateProps) => (
 );
 
 // 24. CLASSIC RED (Corporate Standard)
-export const ClassicRed = ({ invoice, business, settings }: TemplateProps) => (
-  <div className="bg-white p-12 max-w-4xl mx-auto font-sans border-l-[12px] border-rose-600 shadow-xl">
-    <div className="flex justify-between items-start mb-16">
-      <div>
-        <h1 className="text-4xl font-black text-slate-900 mb-2">{business.name}</h1>
-        <p className="text-rose-600 font-bold tracking-widest uppercase text-xs">Official Business Record</p>
-      </div>
-      <div className="text-right">
-        <h2 className="text-2xl font-bold text-slate-400 uppercase tracking-widest mb-2">Invoice</h2>
-        <div className="space-y-1 text-sm font-medium">
-          <p>Number: <span className="text-slate-900">{invoice.number}</span></p>
-          <p>Date: <span className="text-slate-900">{format(new Date(invoice.created_at), 'dd/MM/yyyy')}</span></p>
+export const ClassicRed = ({ invoice, business, settings, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
+  return (
+    <div className="bg-white p-12 max-w-4xl mx-auto font-sans border-l-[12px] border-rose-600 shadow-xl">
+      <div className="flex justify-between items-start mb-16">
+        <div>
+          <h1 className="text-4xl font-black text-slate-900 mb-2">{business.name}</h1>
+          <p className="text-rose-600 font-bold tracking-widest uppercase text-xs">Official Business Record</p>
+        </div>
+        <div className="text-right">
+          <h2 className="text-2xl font-bold text-slate-400 uppercase tracking-widest mb-2">{title}</h2>
+          <div className="space-y-1 text-sm font-medium">
+            <p>Number: <span className="text-slate-900">{invoice.number}</span></p>
+            <p>Date: <span className="text-slate-900">{format(new Date(invoice.created_at), 'dd/MM/yyyy')}</span></p>
+          </div>
         </div>
       </div>
-    </div>
-    <div className="grid grid-cols-2 gap-12 mb-16 border-y border-slate-100 py-12">
-      <div>
-        <p className="text-xs font-bold text-slate-400 uppercase mb-4">Merchant</p>
-        <p className="font-bold text-lg">{settings.legal_name || business.name}</p>
-        <p className="text-slate-500 text-sm mt-1">{settings.address}</p>
-        <p className="text-slate-500 text-sm italic mt-2">IFU: {settings.ifu}</p>
+      <div className="grid grid-cols-2 gap-12 mb-16 border-y border-slate-100 py-12">
+        <div>
+          <p className="text-xs font-bold text-slate-400 uppercase mb-4">Merchant</p>
+          <p className="font-bold text-lg">{settings.legal_name || business.name}</p>
+          <p className="text-slate-500 text-sm mt-1">{settings.address}</p>
+          <p className="text-slate-500 text-sm italic mt-2">IFU: {settings.ifu}</p>
+        </div>
+        <div>
+          <p className="text-xs font-bold text-slate-400 uppercase mb-4">Customer</p>
+          <p className="font-bold text-lg">{invoice.customer_name}</p>
+          <p className="text-slate-500 text-sm mt-1">{invoice.customer_email}</p>
+        </div>
       </div>
-      <div>
-        <p className="text-xs font-bold text-slate-400 uppercase mb-4">Customer</p>
-        <p className="font-bold text-lg">{invoice.customer_name}</p>
-        <p className="text-slate-500 text-sm mt-1">{invoice.customer_email}</p>
-      </div>
-    </div>
-    <table className="w-full text-sm mb-16">
-      <thead>
-        <tr className="bg-slate-50 text-slate-900 font-bold border-b-2 border-slate-900">
-          <th className="py-4 px-2 text-left">Description</th>
-          <th className="py-4 px-2 text-right">Qty</th>
-          <th className="py-4 px-2 text-right">Unit Price</th>
-          <th className="py-4 px-2 text-right">Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        {invoice.items.map((it, i) => (
-          <tr key={i} className="border-b border-slate-100">
-            <td className="py-4 px-2">{it.name}</td>
-            <td className="py-4 px-2 text-right">{it.qty}</td>
-            <td className="py-4 px-2 text-right">{it.price.toLocaleString()}</td>
-            <td className="py-4 px-2 text-right font-bold">{(it.qty * it.price).toLocaleString()}</td>
+      <table className="w-full text-sm mb-16">
+        <thead>
+          <tr className="bg-slate-50 text-slate-900 font-bold border-b-2 border-slate-900">
+            <th className="py-4 px-2 text-left">Description</th>
+            <th className="py-4 px-2 text-right">Qty</th>
+            <th className="py-4 px-2 text-right">Unit Price</th>
+            <th className="py-4 px-2 text-right">Total</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
-    <div className="flex justify-end pt-8 border-t-2 border-slate-900">
-      <div className="text-right w-64 space-y-3">
-        <div className="flex justify-between text-slate-500 text-sm">
-          <span>Subtotal</span>
-          <span>{invoice.subtotal.toLocaleString()}</span>
-        </div>
-        <div className="flex justify-between text-2xl font-black text-rose-600 pt-2">
-          <span>TOTAL DUE</span>
-          <span>{invoice.total.toLocaleString()} {invoice.currency}</span>
+        </thead>
+        <tbody>
+          {invoice.items.map((it, i) => (
+            <tr key={i} className="border-b border-slate-100">
+              <td className="py-4 px-2">{it.name}</td>
+              <td className="py-4 px-2 text-right">{it.qty}</td>
+              <td className="py-4 px-2 text-right">{it.price.toLocaleString()}</td>
+              <td className="py-4 px-2 text-right font-bold">{(it.qty * it.price).toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="flex justify-end pt-8 border-t-2 border-slate-900">
+        <div className="text-right w-64 space-y-3">
+          <div className="flex justify-between text-slate-500 text-sm">
+            <span>Subtotal</span>
+            <span>{invoice.subtotal.toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between text-2xl font-black text-rose-600 pt-2">
+            <span>TOTAL DUE</span>
+            <span>{invoice.total.toLocaleString()} {invoice.currency}</span>
+          </div>
         </div>
       </div>
+      <VerificationFooter business={business} invoice={invoice} />
     </div>
-  </div>
-);
+  );
+};
 
 // 25. NEON CYBER (Futuristic)
 export const NeonCyber = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
