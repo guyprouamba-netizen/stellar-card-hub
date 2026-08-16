@@ -44,11 +44,10 @@ export const deleteProductMedia = (id: string) => callApi("deleteProductMedia", 
 
 // --- Categories ---
 export const listProductCategories = (business_id: string) => callApi("listProductCategories", { business_id });
-export const createProductCategory = (business_id: string, name: string, description?: string) => callApi("createProductCategory", { business_id, name, description });
-export const deleteProductCategory = (id: string) => callApi("deleteProductCategory", { id });
 export const createProductCategory = (data: { business_id: string; name: string; description?: string }) =>
   callApi("createProductCategory", data);
 export const deleteProductCategory = (id: string) => callApi("deleteProductCategory", { id });
+
 
 // --- Project API keys / webhooks (passerelle) ---
 export const getProjectIntegration = (project_id: string) => callApi("getProjectIntegration", { project_id });
