@@ -1963,9 +1963,12 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (typeof data.avatar_url === "string") patch.avatar_url = data.avatar_url.slice(0, 1024);
     if (typeof data.phone === "string") patch.phone = data.phone.trim().slice(0, 40);
     if (Object.keys(patch).length === 0) return { ok: true };
-    const { error } = await admin.from("profiles").update(patch).eq("id", user.id);
+    const { error, data: updatedData } = await admin.from("profiles").update(patch).eq("id", user.id).select();
     if (error) throw new Error(error.message);
-    return { ok: true };
+    if (!updatedData || updatedData.length === 0) {
+      return { ok: false, error: "Aucun profil trouvé à mettre à jour" };
+    }
+    return { ok: true, profile: updatedData[0] };
   },
 
   // L'utilisateur change son mot de passe (vérifie l'ancien).
