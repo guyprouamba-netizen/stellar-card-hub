@@ -35,23 +35,24 @@ export async function sendSmsRaw(opts: {
 
     // Based on the developer documentation provided by the user:
     // https://bbgsmsapp.betterbegoing.com/developers/http-docs
-    // For WhatsApp, use POST with JSON body containing api_token, recipient, message.
+    // The documentation shows an example with GET parameters: ?api_token=...&recipient=...&message=...
+    // Even though it mentions POST, PHP endpoints like this often expect query parameters.
     
-    const payload: any = {
-      api_token: token,
-      recipient: opts.recipient,
-      message: opts.message,
-    };
+    const url = new URL(endpoint);
+    url.searchParams.append("api_token", token);
+    url.searchParams.append("recipient", opts.recipient);
+    url.searchParams.append("message", opts.message);
+    
+    if (!isWhatsapp) {
+      url.searchParams.append("sender_id", opts.sender_id);
+      url.searchParams.append("type", opts.type || "plain");
+    }
 
-    console.log(`[sendSmsRaw] Calling ${isWhatsapp ? 'WhatsApp' : 'SMS'} API: ${endpoint} for ${opts.recipient}`);
+    console.log(`[sendSmsRaw] Calling ${isWhatsapp ? 'WhatsApp' : 'SMS'} API (GET-style): ${url.origin}${url.pathname}?api_token=***&recipient=${opts.recipient}`);
 
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        "Accept": "application/json" 
-      },
-      body: JSON.stringify(payload)
+    const res = await fetch(url.toString(), {
+      method: "POST", // Using POST but with parameters in URL as per many SMS API docs
+      headers: { "Accept": "application/json" }
     });
     const text = await res.text();
     console.log(`[sendSmsRaw] API raw response:`, text);
