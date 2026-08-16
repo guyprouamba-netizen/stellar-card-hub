@@ -2300,6 +2300,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const allowedStrings = ["whatsapp_group_url", "admin_notification_phone", "sender_request_admin_template", "sender_request_user_template"];
     const allowedBools = ["notify_admin_sender_request"];
     const updates: Array<{ key: string; value: any }> = [];
+    
+    console.log("[adminUpdateConfig] Received data:", JSON.stringify(data));
     for (const k of allowedNumbers) {
       if (data?.[k] !== undefined && data[k] !== null && data[k] !== "") {
         const n = Number(data[k]);
