@@ -701,18 +701,38 @@ async function initShopCheckout(body: any) {
   }).select("id,order_number,public_token").single();
   if (oErr) throw new Error(oErr.message);
   await db.from("order_items").insert(orderItems.map((it) => ({ ...it, order_id: order.id })));
-  // Paiement in-app (Mobile Money direct, aucune redirection)
-  const reference = ref("SHOP");
-  await db.from("payment_link_payments").insert({
-    link_id: null as any, business_id: biz.id, order_id: order.id,
+
+  const reference = ref("SH");
+  const { error: pErr } = await db.from("payment_link_payments").insert({
+    business_id: biz.id, order_id: order.id,
     reference, amount: total, currency,
     customer_name: body?.customer_name || null,
     customer_phone: body?.customer_phone || null,
     customer_email: customerEmail,
     provider: "mobile_money",
-    metadata: { direct: true, order_id: order.id },
-  } as any);
-  return { ok: true, reference, amount: total, currency, order_token: order.public_token, order_number: orderNumber };
+    metadata: { source: "shop", direct: false },
+  });
+  if (pErr) throw new Error(pErr.message);
+
+  // Rétablir la redirection YengaPay pour le Shop
+  try {
+    const { checkoutUrl, paymentIntentId } = await createYengaPayIntent({
+      amount: total, reference,
+      title: `Commande ${order.order_number}`,
+      description: `Paiement boutique ${biz.name}`,
+      callbackUrl: `${SUPABASE_URL}/functions/v1/yengapay-webhook`,
+      returnUrl: body?.returnUrl || `${appBaseUrl()}/shop/${biz.slug}?order=${order.public_token}&pay_ref=${reference}`
+    });
+    
+    if (checkoutUrl) {
+      await db.from("payment_link_payments").update({ payment_intent_id: paymentIntentId }).eq("reference", reference);
+      return { ok: true, reference, amount: total, currency, order_token: order.public_token, checkoutUrl };
+    }
+  } catch (e) {
+    console.error("YengaPay shop redirect init failed", e);
+  }
+
+  return { ok: true, reference, amount: total, currency, order_token: order.public_token };
 }
 
 // Vitrine publique d'un projet (catalogue produits)
