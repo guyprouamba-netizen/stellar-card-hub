@@ -873,30 +873,34 @@ export const DigitalNomad = ({ invoice, business, kind = "invoice" }: TemplatePr
 };
 
 // 18. RETRO TICKET (80s Style)
-export const RetroTicket = ({ invoice, business }: TemplateProps) => (
-  <div className="bg-[#121212] p-8 max-w-2xl mx-auto font-mono text-[#39ff14] border-4 border-[#39ff14] shadow-[0_0_20px_rgba(57,255,20,0.3)]">
-    <div className="text-center mb-10">
-      <h1 className="text-3xl font-black uppercase tracking-tighter mb-2 italic">** TRANSACTION COMPLETE **</h1>
-      <p className="text-xs opacity-70">TERMINAL: {business.name.toUpperCase()}</p>
+export const RetroTicket = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "RECEIPT" : kind === "contract" ? "CONTRACT" : "INVOICE";
+  return (
+    <div className="bg-[#121212] p-8 max-w-2xl mx-auto font-mono text-[#39ff14] border-4 border-[#39ff14] shadow-[0_0_20px_rgba(57,255,20,0.3)]">
+      <div className="text-center mb-10">
+        <h1 className="text-3xl font-black uppercase tracking-tighter mb-2 italic">** {title} COMPLETE **</h1>
+        <p className="text-xs opacity-70">TERMINAL: {business.name.toUpperCase()}</p>
+      </div>
+      <div className="space-y-4 border-y-2 border-[#39ff14] border-dashed py-8 mb-8">
+        {invoice.items.map((it, i) => (
+          <div key={i} className="flex justify-between items-center text-xl">
+            <span>{it.name.toUpperCase()}</span>
+            <span>{(it.qty * it.price).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-between items-center text-4xl font-black border-2 border-[#39ff14] p-4 mb-8">
+        <span>TOTAL</span>
+        <span>{invoice.total.toLocaleString()} {invoice.currency}</span>
+      </div>
+      <VerificationFooter business={business} invoice={invoice} />
+      <div className="mt-10 text-center animate-pulse text-xs">
+        <p>REF: {invoice.number}</p>
+        <p>AUTHENTICATED DOCUMENT // YENGAPAY</p>
+      </div>
     </div>
-    <div className="space-y-4 border-y-2 border-[#39ff14] border-dashed py-8 mb-8">
-      {invoice.items.map((it, i) => (
-        <div key={i} className="flex justify-between items-center text-xl">
-          <span>{it.name.toUpperCase()}</span>
-          <span>{(it.qty * it.price).toLocaleString()}</span>
-        </div>
-      ))}
-    </div>
-    <div className="flex justify-between items-center text-4xl font-black border-2 border-[#39ff14] p-4">
-      <span>TOTAL</span>
-      <span>{invoice.total.toLocaleString()} {invoice.currency}</span>
-    </div>
-    <div className="mt-10 text-center animate-pulse text-xs">
-      <p>REF: {invoice.number}</p>
-      <p>THANK YOU FOR YOUR BUSINESS</p>
-    </div>
-  </div>
-);
+  );
+};
 
 // 19. CLEAN PHARMACY
 export const CleanPharmacy = ({ invoice, business, settings }: TemplateProps) => (
