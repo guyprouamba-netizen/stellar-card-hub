@@ -505,48 +505,77 @@ export default function BusinessPage() {
                       <p className="mt-3 text-sm text-muted-foreground">Créez votre premier projet pour ajouter produits, liens, QR codes, factures et un coach IA dédié.</p>
                     </div>
                   ) : (
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                       {projects.map((p) => {
                         const pct = p.financial_goal > 0 ? Math.min(100, (Number(p.balance) / Number(p.financial_goal)) * 100) : 0;
-                        const status = pct >= 100 ? "green" : pct >= 50 ? "yellow" : Number(p.balance) === 0 ? "red" : "yellow";
-                         const vitrineUrl = `${window.location.origin}/vitrine/${p.id}`;
+                        const vitrineUrl = `${window.location.origin}/vitrine/${p.id}`;
                          return (
-                           <div key={p.id} className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition hover:border-primary/40 hover:shadow-glow">
-                           <Link to={`/business/${current.id}/projects/${p.id}`} className="block">
-                            {p.cover_url && <div className="absolute inset-0 opacity-10" style={{ backgroundImage: `url(${p.cover_url})`, backgroundSize: "cover" }} />}
-                            <div className="relative">
-                              <div className="flex items-center gap-3">
-                                {p.logo_url ? <img src={p.logo_url} className="h-10 w-10 rounded-xl object-cover" alt="" />
-                                  : <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-primary text-sm font-bold text-primary-foreground">{p.name[0]}</div>}
-                                <div className="min-w-0 flex-1">
-                                  <p className="truncate font-bold">{p.name}</p>
-                                  <p className="text-[10px] text-muted-foreground">{p.currency}</p>
-                                </div>
-                                <span className={`grid h-3 w-3 place-items-center rounded-full ${status === "green" ? "bg-emerald-500" : status === "yellow" ? "bg-amber-500" : "bg-red-500"} shadow-[0_0_12px_currentColor]`} />
-                              </div>
-                              <p className="mt-4 font-[Space_Grotesk] text-xl font-bold tabular-nums">{Number(p.balance).toLocaleString("fr-FR")} <span className="text-xs text-muted-foreground">/ {Number(p.financial_goal).toLocaleString("fr-FR")}</span></p>
-                              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                                <div className="h-full rounded-full bg-gradient-primary" style={{ width: `${pct}%` }} />
-                              </div>
-                               <div className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary">
-                                 Gérer les produits <ChevronRight className="h-3 w-3" />
+                           <div key={p.id} className="group relative flex flex-col overflow-hidden rounded-3xl border border-border bg-card transition-all hover:border-primary/40 hover:shadow-card-premium">
+                             {/* Badge de Type */}
+                             <div className="absolute left-4 top-4 z-10">
+                               <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-500 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+                                 <Megaphone className="h-3 w-3" /> Payout
+                               </span>
+                             </div>
+
+                             {/* Logo & Status */}
+                             <div className="p-5 pb-0">
+                               <div className="flex items-start justify-between">
+                                 <div className="flex flex-1 items-center gap-4">
+                                   {p.logo_url ? (
+                                     <img src={p.logo_url} className="h-16 w-16 rounded-2xl object-cover shadow-sm" alt="" />
+                                   ) : (
+                                     <div className="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 text-2xl font-black text-primary">
+                                       {p.name[0]}
+                                     </div>
+                                   )}
+                                   <div className="min-w-0 flex-1">
+                                     <div className="flex items-center gap-2">
+                                       <h4 className="truncate font-[Space_Grotesk] text-lg font-bold">{p.name}</h4>
+                                       <span className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-500">Actif</span>
+                                     </div>
+                                     <p className="mt-1 text-xs text-muted-foreground line-clamp-1">{p.description || "Compte de paiements sortants"}</p>
+                                     <p className="mt-0.5 text-[10px] uppercase tracking-tighter text-muted-foreground/60">Projet payout GUY ROUAMBA</p>
+                                   </div>
+                                 </div>
                                </div>
                              </div>
-                           </Link>
-                           <div className="relative mt-3 flex items-center gap-2 border-t border-border pt-3">
-                             <a href={vitrineUrl} target="_blank" rel="noreferrer"
-                               className="inline-flex items-center gap-1.5 rounded-full bg-gradient-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-glow">
-                               <ExternalLink className="h-3 w-3" /> Voir la vitrine
-                             </a>
-                             <button onClick={() => copy(vitrineUrl)}
-                               className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold hover:bg-muted">
-                               <Copy className="h-3 w-3" /> Copier
-                             </button>
-                             <button onClick={() => setConfigProject(p)}
-                               className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold hover:bg-muted">
-                               <Settings2 className="h-3 w-3" /> Réglages & API
-                             </button>
-                           </div>
+
+                             {/* Stats Grid */}
+                             <div className="mt-6 grid grid-cols-2 gap-3 px-5">
+                               <div className="rounded-2xl border border-orange-500/10 bg-orange-500/5 p-3 text-center">
+                                 <p className="text-[10px] font-semibold text-orange-600 uppercase">Solde disponible</p>
+                                 <p className="mt-1 font-[Space_Grotesk] text-lg font-bold text-orange-700">{Number(p.balance).toLocaleString("fr-FR")} <span className="text-[10px]">XOF</span></p>
+                               </div>
+                               <div className="rounded-2xl border border-orange-500/10 bg-orange-500/5 p-3 text-center">
+                                 <p className="text-[10px] font-semibold text-orange-600 uppercase">Transactions envoyées</p>
+                                 <p className="mt-1 font-[Space_Grotesk] text-lg font-bold text-orange-700">0</p>
+                               </div>
+                             </div>
+
+                             {/* ID Footer */}
+                             <div className="mt-6 border-t border-border/40 bg-muted/30 px-5 py-3">
+                               <div className="flex items-center justify-between text-[10px]">
+                                 <span className="font-bold text-red-500/70 uppercase tracking-widest">ID Projet: {p.id.split('-')[0]}</span>
+                                 <div className="flex items-center gap-1 opacity-40">
+                                   <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+                                   <span className="h-1.5 w-1.5 rounded-full bg-orange-300" />
+                                 </div>
+                               </div>
+                             </div>
+
+                             {/* Actions Menu */}
+                             <div className="grid grid-cols-3 divide-x divide-border border-t border-border text-[10px] font-bold uppercase tracking-tighter">
+                               <button onClick={() => setTab("payments")} className="flex items-center justify-center gap-1.5 py-4 hover:bg-muted transition">
+                                 <Activity className="h-3.5 w-3.5 text-orange-500" /> Transactions
+                               </button>
+                               <button className="flex items-center justify-center gap-1.5 py-4 hover:bg-muted transition">
+                                 <Megaphone className="h-3.5 w-3.5 text-orange-500 rotate-[-20deg]" /> Envoi masse
+                               </button>
+                               <button onClick={() => setConfigProject(p)} className="flex items-center justify-center gap-1.5 py-4 hover:bg-muted transition">
+                                 <ExternalLink className="h-3.5 w-3.5 text-orange-500" /> Payout
+                               </button>
+                             </div>
                            </div>
                          );
                       })}
