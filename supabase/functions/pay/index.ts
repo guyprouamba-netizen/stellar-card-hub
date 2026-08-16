@@ -646,6 +646,7 @@ async function getPublicShop(slug: string) {
       tagline: (biz as any).tagline || null, theme: (biz as any).theme || {},
       logo_url: biz.logo_url, cover_url: (biz as any).cover_url || null,
       contact_email: biz.contact_email, contact_phone: biz.contact_phone,
+      template: template || null,
     },
     projects: [
       ...(productsWithMedia.some((p: any) => !p.project_id)
