@@ -2287,19 +2287,16 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const { data: extras } = await admin.from("platform_config").select("key,value");
     const extrasMap: Record<string, any> = {};
     for (const r of extras ?? []) {
+      let val = r.value;
+      if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"') && val.length > 1) {
+        try { val = JSON.parse(val); } catch { /* ignore */ }
+      }
+
       if (allowedBools.includes(r.key)) {
-        extrasMap[r.key] = r.value === "true";
+        extrasMap[r.key] = String(val) === "true";
       } else if (allowedNumbers.includes(r.key)) {
-        let val = r.value;
-        if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"')) {
-          try { val = JSON.parse(val); } catch { /* ignore */ }
-        }
         extrasMap[r.key] = Number(val);
       } else {
-        let val = r.value;
-        if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"') && val.length > 1) {
-          try { val = JSON.parse(val); } catch { /* ignore */ }
-        }
         extrasMap[r.key] = val;
       }
     }
