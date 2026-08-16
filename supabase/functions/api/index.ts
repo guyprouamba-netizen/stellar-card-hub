@@ -2278,7 +2278,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     return { ok: true };
   },
 
-  // ---------- Paramètres plateforme (taux + frais) ----------
+  // ---------- Paramètres plateforme (taux + frais + SMS) ----------
   async adminGetConfig({ user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const allowedNumbers = [
@@ -2288,13 +2288,21 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       "business_cashout_fee_bps", "business_cashout_fee_flat_xof", "business_cashout_min_xof",
       "momo_transfer_fee_bps", "momo_transfer_fee_flat_xof", "momo_transfer_min_xof", "momo_transfer_max_xof"
     ];
-    const allowedBools = ["notify_admin_sender_request", "paypal_wd_enabled", "gateway_enabled", "momo_transfer_enabled"];
+    const allowedBools = [
+      "notify_admin_sender_request", "paypal_wd_enabled", "gateway_enabled", "momo_transfer_enabled",
+      "event_wallet_recharge", "event_card_recharge", "event_withdrawal", "event_withdrawal_paid", "event_sender_request"
+    ];
     const allowedStrings = ["whatsapp_group_url", "admin_notification_phone", "sender_request_admin_template", "sender_request_user_template"];
+    
+    // Default pricing config from shared helper
     const cfg = await loadPricingConfig(admin);
+    
+    // Additional settings from platform_config table
     const { data: extras } = await admin.from("platform_config").select("key,value");
     const extrasMap: Record<string, any> = {};
     for (const r of extras ?? []) {
       let val = r.value;
+      // Handle legacy JSON quoting if present
       if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"') && val.length > 1) {
         try { val = JSON.parse(val); } catch { /* ignore */ }
       }
@@ -2322,42 +2330,35 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       "momo_transfer_fee_bps", "momo_transfer_fee_flat_xof", "momo_transfer_min_xof", "momo_transfer_max_xof"
     ];
     const allowedStrings = ["whatsapp_group_url", "admin_notification_phone", "sender_request_admin_template", "sender_request_user_template"];
-    const allowedBools = ["notify_admin_sender_request", "paypal_wd_enabled", "gateway_enabled", "momo_transfer_enabled", "event_wallet_recharge", "event_card_recharge", "event_withdrawal", "event_withdrawal_paid", "event_sender_request"];
-    console.log("[adminUpdateConfig] updating keys:", Object.keys(data || {}));
-    const updates: Array<{ key: string; value: string }> = [];
-    for (const k of allowedNumbers) {
-      if (data?.[k] !== undefined && data[k] !== null && data[k] !== "") {
-        const n = Number(data[k]);
-        if (!Number.isFinite(n) || n < 0) return { ok: false, error: `Valeur invalide pour ${k}` };
-        updates.push({ key: k, value: String(n) });
-      }
-    }
-    for (const k of allowedStrings) {
-      if (data?.[k] !== undefined && data[k] !== null) {
-        // We store as plain string to avoid double encoding/parsing issues
-        updates.push({ key: k, value: String(data[k]).trim().slice(0, 1000) });
-      }
-    }
-    for (const k of allowedBools) {
-      if (data?.[k] !== undefined && data[k] !== null) {
-        updates.push({ key: k, value: String(!!data[k]) });
-      }
-    }
-    for (const u of updates) {
-      const { error: upsertError } = await admin.from("platform_config").upsert({ key: u.key, value: u.value }, { onConflict: "key" });
-      if (upsertError) throw new Error(`Erreur lors de la mise à jour de ${u.key}: ${upsertError.message}`);
-    }
-    const cfg = await loadPricingConfig(admin);
-    const { data: extras } = await admin.from("platform_config").select("key,value");
-    const extrasMap: Record<string, any> = {};
-    for (const r of extras ?? []) {
-      let val = r.value;
-      // Handle possible JSON double-quoting from database/older records
-      if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"') && val.length > 1) {
-        try { val = JSON.parse(val); } catch { /* ignore */ }
-      }
+    const allowedBools = [
+      "notify_admin_sender_request", "paypal_wd_enabled", "gateway_enabled", "momo_transfer_enabled",
+      "event_wallet_recharge", "event_card_recharge", "event_withdrawal", "event_withdrawal_paid", "event_sender_request"
+    ];
 
-      if (allowedBools.includes(r.key)) {
+    console.log("[adminUpdateConfig] updating payload:", JSON.stringify(data));
+    const updates: Array<{ key: string; value: string }> = [];
+    
+    for (const [k, v] of Object.entries(data || {})) {
+      if (allowedNumbers.includes(k)) {
+        const n = Number(v);
+        if (Number.isFinite(n)) updates.push({ key: k, value: String(n) });
+      } else if (allowedStrings.includes(k)) {
+        updates.push({ key: k, value: String(v || "").trim().slice(0, 1000) });
+      } else if (allowedBools.includes(k)) {
+        updates.push({ key: k, value: String(!!v) });
+      }
+    }
+
+    if (updates.length > 0) {
+      for (const u of updates) {
+        const { error } = await admin.from("platform_config").upsert({ key: u.key, value: u.value }, { onConflict: "key" });
+        if (error) console.error(`[adminUpdateConfig] upsert failed for ${u.key}:`, error.message);
+      }
+    }
+
+    return await this.adminGetConfig({ user, admin });
+  },
+
         extrasMap[r.key] = String(val) === "true";
         console.log(`[adminGetConfig] key: ${r.key}, raw: ${val}, parsed: ${extrasMap[r.key]}`);
       } else if (allowedNumbers.includes(r.key)) {
