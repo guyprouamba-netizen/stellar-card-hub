@@ -427,7 +427,8 @@ export default function Shop() {
                 {g.products.map(card)}
               </div>
             </section>
-          ))
+            ))}
+          </>
         )}
 
         <footer id="footer" className="mt-32 overflow-hidden rounded-[3rem] p-8 sm:p-20 relative" style={{ background: th.surface, border: `1px solid ${th.primary}11` }}>
