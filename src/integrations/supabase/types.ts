@@ -2373,6 +2373,54 @@ export type Database = {
         }
         Relationships: []
       }
+      product_categories: {
+        Row: {
+          business_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          position: number
+          slug: string
+        }
+        Insert: {
+          business_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          position?: number
+          slug: string
+        }
+        Update: {
+          business_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          position?: number
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_categories_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_categories_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_downloads: {
         Row: {
           access_token: string
@@ -2508,6 +2556,7 @@ export type Database = {
         Row: {
           access_instructions: string | null
           business_id: string
+          category_id: string | null
           created_at: string
           currency: string
           description: string | null
@@ -2538,6 +2587,7 @@ export type Database = {
         Insert: {
           access_instructions?: string | null
           business_id: string
+          category_id?: string | null
           created_at?: string
           currency?: string
           description?: string | null
@@ -2568,6 +2618,7 @@ export type Database = {
         Update: {
           access_instructions?: string | null
           business_id?: string
+          category_id?: string | null
           created_at?: string
           currency?: string
           description?: string | null
@@ -2608,6 +2659,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "public_business_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
             referencedColumns: ["id"]
           },
           {
