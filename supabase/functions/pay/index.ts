@@ -236,7 +236,7 @@ async function createYengaPayIntent(opts: {
       reference: opts.reference,
       articles: [{ title: opts.title.slice(0, 80), description: opts.description.slice(0, 200), pictures: [], price: opts.amount }],
       callbackUrl: opts.callbackUrl,
-      ...(opts.returnUrl ? { returnUrl: opts.returnUrl, successUrl: opts.returnUrl, cancelUrl: opts.returnUrl } : {}),
+      ...(opts.returnUrl ? { returnUrl: opts.returnUrl, successUrl: opts.returnUrl, cancelUrl: opts.returnUrl } : { returnUrl: `${appBaseUrl()}/dashboard?tab=purchases`, successUrl: `${appBaseUrl()}/dashboard?tab=purchases`, cancelUrl: `${appBaseUrl()}/dashboard?tab=purchases` }),
     }),
   });
   const text = await res.text();
