@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Save, Download, Printer, Eye, Settings2, Trash2, Plus, User, FileText } from "lucide-react";
+import { X, Save, Download, Printer, Eye, Settings2, Trash2, Plus, User, FileText, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { INVOICE_TEMPLATES } from "./invoice-templates";
 import { createInvoice, updateInvoice } from "@/lib/business.functions";
