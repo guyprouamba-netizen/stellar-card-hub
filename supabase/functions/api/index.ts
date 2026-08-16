@@ -682,6 +682,33 @@ async function dispatchProjectWebhook(admin: any, opts: {
 // ============= Handlers =============
 // v: internal-transfer-3
 const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userClient: any }) => Promise<any>> = {
+  async listProductCategories(args: any) {
+    await assertBusinessOwner(args.admin, args.user.id, args.data.business_id);
+    const { data: rows, error } = await args.admin.from("product_categories")
+      .select("*")
+      .eq("business_id", args.data.business_id)
+      .order("position", { ascending: true });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  },
+  async createProductCategory(args: any) {
+    await assertBusinessOwner(args.admin, args.user.id, args.data.business_id);
+    const name = String(args.data?.name || "").trim();
+    if (name.length < 2) throw new Error("Nom de catégorie requis");
+    const slug = slugify(name) + "-" + randomHex(2);
+    const { data: row, error } = await args.admin.from("product_categories").insert({
+      business_id: args.data.business_id, name, slug, description: args.data?.description || null,
+    }).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  },
+  async deleteProductCategory(args: any) {
+    const { data: cat } = await args.admin.from("product_categories").select("business_id").eq("id", args.data.id).maybeSingle();
+    if (!cat) throw new Error("Catégorie introuvable");
+    await assertBusinessOwner(args.admin, args.user.id, cat.business_id);
+    await args.admin.from("product_categories").delete().eq("id", args.data.id);
+    return { ok: true };
+  },
 
   async adminListShopTemplates({ user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
@@ -2681,7 +2708,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   // ===========================================================
   // CATEGORIES
   // ===========================================================
-  async listProductCategories({ data, user, admin }: any) {
+  async listProductCategories({ data, user, admin }) {
     await assertBusinessOwner(admin, user.id, data.business_id);
     const { data: rows, error } = await admin.from("product_categories")
       .select("*")
