@@ -130,46 +130,44 @@ export default function Shop() {
 
   return (
     <div className="min-h-screen" style={{ background: th.bg, color: th.text }}>
-      {/* Barre de navigation fixe : logo + panier */}
-      <nav className="sticky top-0 z-40 backdrop-blur"
-        style={{ background: `${th.bg}e6`, borderBottom: `1px solid ${th.primary}22` }}>
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
-          {biz.logo_url ? (
-            <img src={biz.logo_url} alt={`Logo ${biz.name}`} className="h-10 w-10 rounded-xl object-cover" />
-          ) : (
-            <div className="grid h-10 w-10 place-items-center rounded-xl text-base font-black"
-              style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold leading-tight sm:text-base">{biz.name}</p>
-            {biz.tagline && <p className="truncate text-[11px]" style={{ color: th.muted }}>{biz.tagline}</p>}
+      <nav className="sticky top-0 z-40 w-full border-b backdrop-blur-xl" style={{ backgroundColor: `${th.bg}cc`, borderColor: `${th.primary}22` }}>
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            {biz.logo_url ? (
+              <img src={biz.logo_url} alt={biz.name} className="h-9 w-9 rounded-xl object-cover" />
+            ) : (
+              <div className="grid h-9 w-9 place-items-center rounded-xl text-lg font-bold" style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
+            )}
+            <span className="text-lg font-bold tracking-tight">{biz.name}</span>
           </div>
-          <button onClick={() => setCartOpen(true)} className="relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold"
-            style={{ background: th.primary, color: th.primary_text }}>
-            <ShoppingCart className="h-4 w-4" />
-            <span className="hidden sm:inline">Panier</span>
-            {cartCount > 0 && <span className="grid h-5 min-w-[20px] place-items-center rounded-full px-1 text-xs font-bold" style={{ background: th.bg, color: th.text }}>{cartCount}</span>}
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setCartOpen(true)} className="relative grid h-10 w-10 place-items-center rounded-full transition-transform hover:scale-105 active:scale-95" style={{ background: th.surface }}>
+              <ShoppingCart className="h-5 w-5" />
+              {cartCount > 0 && <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold shadow-lg" style={{ background: th.primary, color: th.primary_text }}>{cartCount}</span>}
+            </button>
+          </div>
         </div>
       </nav>
 
-      {/* Hero couverture large */}
-      <header className="relative">
-        {/* Logo supprimé ici car présent dans la nav */}
-
-        <div className="relative h-[42vh] min-h-[280px] w-full overflow-hidden sm:h-[52vh]">
-          {biz.cover_url
-            ? <img src={biz.cover_url} alt={`Couverture ${biz.name}`} className="h-full w-full object-cover" />
-            : <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${th.primary}, ${th.surface})` }} />}
-          <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, ${th.bg}22, ${th.bg}cc)` }} />
-          <div className="absolute inset-x-0 bottom-0 px-4 pb-8 text-center sm:px-8">
-            <h1 className="text-3xl font-black tracking-tight drop-shadow sm:text-5xl">{biz.name}</h1>
-            {(biz.tagline || biz.description) && (
-              <p className="mx-auto mt-2 max-w-2xl text-sm sm:text-base" style={{ color: th.muted }}>{biz.tagline || biz.description}</p>
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Hero Section */}
+        <section className="relative mb-12 overflow-hidden rounded-[2rem] shadow-2xl" style={{ backgroundColor: th.surface }}>
+          <div className="absolute inset-0 z-0">
+            {biz.cover_url ? (
+              <img src={biz.cover_url} className="h-full w-full object-cover opacity-60" alt="" />
+            ) : (
+              <div className="h-full w-full opacity-20" style={{ background: `linear-gradient(135deg, ${th.primary}, ${th.surface})` }} />
             )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
           </div>
-        </div>
-      </header>
+
+          <div className="relative z-10 flex flex-col justify-end p-8 pt-48 sm:p-12 sm:pt-64">
+            <div className="max-w-2xl">
+              <h1 className="font-[Space_Grotesk] text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">{biz.name}</h1>
+              <p className="mt-4 text-lg sm:text-xl" style={{ color: th.muted }}>{biz.tagline || biz.description || "Votre destination shopping premium."}</p>
+            </div>
+          </div>
+        </section>
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
         {/* Publications */}
