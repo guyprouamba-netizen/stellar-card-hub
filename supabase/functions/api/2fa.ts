@@ -85,8 +85,9 @@ export async function handleRegistrationOTP(admin: any, userId: string, phone: s
     });
     if (error) throw error;
 
+    const cleanRecipient = normalized.startsWith("+") ? normalized.slice(1) : normalized;
     const r = await sendSmsRaw({
-      recipient: normalized,
+      recipient: cleanRecipient,
       message: `Bienvenue sur FASO-INVEST PAY ! Votre code de confirmation est : ${otp}`,
       sender_id: "FASOINVEST",
       type: "whatsapp"
