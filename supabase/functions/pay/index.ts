@@ -639,16 +639,17 @@ async function getPublicShop(slug: string) {
     .select("id,name,slug,description,tagline,theme,logo_url,cover_url,contact_email,contact_phone,status,template_id")
     .eq("slug", slug).maybeSingle();
   if (!biz || ["suspended", "terminated", "banned"].includes(String(biz.status || "").toLowerCase())) return null;
-  const [{ data: products }, { data: posts }, { data: media }, { data: projects }, { data: template }] = await Promise.all([
-    db.from("products").select("id,name,slug,description,price,currency,status,project_id,image_url,show_in_shop")
+  const [{ data: products }, { data: posts }, { data: media }, { data: projects }, { data: template }, { data: categories }] = await Promise.all([
+    db.from("products").select("id,name,slug,description,price,currency,status,project_id,image_url,show_in_shop,category_id")
       .eq("business_id", biz.id).eq("status", "active").eq("show_in_shop", true)
       .order("created_at", { ascending: false }),
     db.from("business_posts").select("id,title,body,image_url,product_id,published_at")
       .eq("business_id", biz.id).eq("published", true).order("published_at", { ascending: false }).limit(20),
-    db.from("product_media").select("product_id,type,url,position").order("position", { ascending: true }),
+    db.from("product_media").select("id,product_id,type,url,position").order("position", { ascending: true }),
     db.from("projects").select("id,name,slug,description,logo_url,cover_url,currency")
       .eq("business_id", biz.id).eq("show_in_shop", true).order("created_at", { ascending: false }),
     biz.template_id ? db.from("shop_templates").select("id,name,config").eq("id", biz.template_id).maybeSingle() : Promise.resolve({ data: null }),
+    db.from("product_categories").select("id,name,slug,position").eq("business_id", biz.id).order("position", { ascending: true }),
   ]);
   const mediaByProduct: Record<string, any[]> = {};
   for (const m of (media || [])) {
