@@ -904,18 +904,8 @@ function SettingsTab() {
         {field("strowallet_fixed_fee_usd", "Frais fixe émetteur (USD)", "Frais émetteur par opération (ex: 1.90)", "0.01")}
         {field("strowallet_pct_fee", "Frais % émetteur", "Pourcentage émetteur en décimal (ex: 0.01 = 1%)", "0.001")}
         {field("referral_reward_xof", "Récompense parrainage (XOF)", "Montant crédité au parrain par carte achetée par un filleul (ex: 1000)", "1")}
-        <label className="block md:col-span-2">
-          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Lien groupe WhatsApp</span>
-          <input
-            type="url"
-            value={draft.whatsapp_group_url ?? ""}
-            onChange={(e) => setDraft((d: any) => ({ ...d, whatsapp_group_url: e.target.value }))}
-            placeholder="https://chat.whatsapp.com/..."
-            className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none"
-          />
-          <span className="mt-1 block text-[11px] text-muted-foreground">Affiché sur le tableau de bord de tous les utilisateurs et sur la page parrainage.</span>
-        </label>
-        <label className="block md:col-span-2">
+        
+        <label className="block">
           <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Alertes Admin (Téléphone)</span>
           <input
             type="text"
@@ -924,7 +914,19 @@ function SettingsTab() {
             placeholder="+22670000000"
             className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none"
           />
-          <span className="mt-1 block text-[11px] text-muted-foreground">Numéro recevant les notifications SMS critiques (demandes de Sender ID, etc.)</span>
+          <span className="mt-1 block text-[11px] text-muted-foreground">Numéro recevant les notifications SMS critiques.</span>
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Lien groupe WhatsApp</span>
+          <input
+            type="url"
+            value={draft.whatsapp_group_url ?? ""}
+            onChange={(e) => setDraft((d: any) => ({ ...d, whatsapp_group_url: e.target.value }))}
+            placeholder="https://chat.whatsapp.com/..."
+            className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none"
+          />
+          <span className="mt-1 block text-[11px] text-muted-foreground">Affiché sur le tableau de bord.</span>
         </label>
       </div>
       <div className="flex justify-end gap-2">
@@ -991,23 +993,6 @@ function PaypalWithdrawSettings() {
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
         </button>
       </div>
-
-      <div className="mt-8 rounded-2xl border border-primary/30 bg-primary/5 p-6">
-        <h2 className="font-[Space_Grotesk] text-xl font-bold">Alertes Administrateur</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Numéro recevant les notifications SMS critiques (demandes de Sender ID, etc.)</p>
-        <div className="mt-4 max-w-sm">
-          <label className="block">
-            <span className="text-xs font-medium uppercase text-muted-foreground">Numéro de téléphone</span>
-            <input 
-              type="text" 
-              value={cfg?.admin_notification_phone || ""} 
-              onChange={(e) => setCfg({ ...cfg, admin_notification_phone: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-4 py-2 text-sm outline-none focus:border-primary"
-              placeholder="+22670000000"
-            />
-          </label>
-        </div>
-      </div>
     </div>
   );
 }
@@ -1026,7 +1011,6 @@ function GatewayFeeSettings() {
       const c: any = await adminUpdateGatewayFeeConfig({
         fee_bps: Number(cfg.fee_bps), fee_flat_xof: Number(cfg.fee_flat_xof),
         min_xof: Number(cfg.min_xof), enabled: !!cfg.enabled,
-        admin_notification_phone: cfg.admin_notification_phone,
         sms_price: Number(cfg.sms_price || 20),
         business_cashout_fee_bps: Number(cfg.business_cashout_fee_bps),
         business_cashout_fee_flat_xof: Number(cfg.business_cashout_fee_flat_xof),
@@ -1082,23 +1066,6 @@ function GatewayFeeSettings() {
         <button onClick={save} disabled={busy} className="rounded-full bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
         </button>
-      </div>
-      
-      <div className="mt-8 pt-8 border-t border-border">
-        <h2 className="font-[Space_Grotesk] text-xl font-bold">Alertes Administrateur</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Numéro recevant les notifications SMS critiques (demandes de Sender ID, etc.)</p>
-        <div className="mt-4 flex gap-3 max-w-sm">
-          <input 
-            type="text" 
-            value={cfg?.admin_notification_phone || ""} 
-            onChange={(e) => setCfg({ ...cfg, admin_notification_phone: e.target.value })}
-            className="flex-1 rounded-xl border border-border bg-surface-2 px-4 py-2 text-sm outline-none focus:border-primary"
-            placeholder="+22670000000"
-          />
-          <button onClick={save} disabled={busy} className="rounded-xl border border-border px-4 py-2 text-xs font-bold hover:bg-muted">
-            MAJ
-          </button>
-        </div>
       </div>
     </div>
   );
