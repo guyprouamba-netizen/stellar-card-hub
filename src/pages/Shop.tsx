@@ -91,10 +91,27 @@ export default function Shop() {
     };
   }, [biz?.template]);
 
-  if (loading) return <div className="grid min-h-screen place-items-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  if (loading) return (
+    <div className="grid min-h-screen place-items-center bg-[#050505]">
+      <motion.div 
+        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} 
+        transition={{ repeat: Infinity, duration: 2 }}
+      >
+        <Loader2 className="h-8 w-8 animate-spin text-[#d4af37]" />
+      </motion.div>
+    </div>
+  );
+
   if (error && !biz) return (
-    <div className="grid min-h-screen place-items-center px-6 text-center">
-      <div><Store className="mx-auto h-12 w-12 text-muted-foreground" /><h1 className="mt-4 text-2xl font-bold">Boutique introuvable</h1><p className="mt-2 text-sm text-muted-foreground">{error}</p></div>
+    <div className="grid min-h-screen place-items-center px-6 text-center bg-[#050505] text-white">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <Store className="mx-auto h-16 w-16 text-muted-foreground opacity-20" />
+        <h1 className="mt-6 text-3xl font-black tracking-tighter italic uppercase">Boutique introuvable</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+        <button onClick={() => navigate('/')} className="mt-8 rounded-full border border-white/10 px-6 py-2 text-xs font-bold hover:bg-white hover:text-black transition-colors">
+          Retour
+        </button>
+      </motion.div>
     </div>
   );
   if (!biz) return null;
