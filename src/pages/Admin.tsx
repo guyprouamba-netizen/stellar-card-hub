@@ -915,6 +915,17 @@ function SettingsTab() {
           />
           <span className="mt-1 block text-[11px] text-muted-foreground">Affiché sur le tableau de bord de tous les utilisateurs et sur la page parrainage.</span>
         </label>
+        <label className="block md:col-span-2">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Alertes Admin (Téléphone)</span>
+          <input
+            type="text"
+            value={draft.admin_notification_phone ?? ""}
+            onChange={(e) => setDraft((d: any) => ({ ...d, admin_notification_phone: e.target.value }))}
+            placeholder="+22670000000"
+            className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none"
+          />
+          <span className="mt-1 block text-[11px] text-muted-foreground">Numéro recevant les notifications SMS critiques (demandes de Sender ID, etc.)</span>
+        </label>
       </div>
       <div className="flex justify-end gap-2">
         <button onClick={() => setDraft(cfg)} className="rounded-full border border-border bg-surface-2 px-4 py-2 text-sm">Réinitialiser</button>
