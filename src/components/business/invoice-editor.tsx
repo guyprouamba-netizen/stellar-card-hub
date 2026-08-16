@@ -145,7 +145,7 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-xl font-bold flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
-              Éditeur de facture
+              Éditeur de document
             </h2>
             <button onClick={onClose} className="p-2 hover:bg-muted rounded-full transition-colors"><X className="h-4 w-4" /></button>
           </div>
