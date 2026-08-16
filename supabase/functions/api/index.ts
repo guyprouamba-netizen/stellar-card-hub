@@ -1831,10 +1831,18 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
 
   async listShopTemplates({ admin }) {
-    const { data, error } = await admin.from("shop_templates").select("id,name,slug,description,thumbnail_url,preview_url,price,is_free,category").order("name");
+    const { data, error } = await admin.from("shop_templates").select("id,name,slug,description,thumbnail_url,preview_url,price,is_free,category,config").order("name");
     if (error) throw new Error(error.message);
     return { ok: true, templates: data || [] };
   },
+
+  async getTemplatePreview({ data, admin }) {
+    const { id } = data;
+    const { data: template, error } = await admin.from("shop_templates").select("*").eq("id", id).maybeSingle();
+    if (error) throw new Error(error.message);
+    return { ok: true, template };
+  },
+
 
   async applyShopTemplate({ data, user, admin }) {
     const { business_id, template_id } = data;

@@ -1098,7 +1098,9 @@ function ShopTemplatesTab() {
                 <div className="mt-4 flex items-center justify-between gap-2">
                   <button onClick={() => setModal(t)} className="text-xs font-semibold text-primary hover:underline">Modifier</button>
                   <div className="flex gap-2">
+                    <a href={`/shop/demo?template_id=${t.id}`} target="_blank" rel="noreferrer" className="grid h-7 w-7 place-items-center rounded-full bg-surface-2 hover:bg-muted"><Eye className="h-3.5 w-3.5" /></a>
                     {t.preview_url && <a href={t.preview_url} target="_blank" rel="noreferrer" className="grid h-7 w-7 place-items-center rounded-full bg-surface-2 hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" /></a>}
+
                     <button onClick={() => remove(t.id)} className="grid h-7 w-7 place-items-center rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
                 </div>

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getShop } from "@/lib/pay.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { Loader2, ShieldCheck, Store, Mail, Phone, Eye } from "lucide-react";
+
 import { ProductDetailModal } from "@/components/product-detail-modal";
 
 type Product = { id: string; name: string; slug: string; description: string | null; price: number; currency: string; project_id?: string | null; media?: Array<{ url: string; type: string }> };
@@ -36,9 +38,38 @@ export default function Shop() {
       navigate(`/order/${orderToken}${payRef ? `?pay_ref=${encodeURIComponent(payRef)}` : ""}`, { replace: true });
       return;
     }
+    const templateId = params.get("template_id");
+    
+    if (slug === "demo" && templateId) {
+      // Fetch specific template for preview
+      supabase.from("shop_templates").select("*").eq("id", templateId).maybeSingle().then(({ data: t }: { data: any }) => {
+
+        setBiz({
+          id: "demo",
+          name: "Boutique Démo",
+          slug: "demo",
+          description: "Ceci est une prévisualisation en temps réel de votre futur boutique avec le template sélectionné.",
+          tagline: "Découvrez le rendu final de votre site",
+          logo_url: null,
+          cover_url: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&auto=format&fit=crop",
+          contact_email: "demo@faso-invest.com",
+          contact_phone: "+226 00 00 00 00",
+          template: t ? { id: t.id, name: t.name, config: t.config } : null
+        });
+        setProducts([
+          { id: "p1", name: "Produit Premium A", slug: "p1", description: "Une description élégante pour un produit de haute qualité.", price: 25000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800", type: "image" }] },
+          { id: "p2", name: "Service Exclusif B", slug: "p2", description: "Profitez de notre expertise avec ce service sur mesure.", price: 45000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800", type: "image" }] },
+          { id: "p3", name: "Accessoire Luxe C", slug: "p3", description: "Le détail qui fait toute la différence.", price: 12500, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1526170315870-ef6d99f494a3?w=800", type: "image" }] }
+        ]);
+        setLoading(false);
+      });
+      return;
+    }
+
     getShop(slug).then((r: any) => {
       setBiz(r.business); setProducts(r.products); setProjects(r.projects || []); setPosts(r.posts); setLoading(false);
     }).catch((e) => { setError(e.message); setLoading(false); });
+
   }, [slug, navigate]);
 
   useEffect(() => {
