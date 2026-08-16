@@ -251,7 +251,7 @@ export const BistroThermal = ({ invoice, business, settings, kind = "receipt" }:
         {settings.address && <p className="text-[10px] opacity-70">{settings.address}</p>}
         <p className="mt-2 text-[10px]">{business.description || "Merci de votre visite"}</p>
         <p className="mt-2 font-bold tracking-tighter">----------------------------</p>
-        <p className="font-bold">TICKET #{invoice.number.slice(-6)}</p>
+        <p className="font-bold">{kind === "receipt" ? "TICKET" : kind === "contract" ? "CONTRAT" : "FACTURE"} #{invoice.number.slice(-6)}</p>
         <p>{format(new Date(invoice.created_at), 'dd/MM/yyyy HH:mm')}</p>
         <p className="font-bold tracking-tighter">----------------------------</p>
       </div>
@@ -277,7 +277,7 @@ export const BistroThermal = ({ invoice, business, settings, kind = "receipt" }:
       </div>
 
       <div className="text-center mt-8">
-        <p className="font-bold">MERCI ET A BIENTOT !</p>
+        <p className="font-bold uppercase">{kind === "contract" ? "SIGNATURE" : "MERCI ET A BIENTOT !"}</p>
         <div className="mt-4 flex justify-center">
           <QRCodeSVG value={`https://pay.faso-invest.com/verify/${invoice.number}`} size={64} />
         </div>
@@ -1480,8 +1480,15 @@ INVOICE_TEMPLATES["bold-impact"] = BoldImpact;
 INVOICE_TEMPLATES["zen-minimal"] = ZenMinimal;
 
 RECEIPT_TEMPLATES["bistro-thermal"] = BistroThermal;
+RECEIPT_TEMPLATES["stripe-modern"] = StripeModern;
+RECEIPT_TEMPLATES["apple-minimal"] = AppleMinimal;
+RECEIPT_TEMPLATES["gov-standard"] = GovStandard;
 
 CONTRACT_TEMPLATES["notaire-officiel"] = NotaireOfficiel;
 CONTRACT_TEMPLATES["hotel-luxe"] = HotelLuxe;
 CONTRACT_TEMPLATES["classic-red"] = ClassicRed;
 CONTRACT_TEMPLATES["zen-minimal"] = ZenMinimal;
+CONTRACT_TEMPLATES["bistro-thermal"] = BistroThermal;
+CONTRACT_TEMPLATES["stripe-modern"] = StripeModern;
+CONTRACT_TEMPLATES["apple-minimal"] = AppleMinimal;
+CONTRACT_TEMPLATES["gov-standard"] = GovStandard;
