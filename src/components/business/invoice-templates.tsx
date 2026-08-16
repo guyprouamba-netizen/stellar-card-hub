@@ -439,26 +439,43 @@ export const StripeVintage = ({ invoice, business, kind = "invoice" }: TemplateP
 );
 
 // 7. PAYPAL STATEMENT
-export const PaypalStatement = ({ invoice, business }: TemplateProps) => (
-  <div className="bg-white p-8 max-w-3xl mx-auto border border-blue-100">
-    <div className="bg-blue-600 p-6 -m-8 mb-8 text-white">
-      <h2 className="text-xl font-bold">PayPal</h2>
-      <p className="text-sm opacity-90">Merchant Transaction Statement</p>
-    </div>
-    <div className="flex justify-between items-center mb-8">
-      <div className="text-sm">
-        <p className="font-bold text-slate-600">INVOICE TO</p>
-        <p className="font-bold text-lg">{invoice.customer_name}</p>
+export const PaypalStatement = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
+  return (
+    <div className="bg-white p-8 max-w-3xl mx-auto border border-blue-100">
+      <div className="bg-blue-600 p-6 -m-8 mb-8 text-white">
+        <h2 className="text-xl font-bold">PayPal</h2>
+        <p className="text-sm opacity-90">{title} Transaction Statement</p>
       </div>
-      <div className="text-right">
-        <p className="text-3xl font-bold text-blue-600">{invoice.total.toLocaleString()} {invoice.currency}</p>
+      <div className="flex justify-between items-center mb-8">
+        <div className="text-sm">
+          <p className="font-bold text-slate-600">{kind === "receipt" ? "CLIENT" : "INVOICE TO"}</p>
+          <p className="font-bold text-lg">{invoice.customer_name}</p>
+          <p className="text-slate-500 text-xs mt-1">{invoice.customer_email}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-3xl font-bold text-blue-600">{invoice.total.toLocaleString()} {invoice.currency}</p>
+          <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-widest">{invoice.number}</p>
+        </div>
       </div>
+      
+      <div className="space-y-4 mb-8">
+        {invoice.items.map((it, i) => (
+          <div key={i} className="flex justify-between items-center text-sm border-b border-slate-50 pb-2">
+            <span>{it.name} <span className="text-slate-400">x{it.qty}</span></span>
+            <span className="font-bold">{(it.qty * it.price).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-8 pt-8 border-t border-slate-100 text-center">
+        <p className="text-xs text-slate-400 italic">Merchant: {business.name}</p>
+      </div>
+
+      <VerificationFooter business={business} invoice={invoice} />
     </div>
-    <button className="w-full bg-blue-600 text-white font-bold py-3 rounded-full hover:bg-blue-700">
-      Pay Now
-    </button>
-  </div>
-);
+  );
+};
 
 // Add more templates...
 
