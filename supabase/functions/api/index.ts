@@ -2282,14 +2282,13 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async adminGetConfig({ user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const cfg = await loadPricingConfig(admin);
-    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone", "notify_admin_sender_request"]);
+    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone", "notify_admin_sender_request", "sender_request_admin_template"]);
     const extrasMap: Record<string, any> = {};
     for (const r of extras ?? []) {
-      if (r.key === "admin_notification_phone" || r.key === "whatsapp_group_url") {
-        try { extrasMap[r.key] = JSON.parse(r.value); } catch { extrasMap[r.key] = r.value; }
-      } else if (r.key === "notify_admin_sender_request") {
+      if (r.key === "notify_admin_sender_request") {
         extrasMap[r.key] = r.value === "true";
       } else {
+        // Plain string or number
         extrasMap[r.key] = r.value;
       }
     }
@@ -2299,7 +2298,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async adminUpdateConfig({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const allowedNumbers = ["card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee", "referral_reward_xof"];
-    const allowedStrings = ["whatsapp_group_url", "admin_notification_phone"];
+    const allowedStrings = ["whatsapp_group_url", "admin_notification_phone", "sender_request_admin_template"];
     const allowedBools = ["notify_admin_sender_request"];
     const updates: Array<{ key: string; value: string }> = [];
     for (const k of allowedNumbers) {
@@ -2311,7 +2310,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     }
     for (const k of allowedStrings) {
       if (data?.[k] !== undefined && data[k] !== null) {
-        updates.push({ key: k, value: JSON.stringify(String(data[k]).trim().slice(0, 500)) });
+        // We store as plain string to avoid double encoding/parsing issues
+        updates.push({ key: k, value: String(data[k]).trim().slice(0, 1000) });
       }
     }
     for (const k of allowedBools) {
@@ -2320,15 +2320,14 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       }
     }
     for (const u of updates) {
-      await admin.from("platform_config").upsert({ key: u.key, value: u.value }, { onConflict: "key" });
+      const { error: upsertError } = await admin.from("platform_config").upsert({ key: u.key, value: u.value }, { onConflict: "key" });
+      if (upsertError) throw new Error(`Erreur lors de la mise à jour de ${u.key}: ${upsertError.message}`);
     }
     const cfg = await loadPricingConfig(admin);
-    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone", "notify_admin_sender_request"]);
+    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone", "notify_admin_sender_request", "sender_request_admin_template"]);
     const extrasMap: Record<string, any> = {};
     for (const r of extras ?? []) {
-      if (r.key === "admin_notification_phone" || r.key === "whatsapp_group_url") {
-        try { extrasMap[r.key] = JSON.parse(r.value); } catch { extrasMap[r.key] = r.value; }
-      } else if (r.key === "notify_admin_sender_request") {
+      if (r.key === "notify_admin_sender_request") {
         extrasMap[r.key] = r.value === "true";
       } else {
         extrasMap[r.key] = r.value;
