@@ -2622,6 +2622,7 @@ export type Database = {
           referral_code: string | null
           referrer_code: string | null
           strowallet_customer_id: string | null
+          two_factor_enabled: boolean | null
           updated_at: string
         }
         Insert: {
@@ -2638,6 +2639,7 @@ export type Database = {
           referral_code?: string | null
           referrer_code?: string | null
           strowallet_customer_id?: string | null
+          two_factor_enabled?: boolean | null
           updated_at?: string
         }
         Update: {
@@ -2654,6 +2656,7 @@ export type Database = {
           referral_code?: string | null
           referrer_code?: string | null
           strowallet_customer_id?: string | null
+          two_factor_enabled?: boolean | null
           updated_at?: string
         }
         Relationships: []
@@ -3440,6 +3443,36 @@ export type Database = {
           type?: Database["public"]["Enums"]["tx_type"]
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_otp: {
+        Row: {
+          code: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          phone: string
+          purpose: string
+          user_id: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          phone: string
+          purpose: string
+          user_id?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          phone?: string
+          purpose?: string
+          user_id?: string | null
         }
         Relationships: []
       }

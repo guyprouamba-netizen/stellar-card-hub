@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@/lib/server-fn";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, ArrowDownLeft, ArrowUpRight, CreditCard, History,
   UserCircle, LogOut, Plus, Snowflake, Loader2,
@@ -21,6 +21,7 @@ import { updateMyProfile, updateMyPassword, createAvatarUploadUrl, getAvatarSign
 import { getMyReferralStats, getPublicConfig } from "@/lib/profile.functions";
 import { IssueCardSheet } from "@/components/issue-card-sheet";
 import { VirtualCard } from "@/components/virtual-card";
+import { TwoFactorSetup } from "@/components/two-factor-setup";
 import { toast } from "sonner";
 
 type Tab = "home" | "deposit" | "withdraw" | "cards" | "tx" | "referrals" | "profile" | "purchases";
@@ -799,6 +800,8 @@ function ProfileTab({ profile, onDone, setTab }: { profile: any; onDone: () => v
           {savingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
         </button>
       </div>
+
+      <TwoFactorSetup />
 
       <div className="rounded-2xl border border-border bg-card p-6">
         <h2 className="font-semibold">Changer mon mot de passe</h2>

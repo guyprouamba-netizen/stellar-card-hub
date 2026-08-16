@@ -8,6 +8,7 @@ import { computeCardCost, computeFundCost, loadPricingConfig } from "../_shared/
 import { sendEmail } from "../_shared/email.ts";
 import { notifyEvent as notifySms, sendSmsRaw } from "../_shared/sms.ts";
 import * as YP from "../_shared/yengapay.ts";
+import { handle2FA } from "./2fa.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -4116,6 +4117,26 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       });
     }
     return { ok: true, added: qty, cost_xof: cost };
+  },
+
+  async send2FAOTP({ user, admin }) {
+    const { data: p } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
+    if (!p?.phone) throw new Error("Aucun numéro de téléphone configuré dans votre profil.");
+    return await handle2FA(admin, user.id, p.phone, "send");
+  },
+
+  async verify2FAOTP({ data, user, admin }) {
+    const { code } = data;
+    const { data: p } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
+    if (!p?.phone) throw new Error("Profil incomplet.");
+    return await handle2FA(admin, user.id, p.phone, "verify", code);
+  },
+
+  async update2FASettings({ data, user, admin }) {
+    const { enabled } = data;
+    const { data: p, error } = await admin.from("profiles").update({ two_factor_enabled: !!enabled }).eq("id", user.id).select("*").single();
+    if (error) throw error;
+    return { ok: true, enabled: p.two_factor_enabled };
   },
 };
 

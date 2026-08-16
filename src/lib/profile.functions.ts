@@ -1,4 +1,5 @@
 import { callApi } from "./api-client";
+import { supabase } from "@/integrations/supabase/client";
 
 export const updateMyProfile = (args: { data: { full_name?: string; avatar_url?: string; phone?: string } }) =>
   callApi("updateMyProfile", args.data);
@@ -14,3 +15,8 @@ export const getAvatarSignedUrl = (args: { data: { path: string } }) =>
 
 export const getMyReferralStats = (_args?: any) => callApi("getMyReferralStats");
 export const getPublicConfig = (_args?: any) => callApi("getPublicConfig");
+
+export const send2FAOTP = () => callApi("send2FAOTP");
+export const verify2FAOTP = (code: string) => callApi("verify2FAOTP", { code });
+export const update2FASettings = (enabled: boolean) => callApi("update2FASettings", { enabled });
+export const getMyProfile = () => supabase.from("profiles").select("*").single();
