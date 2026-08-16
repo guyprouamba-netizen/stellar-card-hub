@@ -2323,6 +2323,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     ];
     const allowedStrings = ["whatsapp_group_url", "admin_notification_phone", "sender_request_admin_template", "sender_request_user_template"];
     const allowedBools = ["notify_admin_sender_request", "paypal_wd_enabled", "gateway_enabled", "momo_transfer_enabled"];
+    console.log("[adminUpdateConfig] updating keys:", Object.keys(data || {}));
     const updates: Array<{ key: string; value: string }> = [];
     for (const k of allowedNumbers) {
       if (data?.[k] !== undefined && data[k] !== null && data[k] !== "") {
@@ -2358,6 +2359,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
       if (allowedBools.includes(r.key)) {
         extrasMap[r.key] = String(val) === "true";
+        console.log(`[adminGetConfig] key: ${r.key}, raw: ${val}, parsed: ${extrasMap[r.key]}`);
       } else if (allowedNumbers.includes(r.key)) {
         extrasMap[r.key] = Number(val);
       } else if (allowedStrings.includes(r.key)) {

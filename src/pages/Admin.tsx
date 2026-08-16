@@ -953,18 +953,23 @@ function SettingsTab() {
           <span className="mt-1 block text-[11px] text-muted-foreground">Affiché sur le tableau de bord.</span>
         </label>
 
-        <label className="flex items-center gap-3 rounded-xl border border-border bg-surface-2 p-4">
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-surface-2 p-4">
           <input
             type="checkbox"
+            id="notify_admin_sender_request"
             checked={!!draft.notify_admin_sender_request}
-            onChange={(e) => setDraft((d: any) => ({ ...d, notify_admin_sender_request: e.target.checked }))}
+            onChange={(e) => {
+              const val = e.target.checked;
+              console.log("Checkbox changed to:", val);
+              setDraft((d: any) => ({ ...d, notify_admin_sender_request: val }));
+            }}
             className="h-5 w-5 rounded accent-primary"
           />
-          <div>
-            <span className="text-sm font-semibold">Alerte Admin (Sender ID)</span>
+          <label htmlFor="notify_admin_sender_request" className="cursor-pointer">
+            <span className="text-sm font-semibold text-foreground">Demande de Sender ID (Admin)</span>
             <p className="text-[11px] text-muted-foreground">Recevoir un SMS pour chaque nouvelle demande.</p>
-          </div>
-        </label>
+          </label>
+        </div>
 
         <label className="block">
           <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Modèle SMS Admin (Sender ID)</span>
@@ -975,6 +980,7 @@ function SettingsTab() {
             className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-[11px] outline-none"
             rows={2}
           />
+          <span className="mt-1 block text-[10px] text-muted-foreground italic">Variables: {'{name}'}, {'{sender_id}'}, {'{company}'}</span>
         </label>
 
         <label className="block">
@@ -986,6 +992,7 @@ function SettingsTab() {
             className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-[11px] outline-none"
             rows={2}
           />
+          <span className="mt-1 block text-[10px] text-muted-foreground italic">Variables: {'{name}'}, {'{sender_id}'}</span>
         </label>
       </div>
       <div className="flex justify-end gap-2">
