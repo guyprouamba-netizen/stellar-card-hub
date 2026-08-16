@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { BookOpen, Copy, Terminal, Webhook, KeyRound, ShieldCheck, ListChecks } from "lucide-react";
+import wpWooBadge from "@/assets/wordpress-woo-badge.png.asset.json";
+
 
 const ENDPOINT = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pay/v1`;
 
@@ -56,25 +58,70 @@ export default function DocsPanel() {
       </div>
 
       {sec === "start" && (
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-5 text-sm">
-          <h4 className="font-bold">Du début à la fin, en 6 étapes</h4>
-          <ol className="list-decimal space-y-2 pl-5 text-muted-foreground">
-            <li><b className="text-foreground">Créez un projet</b> dans l'onglet « Projets ». Un projet = un site ou une application à encaisser.</li>
-            <li><b className="text-foreground">Configurez-le</b> (logo, couverture, description, devise) via le bouton « Configurer ».</li>
-            <li><b className="text-foreground">Générez les clés API</b> (onglet « Clés API & Webhook »). Vous obtenez une clé publique <code>pk_live_…</code> et une clé secrète <code>sk_live_…</code> affichée une seule fois.</li>
-            <li><b className="text-foreground">Enregistrez votre URL de webhook</b> : c'est l'adresse de votre serveur qui recevra la confirmation de paiement.</li>
-            <li><b className="text-foreground">Créez une session de paiement</b> depuis votre serveur, puis redirigez le client vers la <code>checkout_url</code>.</li>
-            <li><b className="text-foreground">Validez</b> le paiement à la réception du webhook signé (ou via <code>GET /payments/&#123;reference&#125;</code>) et livrez la commande.</li>
-          </ol>
-          <div className="rounded-xl border border-border bg-surface-2 p-3 text-xs">
-            <p className="font-semibold">URL de base de l'API</p>
-            <p className="mt-1 break-all font-mono text-[11px]">{ENDPOINT}</p>
+        <div className="space-y-6">
+          <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-6">
+            <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl"></div>
+            <h4 className="font-bold text-lg mb-4 flex items-center gap-2">
+              <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/20 text-xs text-primary font-bold">1</span>
+              Du début à la fin, en 6 étapes
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+              <div className="space-y-4">
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 mt-1 h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">1</div>
+                  <p className="text-sm text-muted-foreground"><b className="text-foreground">Créez un business & un projet</b> dans l'onglet « Projets ». Un projet = un site à encaisser.</p>
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 mt-1 h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">2</div>
+                  <p className="text-sm text-muted-foreground"><b className="text-foreground">Configurez l'identité</b> (logo, couverture, devise) via le bouton « Configurer » du projet.</p>
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 mt-1 h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">3</div>
+                  <p className="text-sm text-muted-foreground"><b className="text-foreground">Générez vos clés API</b> dans l'onglet « Intégration API ». Stockez votre <code>sk_live_…</code> secrètement.</p>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 mt-1 h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">4</div>
+                  <p className="text-sm text-muted-foreground"><b className="text-foreground">URL de Webhook</b> : Renseignez l'adresse de votre serveur pour recevoir les confirmations auto.</p>
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 mt-1 h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">5</div>
+                  <p className="text-sm text-muted-foreground"><b className="text-foreground">Session de paiement</b> : Créez une session depuis votre backend et redirigez le client.</p>
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 mt-1 h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">6</div>
+                  <p className="text-sm text-muted-foreground"><b className="text-foreground">Validation</b> : Traitez le webhook signé et livrez la commande instantanément.</p>
+                </div>
+              </div>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Toutes les requêtes sont en HTTPS, le corps est en JSON, les montants sont des <b>entiers</b> dans la plus petite unité de la devise (XOF sans décimales).
-          </p>
+
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 rounded-2xl border border-border bg-surface-2 p-4 flex flex-col justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Endpoint de Production</p>
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-background p-3 font-mono text-[11px] border border-border">
+                  <span className="break-all">{ENDPOINT}</span>
+                  <button onClick={() => { navigator.clipboard.writeText(ENDPOINT); toast.success("URL copiée"); }} className="p-1 hover:bg-muted rounded"><Copy className="h-3 w-3" /></button>
+                </div>
+              </div>
+              <p className="mt-4 text-[11px] text-muted-foreground leading-relaxed">
+                Toutes les requêtes doivent être effectuées en <b>HTTPS</b>. Les montants sont des entiers (ex: 1000 pour 1000 XOF).
+              </p>
+            </div>
+            
+            <div className="md:w-64 rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-5 text-primary-foreground shadow-glow flex flex-col justify-between">
+              <ShieldCheck className="h-8 w-8 opacity-50" />
+              <div>
+                <p className="text-sm font-bold">Sécurité Maximale</p>
+                <p className="text-[11px] opacity-80 mt-1">Authentification par jeton porteur et signature HMAC SHA-256 pour tous les webhooks.</p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
+
 
       {sec === "keys" && (
         <div className="space-y-4">
@@ -284,34 +331,46 @@ app.post("/webhooks/paiement", express.raw({ type: "*/*" }), (req, res) => {
 
       {sec === "wordpress" && (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-border bg-card p-5 text-sm flex flex-col justify-between">
-              <div>
-                <h4 className="font-bold mb-2">Extension WooCommerce Officielle</h4>
-                <p className="text-muted-foreground mb-4">Intégration complète pour vos boutiques WooCommerce avec gestion des commandes.</p>
+          <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background to-background p-6 mb-4">
+            <div className="flex flex-col md:flex-row items-center gap-8">
+              <div className="relative z-10 flex-1 space-y-4 text-center md:text-left">
+                <div className="inline-flex items-center gap-2 rounded-full bg-primary/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
+                  Plugins Officiels
+                </div>
+                <h4 className="font-[Space_Grotesk] text-2xl font-bold leading-tight">
+                  Propulsez votre boutique avec <span className="text-primary">FASO INVEST PAY</span>
+                </h4>
+                <p className="text-sm text-muted-foreground max-w-md">
+                  Intégrez nos solutions de paiement Mobile Money directement dans votre écosystème WordPress et WooCommerce en quelques clics. Sécurisé, rapide et fiable.
+                </p>
+                <div className="flex flex-wrap justify-center md:justify-start gap-3 pt-2">
+                  <a 
+                    href="/downloads/fip-woocommerce-plugin.php" 
+                    download="fip-woocommerce.php"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-xs font-bold text-primary-foreground shadow-glow hover:opacity-90 transition-all active:scale-95"
+                  >
+                    Télécharger WooCommerce
+                  </a>
+                  <a 
+                    href="/downloads/fip-simple-plugin.php" 
+                    download="fip-simple.php"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface-2 px-6 py-3 text-xs font-bold hover:bg-muted transition-all active:scale-95"
+                  >
+                    Télécharger Simple PHP
+                  </a>
+                </div>
               </div>
-              <a 
-                href="/downloads/fip-woocommerce-plugin.php" 
-                download="fip-woocommerce.php"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:opacity-90 w-full"
-              >
-                Télécharger (WooCommerce)
-              </a>
-            </div>
-            <div className="rounded-2xl border border-border bg-card p-5 text-sm flex flex-col justify-between">
-              <div>
-                <h4 className="font-bold mb-2">Plugin Simple PHP</h4>
-                <p className="text-muted-foreground mb-4">Léger et robuste. Idéal pour ajouter des boutons de paiement n'importe où via Shortcodes.</p>
+              <div className="relative flex-shrink-0">
+                <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full"></div>
+                <img 
+                  src={wpWooBadge.url} 
+                  alt="WordPress WooCommerce Integration" 
+                  className="relative z-10 w-64 md:w-80 h-auto rounded-2xl shadow-2xl transition-transform hover:scale-105 duration-500"
+                />
               </div>
-              <a 
-                href="/downloads/fip-simple-plugin.php" 
-                download="fip-simple.php"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-muted/50 px-4 py-2.5 text-xs font-bold hover:bg-muted w-full"
-              >
-                Télécharger (Simple PHP)
-              </a>
             </div>
           </div>
+
 
           <div className="rounded-2xl border border-border bg-card p-5 text-sm">
             <div className="mt-2 rounded-xl border border-primary/20 bg-primary/5 p-4 text-[13px]">
