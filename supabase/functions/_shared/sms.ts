@@ -35,24 +35,23 @@ export async function sendSmsRaw(opts: {
 
     // Based on the developer documentation provided by the user:
     // https://bbgsmsapp.betterbegoing.com/developers/http-docs
-    // The API uses GET/POST parameters. For WhatsApp, the endpoint is /api/http/whatsapp/send
-    // with parameters: api_token, recipient, message.
+    // For WhatsApp, use POST with JSON body containing api_token, recipient, message.
     
-    const url = new URL(endpoint);
-    url.searchParams.append("api_token", token);
-    url.searchParams.append("recipient", opts.recipient);
-    url.searchParams.append("message", opts.message);
-    
-    if (!isWhatsapp) {
-      url.searchParams.append("sender_id", opts.sender_id);
-      url.searchParams.append("type", opts.type || "plain");
-    }
+    const payload: any = {
+      api_token: token,
+      recipient: opts.recipient,
+      message: opts.message,
+    };
 
-    console.log(`[sendSmsRaw] Calling ${isWhatsapp ? 'WhatsApp' : 'SMS'} API: ${url.origin}${url.pathname}?api_token=***&recipient=${opts.recipient}`);
+    console.log(`[sendSmsRaw] Calling ${isWhatsapp ? 'WhatsApp' : 'SMS'} API: ${endpoint} for ${opts.recipient}`);
 
-    const res = await fetch(url.toString(), {
-      method: "GET", // HTTP docs show GET examples often, and PHP scripts usually handle both.
-      headers: { "Accept": "application/json" }
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Accept": "application/json" 
+      },
+      body: JSON.stringify(payload)
     });
     const text = await res.text();
     console.log(`[sendSmsRaw] API raw response:`, text);
