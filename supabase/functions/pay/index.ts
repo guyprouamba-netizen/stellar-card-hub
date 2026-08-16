@@ -557,9 +557,28 @@ async function initCheckout(body: any) {
     customer_phone: body?.customer_phone || null,
     customer_email: customerEmail,
     provider: "mobile_money",
-    metadata: { direct: true },
+    metadata: { direct: false, source: "link" },
   });
   if (error) throw new Error(error.message);
+  
+  // Rétablir la redirection YengaPay
+  try {
+    const { checkoutUrl, paymentIntentId } = await createYengaPayIntent({
+      amount, reference,
+      title: link.title || "Paiement",
+      description: link.description || "Paiement via FASO-INVEST PAY",
+      callbackUrl: `${SUPABASE_URL}/functions/v1/yengapay-webhook`,
+      returnUrl: body?.returnUrl || `${appBaseUrl()}/order/${reference}`
+    });
+    
+    if (checkoutUrl) {
+      await db.from("payment_link_payments").update({ payment_intent_id: paymentIntentId }).eq("reference", reference);
+      return { ok: true, reference, amount, currency: link.currency, checkoutUrl };
+    }
+  } catch (e) {
+    console.error("YengaPay redirect init failed", e);
+  }
+
   return { ok: true, reference, amount, currency: link.currency };
 }
 

@@ -1205,6 +1205,7 @@ export type Database = {
           slug: string
           status: Database["public"]["Enums"]["business_status"]
           tagline: string | null
+          template_id: string | null
           theme: Json
           updated_at: string
         }
@@ -1224,6 +1225,7 @@ export type Database = {
           slug: string
           status?: Database["public"]["Enums"]["business_status"]
           tagline?: string | null
+          template_id?: string | null
           theme?: Json
           updated_at?: string
         }
@@ -1243,10 +1245,19 @@ export type Database = {
           slug?: string
           status?: Database["public"]["Enums"]["business_status"]
           tagline?: string | null
+          template_id?: string | null
           theme?: Json
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "businesses_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "shop_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cards: {
         Row: {
@@ -2958,6 +2969,51 @@ export type Database = {
           ip?: string | null
           kind?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      shop_templates: {
+        Row: {
+          category: string | null
+          config: Json | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_free: boolean | null
+          name: string
+          preview_url: string | null
+          price: number | null
+          slug: string
+          thumbnail_url: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          config?: Json | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_free?: boolean | null
+          name: string
+          preview_url?: string | null
+          price?: number | null
+          slug: string
+          thumbnail_url?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          config?: Json | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_free?: boolean | null
+          name?: string
+          preview_url?: string | null
+          price?: number | null
+          slug?: string
+          thumbnail_url?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }

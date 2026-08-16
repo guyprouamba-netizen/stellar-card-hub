@@ -28,7 +28,7 @@ export default function Shop() {
   const [cartOpen, setCartOpen] = useState(false);
   const [customer, setCustomer] = useState({ name: "", email: "", phone: "", address: "", note: "" });
   const [submitting, setSubmitting] = useState(false);
-  const [pay, setPay] = useState<{ reference: string; amount: number; currency: string; order_token: string } | null>(null);
+  const [pay, setPay] = useState<{ reference: string; amount: number; currency: string; order_token: string; checkoutUrl?: string } | null>(null);
 
   useEffect(() => {
     // Retour depuis paiement : rediriger vers le suivi de commande
@@ -73,6 +73,12 @@ export default function Shop() {
         customer_note: customer.note || undefined,
       });
       if (!r?.reference) throw new Error("Paiement indisponible pour le moment");
+      
+      if (r.checkoutUrl) {
+        window.location.href = r.checkoutUrl;
+        return;
+      }
+      
       setPay({ reference: r.reference, amount: Number(r.amount), currency: r.currency, order_token: r.order_token });
       setSubmitting(false);
     } catch (e: any) { setError(e.message); setSubmitting(false); }
@@ -149,16 +155,8 @@ export default function Shop() {
 
       {/* Hero couverture large */}
       <header className="relative">
-        {/* Logo au-dessus de la photo de couverture */}
-        <div className="mx-auto flex max-w-6xl justify-center px-4 pb-5 pt-8">
-          {biz.logo_url ? (
-            <img src={biz.logo_url} alt={`Logo ${biz.name}`} className="h-28 w-28 rounded-3xl object-cover shadow-xl sm:h-36 sm:w-36"
-              style={{ border: `4px solid ${th.surface}`, background: th.surface }} />
-          ) : (
-            <div className="grid h-28 w-28 place-items-center rounded-3xl text-4xl font-black shadow-xl sm:h-36 sm:w-36"
-              style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
-          )}
-        </div>
+        {/* Logo supprimé ici car présent dans la nav */}
+
         <div className="relative h-[42vh] min-h-[280px] w-full overflow-hidden sm:h-[52vh]">
           {biz.cover_url
             ? <img src={biz.cover_url} alt={`Couverture ${biz.name}`} className="h-full w-full object-cover" />
@@ -215,16 +213,57 @@ export default function Shop() {
           ))
         )}
 
-        {/* Contact */}
-        {(biz.contact_email || biz.contact_phone) && (
-          <footer className="mt-16 border-t pt-8 text-center text-sm" style={{ borderColor: `${th.primary}33`, color: th.muted }}>
-            <div className="flex flex-wrap items-center justify-center gap-4">
-              {biz.contact_email && <a href={`mailto:${biz.contact_email}`} className="inline-flex items-center gap-1"><Mail className="h-3.5 w-3.5" /> {biz.contact_email}</a>}
-              {biz.contact_phone && <a href={`tel:${biz.contact_phone}`} className="inline-flex items-center gap-1"><Phone className="h-3.5 w-3.5" /> {biz.contact_phone}</a>}
+        {/* Contact & Footer */}
+        <footer className="mt-16 overflow-hidden rounded-3xl p-8 sm:p-12" style={{ background: th.surface, border: `1px solid ${th.primary}22` }}>
+          <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <div className="flex items-center gap-3">
+                {biz.logo_url ? (
+                  <img src={biz.logo_url} alt={biz.name} className="h-10 w-10 rounded-xl object-cover" />
+                ) : (
+                  <div className="grid h-10 w-10 place-items-center rounded-xl text-lg font-bold" style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
+                )}
+                <span className="text-xl font-bold">{biz.name}</span>
+              </div>
+              <p className="mt-4 text-sm leading-relaxed" style={{ color: th.muted }}>{biz.description || biz.tagline || "Votre boutique de confiance pour des achats en toute sécurité."}</p>
             </div>
-            <p className="mt-6 inline-flex items-center gap-1 text-[11px]"><ShieldCheck className="h-3 w-3" /> Boutique propulsée par FASO-INVEST PAY</p>
-          </footer>
-        )}
+
+            <div>
+              <h4 className="font-bold uppercase tracking-wider text-xs mb-4" style={{ color: th.primary }}>Navigation</h4>
+              <ul className="space-y-2 text-sm">
+                <li><a href="#" className="hover:opacity-80 transition">Accueil</a></li>
+                {projects.map(p => (
+                  <li key={p.id}><a href={`#project-${p.id}`} className="hover:opacity-80 transition">{p.name}</a></li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold uppercase tracking-wider text-xs mb-4" style={{ color: th.primary }}>Contact</h4>
+              <div className="space-y-4 text-sm" style={{ color: th.muted }}>
+                {biz.contact_email && (
+                  <a href={`mailto:${biz.contact_email}`} className="flex items-center gap-2 hover:text-foreground transition">
+                    <Mail className="h-4 w-4" /> {biz.contact_email}
+                  </a>
+                )}
+                {biz.contact_phone && (
+                  <a href={`tel:${biz.contact_phone}`} className="flex items-center gap-2 hover:text-foreground transition">
+                    <Phone className="h-4 w-4" /> {biz.contact_phone}
+                  </a>
+                )}
+                <div className="flex items-center gap-2 pt-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                  <span className="text-[11px]">Paiements sécurisés Mobile Money</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-12 border-t pt-8 text-center text-[11px]" style={{ borderColor: `${th.primary}22`, color: th.muted }}>
+            <p>© {new Date().getFullYear()} {biz.name}. Tous droits réservés.</p>
+            <p className="mt-1 opacity-60">Propulsé par FASO-INVEST PAY</p>
+          </div>
+        </footer>
       </main>
 
       {/* Cart Drawer */}
@@ -238,11 +277,20 @@ export default function Shop() {
             </div>
             <div className="mt-6 flex-1 space-y-3 overflow-y-auto">
               {pay ? (
-                <MomoPayment
-                  reference={pay.reference} amount={pay.amount} currency={pay.currency} defaultPhone={customer.phone}
-                  onSuccess={() => setTimeout(() => navigate(`/order/${pay.order_token}`), 1500)}
-                  onCancel={() => setPay(null)}
-                />
+                pay.checkoutUrl ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                    <p className="mt-4 font-bold">Redirection vers YengaPay...</p>
+                    <p className="mt-2 text-sm text-muted-foreground">Veuillez patienter pendant que nous préparons votre paiement sécurisé.</p>
+                    <a href={pay.checkoutUrl} className="mt-6 inline-block text-primary underline text-sm">Cliquer ici si la redirection ne fonctionne pas</a>
+                  </div>
+                ) : (
+                  <MomoPayment
+                    reference={pay.reference} amount={pay.amount} currency={pay.currency} defaultPhone={customer.phone}
+                    onSuccess={() => setTimeout(() => navigate(`/order/${pay.order_token}`), 1500)}
+                    onCancel={() => setPay(null)}
+                  />
+                )
               ) : (<>
               {cartCount === 0 && <p className="text-center text-sm text-muted-foreground">Votre panier est vide</p>}
               {Object.entries(cart).map(([pid, qty]) => {
