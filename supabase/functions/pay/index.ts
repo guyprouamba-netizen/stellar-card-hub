@@ -224,10 +224,11 @@ async function createYengaPayIntent(opts: {
   amount: number; reference: string; title: string; description: string;
   callbackUrl: string; returnUrl?: string;
 }) {
-  if (!YENGAPAY_API_KEY || !YENGAPAY_GROUP_ID || !YENGAPAY_PROJECT_ID) {
+  if (!YENGAPAY_API_KEY || !YENGAPAY_GROUP_ID) {
     throw new Error("Passerelle YengaPay non configurée");
   }
-  const url = `https://api.yengapay.com/api/v1/groups/${YENGAPAY_GROUP_ID}/payment-intent/${YENGAPAY_PROJECT_ID}`;
+  const projectId = "31062"; // ID du projet F.I.P MARCHAND
+  const url = `https://api.yengapay.com/api/v1/groups/${YENGAPAY_GROUP_ID}/payment-intent/${projectId}`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-api-key": YENGAPAY_API_KEY },
