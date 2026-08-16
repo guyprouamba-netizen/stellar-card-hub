@@ -53,7 +53,7 @@ export default function Shop() {
   const th = { ...DEFAULT_THEME, ...(biz.theme || {}) };
   
   // Injecter les variables CSS du template si présent
-  const templateVars = biz.template?.css_vars || {};
+  const templateVars = biz.template?.config?.css_vars || {};
   Object.entries(templateVars).forEach(([k, v]) => {
     if (k.startsWith('--')) {
       // @ts-ignore
