@@ -22,6 +22,7 @@ import { LayoutDashboard, Receipt, CreditCard, Settings2, BarChart3, BookOpen } 
 
 const NAV = [
   { id: "overview", label: "Tableau de bord", icon: LayoutDashboard },
+  { id: "gateway", label: "Passerelle Marchande", icon: ShieldCheck },
   { id: "projects", label: "Projets", icon: FolderKanban },
   { id: "products", label: "Produits", icon: Package },
   { id: "links", label: "Liens de paiement", icon: Link2 },
