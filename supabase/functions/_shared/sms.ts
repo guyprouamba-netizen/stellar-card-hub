@@ -33,24 +33,23 @@ export async function sendSmsRaw(opts: {
     const isWhatsapp = opts.type === "whatsapp";
     const endpoint = isWhatsapp ? BBG_WHATSAPP_ENDPOINT : BBG_ENDPOINT;
 
-    const payload: any = {
-      api_token: token,
-      recipient: opts.recipient,
-      message: opts.message,
-    };
+    // Build params for URL since some implementations of these PHP-based APIs 
+    // prefer query parameters even for POST, or specifically for their HTTP docs.
+    const url = new URL(endpoint);
+    url.searchParams.append("api_token", token);
+    url.searchParams.append("recipient", opts.recipient);
+    url.searchParams.append("message", opts.message);
     
-    if (isWhatsapp) {
-      // Documentation states /api/http/whatsapp/send expects api_token, recipient, message
-      // and doesn't explicitly mention 'type' field in the endpoint path for whatsapp.
-    } else {
-      payload.type = opts.type || "plain";
-      payload.sender_id = opts.sender_id;
+    if (!isWhatsapp) {
+      url.searchParams.append("sender_id", opts.sender_id);
+      url.searchParams.append("type", opts.type || "plain");
     }
 
-    const res = await fetch(endpoint, {
+    console.log(`[sendSmsRaw] Calling ${isWhatsapp ? 'WhatsApp' : 'SMS'} API: ${url.origin}${url.pathname}?api_token=***&recipient=${opts.recipient}`);
+
+    const res = await fetch(url.toString(), {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify(payload),
+      headers: { "Accept": "application/json" }
     });
     const text = await res.text();
     let body: any = text;
