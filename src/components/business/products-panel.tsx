@@ -99,11 +99,11 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
     if (!Number.isFinite(price) || price <= 0) { toast.error("Prix invalide"); return; }
     setSaving(true);
     try {
-      await createProduct({
+      const p = await createProduct({
         business_id: businessId, name: draft.name.trim(),
         description: draft.description || null, short_description: draft.short_description || null,
         price, sale_price: num(draft.sale_price),
-        currency: draft.currency, image_url: draft.image_url || null, show_in_shop: true,
+        currency: draft.currency, image_url: draft.image_url || draft.media[0] || null, show_in_shop: true,
         type: draft.type, sku: draft.sku || null,
         stock: num(draft.stock), manage_stock: draft.manage_stock,
         tax_rate: num(draft.tax_rate) ?? 0,
@@ -111,7 +111,19 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
         download_url: draft.download_url || null, download_name: draft.download_name || null,
         download_limit: num(draft.download_limit), download_expiry_days: num(draft.download_expiry_days),
         access_instructions: draft.access_instructions || null, purchase_note: draft.purchase_note || null,
+        category_id: draft.category_id || null,
       });
+
+      // Upload gallery
+      if (draft.media.length > 0) {
+        await Promise.all(draft.media.map((url, i) => addProductMedia({
+          product_id: p.id,
+          type: "image",
+          url,
+          position: i
+        })));
+      }
+
       toast.success("Produit ajouté à la boutique ✅");
       setDraft({ ...EMPTY });
       refresh();
