@@ -980,6 +980,7 @@ function SettingsTab() {
             className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-[11px] outline-none"
             rows={2}
           />
+          <span className="mt-1 block text-[10px] text-muted-foreground italic">Variables: {'{name}'}, {'{sender_id}'}, {'{company}'}</span>
         </label>
 
         <label className="block">
@@ -991,6 +992,7 @@ function SettingsTab() {
             className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-[11px] outline-none"
             rows={2}
           />
+          <span className="mt-1 block text-[10px] text-muted-foreground italic">Variables: {'{name}'}, {'{sender_id}'}</span>
         </label>
       </div>
       <div className="flex justify-end gap-2">
