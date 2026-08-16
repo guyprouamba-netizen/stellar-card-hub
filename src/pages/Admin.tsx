@@ -1046,7 +1046,15 @@ function ShopTemplatesTab() {
 
   const refresh = () => {
     setLoading(true);
-    list().then((r: any) => { setTemplates(r.templates || []); setLoading(false); }).catch(() => setLoading(false));
+    list().then((r: any) => {
+      console.log("Admin shop templates response:", r);
+      setTemplates(r.templates || []);
+      setLoading(false);
+    }).catch((err) => {
+      console.error("Admin shop templates error:", err);
+      toast.error("Erreur lors du chargement des templates: " + err.message);
+      setLoading(false);
+    });
   };
 
   useEffect(() => { refresh(); }, []);
