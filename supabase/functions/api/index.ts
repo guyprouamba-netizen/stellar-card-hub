@@ -4301,6 +4301,14 @@ const H4: Record<string, any> = {
   },
 };
 
+const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userClient: any }) => Promise<any>> = {
+  ...H1,
+  ...H2,
+  ...H3,
+  ...H4
+};
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   try {
