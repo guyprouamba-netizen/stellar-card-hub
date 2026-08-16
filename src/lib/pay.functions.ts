@@ -45,6 +45,7 @@ export const payDirect = (data: { reference: string; operator: string; phone: st
   call("payDirect", data) as Promise<{
     ok: boolean; requiresOtp?: boolean; status: PayStatus; message?: string;
     ussd?: string | null; fees?: number; total?: number;
+    checkoutUrl?: string;
   }>;
 export const confirmDirect = (data: { reference: string; otp: string }) =>
   call("confirmDirect", data) as Promise<{ ok: boolean; status: PayStatus }>;
