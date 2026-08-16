@@ -2779,8 +2779,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (!key) throw new Error("Générez d'abord les clés API du projet");
     const event = String(data?.event || "payment.succeeded");
     const amount = Math.max(1, Math.floor(Number(data?.amount || 1000)));
-    const fee = await loadGatewayFeeConfig(admin);
-    const feeAmount = Math.round((amount * fee.fee_bps) / 10000) + fee.fee_flat_xof;
+    const cfg = await loadGatewayFeeConfig(admin);
+    const feePct = Math.ceil((amount * cfg.fee_bps) / 10000);
+    const feeAmount = Math.max(cfg.min_xof, feePct + cfg.fee_flat_xof);
     const payload = {
       event,
       test: true,
