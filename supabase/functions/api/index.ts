@@ -4010,6 +4010,7 @@ Deno.serve(async (req) => {
     const data = (payload as any).data ?? {};
     if (!fn || typeof fn !== "string") return jsonResponse({ error: "missing fn" }, 400);
     const handler = HANDLERS[fn];
+    console.log(`[API Dispatch] fn: ${fn}, found: ${!!handler}, total handlers: ${Object.keys(HANDLERS).length}`);
     if (!handler) return jsonResponse({ error: `unknown fn: ${fn}` }, 404);
     const result = await handler({ data, user, admin, userClient });
     return jsonResponse(result);
