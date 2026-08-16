@@ -28,7 +28,7 @@ export default function Shop() {
   const [cartOpen, setCartOpen] = useState(false);
   const [customer, setCustomer] = useState({ name: "", email: "", phone: "", address: "", note: "" });
   const [submitting, setSubmitting] = useState(false);
-  const [pay, setPay] = useState<{ reference: string; amount: number; currency: string; order_token: string } | null>(null);
+  const [pay, setPay] = useState<{ reference: string; amount: number; currency: string; order_token: string; checkoutUrl?: string } | null>(null);
 
   useEffect(() => {
     // Retour depuis paiement : rediriger vers le suivi de commande
@@ -73,6 +73,12 @@ export default function Shop() {
         customer_note: customer.note || undefined,
       });
       if (!r?.reference) throw new Error("Paiement indisponible pour le moment");
+      
+      if (r.checkoutUrl) {
+        window.location.href = r.checkoutUrl;
+        return;
+      }
+      
       setPay({ reference: r.reference, amount: Number(r.amount), currency: r.currency, order_token: r.order_token });
       setSubmitting(false);
     } catch (e: any) { setError(e.message); setSubmitting(false); }
@@ -124,56 +130,45 @@ export default function Shop() {
 
   return (
     <div className="min-h-screen" style={{ background: th.bg, color: th.text }}>
-      {/* Barre de navigation fixe : logo + panier */}
-      <nav className="sticky top-0 z-40 backdrop-blur"
-        style={{ background: `${th.bg}e6`, borderBottom: `1px solid ${th.primary}22` }}>
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
-          {biz.logo_url ? (
-            <img src={biz.logo_url} alt={`Logo ${biz.name}`} className="h-10 w-10 rounded-xl object-cover" />
-          ) : (
-            <div className="grid h-10 w-10 place-items-center rounded-xl text-base font-black"
-              style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold leading-tight sm:text-base">{biz.name}</p>
-            {biz.tagline && <p className="truncate text-[11px]" style={{ color: th.muted }}>{biz.tagline}</p>}
+      <nav className="sticky top-0 z-40 w-full border-b backdrop-blur-xl" style={{ backgroundColor: `${th.bg}cc`, borderColor: `${th.primary}22` }}>
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            {biz.logo_url ? (
+              <img src={biz.logo_url} alt={biz.name} className="h-9 w-9 rounded-xl object-cover" />
+            ) : (
+              <div className="grid h-9 w-9 place-items-center rounded-xl text-lg font-bold" style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
+            )}
+            <span className="text-lg font-bold tracking-tight">{biz.name}</span>
           </div>
-          <button onClick={() => setCartOpen(true)} className="relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold"
-            style={{ background: th.primary, color: th.primary_text }}>
-            <ShoppingCart className="h-4 w-4" />
-            <span className="hidden sm:inline">Panier</span>
-            {cartCount > 0 && <span className="grid h-5 min-w-[20px] place-items-center rounded-full px-1 text-xs font-bold" style={{ background: th.bg, color: th.text }}>{cartCount}</span>}
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setCartOpen(true)} className="relative grid h-10 w-10 place-items-center rounded-full transition-transform hover:scale-105 active:scale-95" style={{ background: th.surface }}>
+              <ShoppingCart className="h-5 w-5" />
+              {cartCount > 0 && <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold shadow-lg" style={{ background: th.primary, color: th.primary_text }}>{cartCount}</span>}
+            </button>
+          </div>
         </div>
       </nav>
 
-      {/* Hero couverture large */}
-      <header className="relative">
-        {/* Logo au-dessus de la photo de couverture */}
-        <div className="mx-auto flex max-w-6xl justify-center px-4 pb-5 pt-8">
-          {biz.logo_url ? (
-            <img src={biz.logo_url} alt={`Logo ${biz.name}`} className="h-28 w-28 rounded-3xl object-cover shadow-xl sm:h-36 sm:w-36"
-              style={{ border: `4px solid ${th.surface}`, background: th.surface }} />
-          ) : (
-            <div className="grid h-28 w-28 place-items-center rounded-3xl text-4xl font-black shadow-xl sm:h-36 sm:w-36"
-              style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
-          )}
-        </div>
-        <div className="relative h-[42vh] min-h-[280px] w-full overflow-hidden sm:h-[52vh]">
-          {biz.cover_url
-            ? <img src={biz.cover_url} alt={`Couverture ${biz.name}`} className="h-full w-full object-cover" />
-            : <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${th.primary}, ${th.surface})` }} />}
-          <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, ${th.bg}22, ${th.bg}cc)` }} />
-          <div className="absolute inset-x-0 bottom-0 px-4 pb-8 text-center sm:px-8">
-            <h1 className="text-3xl font-black tracking-tight drop-shadow sm:text-5xl">{biz.name}</h1>
-            {(biz.tagline || biz.description) && (
-              <p className="mx-auto mt-2 max-w-2xl text-sm sm:text-base" style={{ color: th.muted }}>{biz.tagline || biz.description}</p>
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Hero Section */}
+        <section className="relative mb-12 overflow-hidden rounded-[2rem] shadow-2xl" style={{ backgroundColor: th.surface }}>
+          <div className="absolute inset-0 z-0">
+            {biz.cover_url ? (
+              <img src={biz.cover_url} className="h-full w-full object-cover opacity-60" alt="" />
+            ) : (
+              <div className="h-full w-full opacity-20" style={{ background: `linear-gradient(135deg, ${th.primary}, ${th.surface})` }} />
             )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
           </div>
-        </div>
-      </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+          <div className="relative z-10 flex flex-col justify-end p-8 pt-48 sm:p-12 sm:pt-64">
+            <div className="max-w-2xl">
+              <h1 className="font-[Space_Grotesk] text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">{biz.name}</h1>
+              <p className="mt-4 text-lg sm:text-xl" style={{ color: th.muted }}>{biz.tagline || biz.description || "Votre destination shopping premium."}</p>
+            </div>
+          </div>
+        </section>
+
         {/* Publications */}
         {posts.length > 0 && (
           <section className="mb-12">
@@ -215,16 +210,57 @@ export default function Shop() {
           ))
         )}
 
-        {/* Contact */}
-        {(biz.contact_email || biz.contact_phone) && (
-          <footer className="mt-16 border-t pt-8 text-center text-sm" style={{ borderColor: `${th.primary}33`, color: th.muted }}>
-            <div className="flex flex-wrap items-center justify-center gap-4">
-              {biz.contact_email && <a href={`mailto:${biz.contact_email}`} className="inline-flex items-center gap-1"><Mail className="h-3.5 w-3.5" /> {biz.contact_email}</a>}
-              {biz.contact_phone && <a href={`tel:${biz.contact_phone}`} className="inline-flex items-center gap-1"><Phone className="h-3.5 w-3.5" /> {biz.contact_phone}</a>}
+        {/* Contact & Footer */}
+        <footer className="mt-16 overflow-hidden rounded-3xl p-8 sm:p-12" style={{ background: th.surface, border: `1px solid ${th.primary}22` }}>
+          <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <div className="flex items-center gap-3">
+                {biz.logo_url ? (
+                  <img src={biz.logo_url} alt={biz.name} className="h-10 w-10 rounded-xl object-cover" />
+                ) : (
+                  <div className="grid h-10 w-10 place-items-center rounded-xl text-lg font-bold" style={{ background: th.primary, color: th.primary_text }}>{biz.name[0]}</div>
+                )}
+                <span className="text-xl font-bold">{biz.name}</span>
+              </div>
+              <p className="mt-4 text-sm leading-relaxed" style={{ color: th.muted }}>{biz.description || biz.tagline || "Votre boutique de confiance pour des achats en toute sécurité."}</p>
             </div>
-            <p className="mt-6 inline-flex items-center gap-1 text-[11px]"><ShieldCheck className="h-3 w-3" /> Boutique propulsée par FASO-INVEST PAY</p>
-          </footer>
-        )}
+
+            <div>
+              <h4 className="font-bold uppercase tracking-wider text-xs mb-4" style={{ color: th.primary }}>Navigation</h4>
+              <ul className="space-y-2 text-sm">
+                <li><a href="#" className="hover:opacity-80 transition">Accueil</a></li>
+                {projects.map(p => (
+                  <li key={p.id}><a href={`#project-${p.id}`} className="hover:opacity-80 transition">{p.name}</a></li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold uppercase tracking-wider text-xs mb-4" style={{ color: th.primary }}>Contact</h4>
+              <div className="space-y-4 text-sm" style={{ color: th.muted }}>
+                {biz.contact_email && (
+                  <a href={`mailto:${biz.contact_email}`} className="flex items-center gap-2 hover:text-foreground transition">
+                    <Mail className="h-4 w-4" /> {biz.contact_email}
+                  </a>
+                )}
+                {biz.contact_phone && (
+                  <a href={`tel:${biz.contact_phone}`} className="flex items-center gap-2 hover:text-foreground transition">
+                    <Phone className="h-4 w-4" /> {biz.contact_phone}
+                  </a>
+                )}
+                <div className="flex items-center gap-2 pt-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                  <span className="text-[11px]">Paiements sécurisés Mobile Money</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-12 border-t pt-8 text-center text-[11px]" style={{ borderColor: `${th.primary}22`, color: th.muted }}>
+            <p>© {new Date().getFullYear()} {biz.name}. Tous droits réservés.</p>
+            <p className="mt-1 opacity-60">Propulsé par FASO-INVEST PAY</p>
+          </div>
+        </footer>
       </main>
 
       {/* Cart Drawer */}
@@ -238,11 +274,20 @@ export default function Shop() {
             </div>
             <div className="mt-6 flex-1 space-y-3 overflow-y-auto">
               {pay ? (
-                <MomoPayment
-                  reference={pay.reference} amount={pay.amount} currency={pay.currency} defaultPhone={customer.phone}
-                  onSuccess={() => setTimeout(() => navigate(`/order/${pay.order_token}`), 1500)}
-                  onCancel={() => setPay(null)}
-                />
+                pay.checkoutUrl ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                    <p className="mt-4 font-bold">Redirection vers YengaPay...</p>
+                    <p className="mt-2 text-sm text-muted-foreground">Veuillez patienter pendant que nous préparons votre paiement sécurisé.</p>
+                    <a href={pay.checkoutUrl} className="mt-6 inline-block text-primary underline text-sm">Cliquer ici si la redirection ne fonctionne pas</a>
+                  </div>
+                ) : (
+                  <MomoPayment
+                    reference={pay.reference} amount={pay.amount} currency={pay.currency} defaultPhone={customer.phone}
+                    onSuccess={() => setTimeout(() => navigate(`/order/${pay.order_token}`), 1500)}
+                    onCancel={() => setPay(null)}
+                  />
+                )
               ) : (<>
               {cartCount === 0 && <p className="text-center text-sm text-muted-foreground">Votre panier est vide</p>}
               {Object.entries(cart).map(([pid, qty]) => {

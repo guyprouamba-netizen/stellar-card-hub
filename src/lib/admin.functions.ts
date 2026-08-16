@@ -17,3 +17,6 @@ export const adminCreditYengapayExternal = (args: { data: { yengaId: string; use
 export const adminCreditPendingDeposit = (args: { data: { txId: string; note?: string } }) => callApi("adminCreditPendingDeposit", args.data);
 export const adminSyncCards = (args?: { data?: { card_id?: string } }) => callApi("adminSyncCards", args?.data ?? {});
 export const adminCardTransactions = (args: { data: { card_id: string } }) => callApi("adminCardTransactions", args.data);
+export const adminListShopTemplates = () => callApi("adminListShopTemplates");
+export const adminUpsertShopTemplate = (args: { data: any }) => callApi("adminUpsertShopTemplate", args.data);
+export const adminDeleteShopTemplate = (args: { data: { id: string } }) => callApi("adminDeleteShopTemplate", args.data);
