@@ -682,18 +682,6 @@ async function dispatchProjectWebhook(admin: any, opts: {
 // ============= Handlers =============
 // v: internal-transfer-3
 const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userClient: any }) => Promise<any>> = {
-  async listProductCategories({ data, user, admin }: any) {
-    return await HANDLERS.listProductCategoriesInternal({ data, user, admin });
-  },
-  listProductCategoriesInternal: async ({ data, user, admin }: any) => {
-    await assertBusinessOwner(admin, user.id, data.business_id);
-    const { data: rows, error } = await admin.from("product_categories")
-      .select("*")
-      .eq("business_id", data.business_id)
-      .order("position", { ascending: true });
-    if (error) throw new Error(error.message);
-    return rows ?? [];
-  },
 
   async adminListShopTemplates({ user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
@@ -2693,7 +2681,7 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   // ===========================================================
   // CATEGORIES
   // ===========================================================
-  async listProductCategories_LEGACY({ data, user, admin }: any) {
+  async listProductCategories({ data, user, admin }: any) {
     await assertBusinessOwner(admin, user.id, data.business_id);
     const { data: rows, error } = await admin.from("product_categories")
       .select("*")
