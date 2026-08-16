@@ -36,6 +36,8 @@ export default function Shop() {
   const [products, setProducts] = useState<Product[]>([]);
   const [projects, setProjects] = useState<ShopProject[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [categories, setCategories] = useState<ShopCategory[]>([]);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   useEffect(() => {
