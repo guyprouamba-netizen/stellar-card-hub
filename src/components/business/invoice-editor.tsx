@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { X, Save, Download, Printer, Eye, Settings2, Trash2, Plus, User, FileText, Receipt, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { INVOICE_TEMPLATES } from "./invoice-templates";
+import { INVOICE_TEMPLATES, RECEIPT_TEMPLATES, CONTRACT_TEMPLATES } from "./invoice-templates";
 import { createInvoice, updateInvoice } from "@/lib/business.functions";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -15,9 +15,6 @@ interface InvoiceEditorProps {
 }
 
 export default function InvoiceEditor({ business, settings, invoice: initialInvoice, onClose, onSaved }: InvoiceEditorProps) {
-  const [template, setTemplate] = useState(initialInvoice?.template_slug || "stripe-modern");
-  const [loading, setLoading] = useState(false);
-  const previewRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState(initialInvoice || {
     number: `INV-${Date.now().toString().slice(-6)}`,
     created_at: new Date().toISOString(),
@@ -32,6 +29,24 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
     kind: initialInvoice?.kind || "invoice",
     status: initialInvoice?.status || "issued"
   });
+  
+  const [template, setTemplate] = useState(initialInvoice?.template_slug || "");
+  const [loading, setLoading] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  // Choose correct template list based on kind
+  const currentTemplates = data.kind === 'receipt' 
+    ? RECEIPT_TEMPLATES 
+    : data.kind === 'contract' 
+      ? CONTRACT_TEMPLATES 
+      : INVOICE_TEMPLATES;
+
+  // Set default template if none selected or if kind changed
+  const availableKeys = Object.keys(currentTemplates);
+  const activeTemplate = template && currentTemplates[template] 
+    ? template 
+    : availableKeys[0];
+
 
   const updateItem = (index: number, field: string, value: any) => {
     const newItems = [...data.items];
@@ -53,7 +68,7 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
     setData({ ...data, items: newItems, subtotal, total: subtotal + data.tax });
   };
 
-  const TemplateComponent = INVOICE_TEMPLATES[template] || INVOICE_TEMPLATES["stripe-modern"];
+  const TemplateComponent = currentTemplates[activeTemplate] || INVOICE_TEMPLATES["stripe-modern"];
 
   const handleDownloadPDF = async () => {
     if (!previewRef.current) return;
@@ -130,7 +145,7 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-xl font-bold flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
-              Éditeur de facture
+              Éditeur de document
             </h2>
             <button onClick={onClose} className="p-2 hover:bg-muted rounded-full transition-colors"><X className="h-4 w-4" /></button>
           </div>
@@ -139,12 +154,12 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
             <section>
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 block">Choisir un style professionnel</label>
               <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto p-1 border border-border rounded-xl scrollbar-hide">
-                {Object.keys(INVOICE_TEMPLATES).map(k => (
+                {availableKeys.map(k => (
                   <button
                     key={k}
                     onClick={() => setTemplate(k)}
                     className={`group relative overflow-hidden rounded-xl border-2 p-3 text-left transition-all ${
-                      template === k 
+                      activeTemplate === k 
                         ? "border-primary bg-primary/5 ring-2 ring-primary/20" 
                         : "border-border hover:border-primary/50 bg-card"
                     }`}
@@ -152,7 +167,7 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
                     <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground group-hover:text-primary transition-colors">
                       {k.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')}
                     </div>
-                    {template === k && (
+                    {activeTemplate === k && (
                       <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary animate-pulse" />
                     )}
                   </button>
@@ -257,12 +272,12 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
                 const action = data.id ? updateInvoice : createInvoice;
                 const payload = data.id ? data : { ...data, business_id: business.id };
                 
-                action({ ...payload, template_slug: template })
+                action({ ...payload, template_slug: activeTemplate })
                   .then(() => {
                     toast.success("Facture enregistrée", { id: toastId });
                     onSaved();
                   })
-                  .catch((err) => {
+                  .catch((err: any) => {
                     toast.error("Erreur: " + err.message, { id: toastId });
                   });
               }}

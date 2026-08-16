@@ -2,6 +2,9 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { QRCodeSVG } from "qrcode.react";
+export const INVOICE_TEMPLATES = {};
+export const RECEIPT_TEMPLATES = {};
+export const CONTRACT_TEMPLATES = {};
 const VerificationFooter = ({ business, invoice }) => {
     const verificationUrl = `https://pay.faso-invest.com/verify/${invoice.number}`;
     return (_jsxs("div", { className: "mt-12 pt-8 border-t border-slate-100 flex flex-col items-center justify-center text-center gap-4", children: [
@@ -688,36 +691,38 @@ export const ZenMinimal = ({ invoice, business, kind = "invoice" }) => {
                 ] }), _jsx(VerificationFooter, { business: business, invoice: invoice })
         ] }));
 };
-// Map of all templates
-export const INVOICE_TEMPLATES = {
-    "stripe-modern": StripeModern,
-    "apple-minimal": AppleMinimal,
-    "bistro-thermal": BistroThermal,
-    "amazon-retail": AmazonRetail,
-    "gov-standard": GovStandard,
-    "stripe-vintage": StripeVintage,
-    "paypal-statement": PaypalStatement,
-    "qonto-modern": QontoModern,
-    "uber-receipt": UberReceipt,
-    "luxe-maison": LuxeMaison,
-    "google-cloud": GoogleCloud,
-    "airbnb-host": AirbnbHost,
-    "wise-borderless": WiseBorderless,
-    "microsoft-azure": MicrosoftAzure,
-    "revolut-business": RevolutBusiness,
-    "notaire-officiel": NotaireOfficiel,
-    "digital-nomad": DigitalNomad,
-    "retro-ticket": RetroTicket,
-    "clean-pharmacy": CleanPharmacy,
-    "tech-startup": TechStartup,
-    "coffee-shop": CoffeeShop,
-    "hotel-luxe": HotelLuxe,
-    "minimalist-bento": MinimalistBento,
-    "classic-red": ClassicRed,
-    "neon-cyber": NeonCyber,
-    "soft-mint": SoftMint,
-    "dark-vanguard": DarkVanguard,
-    "organic-kraft": OrganicKraft,
-    "bold-impact": BoldImpact,
-    "zen-minimal": ZenMinimal,
-};
+// Map of all templates organized by kind
+INVOICE_TEMPLATES["stripe-modern"] = StripeModern;
+INVOICE_TEMPLATES["apple-minimal"] = AppleMinimal;
+INVOICE_TEMPLATES["amazon-retail"] = AmazonRetail;
+INVOICE_TEMPLATES["gov-standard"] = GovStandard;
+INVOICE_TEMPLATES["stripe-vintage"] = StripeVintage;
+INVOICE_TEMPLATES["paypal-statement"] = PaypalStatement;
+INVOICE_TEMPLATES["qonto-modern"] = QontoModern;
+INVOICE_TEMPLATES["google-cloud"] = GoogleCloud;
+INVOICE_TEMPLATES["airbnb-host"] = AirbnbHost;
+INVOICE_TEMPLATES["wise-borderless"] = WiseBorderless;
+INVOICE_TEMPLATES["microsoft-azure"] = MicrosoftAzure;
+INVOICE_TEMPLATES["revolut-business"] = RevolutBusiness;
+INVOICE_TEMPLATES["notaire-officiel"] = NotaireOfficiel;
+INVOICE_TEMPLATES["digital-nomad"] = DigitalNomad;
+INVOICE_TEMPLATES["tech-startup"] = TechStartup;
+INVOICE_TEMPLATES["hotel-luxe"] = HotelLuxe;
+INVOICE_TEMPLATES["minimalist-bento"] = MinimalistBento;
+INVOICE_TEMPLATES["classic-red"] = ClassicRed;
+INVOICE_TEMPLATES["neon-cyber"] = NeonCyber;
+INVOICE_TEMPLATES["soft-mint"] = SoftMint;
+INVOICE_TEMPLATES["dark-vanguard"] = DarkVanguard;
+INVOICE_TEMPLATES["organic-kraft"] = OrganicKraft;
+INVOICE_TEMPLATES["bold-impact"] = BoldImpact;
+INVOICE_TEMPLATES["zen-minimal"] = ZenMinimal;
+RECEIPT_TEMPLATES["bistro-thermal"] = BistroThermal;
+RECEIPT_TEMPLATES["uber-receipt"] = UberReceipt;
+RECEIPT_TEMPLATES["retro-ticket"] = RetroTicket;
+RECEIPT_TEMPLATES["clean-pharmacy"] = CleanPharmacy;
+RECEIPT_TEMPLATES["coffee-shop"] = CoffeeShop;
+RECEIPT_TEMPLATES["luxe-maison"] = LuxeMaison;
+CONTRACT_TEMPLATES["notaire-officiel"] = NotaireOfficiel;
+CONTRACT_TEMPLATES["hotel-luxe"] = HotelLuxe;
+CONTRACT_TEMPLATES["classic-red"] = ClassicRed;
+CONTRACT_TEMPLATES["zen-minimal"] = ZenMinimal;
