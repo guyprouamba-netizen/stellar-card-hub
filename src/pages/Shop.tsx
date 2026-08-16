@@ -161,10 +161,10 @@ export default function Shop() {
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        whileHover={{ y: -8, scale: 1.02 }}
-        className={`group overflow-hidden rounded-3xl transition-all duration-300 ${
+        whileHover={{ y: -4, scale: 1.01 }}
+        className={`group overflow-hidden rounded-2xl transition-all duration-300 ${
           cardStyle === 'glass' ? 'backdrop-blur-md bg-white/5 border border-white/10' :
-          cardStyle === 'neo' ? 'shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)] border-2' :
+          cardStyle === 'neo' ? 'shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] border-2' :
           'border border-border'
         }`}
         style={{ 
@@ -172,54 +172,51 @@ export default function Shop() {
           borderColor: cardStyle === 'neo' ? th.primary : `${th.primary}22` 
         }}
       >
-        <div className="relative aspect-[4/5] overflow-hidden">
+        <div className="relative aspect-[1/1] overflow-hidden">
           {img ? (
             <motion.img 
               src={img} 
               alt={p.name} 
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" 
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" 
               loading="lazy" 
             />
           ) : (
-            <div className="grid h-full w-full place-items-center" style={{ background: `${th.primary}12` }}>
-              <Store className="h-10 w-10" style={{ color: th.muted }} />
+            <div className="grid h-full w-full place-items-center" style={{ background: `${th.primary}08` }}>
+              <Store className="h-6 w-6" style={{ color: th.muted }} />
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-          <div className="absolute bottom-4 left-4 right-4 translate-y-4 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+          <div className="absolute bottom-3 left-3 right-3 translate-y-2 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
              <button 
               onClick={() => setSelectedProduct(p)} 
-              className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold shadow-lg"
+              className="w-full flex items-center justify-center gap-2 rounded-lg py-2 text-[10px] font-black uppercase tracking-widest shadow-lg"
               style={{ background: th.primary, color: th.primary_text }}
             >
-              <Eye className="h-4 w-4" /> Voir les détails
+              <Eye className="h-3 w-3" /> Voir
             </button>
           </div>
         </div>
-        <div className="p-5">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <h3 className="font-bold text-lg leading-tight">{p.name}</h3>
-              {p.description && <p className="mt-1 text-xs line-clamp-2" style={{ color: th.muted }}>{p.description}</p>}
-            </div>
+        <div className="p-3">
+          <div className="flex items-start justify-between gap-1">
+            <h3 className="font-bold text-xs leading-tight line-clamp-1">{p.name}</h3>
             {p.price > 10000 && (
-              <div className="flex items-center gap-0.5 rounded-full bg-yellow-500/20 px-2 py-1 text-[10px] font-bold text-yellow-500">
-                <Star className="h-2.5 w-2.5 fill-current" /> PREMIUM
+              <div className="flex-shrink-0 rounded-full bg-yellow-500/20 px-1.5 py-0.5 text-[8px] font-bold text-yellow-500">
+                <Star className="h-2 w-2 fill-current inline mr-0.5" />
               </div>
             )}
           </div>
-          <div className="mt-4 flex items-center justify-between border-t pt-4" style={{ borderColor: `${th.primary}11` }}>
-            <p className="text-xl font-black tracking-tight tabular-nums">
+          <div className="mt-2 flex items-center justify-between border-t pt-2" style={{ borderColor: `${th.primary}11` }}>
+            <p className="text-sm font-black tracking-tight tabular-nums">
               {Number(p.price).toLocaleString("fr-FR")} 
-              <span className="ml-1 text-xs font-medium" style={{ color: th.muted }}>{p.currency}</span>
+              <span className="ml-0.5 text-[9px] font-medium opacity-60">{p.currency}</span>
             </p>
             <motion.button 
               whileTap={{ scale: 0.95 }}
               onClick={() => setSelectedProduct(p)} 
-              className="rounded-full p-2 transition-colors hover:bg-white/10"
+              className="rounded-full p-1 transition-colors hover:bg-white/10"
               style={{ color: th.primary }}
             >
-              <ArrowRight className="h-5 w-5" />
+              <ArrowRight className="h-3 w-3" />
             </motion.button>
           </div>
         </div>
