@@ -75,6 +75,12 @@ export function MomoPayment({ reference, amount, currency = "XOF", defaultPhone 
       const r = await payDirect({ reference, operator, phone });
       if (r.status === "success") { finish("done"); return; }
       if (r.status === "failed") { finish("failed"); return; }
+      
+      if (r.checkoutUrl) {
+        window.location.href = r.checkoutUrl;
+        return;
+      }
+
       if (r.requiresOtp) {
         setUssd(r.ussd ?? previewUssd ?? null);
         if (typeof r.fees === "number") setFees(r.fees);
