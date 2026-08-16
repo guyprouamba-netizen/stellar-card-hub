@@ -937,21 +937,31 @@ function SettingsTab() {
             className="h-5 w-5 rounded accent-primary"
           />
           <div>
-            <span className="text-sm font-semibold">Notification Sender ID</span>
-            <p className="text-[11px] text-muted-foreground">Recevoir un SMS pour chaque nouvelle demande de Sender ID.</p>
+            <span className="text-sm font-semibold">Alerte Admin (Sender ID)</span>
+            <p className="text-[11px] text-muted-foreground">Recevoir un SMS pour chaque nouvelle demande.</p>
           </div>
         </label>
-        
-        <label className="block sm:col-span-2">
-          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Modèle SMS Alerte Admin (Sender ID)</span>
+
+        <label className="block">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Modèle SMS Admin (Sender ID)</span>
           <textarea
             value={draft.sender_request_admin_template ?? ""}
             onChange={(e) => setDraft((d: any) => ({ ...d, sender_request_admin_template: e.target.value }))}
-            placeholder="Nouvelle demande de Sender ID par {company}: {sender_id}"
-            className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none"
+            placeholder="Alerte Admin: {company} veut le sender {sender_id}"
+            className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-[11px] outline-none"
             rows={2}
           />
-          <span className="mt-1 block text-[11px] text-muted-foreground">Variables: {"{company}"}, {"{sender_id}"}</span>
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Modèle SMS Marchand (Sender ID)</span>
+          <textarea
+            value={draft.sender_request_user_template ?? ""}
+            onChange={(e) => setDraft((d: any) => ({ ...d, sender_request_user_template: e.target.value }))}
+            placeholder="Cher {name}, votre demande {sender_id} est reçue."
+            className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-[11px] outline-none"
+            rows={2}
+          />
         </label>
       </div>
       <div className="flex justify-end gap-2">
