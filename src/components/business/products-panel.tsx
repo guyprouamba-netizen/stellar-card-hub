@@ -56,7 +56,7 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
     catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   }
-  useEffect(() => { setLoading(true); refresh(); /* eslint-disable-next-line */ }, [businessId]);
+  useEffect(() => { setLoading(true); refresh(); }, [businessId]);
 
   async function onUpload(file: File) {
     if (draft.media.length >= 5) {
@@ -114,13 +114,9 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
         category_id: draft.category_id || null,
       });
 
-      // Upload gallery
       if (draft.media.length > 0) {
         await Promise.all(draft.media.map((url, i) => addProductMedia({
-          product_id: p.id,
-          type: "image",
-          url,
-          position: i
+          product_id: p.id, type: "image", url, position: i
         })));
       }
 
@@ -144,202 +140,74 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
   }
 
   return (
-    <section className="space-y-5">
+    <section className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <h3 className="inline-flex items-center gap-2 font-[Space_Grotesk] text-xl font-bold">
-          <Package className="h-5 w-5" /> Produits de la boutique
+          <Package className="h-5 w-5" /> Gestion des Produits
         </h3>
         {shopSlug && (
           <a href={`/shop/${shopSlug}`} target="_blank" rel="noreferrer"
             className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold hover:bg-muted">
-            <ExternalLink className="h-3 w-3" /> Voir la boutique
+            <ExternalLink className="h-3 w-3" /> Boutique
           </a>
         )}
       </div>
 
-      <div className="rounded-2xl border border-border bg-card p-5">
-        <p className="text-sm font-semibold">Nouveau produit</p>
-        <p className="mt-1 text-xs text-muted-foreground">Les produits créés ici s'affichent directement dans votre boutique. Les projets, eux, servent uniquement à encaisser des paiements sur vos sites via l'API.</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <input value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-            placeholder="Nom du produit"
-            className="rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
-          <div className="flex gap-2">
-            <input value={draft.price} onChange={(e) => setDraft((d) => ({ ...d, price: e.target.value }))}
-              inputMode="numeric" placeholder="Prix"
-              className="w-full rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary" />
-            <select value={draft.currency} onChange={(e) => setDraft((d) => ({ ...d, currency: e.target.value }))}
-              className="rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none focus:border-primary">
-              <option value="XOF">XOF</option>
-              <option value="USD">USD</option>
-            </select>
-          </div>
-          
-          <div className="flex gap-2 sm:col-span-2">
-            <select value={draft.category_id} onChange={(e) => setDraft((d) => ({ ...d, category_id: e.target.value }))}
-              className={`${FIELD} flex-1`}>
-              <option value="">-- Sans catégorie --</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <div className="flex flex-1 gap-2">
-              <input value={newCat} onChange={(e) => setNewCat(e.target.value)}
-                placeholder="Nouvelle catégorie…" className={`${FIELD} flex-1`} />
-              <button onClick={onAddCategory} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted hover:bg-border transition-colors">
-                <FolderPlus className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-
-          <textarea value={draft.description} onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
-            rows={2} placeholder="Description (optionnel)"
-            className="rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm outline-none focus:border-primary sm:col-span-2" />
-          <select value={draft.type} onChange={(e) => setDraft((d) => ({ ...d, type: e.target.value, downloadable: e.target.value === "digital" ? true : d.downloadable }))}
-            className={FIELD}>
-            <option value="physical">Produit physique (livraison)</option>
-            <option value="digital">Produit numérique / téléchargeable</option>
-            <option value="service">Service / formation</option>
-          </select>
-          <input value={draft.sale_price} onChange={(e) => setDraft((d) => ({ ...d, sale_price: e.target.value }))}
-            inputMode="numeric" placeholder="Prix promo (optionnel)" className={FIELD} />
-        </div>
-
-        <button onClick={() => setAdvanced((v) => !v)}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold hover:bg-muted">
-          <Settings2 className="h-3.5 w-3.5" /> {advanced ? "Masquer" : "Afficher"} les réglages avancés
-        </button>
-
-        {advanced && (
-          <div className="mt-3 space-y-4 rounded-2xl border border-border bg-surface-2 p-4">
-            <div>
-              <p className="text-xs font-semibold">Inventaire & fiche produit</p>
-              <div className="mt-2 grid gap-2 sm:grid-cols-3">
-                <input value={draft.sku} onChange={(e) => setDraft((d) => ({ ...d, sku: e.target.value }))} placeholder="UGS / SKU" className={FIELD} />
-                <input value={draft.stock} onChange={(e) => setDraft((d) => ({ ...d, stock: e.target.value }))} inputMode="numeric" placeholder="Stock" className={FIELD} />
-                <input value={draft.tax_rate} onChange={(e) => setDraft((d) => ({ ...d, tax_rate: e.target.value }))} inputMode="decimal" placeholder="TVA %" className={FIELD} />
-              </div>
-              <input value={draft.short_description} onChange={(e) => setDraft((d) => ({ ...d, short_description: e.target.value }))}
-                placeholder="Description courte (affichée sous le titre)" className={`${FIELD} mt-2`} />
-              <label className="mt-2 inline-flex items-center gap-2 text-xs">
-                <input type="checkbox" checked={draft.manage_stock} onChange={(e) => setDraft((d) => ({ ...d, manage_stock: e.target.checked }))} />
-                Gérer le stock automatiquement
-              </label>
-            </div>
-
-            <div className="border-t border-border pt-3">
-              <p className="inline-flex items-center gap-1.5 text-xs font-semibold"><Download className="h-3.5 w-3.5" /> Produit téléchargeable</p>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Dès que le paiement est confirmé, le client reçoit par email sa preuve de paiement et un lien de téléchargement personnel.
-              </p>
-              <label className="mt-2 inline-flex items-center gap-2 text-xs">
-                <input type="checkbox" checked={draft.downloadable} onChange={(e) => setDraft((d) => ({ ...d, downloadable: e.target.checked }))} />
-                Ce produit est livré numériquement
-              </label>
-              {draft.downloadable && (
-                <div className="mt-2 space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-[11px] font-semibold hover:bg-muted">
-                      {uploadingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileUp className="h-3.5 w-3.5" />} Téléverser le fichier
-                      <input type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadFile(f); e.target.value = ""; }} />
-                    </label>
-                    {draft.download_name && <span className="truncate text-[11px] text-muted-foreground">{draft.download_name}</span>}
-                  </div>
-                  <input value={draft.download_url} onChange={(e) => setDraft((d) => ({ ...d, download_url: e.target.value }))}
-                    placeholder="…ou collez un lien (Drive, vidéo, espace formation)" className={FIELD} />
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <input value={draft.download_limit} onChange={(e) => setDraft((d) => ({ ...d, download_limit: e.target.value }))}
-                      inputMode="numeric" placeholder="Nombre de téléchargements (vide = illimité)" className={FIELD} />
-                    <input value={draft.download_expiry_days} onChange={(e) => setDraft((d) => ({ ...d, download_expiry_days: e.target.value }))}
-                      inputMode="numeric" placeholder="Expire après (jours)" className={FIELD} />
-                  </div>
-                  <textarea value={draft.access_instructions} onChange={(e) => setDraft((d) => ({ ...d, access_instructions: e.target.value }))}
-                    rows={2} placeholder="Instructions d'accès envoyées au client (identifiants, lien de formation, groupe privé…)" className={FIELD} />
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="grid gap-6 sm:grid-cols-2">
+            <div className="space-y-4">
+                <input value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+                    placeholder="Nom du produit" className={FIELD} />
+                <div className="grid grid-cols-2 gap-2">
+                    <input value={draft.price} onChange={(e) => setDraft((d) => ({ ...d, price: e.target.value }))}
+                        inputMode="numeric" placeholder="Prix" className={FIELD} />
+                    <select value={draft.currency} onChange={(e) => setDraft((d) => ({ ...d, currency: e.target.value }))} className={FIELD}>
+                        <option value="XOF">XOF</option>
+                        <option value="USD">USD</option>
+                    </select>
                 </div>
-              )}
             </div>
-
-            <div className="border-t border-border pt-3">
-              <textarea value={draft.purchase_note} onChange={(e) => setDraft((d) => ({ ...d, purchase_note: e.target.value }))}
-                rows={2} placeholder="Note d'achat ajoutée au reçu du client" className={FIELD} />
+            <div className="space-y-4">
+                <select value={draft.category_id} onChange={(e) => setDraft((d) => ({ ...d, category_id: e.target.value }))} className={FIELD}>
+                    <option value="">-- Catégorie --</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <div className="flex gap-2">
+                    <input value={newCat} onChange={(e) => setNewCat(e.target.value)} placeholder="Nouvelle catégorie..." className={FIELD} />
+                    <button onClick={onAddCategory} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted hover:bg-border">
+                        <FolderPlus className="h-5 w-5" />
+                    </button>
+                </div>
             </div>
-          </div>
-        )}
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted">
-            {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
-            Images du produit ({draft.media.length}/5)
-            <input type="file" accept="image/*" className="hidden" multiple
-              onChange={(e) => { 
-                const files = Array.from(e.target.files || []);
-                files.forEach(f => onUpload(f));
-                e.target.value = ""; 
-              }} />
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {draft.media.map((url, i) => (
-              <div key={i} className="relative group">
-                <img src={url} alt="" className="h-12 w-12 rounded-xl object-cover border border-border" />
-                <button 
-                  onClick={() => setDraft(d => ({ ...d, media: d.media.filter((_, idx) => idx !== i) }))}
-                  className="absolute -right-1 -top-1 hidden h-4 w-4 place-items-center rounded-full bg-destructive text-[10px] text-white group-hover:grid"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-          <button onClick={onCreate} disabled={saving}
-            className="ml-auto inline-flex items-center gap-2 rounded-full bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow disabled:opacity-50">
-            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Ajouter
-          </button>
+        </div>
+        <textarea value={draft.description} onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+            rows={3} placeholder="Description" className={`${FIELD} mt-4`} />
+        
+        <div className="mt-4 flex flex-wrap gap-2">
+            <button onClick={onCreate} disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2 text-sm font-bold text-primary-foreground">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Ajouter
+            </button>
         </div>
       </div>
 
       {loading ? (
-        <div className="grid place-items-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-      ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-surface-2 p-8 text-center text-sm text-muted-foreground">
-          Aucun produit pour le moment. Ajoutez-en un ci-dessus, il apparaîtra aussitôt dans votre boutique.
-        </div>
+        <div className="py-20 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((p) => {
-            const img = p.image_url || p.product_media?.[0]?.url;
-            return (
-              <div key={p.id} className="overflow-hidden rounded-2xl border border-border bg-card">
-                {img ? <img src={img} alt={p.name} className="h-36 w-full object-cover" />
-                  : <div className="grid h-36 w-full place-items-center bg-surface-2"><Package className="h-8 w-8 text-muted-foreground" /></div>}
-                <div className="p-4">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate font-bold">{p.name}</p>
-                    {p.product_categories && (
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                        {p.product_categories.name}
-                      </span>
-                    )}
-                    {(p.downloadable || p.type === "digital") && (
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                        <Download className="h-3 w-3" /> Digital
-                      </span>
-                    )}
-                  </div>
-                  {p.description && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{p.description}</p>}
-                  <p className="mt-2 font-[Space_Grotesk] text-lg font-bold tabular-nums">
-                    {Number(p.price).toLocaleString("fr-FR")} <span className="text-xs text-muted-foreground">{p.currency}</span>
-                  </p>
-                  <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
-                    <button onClick={() => onToggle(p)}
-                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold ${p.show_in_shop ? "bg-primary/10 text-primary" : "border border-border text-muted-foreground"}`}>
-                      {p.show_in_shop ? <><Eye className="h-3 w-3" /> Visible</> : <><EyeOff className="h-3 w-3" /> Masqué</>}
-                    </button>
-                    <button onClick={() => onDelete(p)}
-                      className="ml-auto grid h-8 w-8 place-items-center rounded-full border border-border text-destructive hover:bg-destructive/10">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {items.map((p) => (
+            <div key={p.id} className="rounded-2xl border border-border bg-card p-4 transition hover:border-primary/50">
+              <div className="flex items-start justify-between gap-2">
+                 <p className="font-bold truncate">{p.name}</p>
+                 <button onClick={() => onDelete(p)} className="p-1 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                 </button>
               </div>
-            );
-          })}
+              <p className="text-sm font-bold mt-2">{Number(p.price).toLocaleString("fr-FR")} {p.currency}</p>
+              <button onClick={() => onToggle(p)} className={`mt-3 text-xs font-semibold ${p.show_in_shop ? "text-green-600" : "text-muted-foreground"}`}>
+                {p.show_in_shop ? "● Visible" : "○ Masqué"}
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </section>
