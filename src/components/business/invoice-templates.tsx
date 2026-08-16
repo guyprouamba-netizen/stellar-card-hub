@@ -1,6 +1,7 @@
 import React from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { QRCodeSVG } from "qrcode.react";
 
 interface InvoiceItem {
   name: string;
@@ -43,11 +44,31 @@ interface TemplateProps {
   invoice: InvoiceData;
   business: BusinessData;
   settings: SettingsData;
+  kind?: "invoice" | "receipt" | "contract";
 }
 
+const VerificationFooter = ({ business, invoice }: { business: BusinessData, invoice: InvoiceData }) => {
+  const verificationUrl = `https://pay.faso-invest.com/verify/${invoice.number}`;
+  return (
+    <div className="mt-12 pt-8 border-t border-slate-100 flex flex-col items-center justify-center text-center gap-4">
+      <div className="flex flex-col items-center gap-2">
+        <QRCodeSVG value={verificationUrl} size={64} level="L" includeMargin={false} />
+        <p className="text-[8px] text-slate-400 font-mono uppercase tracking-widest">Scanner pour vérifier</p>
+      </div>
+      <p className="text-[9px] text-slate-400 font-medium uppercase tracking-[0.2em]">
+        Généré par <span className="text-primary font-bold">FASO-INVEST PAY</span>
+      </p>
+      <div className="text-[8px] text-slate-300 italic">
+        Authenticité garantie pour le marchand : {business.name}
+      </div>
+    </div>
+  );
+};
+
 // 1. STRIPE MODERN
-export const StripeModern = ({ invoice, business, settings }: TemplateProps) => {
+export const StripeModern = ({ invoice, business, settings, kind = "invoice" }: TemplateProps) => {
   const primaryColor = business.theme?.primary || "#6366f1";
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
   
   return (
     <div className="bg-white p-8 sm:p-12 text-slate-900 font-sans max-w-4xl mx-auto shadow-sm border border-slate-100 rounded-xl">
@@ -60,7 +81,7 @@ export const StripeModern = ({ invoice, business, settings }: TemplateProps) => 
               {business.name[0]}
             </div>
           )}
-          <h1 className="text-2xl font-bold text-slate-900">Facture {invoice.number}</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{title} {invoice.number}</h1>
           <p className="text-slate-500 mt-1">Émis le {format(new Date(invoice.created_at), 'dd MMMM yyyy', { locale: fr })}</p>
         </div>
         <div className="text-right">
@@ -132,21 +153,31 @@ export const StripeModern = ({ invoice, business, settings }: TemplateProps) => 
         </div>
       )}
 
-      <footer className="mt-16 pt-8 border-t border-slate-100 text-center text-[10px] text-slate-400 uppercase tracking-widest">
-        {settings.legal_name || business.name} — {settings.rccm ? `RCCM ${settings.rccm}` : "FASO INVEST PAY MERCHANT"}
+      <footer className="mt-8 pt-6 border-t border-slate-100 text-center text-[10px] text-slate-400 uppercase tracking-widest">
+        {settings.legal_name || business.name} — {settings.rccm ? `RCCM ${settings.rccm}` : "MERCHANT SERVICE"}
       </footer>
+
+      <VerificationFooter business={business} invoice={invoice} />
     </div>
   );
 };
 
 // 2. APPLE MINIMAL
-export const AppleMinimal = ({ invoice, business, settings }: TemplateProps) => {
+export const AppleMinimal = ({ invoice, business, settings, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
   return (
     <div className="bg-white p-12 text-black font-sans max-w-4xl mx-auto">
       <div className="flex justify-between items-start mb-20">
-        <h1 className="text-4xl font-black tracking-tighter">Reçu</h1>
-        <div className="text-right">
-          <p className="text-3xl font-light">{business.name}</p>
+        <h1 className="text-4xl font-black tracking-tighter">{title}</h1>
+        <div className="text-right flex flex-col items-end">
+          {business.logo_url ? (
+            <img src={business.logo_url} alt="Logo" className="h-8 w-auto mb-2 grayscale" />
+          ) : (
+            <div className="h-8 w-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs mb-2">
+              {business.name[0]}
+            </div>
+          )}
+          <p className="text-2xl font-light">{business.name}</p>
           <p className="text-slate-400 text-sm mt-1">{format(new Date(invoice.created_at), 'd MMM yyyy', { locale: fr })}</p>
         </div>
       </div>
@@ -191,17 +222,22 @@ export const AppleMinimal = ({ invoice, business, settings }: TemplateProps) => 
       <div className="mt-20 text-[10px] text-slate-400 leading-relaxed">
         <p>Ce document confirme votre achat auprès de {settings.legal_name || business.name}.</p>
         {settings.ifu && <p className="mt-1">Identifiant Fiscal : {settings.ifu}</p>}
-        <p className="mt-4">Besoin d'aide ? Contactez notre support merchant via FASO INVEST PAY.</p>
+        <p className="mt-4">Besoin d'aide ? Contactez notre support via le marchand.</p>
       </div>
+
+      <VerificationFooter business={business} invoice={invoice} />
     </div>
   );
 };
 
 // 3. POS THERMAL (Ticket de caisse)
-export const BistroThermal = ({ invoice, business }: TemplateProps) => {
+export const BistroThermal = ({ invoice, business, kind = "receipt" }: TemplateProps) => {
   return (
     <div className="bg-white p-6 text-black font-mono max-w-[320px] mx-auto text-xs border border-dashed border-slate-300">
-      <div className="text-center mb-6">
+      <div className="text-center mb-6 flex flex-col items-center">
+        {business.logo_url ? (
+          <img src={business.logo_url} alt="Logo" className="h-10 w-auto mb-2 grayscale contrast-200" />
+        ) : null}
         <h2 className="text-sm font-bold uppercase">{business.name}</h2>
         <p>{business.description || "Merci de votre visite"}</p>
         <p className="mt-2">----------------------------</p>
@@ -234,9 +270,9 @@ export const BistroThermal = ({ invoice, business }: TemplateProps) => {
         <p>MERCI ET A BIENTOT !</p>
         <div className="mt-4 flex justify-center">
           {/* Simulation d'un QR Code */}
-          <div className="h-16 w-16 bg-black"></div>
+          <QRCodeSVG value={`https://pay.faso-invest.com/verify/${invoice.number}`} size={64} />
         </div>
-        <p className="mt-2 text-[8px] text-slate-500">Propulsé par FASO INVEST PAY</p>
+        <p className="mt-2 text-[8px] text-slate-500 font-bold">Généré par FASO-INVEST PAY</p>
       </div>
     </div>
   );

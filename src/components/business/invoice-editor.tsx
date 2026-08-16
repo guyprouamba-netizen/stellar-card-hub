@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Save, Download, Printer, Eye, Settings2, Trash2, Plus, User, FileText } from "lucide-react";
+import { X, Save, Download, Printer, Eye, Settings2, Trash2, Plus, User, FileText, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { INVOICE_TEMPLATES } from "./invoice-templates";
 import { createInvoice, updateInvoice } from "@/lib/business.functions";
@@ -25,8 +25,8 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
     total: 0,
     currency: "XOF",
     notes: "",
-    kind: "invoice",
-    status: "issued"
+    kind: initialInvoice?.kind || "invoice",
+    status: initialInvoice?.status || "issued"
   });
 
   const updateItem = (index: number, field: string, value: any) => {
@@ -148,6 +148,28 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
             </section>
 
             <section>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 block">Type de document</label>
+              <div className="flex gap-2 p-1 bg-muted rounded-xl">
+                {[
+                  { id: 'invoice', label: 'Facture', icon: FileText },
+                  { id: 'receipt', label: 'Reçu / Ticket', icon: Receipt },
+                  { id: 'contract', label: 'Contrat', icon: User }
+                ].map(k => (
+                  <button
+                    key={k.id}
+                    onClick={() => setData({...data, kind: k.id})}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${
+                      data.kind === k.id ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <k.icon className="h-3.5 w-3.5" />
+                    {k.label}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section>
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Notes publiques</label>
               <textarea 
                 rows={3} 
@@ -211,6 +233,7 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
                  invoice={{...data, items: data.items.length > 0 ? data.items : [{name: "Aperçu", qty: 1, price: 0}]}} 
                  business={business} 
                  settings={settings || {}} 
+                 kind={data.kind}
                />
             </div>
           </div>
