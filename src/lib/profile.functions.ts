@@ -1,4 +1,5 @@
 import { callApi } from "./api-client";
+import { supabase } from "@/integrations/supabase/client";
 
 export const updateMyProfile = (args: { data: { full_name?: string; avatar_url?: string; phone?: string } }) =>
   callApi("updateMyProfile", args.data);
