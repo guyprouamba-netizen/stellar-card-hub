@@ -2308,7 +2308,13 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
 
   async adminUpdateConfig({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
-    const allowedNumbers = ["card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee", "referral_reward_xof", "paypal_wd_fee_bps", "paypal_wd_fee_flat_xof", "paypal_wd_min_xof", "paypal_wd_max_xof", "gateway_fee_bps", "gateway_fee_flat_xof", "gateway_min_xof", "sms_price", "business_cashout_fee_bps", "business_cashout_fee_flat_xof", "business_cashout_min_xof"];
+    const allowedNumbers = [
+      "card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee", "referral_reward_xof",
+      "paypal_wd_fee_bps", "paypal_wd_fee_flat_xof", "paypal_wd_min_xof", "paypal_wd_max_xof",
+      "gateway_fee_bps", "gateway_fee_flat_xof", "gateway_min_xof", "sms_price",
+      "business_cashout_fee_bps", "business_cashout_fee_flat_xof", "business_cashout_min_xof",
+      "momo_transfer_fee_bps", "momo_transfer_fee_flat_xof", "momo_transfer_min_xof", "momo_transfer_max_xof"
+    ];
     const allowedStrings = ["whatsapp_group_url", "admin_notification_phone", "sender_request_admin_template", "sender_request_user_template"];
     const allowedBools = ["notify_admin_sender_request", "paypal_wd_enabled", "gateway_enabled", "momo_transfer_enabled"];
     const updates: Array<{ key: string; value: string }> = [];
@@ -2338,19 +2344,17 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const { data: extras } = await admin.from("platform_config").select("key,value");
     const extrasMap: Record<string, any> = {};
     for (const r of extras ?? []) {
+      let val = r.value;
+      // Handle possible JSON double-quoting from database/older records
+      if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"') && val.length > 1) {
+        try { val = JSON.parse(val); } catch { /* ignore */ }
+      }
+
       if (allowedBools.includes(r.key)) {
-        extrasMap[r.key] = r.value === "true";
+        extrasMap[r.key] = String(val) === "true";
       } else if (allowedNumbers.includes(r.key)) {
-        let val = r.value;
-        if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"')) {
-          try { val = JSON.parse(val); } catch { /* ignore */ }
-        }
         extrasMap[r.key] = Number(val);
       } else {
-        let val = r.value;
-        if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"')) {
-          try { val = JSON.parse(val); } catch { /* ignore */ }
-        }
         extrasMap[r.key] = val;
       }
     }
