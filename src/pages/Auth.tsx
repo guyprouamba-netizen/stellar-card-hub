@@ -141,6 +141,7 @@ function Auth() {
           const { data: res, error: apiErr } = await supabase.functions.invoke("api", { 
             body: { fn: "sendRegistrationOTP" } 
           });
+          console.log("OTP API response:", res, "API Error:", apiErr);
           
           if (apiErr || res?.error) {
             console.error("API Error sending OTP:", apiErr || res?.error);
