@@ -58,15 +58,16 @@ export default function Shop() {
           description: "Ceci est une prévisualisation en temps réel de votre futur boutique avec le template sélectionné.",
           tagline: "Découvrez le rendu final de votre site",
           logo_url: null,
-          cover_url: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&auto=format&fit=crop",
+          cover_url: t?.thumbnail_url || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&auto=format&fit=crop",
           contact_email: "demo@faso-invest.com",
           contact_phone: "+226 00 00 00 00",
           template: t ? { id: t.id, name: t.name, config: t.config } : null
         });
         setProducts([
-          { id: "p1", name: "Produit Premium A", slug: "p1", description: "Une description élégante pour un produit de haute qualité.", price: 25000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800", type: "image" }] },
-          { id: "p2", name: "Service Exclusif B", slug: "p2", description: "Profitez de notre expertise avec ce service sur mesure.", price: 45000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800", type: "image" }] },
-          { id: "p3", name: "Accessoire Luxe C", slug: "p3", description: "Le détail qui fait toute la différence.", price: 12500, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1526170315870-ef6d99f494a3?w=800", type: "image" }] }
+          { id: "p1", name: "Smartphone Futuriste X", slug: "p1", description: "Le summum de la technologie mobile avec écran holographique.", price: 750000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800", type: "image" }] },
+          { id: "p2", name: "Montre Connectée Elite", slug: "p2", description: "Design luxueux allié à une intelligence artificielle avancée.", price: 250000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800", type: "image" }] },
+          { id: "p3", name: "Casque Audio Immersif", slug: "p3", description: "Une expérience sonore spatiale inégalée.", price: 185000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800", type: "image" }] },
+          { id: "p4", name: "Drone de Course Pro", slug: "p4", description: "Vitesse extrême et caméra 8K pour des prises de vue époustouflantes.", price: 450000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1527977966376-1c8408f9f108?w=800", type: "image" }] }
         ]);
         setLoading(false);
       });
