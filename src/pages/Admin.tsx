@@ -125,7 +125,7 @@ function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-border bg-card/30 p-4 md:flex md:flex-col">
       <Link to="/" className="mb-2 flex items-center gap-2 px-2">
         <img src={logo} className="h-9 w-9 rounded-xl" alt="" />
-        <div><div className="text-sm font-bold">FASO-INVEST PAY</div><div className="text-[10px] uppercase tracking-widest text-primary">Super-admin</div></div>
+        <div><div className="text-sm font-bold">FASO INVEST PAY</div><div className="text-[10px] uppercase tracking-widest text-primary">Super-admin</div></div>
       </Link>
       <BackButton to="/dashboard" className="mb-4 px-2" />
       <nav className="mt-6 flex flex-1 flex-col gap-1">

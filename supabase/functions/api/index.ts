@@ -29,7 +29,7 @@ function txEmailHtml(opts: { title: string; intro: string; amount: number; curre
         <tr><td style="padding:8px 0;color:#64748b">Date</td><td style="padding:8px 0;text-align:right">${new Date().toLocaleString("fr-FR")}</td></tr>
       </table>
       <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
-      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">FASO-INVEST PAY — Notification automatique</p>
+      <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center">FASO INVEST PAY — Notification automatique</p>
     </td></tr></table>
   </td></tr></table></body></html>`;
 }

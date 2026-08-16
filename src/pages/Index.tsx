@@ -27,14 +27,14 @@ const steps = [
 const testimonials = [
   { name: "Aïcha O.", role: "Entrepreneure, Ouagadougou", text: "Je paie mes pubs Facebook et mon abonnement Shopify sans souci. Plus besoin de demander à un ami à l'étranger." },
   { name: "Mahamadi S.", role: "Freelance dev", text: "Reçu mon premier paiement client en USD, puis converti et retiré en Mobile Money en moins de 5 minutes." },
-  { name: "Fatim K.", role: "Étudiante", text: "Netflix, Spotify, mes formations Udemy — tout marche enfin avec FASO-INVEST PAY." },
+  { name: "Fatim K.", role: "Étudiante", text: "Netflix, Spotify, mes formations Udemy — tout marche enfin avec FASO INVEST PAY." },
 ];
 
 const faqs = [
-  { q: "Faut-il valider une pièce d'identité pour ouvrir un compte ?", a: "Non — la plupart des services de FASO-INVEST PAY sont accessibles sans vérification KYC." },
+  { q: "Faut-il valider une pièce d'identité pour ouvrir un compte ?", a: "Non — la plupart des services de FASO INVEST PAY sont accessibles sans vérification KYC." },
   { q: "Combien coûte la création d'une carte virtuelle ?", a: "0 F CFA. Vous rechargez seulement le montant que vous souhaitez utiliser, à partir de 2 000 F CFA." },
   { q: "Les dépôts et retraits sont-ils automatiques ?", a: "Oui. Les dépôts et retraits Mobile Money sont crédités automatiquement en quelques secondes, 24/7." },
-  { q: "Comment fonctionne le transfert ?", a: "Envoyez de l'argent à n'importe quel numéro burkinabè, gratuitement et instantanément. Si le destinataire n'a pas encore de compte FASO-INVEST PAY, il reçoit un SMS pour le créer et récupérer son argent." },
+  { q: "Comment fonctionne le transfert ?", a: "Envoyez de l'argent à n'importe quel numéro burkinabè, gratuitement et instantanément. Si le destinataire n'a pas encore de compte FASO INVEST PAY, il reçoit un SMS pour le créer et récupérer son argent." },
   { q: "Comment fonctionne l'Espace Business ?", a: "Créez votre boutique, recevez vos paiements au Burkina et à l'international, gérez vos factures et votre comptabilité depuis un tableau de bord unique." },
 ];
 
@@ -53,7 +53,7 @@ function Index() {
               Prenez le <span className="bg-gradient-primary bg-clip-text text-transparent">contrôle</span> de vos paiements en ligne.
             </h1>
             <p className="mt-6 max-w-lg text-lg text-muted-foreground">
-              Gérez vos paiements en ligne en toute simplicité, où que vous soyez. Que vous vendiez, achetiez ou transfériez, FASO-INVEST PAY vous accompagne. Inscription gratuite en quelques clics.
+              Gérez vos paiements en ligne en toute simplicité, où que vous soyez. Que vous vendiez, achetiez ou transfériez, FASO INVEST PAY vous accompagne. Inscription gratuite en quelques clics.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/auth" className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-glow">
@@ -71,7 +71,7 @@ function Index() {
           </motion.div>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, delay: 0.1 }} className="relative">
             <div className="absolute inset-0 -z-10 rounded-[3rem] bg-gradient-primary opacity-20 blur-3xl" />
-            <img src={heroCustomer} alt="Client FASO-INVEST PAY" width={1024} height={1024} className="w-full rounded-[2.5rem] object-cover shadow-card-premium aspect-square" />
+            <img src={heroCustomer} alt="Client FASO INVEST PAY" width={1024} height={1024} className="w-full rounded-[2.5rem] object-cover shadow-card-premium aspect-square" />
           </motion.div>
         </section>
 
@@ -96,7 +96,7 @@ function Index() {
         <section id="carte" className="container mx-auto grid items-center gap-10 px-4 py-16 sm:px-6 md:grid-cols-2">
           <div>
             <span className="text-xs font-semibold uppercase tracking-widest text-primary">01 · Carte prépayée virtuelle</span>
-            <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Votre Visa & Mastercard, personnalisée FASO-INVEST PAY.</h2>
+            <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Votre Visa & Mastercard, personnalisée FASO INVEST PAY.</h2>
             <p className="mt-4 text-muted-foreground">Créée en quelques secondes, valable dans le monde entier — Netflix, Amazon, AliExpress, AdSense, formations, SaaS.</p>
             <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-card">
               <table className="w-full text-sm">
@@ -120,7 +120,7 @@ function Index() {
               Commander ma carte <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <img src={homeCards} alt="Cartes Visa et Mastercard FASO-INVEST PAY" loading="lazy" width={1408} height={912} className="w-full rounded-3xl object-cover shadow-card-premium" />
+          <img src={homeCards} alt="Cartes Visa et Mastercard FASO INVEST PAY" loading="lazy" width={1408} height={912} className="w-full rounded-3xl object-cover shadow-card-premium" />
         </section>
 
         {/* SECTION 2: TRANSFERT */}
@@ -130,7 +130,7 @@ function Index() {
             <div>
               <span className="text-xs font-semibold uppercase tracking-widest text-primary">02 · Transfert</span>
               <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Envoyez de l'argent, gratuitement et instantanément.</h2>
-              <p className="mt-4 text-muted-foreground">Saisissez un numéro ou scannez le QR code du bénéficiaire — l'argent arrive immédiatement sur son compte FASO-INVEST PAY. S'il n'a pas encore de compte, il reçoit un SMS pour le créer et récupérer ses fonds.</p>
+              <p className="mt-4 text-muted-foreground">Saisissez un numéro ou scannez le QR code du bénéficiaire — l'argent arrive immédiatement sur son compte FASO INVEST PAY. S'il n'a pas encore de compte, il reçoit un SMS pour le créer et récupérer ses fonds.</p>
               <div className="mt-6 grid grid-cols-3 gap-3">
                 {["0 F de frais","Instantané","QR code","Par numéro","SMS auto","24/7"].map((op) => (
                   <div key={op} className="rounded-xl border border-border bg-card px-3 py-2 text-center text-xs font-semibold">{op}</div>
@@ -211,7 +211,7 @@ function Index() {
         <section className="container mx-auto px-4 py-16 sm:px-6">
           <div className="mb-10 max-w-2xl">
             <span className="text-xs font-semibold uppercase tracking-widest text-primary">Ils nous font confiance</span>
-            <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Plus de 10 000 Burkinabè utilisent FASO-INVEST PAY.</h2>
+            <h2 className="mt-3 font-[Space_Grotesk] text-3xl font-bold md:text-4xl">Plus de 10 000 Burkinabè utilisent FASO INVEST PAY.</h2>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             {testimonials.map((t) => (
@@ -254,7 +254,7 @@ function Index() {
             <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
             <div className="absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-black/20 blur-3xl" />
             <h2 className="relative font-[Space_Grotesk] text-3xl font-bold md:text-5xl">Prêt à basculer sur votre fintech burkinabè ?</h2>
-            <p className="relative mx-auto mt-4 max-w-xl text-primary-foreground/80">Ouvrez votre compte FASO-INVEST PAY en moins de 2 minutes. Aucun engagement.</p>
+            <p className="relative mx-auto mt-4 max-w-xl text-primary-foreground/80">Ouvrez votre compte FASO INVEST PAY en moins de 2 minutes. Aucun engagement.</p>
             <Link to="/auth" className="relative mt-8 inline-flex items-center gap-2 rounded-full bg-background px-7 py-3 text-sm font-semibold text-foreground hover:scale-[1.02] transition-transform">
               Commencer maintenant <ArrowRight className="h-4 w-4" />
             </Link>
@@ -265,9 +265,9 @@ function Index() {
           <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 py-8 sm:flex-row sm:px-6">
             <div className="flex items-center gap-2">
               <img src={logo} alt="" className="h-8 w-8 rounded-lg" />
-              <span className="font-semibold">FASO-INVEST <span className="text-primary">PAY</span></span>
+              <span className="font-semibold">FASO INVEST <span className="text-primary">PAY</span></span>
             </div>
-            <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} FASO-INVEST PAY — Tous droits réservés. Ouagadougou, Burkina Faso.</p>
+            <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} FASO INVEST PAY — Tous droits réservés. Ouagadougou, Burkina Faso.</p>
           </div>
         </footer>
       </main>

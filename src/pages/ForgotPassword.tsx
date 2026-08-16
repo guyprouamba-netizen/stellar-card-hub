@@ -38,7 +38,7 @@ export default function ForgotPassword() {
       <div className="w-full max-w-sm">
         <Link to="/" className="mb-8 inline-flex items-center gap-2 font-semibold">
           <img src={logo} alt="" width={32} height={32} className="h-8 w-8 rounded-lg" />
-          FASO-INVEST PAY
+          FASO INVEST PAY
         </Link>
         <BackButton to="/auth" className="mb-4" />
         <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Mot de passe oublié</h1>

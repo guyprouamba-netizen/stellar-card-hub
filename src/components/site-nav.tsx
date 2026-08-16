@@ -42,8 +42,8 @@ export function SiteNav() {
     <header className="sticky top-0 z-50 glass border-b border-border/40">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
         <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <img src={logo} alt="FASO-INVEST PAY" width={36} height={36} className="h-9 w-9 rounded-xl" />
-          <span className="text-lg">FASO-INVEST <span className="text-primary">PAY</span></span>
+          <img src={logo} alt="FASO INVEST PAY" width={36} height={36} className="h-9 w-9 rounded-xl" />
+          <span className="text-lg">FASO INVEST <span className="text-primary">PAY</span></span>
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">

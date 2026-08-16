@@ -228,7 +228,7 @@ export function SmsMerchantPanel({ businessId }: { businessId: string }) {
               >
                 {purchasing ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : "Acheter maintenant"}
               </button>
-              <p className="text-[10px] text-muted-foreground italic text-center">Le montant sera débité de votre solde business FASO-INVEST PAY.</p>
+              <p className="text-[10px] text-muted-foreground italic text-center">Le montant sera débité de votre solde business FASO INVEST PAY.</p>
             </div>
           )}
         </section>

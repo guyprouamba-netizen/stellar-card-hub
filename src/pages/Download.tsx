@@ -106,8 +106,8 @@ export default function DownloadPage() {
     <div className="min-h-screen bg-background text-foreground">
       <SiteNav />
       <main className="container mx-auto flex min-h-[calc(100vh-4rem)] max-w-md flex-col items-center justify-center px-6 py-10 text-center">
-        <img src={logo} alt="FASO-INVEST PAY" className="h-24 w-24 rounded-3xl shadow-glow" />
-        <h1 className="mt-6 font-[Space_Grotesk] text-3xl font-bold">FASO-INVEST PAY</h1>
+        <img src={logo} alt="FASO INVEST PAY" className="h-24 w-24 rounded-3xl shadow-glow" />
+        <h1 className="mt-6 font-[Space_Grotesk] text-3xl font-bold">FASO INVEST PAY</h1>
         <p className="mt-2 text-sm text-muted-foreground">Application mobile officielle</p>
 
         {installed ? (
@@ -145,7 +145,7 @@ export default function DownloadPage() {
           <div className="mt-6 w-full rounded-2xl border border-border bg-card p-4 text-left text-sm">
             <p className="font-semibold">Installation manuelle</p>
             <p className="mt-2 text-muted-foreground">
-              Dans la barre d'adresse de votre navigateur, cliquez sur l'icône <b>⊕ Installer</b> (à droite de l'URL), ou ouvrez le menu <b>⋮</b> → <b>« Installer FASO-INVEST PAY »</b>.
+              Dans la barre d'adresse de votre navigateur, cliquez sur l'icône <b>⊕ Installer</b> (à droite de l'URL), ou ouvrez le menu <b>⋮</b> → <b>« Installer FASO INVEST PAY »</b>.
             </p>
           </div>
         )}

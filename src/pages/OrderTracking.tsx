@@ -146,7 +146,7 @@ export default function OrderTracking() {
             </div>
 
             <p className="flex items-center justify-center gap-1 text-[11px] text-muted-foreground">
-              <ShieldCheck className="h-3 w-3" /> Suivi propulsé par FASO-INVEST PAY
+              <ShieldCheck className="h-3 w-3" /> Suivi propulsé par FASO INVEST PAY
             </p>
           </div>
         </div>
