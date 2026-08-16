@@ -349,7 +349,17 @@ function appBaseUrl() {
 // PAIEMENT MOBILE MONEY IN-APP (aucune redirection externe)
 // ============================================================
 function publicOperators() {
-  return YP.OPERATORS.map((o) => ({
+  const ops = [...YP.OPERATORS];
+  // Ajouter Paydunya si configuré
+  if (Deno.env.get("PAYDUNYA_TOKEN")) {
+    ops.push({
+      code: "PAYDUNYA",
+      label: "Paydunya (Sénégal, Côte d'Ivoire...)",
+      flow: "push",
+      hint: "Payez via votre compte Paydunya ou Mobile Money local.",
+    } as any);
+  }
+  return ops.map((o) => ({
     code: o.code, label: o.label, flow: o.flow,
     prefixes: o.prefixes, ussdPrefix: o.ussdPrefix || null,
     otpBySms: o.otpBySms !== false, hint: o.hint || null,
@@ -595,6 +605,21 @@ async function verifyPayment(reference: string) {
     if (st2 === "failed") { await markFailed(db, tx, { verify: "direct" }); return { ok: true, status: "failed" }; }
     return { ok: true, status: "pending" };
   }
+  if (tx.provider === "paydunya" && tx.payment_intent_id) {
+    const PD = await import("../_shared/paydunya.ts");
+    const confirmation = await PD.verifyInvoice(tx.payment_intent_id);
+    const pdStatus = PD.mapPaydunyaStatus(confirmation.status);
+    if (pdStatus === "success") {
+      await settlePayment(db, tx.id, confirmation);
+      return { ok: true, status: "success", order_id: (tx as any).order_id || null };
+    }
+    if (pdStatus === "failed") {
+      await markFailed(db, tx, confirmation);
+      return { ok: true, status: "failed" };
+    }
+    return { ok: true, status: "pending" };
+  }
+
   const body = await lookupYengaPay(reference, tx.payment_intent_id);
   if (!body) return { ok: true, status: "pending" };
   const st = mapStatus(body?.status || body?.paymentStatus || body?.data?.status);
