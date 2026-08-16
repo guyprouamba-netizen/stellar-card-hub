@@ -38,7 +38,7 @@ export async function sendSmsRaw(opts: {
     const url = new URL(endpoint);
     url.searchParams.append("api_token", token);
     
-    // Ensure recipient is strictly formatted for BBG (digits only for WhatsApp)
+    // BBG WhatsApp strictly requires digits ONLY (no +)
     const cleanRecipient = opts.recipient.replace(/[^\d]/g, "");
     url.searchParams.append("recipient", cleanRecipient);
     url.searchParams.append("message", opts.message);

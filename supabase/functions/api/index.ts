@@ -4161,15 +4161,16 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       console.log(`[sendRegistrationOTP] Calling handleRegistrationOTP for ${phone}`);
       const result = await handleRegistrationOTP(admin, user.id, phone, "send");
       
-      // Force success if it's an API error but logically we want the user to enter
-      if (result && (result as any).error) {
-        console.warn(`[sendRegistrationOTP] API returned error but caught:`, (result as any).error);
-      }
+      // If the result indicates a transport error (API non-2xx), we still want to show the OTP page
+      // but we need to inform handleRegistrationOTP to be strict if we want actual delivery.
+      // The handleRegistrationOTP already throws if BBG returns !ok.
       
       return result;
     } catch (e: any) {
       console.error(`[sendRegistrationOTP] CRITICAL:`, e);
-      return { error: e.message || "Erreur lors de l'envoi de l'OTP WhatsApp" };
+      // We throw the error so the frontend catch block is triggered, 
+      // where we now have strict mode (no more automatic fastRedirect).
+      throw e;
     }
   },
 
