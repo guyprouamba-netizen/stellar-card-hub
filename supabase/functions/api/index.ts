@@ -4154,8 +4154,12 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       }
     }
     
-    if (!phone) {
-      // Final fallback to profiles table
+    // Normalize phone before fallback search
+    const normalized = normalizeBfPhone(phone);
+    console.log(`[sendRegistrationOTP] Normalized input phone: ${normalized}`);
+    
+    if (!normalized) {
+      // Final fallback to profiles table using exact or similar phone
       try {
         const { data: p, error: pErr } = await admin.from("profiles").select("phone").eq("id", user.id).maybeSingle();
         if (pErr) {
@@ -4166,6 +4170,8 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       } catch (e) {
         console.error(`[sendRegistrationOTP] profiles exception:`, e);
       }
+    } else {
+      phone = normalized;
     }
     
     if (!phone) {
