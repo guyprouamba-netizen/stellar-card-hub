@@ -417,6 +417,88 @@ export const PaypalStatement = ({ invoice, business }: TemplateProps) => (
 
 // Add more templates...
 
+// 8. QONTO MODERN
+export const QontoModern = ({ invoice, business, settings }: TemplateProps) => (
+  <div className="bg-white p-12 max-w-4xl mx-auto text-slate-900 border border-slate-100 rounded-3xl">
+    <div className="flex justify-between items-start mb-16">
+      <div className="bg-indigo-600 text-white p-4 rounded-2xl font-black text-2xl w-16 h-16 flex items-center justify-center">Q</div>
+      <div className="text-right">
+        <h2 className="text-4xl font-black tracking-tight">{invoice.total.toLocaleString()} {invoice.currency}</h2>
+        <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-2">Facture #{invoice.number}</p>
+      </div>
+    </div>
+    <div className="grid grid-cols-2 gap-12 mb-16">
+      <div>
+        <p className="text-slate-400 text-xs font-bold uppercase mb-4">Émetteur</p>
+        <p className="font-bold">{settings.legal_name || business.name}</p>
+        <p className="text-slate-500 text-sm">{settings.address}</p>
+      </div>
+      <div>
+        <p className="text-slate-400 text-xs font-bold uppercase mb-4">Client</p>
+        <p className="font-bold">{invoice.customer_name}</p>
+        <p className="text-slate-500 text-sm">{invoice.customer_email}</p>
+      </div>
+    </div>
+    <div className="space-y-4">
+      {invoice.items.map((it, i) => (
+        <div key={i} className="flex justify-between py-4 border-b border-slate-100">
+          <span className="font-medium">{it.name} <span className="text-slate-400 ml-2">x{it.qty}</span></span>
+          <span className="font-bold">{(it.qty * it.price).toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+// 9. UBER RECEIPT
+export const UberReceipt = ({ invoice, business }: TemplateProps) => (
+  <div className="bg-white p-6 max-w-md mx-auto font-sans shadow-lg border-t-8 border-black">
+    <div className="flex justify-between items-center mb-10">
+      <h1 className="text-3xl font-bold tracking-tighter">Uber</h1>
+      <p className="text-slate-400 text-sm">{format(new Date(invoice.created_at), 'dd/MM/yyyy')}</p>
+    </div>
+    <h2 className="text-4xl font-bold mb-6">{invoice.total.toLocaleString()} {invoice.currency}</h2>
+    <div className="space-y-4 text-sm border-t border-b py-6 border-slate-100">
+      {invoice.items.map((it, i) => (
+        <div key={i} className="flex justify-between">
+          <span className="text-slate-600">{it.name}</span>
+          <span className="font-bold">{(it.qty * it.price).toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+    <div className="mt-6 flex items-center gap-3">
+      <div className="w-8 h-8 rounded-full bg-slate-200" />
+      <div>
+        <p className="font-bold">YengaPay Personal</p>
+        <p className="text-xs text-slate-400">•••• 1234</p>
+      </div>
+    </div>
+  </div>
+);
+
+// 10. LUXE MAISON (Style Chanel/Vuitton)
+export const LuxeMaison = ({ invoice, business }: TemplateProps) => (
+  <div className="bg-[#1a1a1a] p-16 text-white font-serif max-w-4xl mx-auto tracking-widest uppercase text-center">
+    <h1 className="text-5xl font-light mb-16 tracking-[0.3em]">{business.name}</h1>
+    <div className="border-t border-white/20 pt-12 mb-12 flex justify-between text-[10px] opacity-60">
+      <span>Facture N°{invoice.number}</span>
+      <span>{format(new Date(invoice.created_at), 'dd . MM . yyyy')}</span>
+    </div>
+    <div className="space-y-8 my-20">
+      {invoice.items.map((it, i) => (
+        <div key={i} className="flex justify-between items-center group">
+          <span className="text-xl font-light">{it.name}</span>
+          <span className="text-xl">{(it.qty * it.price).toLocaleString()} {invoice.currency}</span>
+        </div>
+      ))}
+    </div>
+    <div className="border-t border-white/20 pt-12">
+      <p className="text-3xl font-light">{invoice.total.toLocaleString()} {invoice.currency}</p>
+      <p className="text-[8px] mt-20 opacity-40 italic underline underline-offset-8">Merci de votre confiance</p>
+    </div>
+  </div>
+);
+
 // Map of all templates
 export const INVOICE_TEMPLATES: Record<string, React.FC<TemplateProps>> = {
   "stripe-modern": StripeModern,
@@ -426,4 +508,7 @@ export const INVOICE_TEMPLATES: Record<string, React.FC<TemplateProps>> = {
   "gov-standard": GovStandard,
   "stripe-vintage": StripeVintage,
   "paypal-statement": PaypalStatement,
+  "qonto-modern": QontoModern,
+  "uber-receipt": UberReceipt,
+  "luxe-maison": LuxeMaison,
 };
