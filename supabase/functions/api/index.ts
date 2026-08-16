@@ -2844,6 +2844,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       gateway_enabled: data?.enabled,
       admin_notification_phone: data?.admin_notification_phone,
       gateway_sms_price: data?.sms_price,
+      business_cashout_fee_bps: data?.business_cashout_fee_bps,
+      business_cashout_fee_flat_xof: data?.business_cashout_fee_flat_xof,
+      business_cashout_min_xof: data?.business_cashout_min_xof,
     };
     for (const [k, v] of Object.entries(map)) {
       if (v === undefined || v === null) continue;

@@ -64,7 +64,11 @@ export const getProjectTransactions = (project_id: string) =>
 export const listProductDownloads = (business_id: string) =>
   callApi("listProductDownloads", { business_id });
 export const getGatewayFeeConfig = () => callApi("getGatewayFeeConfig");
-export const adminUpdateGatewayFeeConfig = (data: { fee_bps?: number; fee_flat_xof?: number; min_xof?: number; enabled?: boolean; admin_notification_phone?: string; sms_price?: number }) =>
+export const adminUpdateGatewayFeeConfig = (data: { 
+  fee_bps?: number; fee_flat_xof?: number; min_xof?: number; enabled?: boolean; 
+  admin_notification_phone?: string; sms_price?: number;
+  business_cashout_fee_bps?: number; business_cashout_fee_flat_xof?: number; business_cashout_min_xof?: number;
+}) =>
   callApi("adminUpdateGatewayFeeConfig", data);
 
 // --- Invoices ---
