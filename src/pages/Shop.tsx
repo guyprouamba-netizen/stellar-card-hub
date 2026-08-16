@@ -53,6 +53,7 @@ export default function Shop() {
       const setupDemo = async () => {
         try {
           const { data: t } = await supabase.from("shop_templates").select("*").eq("id", templateId).maybeSingle();
+          
           let demoBiz: any = {
             id: "demo",
             name: "Boutique Démo",
@@ -66,12 +67,38 @@ export default function Shop() {
             template: t ? { id: t.id, name: t.name, config: t.config } : null
           };
 
-          let demoProducts = [
-            { id: "p1", name: "Smartphone Futuriste X", slug: "p1", description: "Le summum de la technologie mobile avec écran holographique.", price: 750000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800", type: "image" }] },
-            { id: "p2", name: "Montre Connectée Elite", slug: "p2", description: "Design luxueux allié à une intelligence artificielle avancée.", price: 250000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800", type: "image" }] },
-            { id: "p3", name: "Casque Audio Immersif", slug: "p3", description: "Une expérience sonore spatiale inégalée.", price: 185000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800", type: "image" }] },
-            { id: "p4", name: "Drone de Course Pro", slug: "p4", description: "Vitesse extrême et caméra 8K pour des prises de vue époustouflantes.", price: 450000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1527977966376-1c8408f9f108?w=800", type: "image" }] }
-          ];
+          // Contextual demo data based on template name
+          const templateName = t?.name?.toLowerCase() || "";
+          let demoProducts = [];
+
+          if (templateName.includes("art") || templateName.includes("gallery")) {
+            demoBiz.name = "Galerie d'Art Royale";
+            demoBiz.tagline = "L'expression pure de l'esprit";
+            demoBiz.cover_url = "https://images.unsplash.com/photo-1460661419201-fd4cecdc8a87?w=1200";
+            demoProducts = [
+              { id: "a1", name: "Éclats d'Éternité", slug: "a1", description: "Huile sur toile, pièce unique.", price: 1200000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800", type: "image" }] },
+              { id: "a2", name: "Sculpture Silencieuse", slug: "a2", description: "Marbre blanc de Carrare.", price: 3500000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1544531586-fde5298cdd40?w=800", type: "image" }] },
+              { id: "a3", name: "Ombres Portées", slug: "a3", description: "Photographie noir et blanc numérotée.", price: 450000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1554188248-986adbb73be4?w=800", type: "image" }] },
+              { id: "a4", name: "Lumière du Sahel", slug: "a4", description: "Acrylique moderne sur textile.", price: 850000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=800", type: "image" }] }
+            ];
+          } else if (templateName.includes("auto") || templateName.includes("drive") || templateName.includes("car")) {
+            demoBiz.name = "Auto Drive Premium";
+            demoBiz.tagline = "La route, redéfinie";
+            demoBiz.cover_url = "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1200";
+            demoProducts = [
+              { id: "c1", name: "Berline Sport S-Line", slug: "c1", description: "Confort absolu et puissance pure.", price: 25000000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800", type: "image" }] },
+              { id: "c2", name: "SUV Explorer 4x4", slug: "c2", description: "Prêt pour toutes les aventures au Burkina.", price: 18500000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=800", type: "image" }] },
+              { id: "c3", name: "Coupé GT Electrique", slug: "c3", description: "L'avenir de la mobilité, dès aujourd'hui.", price: 32000000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1583121274602-3e2820c69888?w=800", type: "image" }] },
+              { id: "c4", name: "Pick-up Robust X", slug: "c4", description: "L'outil de travail infatigable.", price: 15000000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1550355291-bbee04a92027?w=800", type: "image" }] }
+            ];
+          } else {
+            demoProducts = [
+              { id: "p1", name: "Smartphone Futuriste X", slug: "p1", description: "Le summum de la technologie mobile avec écran holographique.", price: 750000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800", type: "image" }] },
+              { id: "p2", name: "Montre Connectée Elite", slug: "p2", description: "Design luxueux allié à une intelligence artificielle avancée.", price: 250000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800", type: "image" }] },
+              { id: "p3", name: "Casque Audio Immersif", slug: "p3", description: "Une expérience sonore spatiale inégalée.", price: 185000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800", type: "image" }] },
+              { id: "p4", name: "Drone de Course Pro", slug: "p4", description: "Vitesse extrême et caméra 8K pour des prises de vue époustouflantes.", price: 450000, currency: "XOF", media: [{ url: "https://images.unsplash.com/photo-1527977966376-1c8408f9f108?w=800", type: "image" }] }
+            ];
+          }
 
           if (bizId) {
             const { data: realBiz } = await supabase.from("businesses").select("*").eq("id", bizId).maybeSingle();
@@ -172,7 +199,7 @@ export default function Shop() {
           borderColor: cardStyle === 'neo' ? th.primary : `${th.primary}22` 
         }}
       >
-        <div className="relative aspect-[1/1] overflow-hidden">
+        <div className="relative aspect-[1/1] overflow-hidden sm:aspect-[4/3] md:aspect-[1/1]">
           {img ? (
             <motion.img 
               src={img} 
@@ -270,7 +297,7 @@ export default function Shop() {
       </AnimatePresence>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <section className="relative mb-20 overflow-hidden rounded-[2.5rem] shadow-2xl" style={{ backgroundColor: th.surface }}>
+        <section className="relative mb-20 overflow-hidden rounded-[2.5rem] shadow-2xl sm:min-h-[400px]" style={{ backgroundColor: th.surface }}>
           <motion.div 
             initial={{ scale: 1.1, opacity: 0 }}
             animate={{ scale: 1, opacity: 0.6 }}
@@ -337,7 +364,7 @@ export default function Shop() {
           </div>
         ) : (
           grouped.filter((g) => g.products.length > 0).map((g) => (
-            <section key={g.id} className="mb-20">
+            <section key={g.id} id="products" className="mb-20">
               <motion.div 
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -353,14 +380,10 @@ export default function Shop() {
                   {g.description && <p className="mt-1 text-sm font-medium" style={{ color: th.muted }}>{g.description}</p>}
                 </div>
                 <div className="text-right">
-                  <span className="text-4xl font-black opacity-10" style={{ color: th.text }}>{String(g.products.length).padStart(2, '0')}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest opacity-40">{g.products.length} Items</span>
                 </div>
               </motion.div>
-              <div className={`grid gap-4 sm:gap-6 ${
-                biz.template?.config?.layout === 'bento' ? 'grid-cols-2 lg:grid-cols-4' : 
-                biz.template?.config?.layout === 'split' ? 'grid-cols-1 lg:grid-cols-2' : 
-                'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
-              }`}>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:gap-6">
                 {g.products.map(card)}
               </div>
             </section>

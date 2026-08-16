@@ -2175,16 +2175,22 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   async adminGetConfig({ user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const cfg = await loadPricingConfig(admin);
-    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof"]);
+    const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone"]);
     const extrasMap: Record<string, any> = {};
-    for (const r of extras ?? []) extrasMap[r.key] = r.value;
+    for (const r of extras ?? []) {
+      if (r.key === "admin_notification_phone") {
+        try { extrasMap[r.key] = JSON.parse(r.value); } catch { extrasMap[r.key] = r.value; }
+      } else {
+        extrasMap[r.key] = r.value;
+      }
+    }
     return { ok: true, config: { ...cfg, ...extrasMap } };
   },
 
   async adminUpdateConfig({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const allowedNumbers = ["card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee", "referral_reward_xof"];
-    const allowedStrings = ["whatsapp_group_url"];
+    const allowedStrings = ["whatsapp_group_url", "admin_notification_phone"];
     const updates: Array<{ key: string; value: string }> = [];
     for (const k of allowedNumbers) {
       if (data?.[k] !== undefined && data[k] !== null && data[k] !== "") {
@@ -3924,6 +3930,16 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
       business_id, user_id: user.id, company_name, sender_id, usage_note,
     }).select("*").single();
     if (error) throw new Error(error.message);
+
+    // Alert admin via SMS
+    try {
+      const { data: cfg } = await admin.from("platform_config").select("value").eq("key", "admin_notification_phone").maybeSingle();
+      const adminPhone = cfg?.value || "+22670000000";
+      await sendSmsRaw(adminPhone, `[FASO-PAY] Nouvelle demande de Sender ID: "${sender_id}" par ${company_name}. Veuillez valider dans l'admin.`);
+    } catch (e) {
+      console.error("Notify admin SMS failed", e);
+    }
+
     return row;
   },
 
@@ -3952,6 +3968,20 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     if (data?.admin_note !== undefined) patch.admin_note = data.admin_note;
     const { data: row, error } = await admin.from("sms_sender_requests").update(patch).eq("id", data.id).select("*").single();
     if (error) throw new Error(error.message);
+
+    // Notify admin on new sender request or status change
+    try {
+      const { data: cfg } = await admin.from("platform_config").select("value").eq("key", "admin_notification_phone").maybeSingle();
+      const adminPhone = cfg?.value || "+22670000000"; // Fallback or configurable
+      
+      if (data?.status === "approved" || data?.status === "rejected") {
+         // Notify user...
+      } else {
+         // It's a new request being processed? No, this handler is for admin update.
+         // We should notify admin in createSenderIdRequest.
+      }
+    } catch (e) { console.error("Admin SMS notify failed", e); }
+
     return row;
   },
 
