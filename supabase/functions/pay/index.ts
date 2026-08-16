@@ -680,6 +680,7 @@ async function getPublicShop(slug: string) {
     ],
     products: productsWithMedia,
     posts: posts || [],
+    categories: categories || [],
   };
 }
 
