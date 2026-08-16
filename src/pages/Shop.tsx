@@ -169,7 +169,6 @@ export default function Shop() {
           </div>
         </section>
 
-      
         {/* Publications */}
         {posts.length > 0 && (
           <section className="mb-12">
