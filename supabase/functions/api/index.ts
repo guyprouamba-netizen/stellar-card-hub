@@ -4065,25 +4065,15 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     }).select("*").single();
     if (error) throw new Error(error.message);
 
-    // Alert admin via SMS
-    try {
-      const { data: cfg } = await admin.from("platform_config").select("value").eq("key", "admin_notification_phone").maybeSingle();
-      const rawPhone = cfg?.value || "+22607933364"; // Updated fallback
-      const adminPhone = normalizeBfPhone(rawPhone);
-      
-      const { data: smsCfg } = await admin.from("sms_config").select("sender_id").limit(1).maybeSingle();
-      const senderId = (smsCfg as any)?.sender_id || "FASOPAY";
-
-      if (adminPhone) {
-        await sendSmsRaw({
-          recipient: adminPhone,
-          message: `[FASO-PAY] Nouvelle demande de Sender ID: "${sender_id}" par ${company_name}. Veuillez valider dans l'admin.`,
-          sender_id: senderId
-        });
+    // Alert admin via SMS (non-blocking)
+    notifySms(admin, "sender_request", {
+      userId: user.id,
+      amount: 0,
+      extra: {
+        sender_id,
+        company: company_name
       }
-    } catch (e) {
-      console.error("Notify admin SMS failed", e);
-    }
+    }).catch(() => {});
 
     return row;
   },
