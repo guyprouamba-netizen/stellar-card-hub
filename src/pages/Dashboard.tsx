@@ -105,7 +105,9 @@ function Dashboard() {
   useEffect(() => {
     if (!session) return;
     const params = new URLSearchParams(window.location.search);
-    const ref = params.get("recharge");
+    const ref = params.get("recharge") || params.get("pay_ref") || params.get("reference");
+    const requestedTab = params.get("tab") as Tab;
+    if (requestedTab && requestedTab !== tab) setTab(requestedTab);
     if (!ref) return;
     let cancelled = false;
     let attempts = 0;

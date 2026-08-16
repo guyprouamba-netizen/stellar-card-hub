@@ -241,9 +241,12 @@ Content-Type: application/json
               </div>
 
               <div className="mt-4">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Votre URL de retour (Marchand)</p>
-                <input value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://votre-site.com/webhooks/paiement" className={`${field} mt-1`} />
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">URL de retour (après paiement)</p>
+                <input value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder={`${window.location.origin}/dashboard?tab=purchases`} className={`${field} mt-1`} />
               </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Si vide, le client est redirigé vers sa page « Mes achats ».
+              </p>
               <p className="mt-2 text-[11px] text-muted-foreground">
                 Chaque notification est signée : en-tête <code>X-FIP-Signature: t=…,v1=HMAC_SHA256(t + "." + corps, secret)</code>.
               </p>
