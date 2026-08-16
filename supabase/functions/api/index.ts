@@ -9,6 +9,7 @@ import { sendEmail } from "../_shared/email.ts";
 import { notifyEvent as notifySms, sendSmsRaw } from "../_shared/sms.ts";
 import * as YP from "../_shared/yengapay.ts";
 import { handle2FA, handleRegistrationOTP } from "./2fa.ts";
+import { normalizeBfPhone } from "../_shared/sms.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
