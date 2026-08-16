@@ -285,14 +285,32 @@ app.post("/webhooks/paiement", express.raw({ type: "*/*" }), (req, res) => {
       {sec === "wordpress" && (
         <div className="space-y-4">
           <div className="rounded-2xl border border-border bg-card p-5 text-sm">
-            <h4 className="font-bold">Intégration WordPress</h4>
-            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-muted-foreground">
-              <li>Créez le dossier <code>wp-content/plugins/fip-paiement/</code> et le fichier <code>fip-paiement.php</code> ci-dessous.</li>
-              <li>Renseignez vos clés dans le fichier (ou via <code>wp-config.php</code>).</li>
-              <li>Activez le plugin dans <b>Extensions</b>.</li>
-              <li>Insérez le bouton avec le shortcode <code>[fip_bouton montant="5000" libelle="Payer"]</code>.</li>
-              <li>Pour WooCommerce, utilisez la passerelle de paiement fournie plus bas — elle apparaît dans <b>WooCommerce → Réglages → Paiements</b>.</li>
-            </ol>
+            <h4 className="font-bold flex items-center justify-between">
+              Extension WooCommerce Officielle (F.I.P)
+              <a 
+                href="/downloads/fip-woocommerce-plugin.php" 
+                download="fip-woocommerce.php"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:opacity-90"
+              >
+                Télécharger le Plugin (.php)
+              </a>
+            </h4>
+            <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4 text-[13px]">
+              <p className="font-semibold text-primary">Instructions d'installation :</p>
+              <ol className="mt-2 list-decimal space-y-2 pl-5 text-muted-foreground">
+                <li>Téléchargez le fichier ci-dessus.</li>
+                <li>Allez dans votre administration WordPress : <b>Extensions &gt; Ajouter &gt; Téléverser une extension</b>.</li>
+                <li>Sélectionnez le fichier et cliquez sur <b>Installer maintenant</b>, puis <b>Activer</b>.</li>
+                <li>Allez dans <b>WooCommerce &gt; Réglages &gt; Paiements</b> et activez « Faso Invest Paiement ».</li>
+                <li>Cliquez sur <b>Gérer</b> et copiez-collez votre <b>Clé Secrète API</b> et votre <b>Secret Webhook</b> depuis l'onglet « Intégration API ».</li>
+              </ol>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-5 text-sm">
+            <h4 className="font-bold">Développement sur-mesure</h4>
+            <p className="mt-2 text-muted-foreground">
+              Si vous n'utilisez pas WooCommerce, vous pouvez utiliser le code ci-dessous pour créer un plugin personnalisé :
+            </p>
           </div>
           <Code title="Plugin WordPress simple (shortcode + webhook)" code={`<?php
 /**
