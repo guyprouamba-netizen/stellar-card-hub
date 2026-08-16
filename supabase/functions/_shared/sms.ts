@@ -33,8 +33,11 @@ export async function sendSmsRaw(opts: {
     const isWhatsapp = opts.type === "whatsapp";
     const endpoint = isWhatsapp ? BBG_WHATSAPP_ENDPOINT : BBG_ENDPOINT;
 
-    // Build params for URL since some implementations of these PHP-based APIs 
-    // prefer query parameters even for POST, or specifically for their HTTP docs.
+    // Based on the developer documentation provided by the user:
+    // https://bbgsmsapp.betterbegoing.com/developers/http-docs
+    // The API uses GET/POST parameters. For WhatsApp, the endpoint is /api/http/whatsapp/send
+    // with parameters: api_token, recipient, message.
+    
     const url = new URL(endpoint);
     url.searchParams.append("api_token", token);
     url.searchParams.append("recipient", opts.recipient);
@@ -48,7 +51,7 @@ export async function sendSmsRaw(opts: {
     console.log(`[sendSmsRaw] Calling ${isWhatsapp ? 'WhatsApp' : 'SMS'} API: ${url.origin}${url.pathname}?api_token=***&recipient=${opts.recipient}`);
 
     const res = await fetch(url.toString(), {
-      method: "POST",
+      method: "GET", // HTTP docs show GET examples often, and PHP scripts usually handle both.
       headers: { "Accept": "application/json" }
     });
     const text = await res.text();
