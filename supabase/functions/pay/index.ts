@@ -618,7 +618,7 @@ async function verifyPayment(reference: string) {
 async function getPublicShop(slug: string) {
   const db = admin();
   const { data: biz } = await db.from("businesses")
-    .select("id,name,slug,description,tagline,theme,logo_url,cover_url,contact_email,contact_phone,status")
+    .select("id,name,slug,description,tagline,theme,logo_url,cover_url,contact_email,contact_phone,status,template_id")
     .eq("slug", slug).maybeSingle();
   if (!biz || ["suspended", "terminated", "banned"].includes(String(biz.status || "").toLowerCase())) return null;
   const [{ data: products }, { data: posts }, { data: media }, { data: projects }] = await Promise.all([
