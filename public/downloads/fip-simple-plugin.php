@@ -74,13 +74,32 @@ class FIP_Simple_Payment {
             'description' => 'Paiement',
         ), $atts);
 
-        // Logique de génération de lien sécurisé vers la passerelle
         $api_key = get_option('fip_api_key');
         if (!$api_key) return '<p style="color:red;">Erreur: Clé API FASO INVEST PAY non configurée.</p>';
 
-        $checkout_url = "https://pay.faso-invest.com/pay?amount=" . $a['amount'] . "&currency=" . $a['currency'] . "&desc=" . urlencode($a['description']);
+        // Création sécurisée de la session via l'API (côté serveur)
+        $api_url = 'https://bbepprxkkwdfzmiycqqi.supabase.co/functions/v1/pay/v1/checkout/sessions';
+        $response = wp_remote_post($api_url, array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $api_key,
+                'Content-Type'  => 'application/json',
+            ),
+            'body' => wp_json_encode(array(
+                'amount'      => intval($a['amount']),
+                'currency'    => sanitize_text_field($a['currency']),
+                'description' => sanitize_text_field($a['description']),
+                'reference'   => 'SIMPLE-' . time(),
+                'return_url'  => home_url('/'),
+            )),
+            'timeout' => 30,
+        ));
+
+        if (is_wp_error($response)) return '<p style="color:red;">Erreur de connexion.</p>';
+        $body = json_decode(wp_remote_retrieve_body($response), true);
         
-        return '<a href="' . esc_url($checkout_url) . '" class="button button-primary" style="background:#3B82F6; color:white; padding:10px 20px; border-radius:5px; text-decoration:none;">Payer avec FASO INVEST PAY</a>';
+        if (empty($body['ok'])) return '<p style="color:red;">Erreur: ' . esc_html($body['error'] ?? 'Inconnue') . '</p>';
+
+        return '<a href="' . esc_url($body['data']['checkout_url']) . '" class="button button-primary" style="background:#3B82F6; color:white; padding:10px 20px; border-radius:5px; text-decoration:none;">Payer avec FASO INVEST PAY</a>';
     }
 }
 
