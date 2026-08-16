@@ -47,6 +47,10 @@ interface TemplateProps {
   kind?: "invoice" | "receipt" | "contract";
 }
 
+export const INVOICE_TEMPLATES: Record<string, React.FC<TemplateProps>> = {};
+export const RECEIPT_TEMPLATES: Record<string, React.FC<TemplateProps>> = {};
+export const CONTRACT_TEMPLATES: Record<string, React.FC<TemplateProps>> = {};
+
 const VerificationFooter = ({ business, invoice }: { business: BusinessData, invoice: InvoiceData }) => {
   const verificationUrl = `https://pay.faso-invest.com/verify/${invoice.number}`;
   return (
