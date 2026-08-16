@@ -271,16 +271,32 @@ export default function Shop() {
           </div>
         ) : (
           grouped.filter((g) => g.products.length > 0).map((g) => (
-            <section key={g.id} className="mb-12">
-              <div className="mb-5 flex items-center gap-3 border-b pb-3" style={{ borderColor: `${th.primary}33` }}>
-                {g.logo_url && <img src={g.logo_url} alt={g.name} className="h-10 w-10 rounded-xl object-cover" />}
+            <section key={g.id} className="mb-20">
+              <motion.div 
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                className="mb-8 flex items-end justify-between gap-4 border-b-2 pb-4" 
+                style={{ borderColor: `${th.primary}22` }}
+              >
                 <div>
-                  <h2 className="text-2xl font-bold">{g.name}</h2>
-                  {g.description && <p className="text-sm" style={{ color: th.muted }}>{g.description}</p>}
+                  <div className="flex items-center gap-3">
+                    {g.logo_url && <img src={g.logo_url} alt={g.name} className="h-8 w-8 rounded-lg object-cover" />}
+                    <h2 className="text-3xl font-black tracking-tight uppercase italic">{g.name}</h2>
+                  </div>
+                  {g.description && <p className="mt-1 text-sm font-medium" style={{ color: th.muted }}>{g.description}</p>}
                 </div>
-                <span className="ml-auto text-xs" style={{ color: th.muted }}>{g.products.length} produit(s)</span>
+                <div className="text-right">
+                  <span className="text-4xl font-black opacity-10" style={{ color: th.text }}>{String(g.products.length).padStart(2, '0')}</span>
+                </div>
+              </motion.div>
+              <div className={`grid gap-8 ${
+                biz.template?.config?.layout === 'bento' ? 'grid-cols-2 lg:grid-cols-4' : 
+                biz.template?.config?.layout === 'split' ? 'grid-cols-1 lg:grid-cols-2' : 
+                'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+              }`}>
+                {g.products.map(card)}
               </div>
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{g.products.map(card)}</div>
             </section>
           ))
         )}
