@@ -2300,28 +2300,35 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const allowedNumbers = ["card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee", "referral_reward_xof"];
     const allowedStrings = ["whatsapp_group_url", "admin_notification_phone", "sender_request_admin_template", "sender_request_user_template"];
     const allowedBools = ["notify_admin_sender_request"];
-    const updates: Array<{ key: string; value: string }> = [];
+    const updates: Array<{ key: string; value: any }> = [];
     for (const k of allowedNumbers) {
       if (data?.[k] !== undefined && data[k] !== null && data[k] !== "") {
         const n = Number(data[k]);
         if (!Number.isFinite(n) || n < 0) return { ok: false, error: `Valeur invalide pour ${k}` };
-        updates.push({ key: k, value: String(n) });
+        updates.push({ key: k, value: n });
       }
     }
     for (const k of allowedStrings) {
       if (data?.[k] !== undefined && data[k] !== null) {
-        // We store as plain string to avoid double encoding/parsing issues
         updates.push({ key: k, value: String(data[k]).trim().slice(0, 1000) });
       }
     }
     for (const k of allowedBools) {
       if (data?.[k] !== undefined && data[k] !== null) {
-        updates.push({ key: k, value: String(!!data[k]) });
+        updates.push({ key: k, value: !!data[k] });
       }
     }
     for (const u of updates) {
-      const { error: upsertError } = await admin.from("platform_config").upsert({ key: u.key, value: u.value }, { onConflict: "key" });
+      // Force JSON stringification for jsonb column
+      const jsonValue = JSON.stringify(u.value);
+      const { error: upsertError } = await admin.from("platform_config").upsert({ key: u.key, value: jsonValue }, { onConflict: "key" });
       if (upsertError) throw new Error(`Erreur lors de la mise à jour de ${u.key}: ${upsertError.message}`);
+      
+      // Strict post-upsert verification
+      const { data: verify, error: verifyError } = await admin.from("platform_config").select("value").eq("key", u.key).maybeSingle();
+      if (verifyError || !verify || JSON.stringify(verify.value) !== jsonValue) {
+        throw new Error(`Échec de vérification après écriture pour ${u.key}. Attendu: ${jsonValue}, Obtenu: ${verify ? JSON.stringify(verify.value) : 'null'}`);
+      }
     }
     const cfg = await loadPricingConfig(admin);
     const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone", "notify_admin_sender_request", "sender_request_admin_template", "sender_request_user_template"]);
