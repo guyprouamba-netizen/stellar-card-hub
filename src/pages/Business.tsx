@@ -751,12 +751,18 @@ function ShopBrandingPanel({ biz, onUpdated }: { biz: Biz & { logo_url?: string;
   }
 
   return (
-    <section className="mt-6 rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
+    <section id="shop-branding-panel" className="mt-6 rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
       <div className="flex items-center justify-between">
         <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><Store className="h-5 w-5" /> Personnalisation boutique</h3>
-        <button onClick={saveText} disabled={saving} className="rounded-full bg-gradient-primary px-6 py-1.5 text-xs font-bold text-primary-foreground shadow-glow hover:scale-105 active:scale-95 disabled:opacity-50 transition">
-          {saving ? "Enregistrement..." : "Enregistrer"}
-        </button>
+        <div className="flex items-center gap-2">
+          <a href={`${window.location.origin}/shop/${biz.slug}`} target="_blank" rel="noreferrer" 
+             className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-1.5 text-xs font-semibold hover:bg-muted transition">
+            <ExternalLink className="h-3.5 w-3.5" /> Voir en direct
+          </a>
+          <button onClick={saveText} disabled={saving} className="rounded-full bg-gradient-primary px-6 py-1.5 text-xs font-bold text-primary-foreground shadow-glow hover:scale-105 active:scale-95 disabled:opacity-50 transition">
+            {saving ? "Enregistrement..." : "Enregistrer"}
+          </button>
+        </div>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">Ces éléments apparaissent sur votre page boutique publique et sur vos reçus/factures.</p>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -861,7 +867,14 @@ function ShopProjectsPanel({ projects, onChanged, onGoProjects }: { projects: Pr
   }
 
   return (
-    <section className="mt-6 rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
+    <section id="shop-template-selector" className="mt-6 rounded-3xl border border-border bg-card p-4 shadow-card-premium sm:p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><Palette className="h-5 w-5" /> Templates de la boutique</h3>
+        <a href={`${window.location.origin}/shop/${business.slug}`} target="_blank" rel="noreferrer" 
+           className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-1.5 text-xs font-semibold hover:bg-muted transition">
+          <ExternalLink className="h-3.5 w-3.5" /> Voir en direct
+        </a>
+      </div>
       <h3 className="font-[Space_Grotesk] text-lg font-bold inline-flex items-center gap-2"><FolderKanban className="h-5 w-5" /> Ajouter des projets / produits à la boutique</h3>
       <p className="mt-1 text-xs text-muted-foreground">
         Seuls les projets déjà créés et configurés (paiements) peuvent être affichés. Créez d'abord le projet dans l'onglet « Projets », ajoutez-y vos produits, puis activez-le ici.
