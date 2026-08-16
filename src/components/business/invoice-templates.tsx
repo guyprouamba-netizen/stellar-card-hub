@@ -703,57 +703,61 @@ export const WiseBorderless = ({ invoice, business, settings, kind = "invoice" }
 };
 
 // 14. MICROSOFT AZURE
-export const MicrosoftAzure = ({ invoice, business, settings }: TemplateProps) => (
-  <div className="bg-white p-12 max-w-4xl mx-auto border border-slate-200 font-sans text-slate-900">
-    <div className="flex justify-between items-start mb-12">
-      <div className="flex items-center gap-3">
-        <div className="grid grid-cols-2 w-8 h-8 gap-0.5">
-          <div className="bg-[#f25022]"></div>
-          <div className="bg-[#7fba00]"></div>
-          <div className="bg-[#00a4ef]"></div>
-          <div className="bg-[#ffb900]"></div>
+export const MicrosoftAzure = ({ invoice, business, settings, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Reçu" : kind === "contract" ? "Contrat" : "Facture";
+  return (
+    <div className="bg-white p-12 max-w-4xl mx-auto border border-slate-200 font-sans text-slate-900">
+      <div className="flex justify-between items-start mb-12">
+        <div className="flex items-center gap-3">
+          <div className="grid grid-cols-2 w-8 h-8 gap-0.5">
+            <div className="bg-[#f25022]"></div>
+            <div className="bg-[#7fba00]"></div>
+            <div className="bg-[#00a4ef]"></div>
+            <div className="bg-[#ffb900]"></div>
+          </div>
+          <span className="text-xl font-bold text-slate-600">Microsoft Azure</span>
         </div>
-        <span className="text-xl font-bold text-slate-600">Microsoft Azure</span>
+        <div className="text-right">
+          <h1 className="text-3xl font-light">{title}</h1>
+          <p className="text-slate-500">ID : {invoice.number}</p>
+        </div>
       </div>
-      <div className="text-right">
-        <h1 className="text-3xl font-light">Facture</h1>
-        <p className="text-slate-500">ID de facture : {invoice.number}</p>
+      <div className="grid grid-cols-2 gap-20 mb-12">
+        <div>
+          <p className="text-xs font-bold text-slate-400 uppercase mb-2">Vendu à</p>
+          <p className="font-bold">{invoice.customer_name}</p>
+          <p className="text-sm text-slate-500">{invoice.customer_email}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs font-bold text-slate-400 uppercase mb-2">Total</p>
+          <p className="text-4xl font-light text-blue-600">{invoice.total.toLocaleString()} {invoice.currency}</p>
+        </div>
       </div>
-    </div>
-    <div className="grid grid-cols-2 gap-20 mb-12">
-      <div>
-        <p className="text-xs font-bold text-slate-400 uppercase mb-2">Vendu à</p>
-        <p className="font-bold">{invoice.customer_name}</p>
-        <p className="text-sm text-slate-500">{invoice.customer_email}</p>
-      </div>
-      <div className="text-right">
-        <p className="text-xs font-bold text-slate-400 uppercase mb-2">Total de la facture</p>
-        <p className="text-4xl font-light text-blue-600">{invoice.total.toLocaleString()} {invoice.currency}</p>
-      </div>
-    </div>
-    <table className="w-full text-sm border-t border-b border-slate-200">
-      <thead>
-        <tr className="text-left bg-slate-50">
-          <th className="py-3 px-4">Service</th>
-          <th className="py-3 px-4 text-right">Quantité</th>
-          <th className="py-3 px-4 text-right">Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        {invoice.items.map((it, i) => (
-          <tr key={i} className="border-b border-slate-100 last:border-0">
-            <td className="py-4 px-4 font-medium">{it.name}</td>
-            <td className="py-4 px-4 text-right">{it.qty} unit(s)</td>
-            <td className="py-4 px-4 text-right font-bold">{(it.qty * it.price).toLocaleString()}</td>
+      <table className="w-full text-sm border-t border-b border-slate-200 mb-10">
+        <thead>
+          <tr className="text-left bg-slate-50">
+            <th className="py-3 px-4">Description</th>
+            <th className="py-3 px-4 text-right">Quantité</th>
+            <th className="py-3 px-4 text-right">Total</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
-    <div className="mt-12 text-[10px] text-slate-400 uppercase tracking-widest leading-relaxed">
-      Microsoft Azure - {settings.legal_name || business.name} - Tous droits réservés.
+        </thead>
+        <tbody>
+          {invoice.items.map((it, i) => (
+            <tr key={i} className="border-b border-slate-100 last:border-0">
+              <td className="py-4 px-4 font-medium">{it.name}</td>
+              <td className="py-4 px-4 text-right">{it.qty}</td>
+              <td className="py-4 px-4 text-right font-bold">{(it.qty * it.price).toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <VerificationFooter business={business} invoice={invoice} />
+      <div className="mt-12 text-[10px] text-slate-400 uppercase tracking-widest leading-relaxed">
+        {business.name} - Document authentifié via Faso-Invest Pay.
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // 15. REVOLUT BUSINESS
 export const RevolutBusiness = ({ invoice, business, settings }: TemplateProps) => (
