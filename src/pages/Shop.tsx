@@ -14,7 +14,13 @@ type Biz = {
   logo_url: string | null; cover_url?: string | null; contact_email: string | null; contact_phone: string | null;
   theme?: { bg?: string; surface?: string; text?: string; muted?: string; primary?: string; primary_text?: string };
   template_id?: string | null;
-  template?: { config?: { css_vars?: Record<string, string> }; id: string; name: string } | null;
+  template?: { config?: { 
+    css_vars?: Record<string, string>;
+    layout?: 'grid' | 'bento' | 'split' | 'minimal';
+    animation?: 'fade' | 'slide' | 'zoom';
+    card_style?: 'glass' | 'neo' | 'flat';
+    header_style?: 'transparent' | 'glass' | 'floating';
+  }; id: string; name: string } | null;
 };
 type ShopProject = { id: string; name: string; description: string | null; cover_url: string | null; logo_url: string | null; products: Product[] };
 
