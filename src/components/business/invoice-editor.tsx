@@ -277,7 +277,7 @@ export default function InvoiceEditor({ business, settings, invoice: initialInvo
                     toast.success("Facture enregistrée", { id: toastId });
                     onSaved();
                   })
-                  .catch((err) => {
+                  .catch((err: any) => {
                     toast.error("Erreur: " + err.message, { id: toastId });
                   });
               }}
