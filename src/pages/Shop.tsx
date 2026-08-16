@@ -51,6 +51,26 @@ export default function Shop() {
   if (!biz) return null;
 
   const th = { ...DEFAULT_THEME, ...(biz.theme || {}) };
+  
+  // Injecter les variables CSS du template si présent
+  const templateVars = biz.template?.css_vars || {};
+  Object.entries(templateVars).forEach(([k, v]) => {
+    if (k.startsWith('--')) {
+      // @ts-ignore
+      th[k.replace('--', '').replace(/-/g, '_')] = v;
+    }
+  });
+
+  // Injecter dans le DOM pour les styles CSS personnalisés
+  useEffect(() => {
+    const root = document.documentElement;
+    Object.entries(templateVars).forEach(([k, v]) => {
+      root.style.setProperty(k, v as string);
+    });
+    return () => {
+      Object.keys(templateVars).forEach((k) => root.style.removeProperty(k));
+    };
+  }, [biz.template]);
   const grouped: ShopProject[] = projects.length
     ? projects
     : [{ id: "_all", name: "Produits", description: null, cover_url: null, logo_url: null, products }];
