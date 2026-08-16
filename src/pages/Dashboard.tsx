@@ -920,4 +920,75 @@ function Kpi({ label, value, highlight }: { label: string; value: string; highli
 }
 
 
+
+function PurchasesTab({ userId }: { userId: string }) {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const { data: userData } = await supabase.auth.getUser();
+      const email = userData.user?.email;
+      if (!email) {
+        setLoading(false);
+        return;
+      }
+
+      const { data } = await supabase.from("shop_orders")
+        .select("*, business:businesses(name, logo_url)")
+        .eq("customer_email", email)
+        .order("created_at", { ascending: false });
+
+      if (data) setOrders(data);
+      setLoading(false);
+    }
+    load();
+  }, [userId]);
+
+  if (loading) return <div className="grid h-64 place-items-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+
+  return (
+    <div className="space-y-6">
+      <header>
+        <h2 className="font-[Space_Grotesk] text-2xl font-bold">Mes achats</h2>
+        <p className="text-sm text-muted-foreground">Historique de vos commandes sur les boutiques du réseau.</p>
+      </header>
+
+      {orders.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-border p-12 text-center">
+          <ShoppingBag className="mx-auto h-12 w-12 text-muted-foreground/20" />
+          <p className="mt-4 text-muted-foreground">Vous n'avez pas encore effectué d'achats.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {orders.map((order) => (
+            <Link 
+              key={order.id} 
+              to={`/order/${order.order_token}`}
+              className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
+            >
+              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-muted">
+                {order.business?.logo_url ? (
+                  <img src={order.business.logo_url} className="h-full w-full object-cover" alt="" />
+                ) : (
+                  <div className="grid h-full w-full place-items-center"><ShoppingBag className="h-5 w-5 text-muted-foreground" /></div>
+                )}
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <h3 className="truncate font-bold text-sm">{order.business?.name || "Boutique"}</h3>
+                <p className="text-xs text-muted-foreground">N° {order.order_number}</p>
+                <p className="mt-1 text-xs font-medium text-primary uppercase">{STATUS_LABEL[order.status] || order.status}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-bold tabular-nums">{Number(order.total_amount).toLocaleString("fr-FR")} {order.currency}</p>
+                <p className="text-[10px] text-muted-foreground">{new Date(order.created_at).toLocaleDateString("fr-FR")}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default Dashboard;
