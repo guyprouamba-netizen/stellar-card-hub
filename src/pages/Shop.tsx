@@ -78,7 +78,7 @@ export default function Shop() {
             if (realBiz) {
               demoBiz = { ...demoBiz, ...realBiz, template: demoBiz.template };
               const { data: realProducts } = await supabase.from("products").select("*, media:product_media(*)").eq("business_id", bizId).limit(8);
-              if (realProducts?.length) demoProducts = realProducts;
+              if (realProducts?.length) demoProducts = realProducts as any[];
             }
           }
 
