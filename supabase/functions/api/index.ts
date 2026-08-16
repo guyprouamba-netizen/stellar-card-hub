@@ -3665,6 +3665,9 @@ const H3: Record<string, any> = {
     const updated = await pollAndProcessMomoTransfer(admin, t, { forceDisburse: true });
     return { ok: true, transfer: updated };
   },
+};
+
+const H4: Record<string, any> = {
   async adminUpdateMomoTransferConfig({ data, user, admin }) {
     if (!(await isAdmin(admin, user.id))) throw new Error("Forbidden");
     const map: Record<string, any> = {
