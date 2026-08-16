@@ -518,7 +518,16 @@ async function confirmDirect(payload: any) {
   const meta = (tx.metadata as any) || {};
   if (!otp) throw new Error("Code de confirmation requis");
   let r: any;
-  try { r = await YP.payDirectPayment({ reference, phone: meta.phone, operator: meta.operator, otp, paymentIntentId: tx.payment_intent_id || meta.intent }); }
+  try { 
+    r = await YP.payDirectPayment({ reference, phone: meta.phone, operator: meta.operator, otp, paymentIntentId: tx.payment_intent_id || meta.intent }); 
+    // Si la passerelle répond par une erreur 401/403/400 avec un message d'expiration, on tente d'initier une nouvelle fois l'intention
+    // et de soumettre à nouveau l'OTP immédiatement si c'est possible, ou de renvoyer une erreur explicite.
+    if (!r.ok && (String(r.body?.message).toLowerCase().includes("expiré") || String(r.body?.message).toLowerCase().includes("invalide"))) {
+       console.warn("[direct confirm] intent expired, re-trying init...", reference);
+       // On ne peut pas facilement re-tenter l'OTP sans recréer une intention, mais on peut forcer l'utilisateur à recommencer proprement
+       await db.from("payment_link_payments").update({ payment_intent_id: null, metadata: { ...meta, intent_at: null } }).eq("id", tx.id);
+    }
+  }
   catch { throw new Error("Service momentanément indisponible. Réessayez."); }
   if (!r.ok) {
     console.error("[direct confirm]", reference, r.status, JSON.stringify(r.body).slice(0, 800));
