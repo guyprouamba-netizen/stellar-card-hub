@@ -2708,33 +2708,6 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
   // ===========================================================
   // CATEGORIES
   // ===========================================================
-  async listProductCategories({ data, user, admin }) {
-    await assertBusinessOwner(admin, user.id, data.business_id);
-    const { data: rows, error } = await admin.from("product_categories")
-      .select("*")
-      .eq("business_id", data.business_id)
-      .order("position", { ascending: true });
-    if (error) throw new Error(error.message);
-    return rows ?? [];
-  },
-  async createProductCategory({ data, user, admin }) {
-    await assertBusinessOwner(admin, user.id, data.business_id);
-    const name = String(data?.name || "").trim();
-    if (name.length < 2) throw new Error("Nom de catégorie requis");
-    const slug = slugify(name) + "-" + randomHex(2);
-    const { data: row, error } = await admin.from("product_categories").insert({
-      business_id: data.business_id, name, slug, description: data?.description || null,
-    }).select("*").single();
-    if (error) throw new Error(error.message);
-    return row;
-  },
-  async deleteProductCategory({ data, user, admin }) {
-    const { data: cat } = await admin.from("product_categories").select("business_id").eq("id", data.id).maybeSingle();
-    if (!cat) throw new Error("Catégorie introuvable");
-    await assertBusinessOwner(admin, user.id, cat.business_id);
-    await admin.from("product_categories").delete().eq("id", data.id);
-    return { ok: true };
-  },
 
   // ===========================================================
   // PROJECT API KEYS / WEBHOOKS (passerelle de paiement)
