@@ -2622,6 +2622,7 @@ export type Database = {
           referral_code: string | null
           referrer_code: string | null
           strowallet_customer_id: string | null
+          two_factor_enabled: boolean | null
           updated_at: string
         }
         Insert: {
@@ -2638,6 +2639,7 @@ export type Database = {
           referral_code?: string | null
           referrer_code?: string | null
           strowallet_customer_id?: string | null
+          two_factor_enabled?: boolean | null
           updated_at?: string
         }
         Update: {
@@ -2654,6 +2656,7 @@ export type Database = {
           referral_code?: string | null
           referrer_code?: string | null
           strowallet_customer_id?: string | null
+          two_factor_enabled?: boolean | null
           updated_at?: string
         }
         Relationships: []
