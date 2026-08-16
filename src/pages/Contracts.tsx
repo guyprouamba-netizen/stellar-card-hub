@@ -5,7 +5,8 @@ import {
   ArrowLeft, Plus, Receipt, Download, FileText, Send, Building2, User, 
   Search, Printer, Share2, Mail, ExternalLink, MoreVertical, CreditCard
 } from "lucide-react";
-import { listInvoices, getAccountingSettings } from "@/lib/business.functions";
+import { listInvoices } from "@/lib/business.functions";
+import { getAccountingSettings } from "@/lib/accounting.functions";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
