@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Users, TrendingUp, CreditCard, ShieldCheck, ArrowDownUp, LogOut, RefreshCw,
   Loader2, CheckCircle2, XCircle, Wallet, Server, Eye, SlidersHorizontal, Share2,
-  AlertTriangle, BarChart3, Sparkles, Store, Plus, Trash2, ExternalLink
+  AlertTriangle, BarChart3, Sparkles, Store, Plus, Trash2, ExternalLink, MessageSquare
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BackButton } from "@/components/back-button";
@@ -19,7 +19,7 @@ import { DashboardAiAssistant } from "@/components/admin/ai-assistant";
 
 type Tab = "users" | "flow" | "analytics" | "assistant" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "businesses" | "shop-templates" | "sms-requests" | "settings";
 
-function AdminPage() {
+export default function AdminPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("flow");
   const [authState, setAuthState] = useState<"loading" | "denied" | "ok">("loading");
@@ -1200,3 +1200,107 @@ function ShopTemplatesTab() {
     </div>
   );
 }
+
+function SmsRequestsTab() {
+  const listFn = useServerFn(adminListSenderRequests);
+  const updateFn = useServerFn(adminUpdateSenderRequest);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const refresh = () => {
+    setLoading(true);
+    listFn().then((r: any) => {
+      setRequests(r || []);
+      setLoading(false);
+    }).catch(e => {
+      toast.error(e.message);
+      setLoading(false);
+    });
+  };
+
+  useEffect(() => { refresh(); }, []);
+
+  async function updateStatus(id: string, status: "approved" | "rejected") {
+    const note = prompt(status === "approved" ? "Note (optionnel)" : "Motif du refus (requis)");
+    if (status === "rejected" && !note) return;
+    setBusy(id);
+    try {
+      await updateFn({ id, status, admin_note: note || undefined });
+      toast.success("Demande mise à jour ✅");
+      refresh();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-[Space_Grotesk] text-3xl font-bold tracking-tight">Demandes de Sender ID</h1>
+        <p className="text-sm text-muted-foreground">Approuvez ou refusez les noms d'envoi demandés par les marchands.</p>
+      </div>
+
+      {loading ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : (
+        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+          <table className="w-full text-sm">
+            <thead className="bg-surface-2 text-left text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3">Entreprise</th>
+                <th className="px-4 py-3">Sender ID</th>
+                <th className="px-4 py-3">Statut</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {requests.map((r) => (
+                <tr key={r.id}>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString()}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-bold">{r.company_name}</div>
+                    <div className="text-[10px] text-muted-foreground">Business: {r.business_id?.slice(0,8)}</div>
+                  </td>
+                  <td className="px-4 py-3 font-mono font-bold uppercase">{r.sender_id}</td>
+                  <td className="px-4 py-3">
+                    {r.status === 'pending' && <span className="text-amber-500">En attente</span>}
+                    {r.status === 'approved' && <span className="text-emerald-500">Approuvé</span>}
+                    {r.status === 'rejected' && <span className="text-red-500">Refusé</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {r.status === 'pending' && (
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => updateStatus(r.id, "approved")}
+                          disabled={busy === r.id}
+                          className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-500 hover:bg-emerald-500/20"
+                        >
+                          Approuver
+                        </button>
+                        <button 
+                          onClick={() => updateStatus(r.id, "rejected")}
+                          disabled={busy === r.id}
+                          className="rounded-full bg-red-500/10 px-3 py-1 text-xs font-bold text-red-500 hover:bg-red-500/20"
+                        >
+                          Refuser
+                        </button>
+                      </div>
+                    )}
+                    {r.admin_note && <div className="mt-1 text-[10px] italic text-muted-foreground">Note: {r.admin_note}</div>}
+                  </td>
+                </tr>
+              ))}
+              {requests.length === 0 && (
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">Aucune demande en attente.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default AdminPage;
