@@ -112,7 +112,7 @@ function Auth() {
           email, password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { full_name: fullName, phone, ...(refCode ? { referrer_code: refCode } : {}) },
+            data: { full_name: fullName, phone: phone.trim(), ...(refCode ? { referrer_code: refCode } : {}) },
           },
         });
         if (error) throw error;
