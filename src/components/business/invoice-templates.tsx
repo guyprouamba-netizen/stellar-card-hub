@@ -955,38 +955,44 @@ export const CleanPharmacy = ({ invoice, business, settings, kind = "invoice" }:
 };
 
 // 20. TECH STARTUP (Style Linear/Vercel)
-export const TechStartup = ({ invoice, business }: TemplateProps) => (
-  <div className="bg-[#000000] p-12 max-w-4xl mx-auto text-white font-sans border border-white/10 rounded-xl overflow-hidden relative">
-    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 blur-[100px]" />
-    <div className="flex justify-between items-center mb-24 relative z-10">
-      <div className="flex items-center gap-2">
-        <div className="w-6 h-6 bg-white rounded-full" />
-        <span className="font-bold text-lg tracking-tight">{business.name}</span>
-      </div>
-      <div className="text-xs font-medium text-white/40 uppercase tracking-[0.2em]">{invoice.number}</div>
-    </div>
-    <div className="mb-24 relative z-10">
-      <h2 className="text-5xl font-medium tracking-tighter leading-tight mb-4 italic">Confirming your purchase,<br /><span className="text-white/40">{invoice.customer_name}.</span></h2>
-    </div>
-    <div className="space-y-4 mb-24 relative z-10">
-      {invoice.items.map((it, i) => (
-        <div key={i} className="flex justify-between items-center py-4 border-b border-white/5">
-          <span className="text-white/60 font-medium">{it.name} <span className="text-white/20 ml-2">× {it.qty}</span></span>
-          <span className="font-bold tracking-tight text-xl">{(it.qty * it.price).toLocaleString()}</span>
+export const TechStartup = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "RECEIPT" : kind === "contract" ? "CONTRACT" : "INVOICE";
+  return (
+    <div className="bg-[#000000] p-12 max-w-4xl mx-auto text-white font-sans border border-white/10 rounded-xl overflow-hidden relative">
+      <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 blur-[100px]" />
+      <div className="flex justify-between items-center mb-24 relative z-10">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 bg-white rounded-full" />
+          <span className="font-bold text-lg tracking-tight">{business.name}</span>
         </div>
-      ))}
-    </div>
-    <div className="flex justify-between items-end relative z-10">
-      <div>
-        <p className="text-xs text-white/40 font-bold uppercase tracking-widest mb-1">Total Paid</p>
-        <p className="text-4xl font-bold tracking-tighter">{invoice.total.toLocaleString()} <span className="text-white/40 text-2xl">{invoice.currency}</span></p>
+        <div className="text-xs font-medium text-white/40 uppercase tracking-[0.2em]">{title} {invoice.number}</div>
       </div>
-      <div className="text-right text-[10px] text-white/20 uppercase font-bold tracking-[0.3em]">
-        Secured by YengaPay Engine
+      <div className="mb-24 relative z-10">
+        <h2 className="text-5xl font-medium tracking-tighter leading-tight mb-4 italic">Confirming your order,<br /><span className="text-white/40">{invoice.customer_name}.</span></h2>
+      </div>
+      <div className="space-y-4 mb-24 relative z-10">
+        {invoice.items.map((it, i) => (
+          <div key={i} className="flex justify-between items-center py-4 border-b border-white/5">
+            <span className="text-white/60 font-medium">{it.name} <span className="text-white/20 ml-2">× {it.qty}</span></span>
+            <span className="font-bold tracking-tight text-xl">{(it.qty * it.price).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mb-10 relative z-10">
+        <VerificationFooter business={business} invoice={invoice} />
+      </div>
+      <div className="flex justify-between items-end relative z-10">
+        <div>
+          <p className="text-xs text-white/40 font-bold uppercase tracking-widest mb-1">Total Paid</p>
+          <p className="text-4xl font-bold tracking-tighter">{invoice.total.toLocaleString()} <span className="text-white/40 text-2xl">{invoice.currency}</span></p>
+        </div>
+        <div className="text-right text-[10px] text-white/20 uppercase font-bold tracking-[0.3em]">
+          AUTHENTICATED VIA YENGAPAY
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // 21. COFFEE SHOP
 export const CoffeeShop = ({ invoice, business }: TemplateProps) => (
