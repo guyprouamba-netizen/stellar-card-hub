@@ -1048,7 +1048,11 @@ function ShopTemplatesTab() {
     setLoading(true);
     list().then((r: any) => {
       console.log("Admin shop templates response:", r);
-      setTemplates(r.templates || []);
+      if (r && r.ok) {
+        setTemplates(r.templates || []);
+      } else {
+        throw new Error(r?.error || "Format de réponse invalide");
+      }
       setLoading(false);
     }).catch((err) => {
       console.error("Admin shop templates error:", err);
