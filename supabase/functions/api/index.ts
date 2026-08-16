@@ -2285,10 +2285,9 @@ const HANDLERS: Record<string, (args: { data: any; user: any; admin: any; userCl
     const { data: extras } = await admin.from("platform_config").select("key,value").in("key", ["whatsapp_group_url", "referral_reward_xof", "admin_notification_phone", "notify_admin_sender_request", "sender_request_admin_template", "sender_request_user_template"]);
     const extrasMap: Record<string, any> = {};
     for (const r of extras ?? []) {
-      if (r.key === "notify_admin_sender_request") {
-        extrasMap[r.key] = r.value === "true";
-      } else {
-        // Plain string or number
+      try {
+        extrasMap[r.key] = (typeof r.value === 'string') ? JSON.parse(r.value) : r.value;
+      } catch (e) {
         extrasMap[r.key] = r.value;
       }
     }
