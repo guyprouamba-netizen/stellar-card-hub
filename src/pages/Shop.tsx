@@ -28,6 +28,7 @@ export default function Shop() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
+  // Effet pour charger les données
   useEffect(() => {
     // Retour depuis paiement : rediriger vers le suivi de commande
     const params = new URLSearchParams(window.location.search);
@@ -42,27 +43,10 @@ export default function Shop() {
     }).catch((e) => { setError(e.message); setLoading(false); });
   }, [slug, navigate]);
 
-  if (loading) return <div className="grid min-h-screen place-items-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
-  if (error && !biz) return (
-    <div className="grid min-h-screen place-items-center px-6 text-center">
-      <div><Store className="mx-auto h-12 w-12 text-muted-foreground" /><h1 className="mt-4 text-2xl font-bold">Boutique introuvable</h1><p className="mt-2 text-sm text-muted-foreground">{error}</p></div>
-    </div>
-  );
-  if (!biz) return null;
-
-  const th = { ...DEFAULT_THEME, ...(biz.theme || {}) };
-  
-  // Injecter les variables CSS du template si présent
-  const templateVars = biz.template?.config?.css_vars || {};
-  Object.entries(templateVars).forEach(([k, v]) => {
-    if (k.startsWith('--')) {
-      // @ts-ignore
-      th[k.replace('--', '').replace(/-/g, '_')] = v;
-    }
-  });
-
   // Injecter dans le DOM pour les styles CSS personnalisés
   useEffect(() => {
+    if (!biz?.template?.config?.css_vars) return;
+    const templateVars = biz.template.config.css_vars;
     const root = document.documentElement;
     Object.entries(templateVars).forEach(([k, v]) => {
       root.style.setProperty(k, v as string);
@@ -70,7 +54,8 @@ export default function Shop() {
     return () => {
       Object.keys(templateVars).forEach((k) => root.style.removeProperty(k));
     };
-  }, [biz.template]);
+  }, [biz?.template]);
+
   const grouped: ShopProject[] = projects.length
     ? projects
     : [{ id: "_all", name: "Produits", description: null, cover_url: null, logo_url: null, products }];
