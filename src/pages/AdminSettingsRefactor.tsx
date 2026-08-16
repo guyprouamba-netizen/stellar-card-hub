@@ -27,19 +27,37 @@ export function SettingsTab() {
   async function save() {
     setBusy(true);
     try {
-      const r: any = await updCfg({ data: draft });
+      // Logic for saving configuration:
+      // 1. First update platform_config via backend (adminUpdateConfig)
+      // 2. Also keep specialized config tables in sync (paypal_withdraw_config, etc.)
+      // 3. Update SMS config in public.sms_config
+      
+      const payload = { ...draft };
+      
+      // Ensure numeric conversion for all number fields
+      const allowedNumbers = [
+        "card_issue_fee_xof", "usd_rate_xof", "strowallet_fixed_fee_usd", "strowallet_pct_fee", "referral_reward_xof",
+        "paypal_wd_fee_bps", "paypal_wd_fee_flat_xof", "paypal_wd_min_xof", "paypal_wd_max_xof",
+        "gateway_fee_bps", "gateway_fee_flat_xof", "gateway_min_xof", "sms_price",
+        "business_cashout_fee_bps", "business_cashout_fee_flat_xof", "business_cashout_min_xof"
+      ];
+      for (const k of allowedNumbers) {
+        if (payload[k] !== undefined) payload[k] = Number(payload[k]);
+      }
+
+      const r: any = await updCfg({ data: payload });
       if (r?.ok === false) throw new Error(r.error);
       
       // Update global SMS settings to ensure persistence
       await supabase.from("sms_config").upsert({
         id: 'global',
-        notify_admin_sender_request: !!draft.notify_admin_sender_request,
-        event_wallet_recharge: !!draft.event_wallet_recharge,
-        event_card_recharge: !!draft.event_card_recharge,
-        event_withdrawal: !!draft.event_withdrawal,
-        event_withdrawal_paid: !!draft.event_withdrawal_paid,
-        event_sender_request: !!draft.event_sender_request,
-        admin_phones: draft.admin_notification_phone ? [draft.admin_notification_phone.replace(/\D/g, '')] : []
+        notify_admin_sender_request: !!payload.notify_admin_sender_request,
+        event_wallet_recharge: !!payload.event_wallet_recharge,
+        event_card_recharge: !!payload.event_card_recharge,
+        event_withdrawal: !!payload.event_withdrawal,
+        event_withdrawal_paid: !!payload.event_withdrawal_paid,
+        event_sender_request: !!payload.event_sender_request,
+        admin_phones: payload.admin_notification_phone ? [payload.admin_notification_phone.replace(/\D/g, '')] : []
       } as any);
 
       setCfg(r.config);
@@ -51,6 +69,7 @@ export function SettingsTab() {
       setBusy(false);
     }
   }
+
 
   if (!cfg) return <div className="p-12 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></div>;
 
