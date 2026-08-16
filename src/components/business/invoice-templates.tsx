@@ -1034,56 +1034,62 @@ export const CoffeeShop = ({ invoice, business, kind = "receipt" }: TemplateProp
 };
 
 // 22. HOTEL LUXE (Conciergerie)
-export const HotelLuxe = ({ invoice, business, settings }: TemplateProps) => (
-  <div className="bg-white p-16 max-w-5xl mx-auto text-[#2c3e50] font-serif border border-slate-100 shadow-2xl relative">
-    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#d4af37] via-[#f1e5ac] to-[#d4af37]" />
-    <div className="flex justify-between items-start mb-24">
-      <div>
-        <h1 className="text-4xl font-light tracking-[0.2em] uppercase mb-2">{business.name}</h1>
-        <p className="text-xs uppercase tracking-widest text-[#d4af37] font-bold">Luxury Collection</p>
+export const HotelLuxe = ({ invoice, business, settings, kind = "invoice" }: TemplateProps) => {
+  const title = kind === "receipt" ? "Folio Reçu" : kind === "contract" ? "Contrat de Séjour" : "Folio de Facturation";
+  return (
+    <div className="bg-white p-16 max-w-5xl mx-auto text-[#2c3e50] font-serif border border-slate-100 shadow-2xl relative">
+      <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#d4af37] via-[#f1e5ac] to-[#d4af37]" />
+      <div className="flex justify-between items-start mb-24">
+        <div>
+          <h1 className="text-4xl font-light tracking-[0.2em] uppercase mb-2">{business.name}</h1>
+          <p className="text-xs uppercase tracking-widest text-[#d4af37] font-bold">Luxury Collection</p>
+        </div>
+        <div className="text-right text-xs uppercase tracking-widest leading-loose">
+          <p>{title} N° {invoice.number}</p>
+          <p>{format(new Date(invoice.created_at), 'MMMM d, yyyy')}</p>
+        </div>
       </div>
-      <div className="text-right text-xs uppercase tracking-widest leading-loose">
-        <p>Folio N° {invoice.number}</p>
-        <p>{format(new Date(invoice.created_at), 'MMMM d, yyyy')}</p>
+      <div className="grid grid-cols-2 gap-20 mb-20 text-sm border-b border-slate-100 pb-20">
+        <div>
+          <p className="text-[#d4af37] font-bold uppercase mb-4 tracking-widest">Informations Client</p>
+          <p className="text-2xl font-light">{invoice.customer_name}</p>
+          <p className="text-slate-400 mt-2 italic">{invoice.customer_email}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[#d4af37] font-bold uppercase mb-4 tracking-widest">Établissement</p>
+          <p className="font-bold text-lg">{settings.legal_name || business.name}</p>
+          <p className="text-slate-500 mt-1">{settings.address}</p>
+        </div>
       </div>
-    </div>
-    <div className="grid grid-cols-2 gap-20 mb-20 text-sm border-b border-slate-100 pb-20">
-      <div>
-        <p className="text-[#d4af37] font-bold uppercase mb-4 tracking-widest">Guest Information</p>
-        <p className="text-2xl font-light">{invoice.customer_name}</p>
-        <p className="text-slate-400 mt-2 italic">{invoice.customer_email}</p>
-      </div>
-      <div className="text-right">
-        <p className="text-[#d4af37] font-bold uppercase mb-4 tracking-widest">Establishment</p>
-        <p className="font-bold text-lg">{settings.legal_name || business.name}</p>
-        <p className="text-slate-500 mt-1">{settings.address}</p>
-      </div>
-    </div>
-    <table className="w-full text-sm mb-20">
-      <thead>
-        <tr className="text-left text-[#d4af37] font-bold uppercase tracking-widest text-[10px] border-b border-slate-100">
-          <th className="py-4">Service Description</th>
-          <th className="py-4 text-right">Charges</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-50">
-        {invoice.items.map((it, i) => (
-          <tr key={i}>
-            <td className="py-6 italic">{it.name} <span className="text-[10px] not-italic opacity-40 ml-2">(× {it.qty})</span></td>
-            <td className="py-6 text-right font-bold tracking-widest">{(it.qty * it.price).toLocaleString()}</td>
+      <table className="w-full text-sm mb-20">
+        <thead>
+          <tr className="text-left text-[#d4af37] font-bold uppercase tracking-widest text-[10px] border-b border-slate-100">
+            <th className="py-4">Description des Services</th>
+            <th className="py-4 text-right">Montant</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
-    <div className="flex justify-between items-end">
-      <div className="text-[10px] uppercase tracking-[0.3em] opacity-30 italic">Thank you for staying with us</div>
-      <div className="text-right">
-        <p className="text-[#d4af37] text-xs font-bold uppercase mb-2 tracking-widest">Total Folio</p>
-        <p className="text-5xl font-light tracking-tighter">{invoice.total.toLocaleString()} <span className="text-2xl font-normal opacity-40">{invoice.currency}</span></p>
+        </thead>
+        <tbody className="divide-y divide-slate-50">
+          {invoice.items.map((it, i) => (
+            <tr key={i}>
+              <td className="py-6 italic">{it.name} <span className="text-[10px] not-italic opacity-40 ml-2">(× {it.qty})</span></td>
+              <td className="py-6 text-right font-bold tracking-widest">{(it.qty * it.price).toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="flex justify-between items-end mb-10">
+        <VerificationFooter business={business} invoice={invoice} />
+        <div className="text-right">
+          <p className="text-[#d4af37] text-xs font-bold uppercase mb-2 tracking-widest">Total Folio</p>
+          <p className="text-5xl font-light tracking-tighter">{invoice.total.toLocaleString()} <span className="text-2xl font-normal opacity-40">{invoice.currency}</span></p>
+        </div>
+      </div>
+      <div className="text-center text-[10px] uppercase tracking-[0.3em] opacity-30 italic border-t border-slate-100 pt-10">
+        Document authentifié par QR Code - FASO-INVEST PAY
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // 23. MINIMALIST BENTO
 export const MinimalistBento = ({ invoice, business, kind = "invoice" }: TemplateProps) => {
