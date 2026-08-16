@@ -42,7 +42,9 @@ export default function Shop() {
     const orderToken = params.get("order");
     if (orderToken && /^[a-f0-9]{16,64}$/i.test(orderToken)) {
       const payRef = params.get("pay_ref");
-      navigate(`/order/${orderToken}${payRef ? `?pay_ref=${encodeURIComponent(payRef)}` : ""}`, { replace: true });
+      const orderUrl = `/order/${orderToken}${payRef ? `?pay_ref=${encodeURIComponent(payRef)}` : ""}`;
+      console.log("Redirecting to order tracking:", orderUrl);
+      navigate(orderUrl, { replace: true });
       return;
     }
     const templateId = params.get("template_id");
