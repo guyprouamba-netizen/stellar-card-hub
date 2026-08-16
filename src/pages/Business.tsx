@@ -580,9 +580,8 @@ export default function BusinessPage() {
                          );
                       })}
                     </div>
-                      })}
-                    </div>
                   )}
+                </section>
                 </section>
 
                 )}
