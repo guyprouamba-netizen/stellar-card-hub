@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@/lib/server-fn";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, ArrowDownLeft, ArrowUpRight, CreditCard, History,
   UserCircle, LogOut, Plus, Snowflake, Loader2,
