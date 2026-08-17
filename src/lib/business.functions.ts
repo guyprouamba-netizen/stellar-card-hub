@@ -43,10 +43,11 @@ export const addProductMedia = (data: { product_id: string; type: "image" | "vid
 export const deleteProductMedia = (id: string) => callApi("deleteProductMedia", { id });
 
 // --- Categories ---
-export const listProductCategories = (business_id: string) => callApi("listProductCategories", { business_id });
-export const createProductCategory = (data: { business_id: string; name: string; description?: string }) =>
-  callApi("createProductCategory", data);
-export const deleteProductCategory = (id: string) => callApi("deleteProductCategory", { id });
+export const listProductCategories = (business_id?: string) => callApi("listProductCategories", { business_id });
+export const adminListProductCategories = () => callApi("adminListProductCategories", {});
+export const adminUpsertProductCategory = (data: { id?: string; name: string; description?: string; position?: number; is_active?: boolean }) =>
+  callApi("adminUpsertProductCategory", data);
+export const adminDeleteProductCategory = (id: string) => callApi("adminDeleteProductCategory", { id });
 
 
 // --- Project API keys / webhooks (passerelle) ---

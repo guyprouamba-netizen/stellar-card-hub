@@ -16,8 +16,9 @@ import { getGatewayFeeConfig, adminUpdateGatewayFeeConfig } from "@/lib/business
 import { toast } from "sonner";
 import { AnalyticsSection } from "@/components/admin/analytics-section";
 import { DashboardAiAssistant } from "@/components/admin/ai-assistant";
+import { ProductCategoriesTab } from "@/components/admin/product-categories-tab";
 
-type Tab = "users" | "flow" | "analytics" | "assistant" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "businesses" | "shop-templates" | "sms-requests" | "settings";
+type Tab = "users" | "flow" | "analytics" | "assistant" | "strowallet" | "payments" | "kyc" | "withdrawals" | "referrals" | "businesses" | "shop-templates" | "sms-requests" | "product-categories" | "settings";
 
 function AdminPage() {
   const navigate = useNavigate();
@@ -77,6 +78,7 @@ function AdminPage() {
               {tab === "businesses" && <BusinessesTab businesses={data.businesses ?? []} />}
               {tab === "shop-templates" && <ShopTemplatesTab />}
               {tab === "sms-requests" && <SmsRequestsTab />}
+              {tab === "product-categories" && <ProductCategoriesTab />}
               {tab === "settings" && <SettingsTab />}
             </>
           )}
@@ -118,6 +120,7 @@ function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "businesses", label: "Entreprises", Icon: Server },
     { id: "shop-templates", label: "Templates Boutique", Icon: Store },
     { id: "sms-requests", label: "Demandes Sender ID", Icon: MessageSquare },
+    { id: "product-categories", label: "Catégories produits", Icon: Store },
     { id: "settings", label: "Paramètres", Icon: SlidersHorizontal },
   ];
   async function logout() { await supabase.auth.signOut(); navigate("/"); }

@@ -342,72 +342,6 @@ function computeMomoTransferFees(amount: number, cfg: { fee_bps: number; fee_fla
   return Math.max(0, pct + Math.max(0, Math.floor(cfg.fee_flat_xof)));
 }
 
-  async createPaydunyaPayment({ data, user, admin }) {
-    const amount = Math.floor(Number(data?.amount || 0));
-    const businessId = data?.business_id;
-    if (!amount || amount < 100) throw new Error("Montant invalide (min 100 XOF)");
-    if (!businessId) throw new Error("business_id requis");
-
-    await assertBusinessOwner(admin, user.id, businessId);
-    const { data: biz } = await admin.from("businesses").select("name").eq("id", businessId).maybeSingle();
-
-    const invoice = await PD.createInvoice({
-      amount,
-      description: `Paiement Boutique ${biz?.name || ""}`,
-      callback_url: `${Deno.env.get("PUBLIC_URL")}/api/webhooks/paydunya`,
-      return_url: `${data.origin || ""}/dashboard`,
-      cancel_url: `${data.origin || ""}/dashboard`,
-      customer: {
-        name: user.user_metadata?.full_name || "Client",
-        phone: user.phone || ""
-      }
-    });
-
-    return invoice;
-  },
-
-  async verifyPaydunyaPayment({ data, admin }) {
-    const token = data?.token;
-    if (!token) throw new Error("Token Paydunya manquant");
-    const result = await PD.verifyInvoice(token);
-    return result;
-  },
-
-  async cashoutPaydunya({ data, user, admin }) {
-    const businessId = data?.business_id;
-    const amount = Math.floor(Number(data?.amount || 0));
-    const channel = data?.channel; // e.g. 'orange-money-bf'
-    const phone = data?.phone;
-    
-    if (!amount || amount < 100) throw new Error("Montant invalide");
-    if (!phone) throw new Error("Numéro de téléphone requis");
-    
-    await assertBusinessOwner(admin, user.id, businessId);
-    const { data: b } = await admin.from("businesses").select("balance, name").eq("id", businessId).single();
-    if (Number(b.balance) < amount) throw new Error("Solde boutique insuffisant");
-
-    const result = await PD.createDisbursement({
-      amount,
-      recipient_phone: phone,
-      recipient_name: user.user_metadata?.full_name || "Marchand",
-      account_alias: phone,
-      disburse_channel: channel || "orange-money-bf"
-    });
-
-    if (result.response_code === "00") {
-      await admin.from("businesses").update({ balance: Number(b.balance) - amount }).eq("id", businessId);
-      await admin.from("transactions").insert({
-        user_id: user.id, type: "withdrawal", status: "success",
-        amount, currency: "XOF", provider: "paydunya",
-        description: `Retrait Paydunya (${channel})`,
-        metadata: { business_id: businessId, paydunya_res: result }
-      });
-    }
-
-    return result;
-  },
-
-
 async function loadPaypalWithdrawConfig(admin: any) {
   const keys = ["paypal_wd_fee_bps", "paypal_wd_fee_flat_xof", "paypal_wd_min_xof", "paypal_wd_max_xof", "paypal_wd_enabled"];
   const { data } = await admin.from("platform_config").select("key,value").in("key", keys);
@@ -693,32 +627,52 @@ const H1: Record<string, any> = {
   },
 
   async listProductCategories(args: any) {
-    await assertBusinessOwner(args.admin, args.user.id, args.data.business_id);
     const { data: rows, error } = await args.admin.from("product_categories")
       .select("*")
-      .eq("business_id", args.data.business_id)
-      .order("position", { ascending: true });
+      .is("business_id", null)
+      .eq("is_active", true)
+      .order("position", { ascending: true })
+      .order("name", { ascending: true });
     if (error) throw new Error(error.message);
     return rows ?? [];
   },
-  async createProductCategory(args: any) {
-    await assertBusinessOwner(args.admin, args.user.id, args.data.business_id);
-    const name = String(args.data?.name || "").trim();
-    if (name.length < 2) throw new Error("Nom de catégorie requis");
-    const slug = slugify(name) + "-" + randomHex(2);
-    const { data: row, error } = await args.admin.from("product_categories").insert({
-      business_id: args.data.business_id, name, slug, 
-      description: args.data.description || null,
-      position: args.data.position || 0
-    }).select("*").single();
+  async adminListProductCategories(args: any) {
+    if (!(await isAdmin(args.admin, args.user.id))) throw new Error("Forbidden");
+    const { data: rows, error } = await args.admin.from("product_categories")
+      .select("*")
+      .is("business_id", null)
+      .order("position", { ascending: true })
+      .order("name", { ascending: true });
     if (error) throw new Error(error.message);
-    return row;
+    return rows ?? [];
   },
-  async deleteProductCategory(args: any) {
-    const { data: cat } = await args.admin.from("product_categories").select("business_id").eq("id", args.data.id).maybeSingle();
-    if (!cat) throw new Error("Catégorie introuvable");
-    await assertBusinessOwner(args.admin, args.user.id, cat.business_id);
-    await args.admin.from("product_categories").delete().eq("id", args.data.id);
+  async adminUpsertProductCategory(args: any) {
+    if (!(await isAdmin(args.admin, args.user.id))) throw new Error("Forbidden");
+    const d = args.data || {};
+    const name = String(d.name || "").trim();
+    if (name.length < 2) throw new Error("Nom de catégorie requis");
+    const row: any = {
+      business_id: null,
+      name,
+      description: d.description || null,
+      position: Number(d.position) || 0,
+      is_active: d.is_active === false ? false : true,
+    };
+    if (d.id) {
+      const { data: up, error } = await args.admin.from("product_categories")
+        .update(row).eq("id", d.id).select("*").single();
+      if (error) throw new Error(error.message);
+      return up;
+    }
+    row.slug = slugify(name) + "-" + randomHex(2);
+    const { data: ins, error } = await args.admin.from("product_categories").insert(row).select("*").single();
+    if (error) throw new Error(error.message);
+    return ins;
+  },
+  async adminDeleteProductCategory(args: any) {
+    if (!(await isAdmin(args.admin, args.user.id))) throw new Error("Forbidden");
+    const { error } = await args.admin.from("product_categories").delete().eq("id", args.data.id).is("business_id", null);
+    if (error) throw new Error(error.message);
     return { ok: true };
   },
 

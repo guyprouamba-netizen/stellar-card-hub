@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Package, Plus, Trash2, Eye, EyeOff, Image as ImageIcon, Loader2, ExternalLink, Download, Settings2, FileUp, FolderPlus } from "lucide-react";
+import { Package, Plus, Trash2, Eye, EyeOff, Image as ImageIcon, Loader2, ExternalLink, Download, Settings2, FileUp } from "lucide-react";
 import {
   listBusinessProducts, createProduct, updateProduct, deleteProduct,
-  listProductCategories, createProductCategory, deleteProductCategory,
+  listProductCategories,
   addProductMedia, deleteProductMedia,
 } from "@/lib/business.functions";
 import { uploadBusinessMedia } from "@/lib/upload";
@@ -42,7 +42,6 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
   const [uploadingFile, setUploadingFile] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
-  const [newCat, setNewCat] = useState("");
 
   async function refresh() {
     try { 
@@ -69,16 +68,6 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
       setDraft((d) => ({ ...d, media: [...d.media, url], image_url: d.image_url || url }));
     } catch (e: any) { toast.error(e.message); }
     finally { setUploading(false); }
-  }
-
-  async function onAddCategory() {
-    if (!newCat.trim()) return;
-    try {
-      await createProductCategory({ business_id: businessId, name: newCat.trim() });
-      setNewCat("");
-      refresh();
-      toast.success("Catégorie créée ✅");
-    } catch (e: any) { toast.error(e.message); }
   }
 
   async function onUploadFile(file: File) {
@@ -172,12 +161,9 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
                     <option value="">-- Catégorie --</option>
                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
-                <div className="flex gap-2">
-                    <input value={newCat} onChange={(e) => setNewCat(e.target.value)} placeholder="Nouvelle catégorie..." className={FIELD} />
-                    <button onClick={onAddCategory} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted hover:bg-border">
-                        <FolderPlus className="h-5 w-5" />
-                    </button>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                    Les catégories sont définies par l'administrateur de la plateforme.
+                </p>
             </div>
         </div>
         <textarea value={draft.description} onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
