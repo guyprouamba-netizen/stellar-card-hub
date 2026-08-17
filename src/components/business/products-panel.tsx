@@ -168,7 +168,43 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
         </div>
         <textarea value={draft.description} onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
             rows={3} placeholder="Description" className={`${FIELD} mt-4`} />
-        
+
+        <div className="mt-4">
+          <label className="mb-2 block text-xs font-semibold text-muted-foreground">
+            Images du produit ({draft.media.length}/5)
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {draft.media.map((url, i) => (
+              <div key={i} className="relative h-20 w-20 overflow-hidden rounded-xl border border-border">
+                <img src={url} alt="" className="h-full w-full object-cover" />
+                <button
+                  onClick={() => setDraft((d) => ({
+                    ...d,
+                    media: d.media.filter((_, idx) => idx !== i),
+                    image_url: d.image_url === url ? (d.media.filter((_, idx) => idx !== i)[0] || "") : d.image_url,
+                  }))}
+                  className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+            {draft.media.length < 5 && (
+              <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary">
+                {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />}
+                <span className="text-[10px]">Ajouter</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={uploading}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); e.target.value = ""; }}
+                />
+              </label>
+            )}
+          </div>
+        </div>
+
         <div className="mt-4 flex flex-wrap gap-2">
             <button onClick={onCreate} disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2 text-sm font-bold text-primary-foreground">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Ajouter
@@ -182,6 +218,13 @@ export default function ProductsPanel({ businessId, shopSlug }: { businessId: st
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {items.map((p) => (
             <div key={p.id} className="rounded-2xl border border-border bg-card p-4 transition hover:border-primary/50">
+              {p.image_url ? (
+                <img src={p.image_url} alt={p.name} className="mb-3 h-32 w-full rounded-xl object-cover" />
+              ) : (
+                <div className="mb-3 flex h-32 w-full items-center justify-center rounded-xl bg-surface-2 text-muted-foreground">
+                  <ImageIcon className="h-6 w-6" />
+                </div>
+              )}
               <div className="flex items-start justify-between gap-2">
                  <p className="font-bold truncate">{p.name}</p>
                  <button onClick={() => onDelete(p)} className="p-1 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
