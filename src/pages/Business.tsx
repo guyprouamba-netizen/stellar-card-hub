@@ -76,6 +76,11 @@ export default function BusinessPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<string>("overview");
   const [configProject, setConfigProject] = useState<Project | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const allNavItems = NAV.flatMap((n) => [n, ...(n.sub || [])]);
+  const currentNavLabel = allNavItems.find((n) => n.id === tab)?.label
+    || (tab === "contracts" ? "Contrats & Factures" : "Menu");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -269,7 +274,7 @@ export default function BusinessPage() {
       <header className="sticky top-0 z-30 border-b border-border bg-surface-1/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
-            <Link to="/dashboard" className="grid h-9 w-9 place-items-center rounded-xl border border-border hover:bg-muted">
+            <Link to="/dashboard" title="Retour au menu principal" className="grid h-9 w-9 place-items-center rounded-xl border-2 border-orange-500 text-orange-500 hover:bg-orange-500/10">
               <ArrowLeft className="h-4 w-4" />
             </Link>
             <div className="flex items-center gap-2">
@@ -343,15 +348,76 @@ export default function BusinessPage() {
             </aside>
 
             <div className="min-w-0 flex-1">
-            {/* Menu horizontal (mobile) */}
-            <div className="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-1 lg:hidden">
-              {NAV.flatMap(n => [n, ...(n.sub || [])]).map((n) => (
-                <button key={n.id} onClick={() => setTab(n.id)}
-                  className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${tab === n.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-surface-2 text-muted-foreground"}`}>
-                  {n.label}
-                </button>
-              ))}
+            {/* Menu mobile : bouton "Menu" + bouton "Retour au menu" pour chaque onglet */}
+            <div className="mb-4 flex items-center gap-2 lg:hidden">
+              <button
+                onClick={() => setMenuOpen(true)}
+                className="flex items-center gap-2 rounded-xl border-2 border-orange-500 bg-orange-500/10 px-3 py-2 text-xs font-bold text-orange-500 shadow-sm active:scale-95 transition"
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                Menu
+              </button>
+              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-orange-500" />
+                <span className="truncate text-xs font-semibold text-foreground">{currentNavLabel}</span>
+              </div>
             </div>
+
+            {/* Panneau menu vertical coulissant (mobile) */}
+            {menuOpen && (
+              <div className="fixed inset-0 z-40 lg:hidden">
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
+                <nav className="absolute inset-y-0 left-0 w-[82%] max-w-xs overflow-y-auto border-r-2 border-orange-500 bg-surface-1 p-3 shadow-2xl animate-in slide-in-from-left duration-200">
+                  <div className="mb-3 flex items-center justify-between px-1">
+                    <p className="font-[Space_Grotesk] text-sm font-bold">Menu Business</p>
+                    <button onClick={() => setMenuOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg border border-border hover:bg-muted">
+                      <span className="text-lg leading-none">×</span>
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    {NAV.map((n) => {
+                      const Icon = n.icon;
+                      const isMainActive = tab === n.id || (n.sub?.some((s) => tab === s.id));
+                      return (
+                        <div key={n.id} className="space-y-1">
+                          <button
+                            onClick={() => { setTab(n.id); if (!n.sub) setMenuOpen(false); }}
+                            className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${isMainActive ? "border-orange-500 bg-orange-500/10 text-orange-500" : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                          >
+                            <Icon className="h-4 w-4" /> {n.label}
+                          </button>
+                          {n.sub && isMainActive && (
+                            <div className="ml-9 space-y-1">
+                              {n.sub.map((s) => (
+                                <button key={s.id} onClick={() => { setTab(s.id); setMenuOpen(false); }}
+                                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-xs font-medium transition ${tab === s.id ? "text-orange-500" : "text-muted-foreground hover:text-foreground"}`}>
+                                  {s.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {current && (
+                      <div className="mt-3 space-y-1 border-t border-border pt-3">
+                        <Link to={`/business/${current.id}/accounting`} onClick={() => setMenuOpen(false)} className="flex items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground">
+                          <BarChart3 className="h-4 w-4" /> Comptabilité
+                        </Link>
+                        <Link to={`/business/${current.id}/contracts`} onClick={() => setMenuOpen(false)} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${tab === "contracts" ? "border-orange-500 bg-orange-500/10 text-orange-500" : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+                          <Receipt className="h-4 w-4" /> Contrats & Factures
+                        </Link>
+                      </div>
+                    )}
+                    <div className="mt-3 border-t border-border pt-3">
+                      <Link to="/dashboard" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 rounded-xl border border-orange-500/50 px-3 py-2.5 text-sm font-semibold text-orange-500 hover:bg-orange-500/10">
+                        <ArrowLeft className="h-4 w-4" /> Menu principal
+                      </Link>
+                    </div>
+                  </div>
+                </nav>
+              </div>
+            )}
 
             {current && (
               <div className="space-y-6">
@@ -995,4 +1061,3 @@ function ShopTemplateSelector({ business, onUpdated }: { business: Biz & { templ
     </section>
   );
 }
-
