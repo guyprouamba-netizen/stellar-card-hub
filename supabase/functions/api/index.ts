@@ -533,7 +533,8 @@ async function assertBusinessOwner(admin: any, userId: string, businessId: strin
 async function loadGatewayFeeConfig(admin: any) {
   const keys = [
     "gateway_fee_bps", "gateway_fee_flat_xof", "gateway_min_xof", "gateway_enabled",
-    "business_cashout_fee_bps", "business_cashout_fee_flat_xof", "business_cashout_min_xof"
+    "business_cashout_fee_bps", "business_cashout_fee_flat_xof", "business_cashout_min_xof",
+    "gateway_sms_price", "admin_notification_phone",
   ];
   const { data } = await admin.from("platform_config").select("key,value").in("key", keys);
   const map = new Map((data ?? []).map((r: any) => [r.key, r.value]));
@@ -543,11 +544,15 @@ async function loadGatewayFeeConfig(admin: any) {
     return Number.isFinite(n) ? n : d;
   };
   const enabledRaw = map.get("gateway_enabled");
+  const phoneRaw = map.get("admin_notification_phone");
+  const phone = typeof phoneRaw === "object" && phoneRaw !== null ? (phoneRaw as any).value : phoneRaw;
   return {
     fee_bps: num("gateway_fee_bps", 200),
     fee_flat_xof: num("gateway_fee_flat_xof", 0),
     min_xof: num("gateway_min_xof", 100),
     enabled: enabledRaw === undefined || enabledRaw === null ? true : Boolean(enabledRaw),
+    sms_price: num("gateway_sms_price", 20),
+    admin_notification_phone: phone ? String(phone) : "",
     business_cashout_fee_bps: num("business_cashout_fee_bps", 100), // Default 1%
     business_cashout_fee_flat_xof: num("business_cashout_fee_flat_xof", 100), // Default 100 XOF
     business_cashout_min_xof: num("business_cashout_min_xof", 500),
