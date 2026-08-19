@@ -63,7 +63,8 @@ function AdminPage() {
     <div className="min-h-screen bg-background text-foreground">
       <div className="flex">
         <AdminSidebar tab={tab} setTab={setTab} />
-        <main className="flex-1 px-4 py-8 sm:px-8">
+        <main className="min-w-0 flex-1 px-3 py-4 sm:px-6 sm:py-8 md:px-8">
+          <AdminMobileNav tab={tab} setTab={setTab} />
           {tab === "analytics" ? <AnalyticsSection />
             : tab === "assistant" ? <DashboardAiAssistant days={30} />
             : isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : isError || !data ? <AdminLoadError error={error} onRetry={() => refetch()} busy={isFetching} /> : (
