@@ -1085,6 +1085,7 @@ function GatewayFeeSettings() {
         fee_bps: Number(cfg.fee_bps), fee_flat_xof: Number(cfg.fee_flat_xof),
         min_xof: Number(cfg.min_xof), enabled: !!cfg.enabled,
         sms_price: Number(cfg.sms_price || 20),
+        admin_notification_phone: String(cfg.admin_notification_phone ?? ""),
         business_cashout_fee_bps: Number(cfg.business_cashout_fee_bps),
         business_cashout_fee_flat_xof: Number(cfg.business_cashout_fee_flat_xof),
         business_cashout_min_xof: Number(cfg.business_cashout_min_xof),
@@ -1118,6 +1119,12 @@ function GatewayFeeSettings() {
           <input type="number" value={cfg.sms_price || 20} onChange={(e) => setCfg((d: any) => ({ ...d, sms_price: Number(e.target.value) }))}
             className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none" />
           <span className="mt-1 block text-[11px] text-muted-foreground">Prix payé par le marchand par SMS envoyé.</span>
+        </label>
+        <label className="block">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Téléphone notifications admin</span>
+          <input type="tel" value={cfg.admin_notification_phone ?? ""} onChange={(e) => setCfg((d: any) => ({ ...d, admin_notification_phone: e.target.value }))}
+            className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none" placeholder="226XXXXXXXX" />
+          <span className="mt-1 block text-[11px] text-muted-foreground">Numéro qui reçoit les alertes SMS (demandes Sender ID, etc.).</span>
         </label>
       </div>
 
