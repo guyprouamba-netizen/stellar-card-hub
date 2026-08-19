@@ -63,7 +63,8 @@ function AdminPage() {
     <div className="min-h-screen bg-background text-foreground">
       <div className="flex">
         <AdminSidebar tab={tab} setTab={setTab} />
-        <main className="flex-1 px-4 py-8 sm:px-8">
+        <main className="min-w-0 flex-1 px-3 py-4 sm:px-6 sm:py-8 md:px-8">
+          <AdminMobileNav tab={tab} setTab={setTab} />
           {tab === "analytics" ? <AnalyticsSection />
             : tab === "assistant" ? <DashboardAiAssistant days={30} />
             : isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : isError || !data ? <AdminLoadError error={error} onRetry={() => refetch()} busy={isFetching} /> : (
@@ -105,9 +106,7 @@ function AdminLoadError({ error, onRetry, busy }: { error: unknown; onRetry: () 
   );
 }
 
-function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
-  const navigate = useNavigate();
-  const items: Array<{ id: Tab; label: string; Icon: any }> = [
+const ADMIN_NAV_ITEMS: Array<{ id: Tab; label: string; Icon: any }> = [
     { id: "flow", label: "Flux financier", Icon: TrendingUp },
     { id: "analytics", label: "Analytique", Icon: BarChart3 },
     { id: "assistant", label: "Assistant IA", Icon: Sparkles },
@@ -122,7 +121,43 @@ function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
     { id: "sms-requests", label: "Demandes Sender ID", Icon: MessageSquare },
     { id: "product-categories", label: "Catégories produits", Icon: Store },
     { id: "settings", label: "Paramètres", Icon: SlidersHorizontal },
-  ];
+];
+
+function AdminMobileNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+  const navigate = useNavigate();
+  async function logout() { await supabase.auth.signOut(); navigate("/"); }
+  return (
+    <div className="mb-4 md:hidden">
+      <div className="flex items-center justify-between gap-2">
+        <Link to="/" className="flex min-w-0 items-center gap-2">
+          <img src={logo} className="h-8 w-8 shrink-0 rounded-lg" alt="" />
+          <div className="min-w-0">
+            <div className="truncate text-sm font-bold">FASO INVEST PAY</div>
+            <div className="text-[9px] uppercase tracking-widest text-primary">Super-admin</div>
+          </div>
+        </Link>
+        <button onClick={logout} aria-label="Déconnexion" className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border text-muted-foreground">
+          <LogOut className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="-mx-3 mt-3 flex gap-2 overflow-x-auto px-3 pb-2 no-scrollbar">
+        {ADMIN_NAV_ITEMS.map((it) => (
+          <button key={it.id} onClick={() => setTab(it.id)}
+            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${tab === it.id ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>
+            <it.Icon className="h-3.5 w-3.5" /> {it.label}
+          </button>
+        ))}
+        <Link to="/admin/sms" className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+          <SlidersHorizontal className="h-3.5 w-3.5" /> Notifications SMS
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function AdminSidebar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+  const navigate = useNavigate();
+  const items = ADMIN_NAV_ITEMS;
   async function logout() { await supabase.auth.signOut(); navigate("/"); }
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-border bg-card/30 p-4 md:flex md:flex-col">
@@ -1050,6 +1085,7 @@ function GatewayFeeSettings() {
         fee_bps: Number(cfg.fee_bps), fee_flat_xof: Number(cfg.fee_flat_xof),
         min_xof: Number(cfg.min_xof), enabled: !!cfg.enabled,
         sms_price: Number(cfg.sms_price || 20),
+        admin_notification_phone: String(cfg.admin_notification_phone ?? ""),
         business_cashout_fee_bps: Number(cfg.business_cashout_fee_bps),
         business_cashout_fee_flat_xof: Number(cfg.business_cashout_fee_flat_xof),
         business_cashout_min_xof: Number(cfg.business_cashout_min_xof),
@@ -1083,6 +1119,12 @@ function GatewayFeeSettings() {
           <input type="number" value={cfg.sms_price || 20} onChange={(e) => setCfg((d: any) => ({ ...d, sms_price: Number(e.target.value) }))}
             className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none" />
           <span className="mt-1 block text-[11px] text-muted-foreground">Prix payé par le marchand par SMS envoyé.</span>
+        </label>
+        <label className="block">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Téléphone notifications admin</span>
+          <input type="tel" value={cfg.admin_notification_phone ?? ""} onChange={(e) => setCfg((d: any) => ({ ...d, admin_notification_phone: e.target.value }))}
+            className="mt-1 w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none" placeholder="226XXXXXXXX" />
+          <span className="mt-1 block text-[11px] text-muted-foreground">Numéro qui reçoit les alertes SMS (demandes Sender ID, etc.).</span>
         </label>
       </div>
 

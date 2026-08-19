@@ -203,4 +203,31 @@
   .animate-marquee {
     animation: marquee 35s linear infinite;
   }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
 }
+
+/* ---- Responsive globales (toutes marques / tous écrans) ---- */
+html, body, #root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+img, video, canvas, svg { max-width: 100%; }
+
+@media (max-width: 767px) {
+  /* Tableaux : défilement horizontal au lieu de casser la mise en page */
+  table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+  /* Évite le zoom automatique iOS sur les champs */
+  input, select, textarea { font-size: max(16px, 1em); }
+}
+
+/* Les mots/URL très longs ne débordent plus */
+p, span, td, th, h1, h2, h3, h4, li, a { overflow-wrap: anywhere; }
