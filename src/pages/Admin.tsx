@@ -1128,8 +1128,7 @@ function GatewayFeeSettings() {
         </label>
       </div>
 
-      <div className="mt-8 pt-8 border-t border-border">
-        <h2 className="font-[Space_Grotesk] text-xl font-bold">Frais de retrait Marchand</h2>
+<div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl">        <h2 className="font-[Space_Grotesk] text-xl font-bold">Frais de retrait Marchand</h2>
         <p className="mt-1 text-sm text-muted-foreground">Frais appliqués lorsque les marchands retirent leur solde cumulé.</p>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           {num("business_cashout_fee_bps", "Commission retrait (points de base)", "100 = 1% du montant")}
